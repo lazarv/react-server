@@ -1,0 +1,42 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {},
+  "keywords": [
+    "react",
+    "ssr",
+    "esm",
+    "server"
+  ],
+  "author": "lazarv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lazarv/react-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "link:packages/react-server"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.22.9",
+    "@babel/plugin-syntax-import-assertions": "^7.22.5",
+    "@babel/preset-react": "^7.22.5",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.45.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-jsx-a11y": "^6.7.1",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-simple-import-sort": "^10.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.1.6",
+    "typescript-plugin-css-modules": "^5.0.1"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ]
+}

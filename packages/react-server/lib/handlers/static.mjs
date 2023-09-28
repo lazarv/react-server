@@ -47,14 +47,32 @@ export default async function staticHandler(dir, options = {}) {
       const isBrotli = acceptEncoding?.includes("br");
       const isGzip = acceptEncoding?.includes("gzip");
 
-      if (isBrotli && files.has(`${pathname}/index.html.br`)) {
-        pathname = `${pathname}/index.html.br`;
+      const basename = `${pathname}/index.html`.replace(/^\/+/g, "");
+      if (isBrotli && files.has(`${basename}.br`)) {
+        pathname = `${basename}.br`;
         contentEncoding = "br";
-      } else if (isGzip && files.has(`${pathname}/index.html.gz`)) {
-        pathname = `${pathname}/index.html.gz`;
+      } else if (isGzip && files.has(`${basename}.gz`)) {
+        pathname = `${basename}.gz`;
         contentEncoding = "gzip";
-      } else if (files.has(`${pathname}/index.html`)) {
-        pathname = `${pathname}/index.html`;
+      } else if (files.has(basename)) {
+        pathname = basename;
+      }
+    }
+
+    if (isRSC) {
+      const acceptEncoding = context.request.headers.get("accept-encoding");
+      const isBrotli = acceptEncoding?.includes("br");
+      const isGzip = acceptEncoding?.includes("gzip");
+
+      const basename = `${pathname}/x-component.rsc`.replace(/^\/+/g, "");
+      if (isBrotli && files.has(`${basename}.br`)) {
+        pathname = `${basename}.br`;
+        contentEncoding = "br";
+      } else if (isGzip && files.has(`${basename}.gz`)) {
+        pathname = `${basename}.gz`;
+        contentEncoding = "gzip";
+      } else if (files.has(basename)) {
+        pathname = basename;
       }
     }
 

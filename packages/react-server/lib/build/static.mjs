@@ -39,11 +39,15 @@ export default async function staticSiteGenerator(root, options) {
       const render = await ssrHandler();
       await Promise.all(
         paths.map(async ({ path }) => {
+          const url = new URL(
+            `http${config.server?.https ? "s" : ""}://${
+              config.host ?? "localhost"
+            }:${config.port ?? 3000}${path}`
+          );
           const stream = await render({
+            url,
             request: {
-              url: `http${config.server?.https ? "s" : ""}://${
-                config.host ?? "localhost"
-              }:${config.port ?? 3000}${path}`,
+              url,
               headers: new Headers({
                 accept: "text/html",
               }),
@@ -53,7 +57,8 @@ export default async function staticSiteGenerator(root, options) {
           await mkdir(join(cwd(), ".react-server/dist", path), {
             recursive: true,
           });
-          const basename = `${path.replace(/^\/+/g, "")}/index.html`;
+          const normalizedPath = path.replace(/^\/+/g, "");
+          const basename = `${normalizedPath}/index.html`.replace(/^\/+/g, "");
           const filename = join(cwd(), ".react-server/dist", basename);
           const gzip = createGzip();
           const brotli = createBrotliCompress();
@@ -69,11 +74,73 @@ export default async function staticSiteGenerator(root, options) {
             stat(`${filename}.gz`),
             stat(`${filename}.br`),
           ]);
+
           console.log(
             `${colors.dim(".react-server/dist/")}${colors.green(
               path.length < 30
-                ? `${path.replace(/^\/+/g, "")}${colors.cyan("/index.html")}`
-                : `${path.replace(/^\/+/g, "").slice(0, 27)}...`
+                ? `${normalizedPath}${colors.cyan(
+                    `${path.replace(/^\/+/g, "") ? "/" : ""}index.html`
+                  )}`
+                : `${normalizedPath.slice(0, 27)}...`
+            )}${`${" ".repeat(Math.max(0, 30 - path.length))}${colors.gray(
+              colors.bold(size(htmlStat.size))
+            )} ${colors.dim(
+              `│ gzip: ${size(gzipStat.size)} │ brotli: ${size(
+                brotliStat.size
+              )}`
+            )}`}`
+          );
+        })
+      );
+
+      await Promise.all(
+        paths.map(async ({ path }) => {
+          const url = new URL(
+            `http${config.server?.https ? "s" : ""}://${
+              config.host ?? "localhost"
+            }:${config.port ?? 3000}${path}`
+          );
+          const stream = await render({
+            url,
+            request: {
+              url,
+              headers: new Headers({
+                accept: "text/x-component",
+              }),
+            },
+          });
+          const html = await stream.text();
+          await mkdir(join(cwd(), ".react-server/dist", path), {
+            recursive: true,
+          });
+          const normalizedPath = path.replace(/^\/+/g, "");
+          const basename = `${normalizedPath}/x-component.rsc`.replace(
+            /^\/+/g,
+            ""
+          );
+          const filename = join(cwd(), ".react-server/dist", basename);
+          const gzip = createGzip();
+          const brotli = createBrotliCompress();
+          const gzipWriteStream = createWriteStream(`${filename}.gz`);
+          const brotliWriteStream = createWriteStream(`${filename}.br`);
+          await Promise.all([
+            pipeline(Readable.from(html), gzip, gzipWriteStream),
+            pipeline(Readable.from(html), brotli, brotliWriteStream),
+            writeFile(filename, html, "utf8"),
+          ]);
+          const [htmlStat, gzipStat, brotliStat] = await Promise.all([
+            stat(filename),
+            stat(`${filename}.gz`),
+            stat(`${filename}.br`),
+          ]);
+
+          console.log(
+            `${colors.dim(".react-server/dist/")}${colors.green(
+              path.length < 30
+                ? `${normalizedPath}${colors.cyan(
+                    `${path.replace(/^\/+/g, "") ? "/" : ""}x-component.rsc`
+                  )}`
+                : `${normalizedPath.slice(0, 27)}...`
             )}${`${" ".repeat(Math.max(0, 30 - path.length))}${colors.gray(
               colors.bold(size(htmlStat.size))
             )} ${colors.dim(

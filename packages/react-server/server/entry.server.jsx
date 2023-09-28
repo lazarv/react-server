@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { ReadableStream } from "node:stream/web";
 
-import { ActionStateContext } from "@lazarv/react-server/client/ActionState.mjs";
+import { ActionStateContext } from "@lazarv/react-server/client/ActionState.jsx";
 import {
   concat,
   copyBytesFrom,

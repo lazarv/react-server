@@ -1,4 +1,4 @@
-import { ParamsContext } from "@lazarv/react-server/client/Params.mjs";
+import { ParamsContext } from "@lazarv/react-server/client/Params.jsx";
 import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
 import { useRequest, useUrl } from "@lazarv/react-server/server/request.mjs";
 import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";

@@ -792,22 +792,42 @@ export async function render(Component) {
                     yield encoder.encode(remoteFlightResponse + buffer);
                   }
 
-                  if (!hydrated && bootstrapped && hasClientComponent) {
+                  if (
+                    !hydrated &&
+                    bootstrapped &&
+                    (hasClientComponent || import.meta.env.DEV)
+                  ) {
                     if (isRemote) {
                       yield new Uint8Array(concat(bootstrapScripts));
                     } else {
-                      // TODO: bootstrapScripts should be buffers instead of strings, fix script parts should be pre-encoded buffers then yield copy of those buffers
-                      const script = encoder.encode(
-                        `<script>document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
-                          ""
-                        )}</script>${bootstrapModules
-                          .map(
-                            (mod) =>
-                              `<script type="module" src="${mod}" async></script>`
-                          )
-                          .join("")}`
-                      );
-                      yield script;
+                      if (hasClientComponent) {
+                        // TODO: bootstrapScripts should be buffers instead of strings, fix script parts should be pre-encoded buffers then yield copy of those buffers
+                        const script = encoder.encode(
+                          `${
+                            import.meta.env.DEV
+                              ? `<script>self.__react_server_hydrate__</script>`
+                              : ""
+                          }<script>document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
+                            ""
+                          )}</script>${bootstrapModules
+                            .map(
+                              (mod) =>
+                                `<script type="module" src="${mod}" async></script>`
+                            )
+                            .join("")}`
+                        );
+                        yield script;
+                      } else if (import.meta.env.DEV) {
+                        const script = encoder.encode(
+                          `${bootstrapModules
+                            .map(
+                              (mod) =>
+                                `<script type="module" src="${mod}" async></script>`
+                            )
+                            .join("")}`
+                        );
+                        yield script;
+                      }
                     }
 
                     hydrated = true;

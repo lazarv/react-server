@@ -65,7 +65,11 @@ export default function viteReactServer(type) {
 				window.$RefreshSig$ = () => (type) => type;
 				window.__vite_plugin_react_preamble_installed__ = true;
 				console.log("Hot Module Replacement installed.");
-				import("${__require.resolve("@lazarv/react-server/client/entry.client.jsx")}");
+        if (typeof __react_server_hydrate__ !== "undefined") {
+				  import("${__require.resolve(
+            "@lazarv/react-server/client/entry.client.jsx"
+          )}");
+        }
 			`;
       }
     },

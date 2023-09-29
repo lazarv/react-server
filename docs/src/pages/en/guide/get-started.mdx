@@ -1,0 +1,44 @@
+---
+title: Get Started
+slug: ""
+order: 0
+---
+
+# Get Started
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org) v20.5
+- [pnpm](https://pnpm.io)
+
+## Install
+
+```sh
+pnpm add @lazarv/react-server
+```
+
+## Our first application
+
+```tsx
+export default function App() {
+  return <div>Hello World</div>;
+}
+```
+
+## Development mode
+
+```sh
+pnpm exec react-server ./App.tsx --open
+```
+
+## Production build
+
+```sh
+pnpm exec react-server build ./App.tsx
+```
+
+## Production mode
+
+```sh
+pnpm exec react-server start
+```

@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "react-server",
+    "build": "react-server build --export",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-router": "workspace:^",
+    "highlight.js": "^11.8.0",
+    "rehype-highlight": "^6.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "sass": "^1.63.6",
+    "tailwindcss": "^3.3.3"
+  }
+}

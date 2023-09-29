@@ -1,0 +1,372 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+}
+
+body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+main {
+  @apply container max-w-screen-xl mx-auto;
+
+  display: flex;
+  flex-direction: column;
+
+  @media screen(sm) {
+    flex-direction: row;
+  }
+}
+
+header {
+  grid-area: header;
+  @apply w-full border-b self-center sticky top-0 h-12 flex items-center justify-center bg-white z-10 drop-shadow-xl;
+
+  & nav {
+    justify-content: flex-end;
+    @apply container max-w-screen-xl px-4 flex gap-4 self-center;
+
+    & a:first-child {
+      & h4 {
+        @apply text-[0.5rem] font-normal m-0 -mt-0.5 leading-none;
+      }
+
+      & h3 {
+        @apply text-lg font-semibold m-0 -mt-0.5 leading-none;
+      }
+
+      @media screen(sm) {
+        display: inline-block;
+      }
+    }
+  }
+
+  &::before {
+    position: absolute;
+    width: 100%;
+    height: 100vh;
+    left: 0;
+    bottom: 100%;
+    content: "";
+    z-index: 0;
+    background: white;
+  }
+
+  @media screen(sm) {
+    @apply mb-4;
+  }
+}
+
+nav {
+  & a {
+    position: relative;
+    white-space: nowrap;
+
+    &:first-child {
+      margin-right: auto;
+    }
+
+    &.active {
+      @apply cursor-default;
+    }
+
+    &:hover:not(.active) {
+      &::after {
+        position: absolute;
+        width: 100%;
+        display: block;
+        content: "";
+        height: 2px;
+        width: 100%;
+        left: 50%;
+        bottom: 1px;
+        transform: translateX(-50%);
+        animation: 200ms both indicator;
+
+        @apply from-rose-400 via-fuchsia-500 to-indigo-500 bg-gradient-to-r;
+
+        @keyframes indicator {
+          from {
+            width: 0;
+          }
+        }
+
+        @media (prefers-reduced-motion) {
+          animation: none;
+        }
+      }
+    }
+  }
+}
+
+#sidebar-toggle {
+  opacity: 0;
+  height: 0;
+
+  &:checked {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+
+    & ~ aside {
+      transform: translateX(0);
+
+      &::after {
+        width: 200vw;
+        opacity: 1;
+      }
+    }
+  }
+
+  @media screen(sm) {
+    display: none;
+  }
+}
+
+#sidebar-toggle-label {
+  @apply w-full mb-4 border-b cursor-pointer;
+
+  & label {
+    @apply flex items-center p-4 text-xs cursor-pointer;
+
+    & img {
+      @apply inline-block h-4 w-4 mr-1;
+    }
+  }
+
+  @media screen(sm) {
+    display: none;
+  }
+}
+
+aside {
+  transform: translateX(-100vw);
+  transition: transform 0.5s ease-in-out;
+  grid-area: sidebar;
+  justify-items: left;
+  padding: 4rem 1rem 1rem 1rem;
+  width: 100%;
+  z-index: 1;
+  view-transition-name: sidebar;
+
+  @media (prefers-reduced-motion) {
+    view-transition-name: none;
+  }
+
+  position: fixed;
+  z-index: 1;
+  background: white;
+  max-width: min-content;
+  top: 0;
+  height: 100vh;
+  box-shadow: 0 0 8px 8px rgba(0, 0, 0, 0.5);
+
+  @media screen(sm) {
+    position: relative;
+    box-shadow: none;
+    transform: none;
+    padding-top: 0rem;
+  }
+
+  &::after {
+    display: block;
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 100%;
+    width: 0;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none;
+  }
+
+  & nav {
+    display: flex;
+    flex-direction: column;
+
+    & a {
+      display: inline-flex;
+      white-space: nowrap;
+
+      &:first-child {
+        margin-right: 0;
+      }
+    }
+  }
+}
+
+article {
+  grid-area: main;
+  width: 100%;
+  justify-items: left;
+  view-transition-name: content;
+
+  &[data-path="/en"] {
+    view-transition-name: index;
+
+    @media (prefers-reduced-motion) {
+      view-transition-name: none;
+    }
+  }
+
+  @media (prefers-reduced-motion) {
+    view-transition-name: none;
+  }
+
+  @apply container max-w-screen-xl px-4 mb-8;
+
+  & h1,
+  & h2,
+  & h3,
+  & h4,
+  & h5 {
+    @apply font-semibold mb-3.5;
+  }
+
+  & h1 {
+    @apply text-2xl;
+  }
+
+  & h2 {
+    @apply text-xl;
+  }
+
+  & h3 {
+    @apply text-lg;
+  }
+
+  & h4 {
+    @apply text-base;
+  }
+
+  & h5 {
+    @apply text-sm;
+  }
+
+  & > p {
+    @apply text-base mb-4;
+  }
+
+  & pre code {
+    @apply rounded-lg mb-4;
+  }
+
+  & ul {
+    @apply list-disc list-inside mb-4;
+  }
+
+  & a {
+    @apply text-indigo-500 hover:underline;
+  }
+}
+
+footer {
+  @apply w-full py-8 mt-auto items-center justify-center text-center text-xs border-t bg-white;
+}
+
+::view-transition-old(sidebar):only-child {
+  animation:
+    0.5s both fade-out,
+    0.5s both sidebar-out;
+}
+
+::view-transition-new(sidebar):only-child {
+  animation:
+    0.5s both fade-in,
+    0.5s both sidebar-in;
+}
+
+::view-transition-old(content) {
+  animation:
+    0.5s both fade-out,
+    0.5s both slide-to-down;
+}
+
+::view-transition-new(content) {
+  animation:
+    0.5s both fade-in,
+    0.5s both slide-from-right;
+}
+
+::view-transition-old(index) {
+  animation:
+    0.5s both fade-out,
+    0.5s both index-out;
+}
+
+::view-transition-new(index) {
+  animation:
+    0.5s both fade-in,
+    0.5s both index-in;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-from-right {
+  from {
+    transform: translateX(100vw);
+  }
+}
+
+@keyframes slide-to-left {
+  to {
+    transform: translateX(-100vw);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-to-down {
+  to {
+    transform: translateY(100vh);
+    opacity: 1;
+  }
+}
+
+@keyframes sidebar-in {
+  from {
+    transform: translateX(-100vw);
+  }
+}
+
+@keyframes sidebar-out {
+  to {
+    transform: translateX(-100vw);
+  }
+}
+
+@keyframes index-in {
+  from {
+    transform: scale(0.9);
+  }
+}
+
+@keyframes index-out {
+  to {
+    transform: scale(0.9);
+  }
+}

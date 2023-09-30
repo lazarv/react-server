@@ -806,7 +806,7 @@ export async function render(Component) {
                         const script = encoder.encode(
                           `${
                             import.meta.env.DEV
-                              ? `<script>self.__react_server_hydrate__</script>`
+                              ? `<script>self.__react_server_hydrate__ = true;</script>`
                               : ""
                           }<script>document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
                             ""

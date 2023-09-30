@@ -554,6 +554,7 @@ export async function render(Component) {
                 const forwardReader = forwardStream.getReader();
 
                 let hydrated = false;
+                let hmr = false;
                 let hasClientComponent = false;
                 let bootstrapped = false;
                 const bootstrapScripts = standalone
@@ -817,7 +818,8 @@ export async function render(Component) {
                             .join("")}`
                         );
                         yield script;
-                      } else if (import.meta.env.DEV) {
+                        hydrated = true;
+                      } else if (!hmr && import.meta.env.DEV) {
                         const script = encoder.encode(
                           `${bootstrapModules
                             .map(
@@ -827,10 +829,9 @@ export async function render(Component) {
                             .join("")}`
                         );
                         yield script;
+                        hmr = true;
                       }
                     }
-
-                    hydrated = true;
                   }
 
                   _resolve();

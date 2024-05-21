@@ -1,0 +1,210 @@
+---
+title: HTTP context
+category: Framework
+order: 0
+---
+
+# HTTP context
+
+With `@lazarv/react-server` you have access to everything related to the context of server-side rendering. This guide provides information for you how to access the HTTP context.
+
+The following hooks / functions are available for you to access and manipulate the HTTP context.
+
+All of these functions are available also in middlewares and route handlers with `@lazarv/react-server-router` as these are framework specific and not related to React.
+
+With `useHttpContext()` you can get access to the full HTTP context.
+
+```jsx
+import { useHttpContext } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  const context = useHttpContext();
+
+  return (
+    <div>
+      <p>Method: {context.request.method}</p>
+      <p>URL: {context.request.url.toString()}</p>
+      <p>Request Headers: {JSON.stringify(context.request.headers)}</p>
+      <p>Request Cookies: {JSON.stringify(context.request.cookie)}</p>
+    </div>
+  );
+};
+```
+
+## Request
+
+With `useRequest()` you can get access to the full HTTP request.
+
+```jsx
+import { useRequest } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  const request = useRequest();
+
+  return (
+    <div>
+      <p>Method: {request.method}</p>
+      <p>URL: {request.url.toString()}</p>
+      <p>Headers: {JSON.stringify(request.headers)}</p>
+      <p>Cookies: {JSON.stringify(request.cookie)}</p>
+    </div>
+  );
+};
+```
+
+## Response
+
+With `useResponse()` you can get access to the full HTTP response.
+
+```jsx
+import { useResponse } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  const response = useResponse();
+
+  //TODO: ???
+  return (
+    <div>
+      <p>Headers: {JSON.stringify(response.headers)}</p>
+      <p>Cookies: {JSON.stringify(response.cookie)}</p>
+    </div>
+  );
+};
+```
+
+## URL
+
+With `useUrl()` you can get access to the URL of the current request.
+
+```jsx
+import { useUrl } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  const url = useUrl();
+
+  return <p>URL: {url.href}</p>;
+};
+```
+
+## Headers
+
+With `headers()` you can get access to the headers of the current request.
+
+```jsx
+import { headers } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  const requestHeaders = headers();
+
+  return <p>Headers: {JSON.stringify(requestHeaders)}</p>;
+};
+```
+
+You can also modify the headers of the current response.
+
+```jsx
+import { headers } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  headers({
+    "X-My-Header": "My value",
+  });
+
+  return <p>Headers: {JSON.stringify(headers())}</p>;
+};
+```
+
+## Cookies
+
+With `cookie()` you can get access to the cookies of the current request.
+
+```jsx
+import { cookie } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  const requestCookies = cookie();
+
+  return <p>Cookies: {JSON.stringify(requestCookies)}</p>;
+};
+```
+
+You can also set or delete cookies in the context of the current response.
+
+```jsx
+import { setCookie, deleteCookie } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  setCookie("my-cookie", "my-value");
+  deleteCookie("other-cookie");
+
+  return <p>Cookies: {JSON.stringify(cookie())}</p>;
+};
+```
+
+## Status
+
+With `status()` you can set the status code and text of the current response.
+
+```jsx
+import { status } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  status(404, "Not found");
+
+  return <p>Not Found</p>;
+};
+```
+
+## Form Data
+
+With `useFormData()` you can get access to the form data of the current request.
+
+```jsx
+import { useFormData } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  const formData = useFormData();
+
+  return (
+    <p>Form data: {JSON.stringify(Object.fromEntries(formData.entries()))}</p>
+  );
+};
+```
+
+## Redirect
+
+With `redirect()` you can redirect the current request to another URL.
+
+> **Warning:** the `redirect()` function will throw an error which will be caught by the framework and will result in a redirect. When you want to use `redirect()` in a `try`/`catch` block, make sure you rethrow the error if it's a redirect error.
+
+```jsx
+import { redirect } from "@lazarv/react-server";
+
+const MyComponent = () => {
+  redirect("https://example.com");
+};
+```
+
+## Rewrite
+
+With `rewrite()` you can rewrite the current request to another URL. This is useful to modify the URL pathname of the current request in a middleware function.
+
+```jsx
+import { rewrite, useUrl } from "@lazarv/react-server";
+
+export function init$() {
+  return async () => {
+    const { pathname } = useUrl();
+
+    if (pathname === "/old-pathname") {
+      rewrite("/new-pathname");
+    }
+  };
+}
+
+export default function MyComponent() {
+  const { pathname } = useUrl();
+
+  return <p>Current pathname: {pathname}</p>;
+}
+```

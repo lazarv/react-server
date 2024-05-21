@@ -1,0 +1,35 @@
+.root {
+  img {
+    @apply w-24 h-24 rounded-full mb-4 bg-gray-200;
+  }
+
+  h1 {
+    @apply text-lg font-medium m-0;
+  }
+
+  h2 {
+    @apply text-base font-normal text-gray-500 m-0;
+  }
+
+  p {
+    @apply my-4;
+  }
+
+  a svg path {
+    @apply fill-black;
+  }
+}
+
+:global(.dark) .root {
+  h1 {
+    @apply text-gray-300;
+  }
+
+  h2 {
+    @apply text-gray-400;
+  }
+
+  a svg path {
+    @apply fill-gray-300;
+  }
+}

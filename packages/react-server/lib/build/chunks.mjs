@@ -1,26 +1,16 @@
 import * as dependencies from "./dependencies.mjs";
 
-export const serverChunks = {
-  react: [
-    dependencies.react,
-    dependencies.reactJsxRuntime,
-    dependencies.reactDomClient,
-    dependencies.reactDomServerEdge,
-    dependencies.reactServerDomWebpackClientBrowser,
-    dependencies.reactServerDomWebpackClientEdge,
-    dependencies.reactServerDomWebpackServerEdge,
-    dependencies.reactErrorBoundary,
-    dependencies.scheduler,
-  ],
-};
-
-export const clientChunks = {
-  react: [
-    dependencies.react,
-    dependencies.reactJsxRuntime,
-    dependencies.reactDomClient,
-    dependencies.reactServerDomWebpackClientBrowser,
-    dependencies.reactErrorBoundary,
-    dependencies.scheduler,
-  ],
+export const chunks = {
+  [dependencies.react.replace(".react-server.js", ".js")]: "react",
+  [dependencies.reactJsxRuntime.replace(".react-server.js", ".js")]:
+    "react/jsx-runtime",
+  [dependencies.reactDom.replace(".react-server.js", ".js")]: "react-dom",
+  [dependencies.reactDomClient.replace(".react-server.js", ".js")]:
+    "react-dom/client",
+  [dependencies.reactServerDomWebpackClientBrowser.replace(
+    ".react-server.js",
+    ".js"
+  )]: "react-server-dom-webpack/client.browser",
+  [dependencies.reactErrorBoundary]: "react-error-boundary",
+  [dependencies.scheduler]: "scheduler",
 };

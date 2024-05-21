@@ -1,0 +1,88 @@
+---
+title: Static generation
+category: Router
+order: 6
+---
+
+# Static generation
+
+When you mark a page as static `@lazarv/react-server-router` will add the page as an export to `@lazarv/react-server`'s exports.
+
+To mark a page as static, create a file with the matching path for the page with the `.static.{js,mjs,ts,mts,json}` extension and export default an array or a function returning an array of possible parameters for that route. The function can also be an async function.
+
+For pages without any parameters, export default `true`.
+
+```ts
+export default true;
+```
+
+The smallest possible way to mark a page as static is by creating a `.static.json` file defining `true`.
+
+```json
+true
+```
+
+> **Warning:** you can't use `true` as the value for routes with parameters. You need to define an array of possible parameters or a function returning an array of possible parameters. If you use `true` for a route with parameters, the build will fail.
+
+## Dynamic routes
+
+For dynamic routes, if you have a page at `/users/:id` you can create a file at `/users/[id].static.ts` with the following content:
+
+```ts
+export default [{ id: 1 }, { id: 2 }, { id: 3 }];
+```
+
+You can either export an array of route parameters or an async function returning an array of route parameters.
+
+```ts
+export default async () => [{ id: 1 }, { id: 2 }, { id: 3 }];
+```
+
+Your function will be executed at build time and the result will be used to generate the static pages.
+
+## Static JSON data
+
+You can use static JSON data for your static pages by creating a file with the `.static.json` extension.
+
+For example, if you have a page at `/users/:id` you can create a file at `/users/[id].static.json` with the following content:
+
+```json
+[{ "id": 1 }, { "id": 2 }, { "id": 3 }]
+```
+
+> **Note:** we define static routes independently from the page component to separate the concerns of routing and page rendering. This way `@lazarv/react-server-router` doesn't need to import the code defining your page component during build time, which can be useful if you have a large dependency tree for your page component or your code has side-effects.
+
+## Override static paths
+
+You can override all static paths by defining an `export()` function in your `@lazarv/react-server` configuration file. This function will be called with an array of all static paths and you can return a new array of paths to override the default static paths. In this example, we remove the `/en` prefix from all static paths.
+
+```js
+export default {
+  export(paths) {
+    return paths.map(({ path }) => ({
+      path: path.replace(/^\/en/, ""),
+    }));
+  },
+};
+```
+
+You can also use this function to add new static paths or remove some paths.
+
+```js
+export default {
+  export(paths) {
+    return [
+      ...paths,
+      { path: "/new-page" },
+    ];
+  },
+};
+```
+
+```js
+export default {
+  export(paths) {
+    return paths.filter(({ path }) => path !== "/en");
+  },
+};
+```

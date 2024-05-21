@@ -56,6 +56,7 @@ export default async function dev(root, options) {
             }, 1000);
           }
         });
+      await new Promise((resolve) => listener.on("close", resolve));
     });
   } catch (e) {
     console.error(colors.red(e.stack));

@@ -1,10 +1,15 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { loadConfig } from "@lazarv/react-server/config";
 import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import merge from "@lazarv/react-server/lib/utils/merge.mjs";
+import { getContext } from "@lazarv/react-server/server/context.mjs";
 import { logger } from "@lazarv/react-server/server/logger.mjs";
+import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
 import micromatch from "micromatch";
@@ -57,6 +62,7 @@ const PAGE_EXTENSION_TYPES = [
   "state",
   "metadata",
   "template",
+  "static",
 ];
 
 export default function viteReactServerRouter() {
@@ -150,9 +156,11 @@ export default function viteReactServerRouter() {
         const path =
           `/${directory}${
             normalized[Math.max(0, normalized.length - 3)] === "index" ||
-            PAGE_EXTENSION_TYPES.includes(
-              normalized[Math.max(0, normalized.length - 3)]
-            )
+            normalized[Math.max(0, normalized.length - 3)] === "page" ||
+            (normalized[Math.max(0, normalized.length - 2)] !== "page" &&
+              PAGE_EXTENSION_TYPES.includes(
+                normalized[Math.max(0, normalized.length - 3)]
+              ))
               ? ""
               : `${directory ? "/" : ""}${normalized
                   .slice(
@@ -180,11 +188,12 @@ export default function viteReactServerRouter() {
         const type =
           normalized[0][0] === "@"
             ? "outlet"
-            : PAGE_EXTENSION_TYPES.includes(
-                normalized[Math.max(0, normalized.length - 2)]
-              )
-            ? normalized[Math.max(0, normalized.length - 2)]
-            : "page";
+            : normalized[Math.max(0, normalized.length - 2)] === "page" ||
+                !PAGE_EXTENSION_TYPES.includes(
+                  normalized[Math.max(0, normalized.length - 2)]
+                )
+              ? "page"
+              : normalized[Math.max(0, normalized.length - 2)];
         const ext = normalized[normalized.length - 1];
         return [src, path, outlet, type, ext];
       })
@@ -208,8 +217,10 @@ export default function viteReactServerRouter() {
     }
   }
 
+  let hasMdx = false;
   async function setupMdx() {
-    if (mdxCounter > 0 && !mdx) {
+    if (mdxCounter > 0 && !hasMdx) {
+      hasMdx = true;
       mdx = (await import("@mdx-js/rollup")).default({
         remarkPlugins: [
           (await import("remark-frontmatter")).default,
@@ -218,7 +229,8 @@ export default function viteReactServerRouter() {
         ],
         rehypePlugins: routerConfig.mdx?.rehypePlugins ?? [],
       });
-    } else if (mdxCounter === 0 && mdx) {
+    } else if (mdxCounter === 0 && hasMdx) {
+      hasMdx = false;
       mdx = null;
     }
   }
@@ -424,10 +436,60 @@ export default function viteReactServerRouter() {
     configureServer(server) {
       viteServer = server;
     },
-    async config(_, { command }) {
+    async config(config, { command }) {
       viteCommand = command;
       if (viteCommand === "build") {
         await config_init$();
+        const options = getContext(BUILD_OPTIONS);
+
+        let paths = [];
+        for (const [, path] of manifest.pages.filter(
+          ([, , outlet, type]) => !outlet && type === "page"
+        )) {
+          if (/\[[^/]+\]/.test(path)) {
+            try {
+              const staticSrc = manifest.pages.find(
+                ([, staticPath, , staticType]) =>
+                  staticType === "static" && staticPath === path
+              )?.[0];
+
+              const key = relative(cwd, dirname(staticSrc));
+              const filename = basename(staticSrc);
+              const src = join(cwd, key, filename);
+              const hash = createHash("shake256", { outputLength: 4 })
+                .update(await readFile(src, "utf8"))
+                .digest("hex");
+              const exportEntry = pathToFileURL(
+                join(cwd, ".react-server", "static", `${hash}.mjs`)
+              );
+              config.build.rollupOptions.input[join("static", hash)] =
+                staticSrc;
+              paths.push(async () => {
+                const staticPaths = (await import(exportEntry)).default;
+                if (typeof staticPaths === "boolean" && staticPaths) {
+                  if (/\[[^\]]+\]/.test(path)) {
+                    throw new Error(
+                      `Static path ${colors.green(
+                        path
+                      )} contains dynamic segments`
+                    );
+                  }
+                  return path;
+                }
+                if (typeof staticPaths === "function") {
+                  return await staticPaths();
+                }
+                return staticPaths;
+              });
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+        if (paths.length > 0) {
+          options.export = true;
+          options.exportPaths = paths;
+        }
       } else {
         return new Promise((resolve, reject) => {
           const configWatcher = watch([
@@ -560,7 +622,9 @@ export default function viteReactServerRouter() {
           ([outletSrc, , name, type]) =>
             (type === "page" || type === "default") &&
             name &&
-            dirname(outletSrc).includes(dirname(src))
+            layouts.some(([layoutSrc]) =>
+              dirname(outletSrc).includes(dirname(layoutSrc))
+            )
         );
         const errorBoundaries = manifest.pages.filter(
           ([, errorPath, , type]) =>
@@ -583,7 +647,7 @@ export default function viteReactServerRouter() {
             import * as sys from "@lazarv/react-server/lib/sys.mjs";`
               : ""
           }
-          import { cache$ } from "@lazarv/react-server";
+          import { withCache } from "@lazarv/react-server";
           import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
           import { ${
             viteCommand === "build" ? "MANIFEST, " : ""
@@ -595,12 +659,6 @@ export default function viteReactServerRouter() {
               : ""
           }
           ${loadings.length > 0 ? `import { Suspense } from "react";` : ""}
-          ${layouts
-            .map(
-              ([src], i) =>
-                `import __react_server_router_layout_${i}__ from "${src}";`
-            )
-            .join("\n")}
           ${outlets
             .map(
               ([src], i) =>
@@ -642,7 +700,24 @@ export default function viteReactServerRouter() {
           }
           const { default: Page, ...pageProps } = await import("${src}");
           const ttl = pageProps?.frontmatter?.ttl ?? pageProps?.frontmatter?.revalidate ?? pageProps?.ttl ?? pageProps?.revalidate;
-          const CachedPage = typeof ttl === 'number' ? cache$(Page, ttl) : Page;
+          const CachedPage = typeof ttl === "number" ? withCache(Page, ttl) : Page;
+          ${layouts
+            .map(
+              ([src], i) =>
+                `const { default: __react_server_router_layout_${i}__, ...__react_server_router_layout_props_${i}__ } = await import("${src}");`
+            )
+            .join("\n")}
+          ${layouts
+            .map(
+              (_, i) =>
+                `const __react_server_router_layout_ttl_${i}__ =
+            __react_server_router_layout_props_${i}__?.frontmatter?.ttl
+            ?? __react_server_router_layout_props_${i}__?.frontmatter?.revalidate
+            ?? __react_server_router_layout_props_${i}__?.ttl
+            ?? __react_server_router_layout_props_${i}__?.revalidate;
+          const __react_server_router_layout_cached_${i}__ = typeof __react_server_router_layout_ttl_${i}__ === "number" ? withCache(__react_server_router_layout_${i}__, __react_server_router_layout_ttl_${i}__) : __react_server_router_layout_${i}__;`
+            )
+            .join("\n")}
 
           let stylesCache = null;
           export function init$() {
@@ -688,7 +763,7 @@ export default function viteReactServerRouter() {
               }`
                   : `const pageModule = __require.resolve("${src}", { paths: [cwd] });
               pageStyles.push(...collectStylesheets?.(pageModule));
-              
+
               ${[
                 ...layouts,
                 ...outlets,
@@ -795,7 +870,7 @@ export default function viteReactServerRouter() {
                     ([, loadingPath]) => loadingPath === layoutPath
                   );
                   if (loading && !errorBoundary) loadingIndex.push(i);
-                  return `<__react_server_router_layout_${i}__ ${outlets
+                  return `<__react_server_router_layout_cached_${i}__ ${outlets
                     .filter(
                       ([outletSrc, , , type]) =>
                         type === "page" &&
@@ -821,10 +896,10 @@ export default function viteReactServerRouter() {
                                 fallback
                               )}__/>`
                             : loading
-                            ? `<__react_server_router_loading_${loadings.indexOf(
-                                loading
-                              )}__/>`
-                            : "null"
+                              ? `<__react_server_router_loading_${loadings.indexOf(
+                                  loading
+                                )}__/>`
+                              : "null"
                         }}>`
                       : ""
                   }`;
@@ -842,7 +917,7 @@ export default function viteReactServerRouter() {
                       loadingIndex.includes(layouts.length - 1 - i)
                         ? "</Suspense>"
                         : ""
-                    }</__react_server_router_layout_${
+                    }</__react_server_router_layout_cached_${
                       layouts.length - 1 - i
                     }__>`
                 )
@@ -861,6 +936,7 @@ export default function viteReactServerRouter() {
           return res;
         }
       }
+      return null;
     },
   };
 }

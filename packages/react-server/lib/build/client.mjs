@@ -6,12 +6,11 @@ import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
-import packageJson from "../../package.json" assert { type: "json" };
 import viteReactServer from "../plugins/react-server.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
-import { clientChunks } from "./chunks.mjs";
+import { chunks } from "./chunks.mjs";
 import customLogger from "./custom-logger.mjs";
 import { clientAlias } from "./resolve.mjs";
 
@@ -22,7 +21,7 @@ export default async function clientBuild(_, options) {
   banner("client", options.dev);
   const config = forRoot();
   const buildConfig = {
-    root: __require.resolve(`${packageJson.name}`),
+    root: cwd,
     resolve: {
       alias: [...clientAlias(options.dev), ...(config.resolve?.alias ?? [])],
     },
@@ -32,7 +31,7 @@ export default async function clientBuild(_, options) {
       outDir: ".react-server",
       emptyOutDir: false,
       minify: options.minify,
-      manifest: "client/manifest.json",
+      manifest: "client/browser-manifest.json",
       sourcemap: options.sourcemap,
       rollupOptions: {
         preserveEntrySignatures: "allow-extension",
@@ -40,17 +39,21 @@ export default async function clientBuild(_, options) {
           dir: ".react-server",
           format: "esm",
           entryFileNames: "[name].[hash].mjs",
-          chunkFileNames: "client/@lazarv/react-server/[name].[hash].mjs",
+          chunkFileNames: "client/[name].[hash].mjs",
           manualChunks: (id) => {
-            if (clientChunks["react"].includes(id)) return "react";
+            if (id in chunks) return chunks[id];
             if (id.includes("@lazarv/react-server") && id.endsWith(".mjs")) {
-              return "react-server";
+              return "@lazarv/react-server";
             }
           },
         },
         input: {
           "client/index": __require.resolve(
             "@lazarv/react-server/client/entry.client.jsx",
+            { paths: [cwd] }
+          ),
+          "client/@lazarv/react-server/client/ClientOnly": __require.resolve(
+            "@lazarv/react-server/client/ClientOnly.jsx",
             { paths: [cwd] }
           ),
           "client/@lazarv/react-server/client/ClientOnly": __require.resolve(
@@ -74,6 +77,12 @@ export default async function clientBuild(_, options) {
               "@lazarv/react-server/client/ReactServerComponent.jsx",
               { paths: [cwd] }
             ),
+          "client/@lazarv/react-server/client/navigation": __require.resolve(
+            "@lazarv/react-server/client/navigation.jsx",
+            {
+              paths: [cwd],
+            }
+          ),
         },
         plugins: [
           replace({
@@ -87,13 +96,13 @@ export default async function clientBuild(_, options) {
       },
     },
     plugins: [
-      viteReactServer("client"),
+      viteReactServer("client", (name) => `client/${name}`),
       viteReact(),
       ...(config.plugins ?? []),
     ],
     css: {
       ...config.css,
-      postcss: process.cwd(),
+      postcss: cwd,
     },
   };
 

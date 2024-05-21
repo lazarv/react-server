@@ -1,0 +1,75 @@
+---
+title: Advanced
+category: Router
+order: 2
+---
+
+# Advanced
+
+In this chapter, we'll cover some advanced topics related to file-system based routing. These are features of the router that you will surely use in a more advanced application, but you might not need in a simple one.
+
+## Outlets
+
+You can add outlets to your layouts by defining routes in a subdirectory of your layout with a name starting with `@`. When the route under your outlet directory matches the URL, the component exported from that route definition file will be passed as a React prop to your layout component.
+
+```sh
+src
+- (main).layout.jsx
+- @sidebar
+  - (sidebar).page.jsx
+```
+
+```jsx
+// (main).layout.jsx
+
+export default function RootLayout({ sidebar, children }) {
+  return (
+    <main>
+      {sidebar}
+      {children}
+    </main>
+  );
+}
+```
+
+```jsx
+// @sidebar/(sidebar).page.jsx
+
+export default function Sidebar() {
+  return <aside>...</aside>;
+}
+```
+
+## Error handling
+
+You can define a custom error components by creating a route definition file for any path by using the same rules like normal route files, but named `error.jsx`. This file will be used to render the error component when an error occurs during the rendering of a page.
+
+```jsx
+// (root).error.jsx
+
+export default function Error({ error }) {
+  return <div>{error.message}</div>;
+}
+```
+
+You can also define a fallback error component by creating a route definition file for any path by using the same rules like normal route files, but named `fallback.jsx`. This file will be used to render the fallback error component when an error occurs during the rendering of a page and no error component is defined for the error.
+
+```jsx
+// (root).fallback.jsx
+
+export default function FallbackError({ error }) {
+  return <div>{error.message}</div>;
+}
+```
+
+## Loading
+
+You can define a custom loading component by creating a route definition file for any path by using the same rules like normal route files, but named `loading.jsx`. This file will be used to render the loader component while the page is being fetched.
+
+```jsx
+// (root).loading.jsx
+
+export default function Loading() {
+  return <div>Loading...</div>;
+}
+```

@@ -1,0 +1,20 @@
+{
+  "name": "@lazarv/react-server-example-playground",
+  "version": "0.0.0",
+  "description": "@lazarv/react-server Playground example application",
+  "type": "module",
+  "scripts": {
+    "dev": "react-server ./src/index.jsx",
+    "build": "react-server build ./src/index.jsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-router": "workspace:^",
+    "react-click-away-listener": "^2.2.3",
+    "valtio": "^1.11.2"
+  }
+}

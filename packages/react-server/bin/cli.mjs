@@ -1,25 +1,9 @@
 #!/usr/bin/env node
 
-import "./loader.mjs";
-
 import { format } from "node:util";
+import { experimentalWarningSilence } from "../lib/sys.mjs";
 
-if (typeof process !== "undefined") {
-  // patch process.emit to ignore ExperimentalWarning
-  const originalEmit = process.emit;
-  process.emit = function (name, data, ...args) {
-    if (
-      name === "warning" &&
-      typeof data === "object" &&
-      data.name === "ExperimentalWarning"
-      //if you want to only stop certain messages, test for the message here:
-      //&& data.message.includes(`Fetch API`)
-    ) {
-      return false;
-    }
-    return originalEmit.call(process, name, data, ...args);
-  };
-}
+experimentalWarningSilence();
 
 const oldConsoleError = console.error;
 console.error = function (message, ...args) {
@@ -65,9 +49,13 @@ import glob from "fast-glob";
 
 import { argv, exit } from "../lib/sys.mjs";
 
-const { default: packageJson } = await import("../package.json", {
-  assert: { type: "json" },
-});
+// const { default: packageJson } = await import("../package.json", {
+//   assert: { type: "json" },
+// });
+const packageJson = {
+  name: "@lazarv/react-server",
+  version: "0.0.0-development",
+};
 const commands = await glob("commands/*.mjs", {
   cwd: fileURLToPath(new URL(".", import.meta.url)),
 });

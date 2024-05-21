@@ -1,0 +1,54 @@
+---
+title: Vercel
+category: Deploy
+order: 1
+---
+
+# Vercel
+
+To deploy to Vercel, use the `@lazarv/react-server-adapter-vercel` package. This adapter is specifically designed to work with Vercel and it's configuration.
+
+## Installation
+
+First you need to initialize your project with Vercel. You can do this by running the following command:
+
+```sh
+vercel init
+```
+
+At this point you will have a `.vercel` directory with a `project.json` file in it. This file will be used to store the project and organization configuration for your Vercel project.
+
+After you have initialized your project, you can add the `@lazarv/react-server-adapter-vercel` package to your project:
+
+```sh
+pnpm add -D @lazarv/react-server-adapter-vercel
+```
+
+Then you need to add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: '@lazarv/react-server-adapter-vercel',
+};
+```
+
+## Configuration
+
+Configuration for this adapter will be added to your Vercel `config.json` file so you can use all available Vercel configuration options, like headers, redirects, and rewrites.
+
+## Deploy
+
+When using `@lazarv/react-server` with the Vercel adapter, you can deploy your application to Vercel using the following command:
+
+```sh
+pnpm exec react-server build
+vercel deploy --prebuilt
+```
+
+You can also deploy with the `react-server` CLI by using the `deploy` argument:
+
+```sh
+pnpm exec react-server build --deploy
+```
+
+> **Warning:** The Vercel adapter only supports static sites at the moment. If you need runtime server-side rendering, stay tuned for updates.

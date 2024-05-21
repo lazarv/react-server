@@ -1,0 +1,35 @@
+---
+title: Install
+category: Router
+order: 0
+---
+
+# Router
+
+You can extend the basic functionality of `@lazarv/react-server` with a file-system based router. This allows you to create a file-system based routing structure, similar to other meta-frameworks.
+
+## Install
+
+To install the file-system based router for `@lazarv/react-server`, add the `@lazarv/react-server-router` package to your project:
+
+```sh
+pnpm add @lazarv/react-server-router
+```
+
+After this, you no longer need to specify your entrypoint when using the `react-server` CLI. `@lazarv/react-server` will automatically detect the router and use it. You can start your development server just by running the command:
+
+```sh
+pnpm exec react-server
+```
+
+Build your application using the file-system based router by using:
+
+```sh
+pnpm exec react-server build
+```
+
+Start your built production application by using:
+
+```sh
+pnpm exec react-server start
+```

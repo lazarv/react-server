@@ -1,175 +1,151 @@
 import * as acorn from "acorn";
 import * as escodegen from "escodegen";
-import * as estraverse from "estraverse";
 
 export default function useServer() {
+  let viteCommand;
   return {
     name: "use-server",
+    async config(_, { command }) {
+      viteCommand = command;
+    },
     async transform(code, id) {
-      // exclude node_modules
-      if (/node_modules/.test(id)) return;
+      if (!code.includes("use server")) return null;
 
-      if (code.includes('"use server"') || code.includes("'use server'")) {
-        try {
-          const ast = acorn.parse(code, {
-            sourceType: "module",
-            ecmaVersion: 2021,
-            sourceFile: id,
-            locations: true,
-          });
+      const ast = acorn.parse(code, {
+        sourceType: "module",
+        ecmaVersion: 2021,
+        sourceFile: id,
+        locations: true,
+      });
 
-          let serverRoot = false;
-          let exportContext = false;
-          const result = estraverse.replace(ast, {
-            leave(node) {
-              if (
-                node.type === "ExportNamedDeclaration" ||
-                node.type === "ExportDefaultDeclaration"
-              ) {
-                exportContext = false;
-              }
+      const directives = ast.body
+        .filter((node) => node.type === "ExpressionStatement")
+        .map(({ directive }) => directive);
 
-              if (node.type === "Program") {
-                node.body.unshift({
-                  type: "ImportDeclaration",
-                  specifiers: [
-                    {
-                      type: "ImportSpecifier",
-                      imported: {
-                        type: "Identifier",
-                        name: "server$",
-                      },
-                      local: {
-                        type: "Identifier",
-                        name: "__react_server_server$__",
-                      },
-                    },
-                  ],
-                  source: {
-                    type: "Literal",
-                    value: "@lazarv/react-server",
-                  },
-                  loc: {
-                    start: { line: 1, column: 0 },
-                    end: { line: 1, column: 0 },
-                  },
-                });
-              }
-            },
-            enter(node, parent) {
-              if (
-                node.type === "ExpressionStatement" &&
-                node.directive === "use server" &&
-                parent.type === "Program" &&
-                parent.body.indexOf(node) === 0
-              ) {
-                serverRoot = true;
-              }
+      if (!directives.includes("use server")) return null;
+      if (directives.includes("use client"))
+        throw new Error(
+          "Cannot use both 'use client' and 'use server' in the same module."
+        );
 
-              if (
-                node.type === "ExportNamedDeclaration" ||
-                node.type === "ExportDefaultDeclaration"
-              ) {
-                exportContext = true;
-              }
+      if (viteCommand === "build") {
+        ast.body = ast.body.filter(
+          (node) =>
+            node.type !== "ExpressionStatement" ||
+            node.directive !== "use server"
+        );
 
-              if (node.type === "BlockStatement") {
-                exportContext = false;
-              }
+        const gen = escodegen.generate(ast, {
+          sourceMap: true,
+          sourceMapWithCode: true,
+        });
 
-              let actionName;
-              let serverNode;
-              if (
-                (node.type === "FunctionDeclaration" ||
-                  node.type === "FunctionExpression" ||
-                  node.type === "ArrowFunctionExpression") &&
-                ((serverRoot && exportContext) ||
-                  (node.body?.type === "BlockStatement" &&
-                    node.body?.body?.[0]?.type === "ExpressionStatement" &&
-                    node.body?.body?.[0]?.directive === "use server"))
-              ) {
-                if (node.id?.type === "Identifier") {
-                  actionName = node.id.name;
-                }
-                serverNode = {
-                  type: "CallExpression",
-                  callee: {
-                    type: "Identifier",
-                    name: "__react_server_server$__",
-                  },
-                  arguments: [node],
-                  loc: node.loc,
-                };
-              }
-
-              if (serverNode) {
-                if (parent.type === "Property") {
-                  parent.value = serverNode;
-                } else if (parent.type === "ArrayExpression") {
-                  parent.elements[parent.elements.indexOf(node)] = serverNode;
-                } else if (parent.type === "VariableDeclarator") {
-                  parent.init = serverNode;
-                } else if (
-                  parent.type === "AssignmentExpression" ||
-                  parent.type === "AssignmentPattern"
-                ) {
-                  parent.right = serverNode;
-                } else if (parent.type === "ReturnStatement") {
-                  parent.argument = serverNode;
-                } else if (parent.type === "CallExpression") {
-                  parent.arguments[parent.arguments.indexOf(node)] = serverNode;
-                } else if (parent.type === "ExportDefaultDeclaration") {
-                  parent.declaration = serverNode;
-                } else if (parent.type === "ExportNamedDeclaration") {
-                  parent.declaration = {
-                    type: "VariableDeclaration",
-                    kind: "const",
-                    declarations: [
-                      {
-                        type: "VariableDeclarator",
-                        id: {
-                          type: "Identifier",
-                          name: actionName,
-                        },
-                        init: serverNode,
-                      },
-                    ],
-                    loc: parent.declaration.loc,
-                  };
-                } else if (parent.type === "BlockStatement") {
-                  parent.body[parent.body.indexOf(node)] = {
-                    type: "VariableDeclaration",
-                    kind: "const",
-                    declarations: [
-                      {
-                        type: "VariableDeclarator",
-                        id: {
-                          type: "Identifier",
-                          name: actionName,
-                        },
-                        init: serverNode,
-                      },
-                    ],
-                    loc: node.loc,
-                  };
-                }
-              }
-            },
-          });
-
-          const gen = escodegen.generate(result, {
-            sourceMap: true,
-            sourceMapWithCode: true,
-          });
-
-          return {
-            code: gen.code,
-            map: gen.map.toString(),
-          };
-        } catch (e) {
-          console.error(e);
-        }
+        return {
+          code: gen.code,
+          map: gen.map.toString(),
+        };
       }
+
+      const exports = [
+        ...(ast.body.some(
+          (node) =>
+            node.type === "ExportDefaultDeclaration" ||
+            (node.type === "ExportNamedDeclaration" &&
+              node.specifiers?.find(
+                ({ exported }) => exported?.name === "default"
+              ))
+        )
+          ? [
+              {
+                name: "default",
+              },
+            ]
+          : []),
+        ...ast.body
+          .filter((node) => node.type === "ExportNamedDeclaration")
+          .flatMap(({ declaration, specifiers }) => {
+            const names = [
+              ...(declaration?.id?.name &&
+              (declaration?.init?.type === "FunctionExpression" ||
+                declaration.type === "FunctionDeclaration")
+                ? [declaration.id.name]
+                : []),
+              ...(declaration?.declarations?.[0]?.id?.name &&
+              declaration.declarations[0].init.type === "FunctionExpression"
+                ? [declaration.declarations[0].id.name]
+                : []),
+              ...specifiers.map(({ exported }) => exported.name),
+            ];
+            return names.flatMap((name) =>
+              name === "default"
+                ? []
+                : [
+                    {
+                      name,
+                    },
+                  ]
+            );
+          }),
+      ];
+
+      for (const { name } of exports) {
+        ast.body.push({
+          type: "ExpressionStatement",
+          expression: {
+            type: "CallExpression",
+            callee: {
+              type: "Identifier",
+              name: "registerServerReference",
+            },
+            arguments: [
+              {
+                type: "Identifier",
+                name: name,
+              },
+              {
+                type: "Literal",
+                value: id,
+              },
+              {
+                type: "Literal",
+                value: name,
+              },
+            ],
+          },
+        });
+      }
+
+      ast.body.unshift({
+        type: "ImportDeclaration",
+        specifiers: [
+          {
+            type: "ImportSpecifier",
+            imported: {
+              type: "Identifier",
+              name: "registerServerReference",
+            },
+            local: {
+              type: "Identifier",
+              name: "registerServerReference",
+            },
+          },
+        ],
+        source: {
+          type: "Literal",
+          value: "@lazarv/react-server/server/action-register.mjs",
+        },
+        importKind: "value",
+      });
+
+      const gen = escodegen.generate(ast, {
+        sourceMap: true,
+        sourceMapWithCode: true,
+      });
+
+      return {
+        code: gen.code,
+        map: gen.map.toString(),
+      };
     },
   };
 }

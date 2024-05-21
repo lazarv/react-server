@@ -1,0 +1,41 @@
+---
+title: Server components
+order: 2
+---
+
+# Server components
+
+React Server Components are the main building blocks of your application. They are React components that are rendered on the server and streamed to the client as HTML or as a JSON serialized React component tree. The source code of these components will not be sent to the client, only the rendered HTML or JSON.
+
+You can't use stateful React hooks in server components as server components are stateless. To use state for server components, you can use query parameters or cookies.
+
+## Async server components
+
+Server components can be asynchronous. This means that they can fetch data from a database or an API, and then render the result. The rendering will wait for the data to be fetched before sending the HTML or JSON to the client.
+
+```jsx
+export default async function AsyncServerComponent() {
+  const data = await getData();
+  return <div>{data}</div>;
+}
+```
+
+You can also wrap async server components in a `Suspense` component to show a loading indicator while the data is being fetched. Content outside of the `Suspense` component will be rendered immediately, and the async server component will be rendered when the data is ready and then streamed to the client. This type of streaming rendering requires JavaScript enabled on the client.
+
+```jsx
+async function AsyncServerComponent() {
+  const data = await getData();
+  return <div>{data}</div>;
+}
+
+export default function App() {
+  return (
+    <>
+      <h1>My App</h1>
+      <Suspense fallback={<div>Loading...</div>}>
+        <AsyncServerComponent />
+      </Suspense>
+    </>
+  );
+}
+```

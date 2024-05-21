@@ -1,0 +1,29 @@
+---
+title: Markdown
+category: Router
+order: 6
+---
+
+# Markdown
+
+`@lazarv/react-server-router` supports Markdown out of the box. Not just standard Markdown files, but also MDX and any plugin for both Remark and Rehype.
+
+## Usage
+
+To use Markdown or MDX, just create a page with the `.md` or `.mdx` extension. The content of the file will be rendered as a React Server Component.
+
+Create a page named `readme.mdx` with the following content in your root directory for pages:
+
+```md
+# Hello MDX!
+
+This is an MDX page.
+```
+
+This route will available at `/readme` instantly.
+
+Because your Markdown/MDX document will be rendered as a React Server Compoennt, it will also it support all React features, like client components, loading fallbacks and error boundaries. Like on all standard `@lazarv/react-server-router` pages.
+
+Your parent layouts will also be applied to your Markdown/MDX pages.
+
+> **Fun fact:** This documentation website was also created by using MDX with `@lazarv/react-server-router`.

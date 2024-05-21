@@ -1,9 +1,3 @@
-const { readFileSync } = require("fs");
-const { join } = require("path");
-const reactServerPackageJson = JSON.parse(
-  readFileSync(join(__dirname, "./packages/react-server/package.json"), "utf-8")
-);
-
 module.exports = {
   env: {
     browser: true,
@@ -60,11 +54,12 @@ module.exports = {
   plugins: ["react", "simple-import-sort", "jsx-a11y"],
   settings: {
     react: {
-      version: reactServerPackageJson.dependencies.react,
+      version: "experimental",
     },
   },
   rules: {
     "react/prop-types": "off",
     "simple-import-sort/imports": ["error"],
   },
+  exclude: ["./packages/client/react*/**", "./packages/server/react*/**"],
 };

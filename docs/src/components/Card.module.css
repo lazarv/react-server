@@ -1,0 +1,23 @@
+.root {
+  h4 {
+    @apply m-0;
+  }
+
+  h5 {
+    @apply font-normal;
+  }
+
+  img {
+    @apply w-12 h-12 bg-white rounded-lg mb-2 border p-1;
+  }
+
+  p {
+    @apply text-xs;
+  }
+}
+
+:global(.dark) .root {
+  img {
+    @apply bg-gray-800 border-gray-300;
+  }
+}

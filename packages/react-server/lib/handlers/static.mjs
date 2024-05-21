@@ -4,6 +4,10 @@ import { join, relative } from "node:path";
 import glob from "fast-glob";
 import mime from "mime";
 
+import * as sys from "../sys.mjs";
+
+const cwd = sys.cwd();
+
 export default async function staticHandler(dir, options = {}) {
   const files = (
     await glob(`${dir}/**/*`, {
@@ -12,16 +16,13 @@ export default async function staticHandler(dir, options = {}) {
       absolute: true,
     })
   ).reduce((files, file) => {
-    files.set(
-      `/${relative(join(process.cwd(), options.cwd ?? "."), file.path)}`,
-      {
-        ...file,
-        etag: `W/"${file.stats.size}-${file.stats.mtime.getTime()}"`,
-        mime:
-          mime.getType(file.path.replace(/\.(br|gz)$/, "")) ||
-          "application/octet-stream",
-      }
-    );
+    files.set(`/${relative(join(cwd, options.cwd ?? "."), file.path)}`, {
+      ...file,
+      etag: `W/"${file.stats.size}-${file.stats.mtime.getTime()}"`,
+      mime:
+        mime.getType(file.path.replace(/\.(br|gz)$/, "")) ||
+        "application/octet-stream",
+    });
     return files;
   }, new Map());
   const fileCache = new Map();
@@ -38,8 +39,11 @@ export default async function staticHandler(dir, options = {}) {
     }
 
     const accept = context.request.headers.get("accept");
-    const isHTML = accept?.includes("text/html");
     const isRSC = accept?.includes("text/x-component");
+    const isHTML =
+      accept?.includes("text/html") ||
+      accept?.includes("*/*") ||
+      (!isRSC && !accept);
     let contentEncoding = undefined;
 
     if (isHTML) {
@@ -47,7 +51,7 @@ export default async function staticHandler(dir, options = {}) {
       const isBrotli = acceptEncoding?.includes("br");
       const isGzip = acceptEncoding?.includes("gzip");
 
-      const basename = `${pathname}/index.html`.replace(/^\/+/g, "");
+      const basename = `${pathname}/index.html`.replace(/^\/+/g, "/");
       if (isBrotli && files.has(`${basename}.br`)) {
         pathname = `${basename}.br`;
         contentEncoding = "br";
@@ -124,7 +128,7 @@ export default async function staticHandler(dir, options = {}) {
                   ? "must-revalidate"
                   : "public,max-age=600",
               "last-modified": file.stats.mtime.toUTCString(),
-              "content-encoding": contentEncoding,
+              ...(contentEncoding && { "content-encoding": contentEncoding }),
             },
           });
         }

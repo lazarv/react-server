@@ -1,3 +1,3 @@
-import { createServerContext } from "react";
+import { createContext } from "react";
 
-export const FlightContext = createServerContext("FlightContext", "/");
+export const FlightContext = createContext({ url: "/", outlet: null });

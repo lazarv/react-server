@@ -39,16 +39,16 @@ export default async function createServer(root, options) {
   );
 
   const publicDir =
-    typeof config.publicDir === "string" ? config.publicDir : "public";
+    typeof config.public === "string" ? config.public : "public";
   const initialHandlers = [
-    await staticHandler("{client,assets}", { cwd: ".react-server" }),
     await staticHandler(join(cwd(), ".react-server/dist"), {
       cwd: ".react-server/dist",
     }),
+    await staticHandler("{client,assets}", { cwd: ".react-server" }),
     await staticHandler(join(cwd(), ".react-server"), {
       cwd: ".react-server",
     }),
-    ...(config.publicDir !== false
+    ...(config.public !== false
       ? [
           await staticHandler(join(cwd(), publicDir), {
             cwd: publicDir,
@@ -56,7 +56,7 @@ export default async function createServer(root, options) {
         ]
       : []),
     await trailingSlashHandler(),
-    cookie(),
+    cookie(config.cookies),
     ...(config.handlers?.pre ?? []),
     await ssrHandler(root),
     ...(config.handlers?.post ?? []),
@@ -91,7 +91,7 @@ export default async function createServer(root, options) {
     return createServer(middlewares);
   }
 
-  // #484 fallback to http1 when proxy is needed.
+  // fallback to http1 when proxy is needed.
   if (config.server?.proxy) {
     const { createServer } = await import("node:https");
     return createServer(httpsOptions, middlewares);

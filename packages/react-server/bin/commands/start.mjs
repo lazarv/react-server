@@ -1,3 +1,5 @@
+import { setEnv } from "../../lib/sys.mjs";
+
 export default (cli) =>
   cli
     .command("start [root]", "start server in production mode")
@@ -11,6 +13,7 @@ export default (cli) =>
     .option("--trust-proxy", "[boolean] trust proxy", { default: false })
     .option("--build <root>", "[string] build root", { default: "" })
     .option("--dev", "[boolean] development mode", { default: false })
-    .action(async (...args) =>
-      (await import("../../lib/start/action.mjs")).default(...args)
-    );
+    .action(async (...args) => {
+      setEnv("NODE_ENV", "production");
+      return (await import("../../lib/start/action.mjs")).default(...args);
+    });

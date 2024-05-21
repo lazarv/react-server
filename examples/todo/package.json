@@ -1,7 +1,7 @@
 {
   "name": "@lazarv/react-server-example-todo",
   "private": true,
-  "description": "React Server Todo example application",
+  "description": "@lazarv/react-server Todo example application",
   "scripts": {
     "dev": "react-server ./src/index.tsx",
     "build": "react-server build ./src/index.tsx",
@@ -14,15 +14,15 @@
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "@lazarv/react-server-router": "workspace:^",
-    "better-sqlite3": "^8.6.0",
-    "zod": "^3.21.4"
+    "better-sqlite3": "^10.0.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.5",
-    "@types/react": "^18.2.14",
-    "@types/react-dom": "^18.2.6",
-    "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.27",
-    "tailwindcss": "^3.3.3"
+    "@types/better-sqlite3": "^7.6.10",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3"
   }
 }

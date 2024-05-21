@@ -1,0 +1,151 @@
+---
+title: Client-side routing
+category: Framework
+order: 3
+---
+
+# Client-side routing
+
+> These are core features of the `@lazarv/react-server` framework, so you don't need to install `@lazarv/react-server-router` for these features to work.
+
+After the server has rendered the initial page, the client takes over and handles all subsequent navigation. This can be done by using the client components exported by the `@lazarv/react-server/navigation` module or by the functions exposed by the `useClient` hook from the `@lazarv/react-server/client` module. You can use these functions to navigate to a new page, prefetch a page, or refresh the current page. Please see details of these components and functions in the [API reference](/api).
+
+It's recommended to use the built-in client components for navigation and refresh. These components will automatically start a React transition to render only the parts of the page that are changing. This will improve the user experience by reducing the amount of time the user has to wait for the page to load.
+
+Functions exposed by the `useClient` hook are more low-level and should be used only when you need to start a React transition manually.
+
+## Navigation
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about">About</Link>
+    </div>
+  );
+}
+```
+
+To programmatically navigate to a new page you can use the `navigate` function returned by the `useClient` hook. It's recommended to use `navigate` in a React transition to render only the parts of the page that are changing.
+
+```jsx
+import { startTransition } from "react";
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => startTransition(async () => navigate("/about"))}>
+        About
+      </button>
+    </div>
+  );
+}
+```
+
+### Prefetch
+
+You can enable prefetching of the page by passing the `prefetch` prop to the `Link` component. This will prefetch the page when the user hovers over the link.
+
+```jsx
+import { Link } from "@lazarv/react-server/client";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" prefetch>
+        About
+      </Link>
+    </div>
+  );
+}
+```
+
+By default, the prefetched page will be cached indefinitely. You can change this behavior by passing the timeout value in the `prefetch` prop to the `Link` component. The `prefetch` prop accepts a number which represents the number of milliseconds the page will be cached for. After the timeout expires, the page will be removed from the cache and the next time the user hover over the link, the page will be prefetched again.
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" prefetch={5000}>
+        About
+      </Link>
+    </div>
+  );
+}
+```
+
+To programmatically prefetch a page you can use the `prefetch` function returned by the `useClient` hook.
+
+```jsx
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { prefetch } = useClient();
+
+  return (
+    <div>
+      <button onMouseOver={() => prefetch("/about")}>About</button>
+    </div>
+  );
+}
+```
+
+### Rollback
+
+When the user navigates away from a page the router will cache the last page when you specify a `rollback` prop on the `Link` component. This will allow the user to navigate back to the previous page without having to wait for the server to render the page again. The provided value represents the number of milliseconds the page will be cached for. After the timeout expires, the page will be removed from the cache and the next time the user navigates back to the page, the page will be rendered again by the server.
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" rollback={5000}>
+        About
+      </Link>
+    </div>
+  );
+}
+```
+
+## Refresh
+
+You can refresh the current page by using the `<Refresh>` client component exported by the `@lazarv/react-server/navigation` module or the `refresh` function returned by the `useClient` hook from the `@lazarv/react-server/client` module.
+
+```jsx
+import { Refresh } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Refresh>Click to refresh!</Refresh>
+    </div>
+  );
+}
+```
+
+To programmatically refresh the current page you can use the `refresh` function returned by the `useClient` hook. Again, it's recommended to start a React transition for the page refresh.
+
+```jsx
+import { startTransition } from "react";
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { refresh } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => startTransition(async () => refresh())}>
+        Refresh
+      </button>
+    </div>
+  );
+}
+```

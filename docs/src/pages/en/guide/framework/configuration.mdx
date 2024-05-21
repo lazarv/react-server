@@ -1,0 +1,89 @@
+---
+title: Configuration
+category: Framework
+order: -1
+---
+
+# Configuration
+
+To configure the behavior of the framework, you need to create a `react-server.config.*` file in the root of your project. This file is used to configure the server and the build process. The file type could be `.mjs`, `.ts`, or `.json`.
+
+The configuration object you need to export as default is an extension of the Vite config object. You can find the full list of options [here](https://vitejs.dev/config/).
+
+## Vite configuration
+
+To provide full control over the Vite configuration, you can use the `vite` option to configure the Vite server and the build process. The `vite` option is an object that extends the Vite config object or a function that returns a new Vite config object. As a function you can discover and mutate the default configuration for Vite.
+
+## Additional configuration
+
+The following options are specific to the `@lazarv/react-server` framework.
+
+#### Runtime
+
+Add new entries to the runtime context. The runtime context is a singleton store and can be used to share state in your application.
+
+```json
+{
+  "runtime": {
+    "myEntry": "myValue"
+  }
+}
+```
+
+The `runtime` option can also be a function that returns the runtime context object. This is useful when you want to mutate the runtime context.
+
+```mjs
+export default {
+  runtime: (runtime) => {
+    return {
+      ...runtime,
+      myEntry: "myValue",
+    };
+  },
+};
+```
+
+#### Cookies
+
+Provide cookies configuration, see available options [here](https://www.npmjs.com/package/cookie#options-1).
+
+```mjs
+export default {
+  cookies: {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+    secure: true,
+    httpOnly: true,
+    sameSite: "lax",
+  },
+};
+```
+
+#### Handlers
+
+You can add `pre` and `post` handlers to the Hattip middleware stack. You can define the async handler functions in an array for both `pre` and `post` options. See more details about Hattip handlers [here](https://github.com/hattipjs/hattip).
+
+```mjs
+export default {
+  handlers: {
+    pre: [async () { ... }],
+    post: [async () { ... }]
+  }
+}
+```
+
+The `handlers` option can also be a function that returns the handlers array. This is useful when you want to mutate the middlewares used.
+
+```mjs
+export default {
+  handlers: (handlers) => {
+    return [...handlers, async () { ... }];
+  }
+}
+```
+
+Or the `handlers` option can be an array, where the array of handlers will be used as `post` handlers.
+
+#### Public directory
+
+The public directory is the directory where the static assets are served from. The default value is `public`.

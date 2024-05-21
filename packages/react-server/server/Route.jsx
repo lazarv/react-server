@@ -1,4 +1,3 @@
-import { ParamsContext } from "@lazarv/react-server/client/Params.jsx";
 import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
 import { useRequest, useUrl } from "@lazarv/react-server/server/request.mjs";
 import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";
@@ -68,7 +67,6 @@ export default function Route({
   element,
   render,
   standalone,
-  remote,
   fallback,
   children,
 }) {
@@ -83,26 +81,8 @@ export default function Route({
 
   const accept = headers.get("accept");
   const acceptStandalone = accept?.includes(";standalone");
-  const acceptRemote = accept?.includes(";remote");
 
   if (acceptStandalone && standalone === false) return <>{children}</>;
-  if ((remote === false && acceptRemote) || (remote === true && !acceptRemote))
-    return null;
-
-  const hasParams = Reflect.ownKeys(params).length > 0;
-  if (render)
-    return hasParams ? (
-      <ParamsContext.Provider value={params}>
-        {render({ ...params, children })}
-      </ParamsContext.Provider>
-    ) : (
-      render({ ...params, children })
-    );
-  if (element)
-    return hasParams ? (
-      <ParamsContext.Provider value={params}>{element}</ParamsContext.Provider>
-    ) : (
-      element
-    );
-  return null;
+  if (render) return render({ ...params, children });
+  return element ?? <>{children}</>;
 }

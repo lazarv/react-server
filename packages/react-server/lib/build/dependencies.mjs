@@ -21,7 +21,6 @@ const reactServerDomWebpackServerEdge = __require.resolve(
   "react-server-dom-webpack/server.edge"
 );
 const reactErrorBoundary = __require.resolve("react-error-boundary");
-const scheduler = __require.resolve("scheduler");
 const reactServerClient = __require.resolve("@lazarv/react-server/client", {
   paths: [cwd],
 });
@@ -31,24 +30,21 @@ const reactServerNavigation = __require.resolve(
 const reactServerClientContext = __require.resolve(
   "@lazarv/react-server/client/context.mjs"
 );
-const reactServerClientComponents = __require.resolve(
-  "@lazarv/react-server/client/components.mjs"
-);
+const scheduler = __require.resolve("scheduler");
 
 export {
   react,
-  reactJsxRuntime,
-  reactJsxDevRuntime,
   reactDom,
   reactDomClient,
   reactDomServerEdge,
+  reactErrorBoundary,
+  reactJsxDevRuntime,
+  reactJsxRuntime,
+  reactServerClient,
+  reactServerClientContext,
   reactServerDomWebpackClientBrowser,
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
-  reactErrorBoundary,
-  scheduler,
-  reactServerClient,
-  reactServerClientContext,
-  reactServerClientComponents,
   reactServerNavigation,
+  scheduler,
 };

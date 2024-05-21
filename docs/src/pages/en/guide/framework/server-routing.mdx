@@ -1,0 +1,214 @@
+---
+title: Server-side routing
+category: Framework
+order: 2
+---
+
+# Server-side routing
+
+> These are core features of the `@lazarv/react-server` framework, so you don't need to install `@lazarv/react-server-router` for these features to work.
+
+The built-in low-level routing solution in `@lazarv/react-server` is sufficient for simple use cases, but it is not recommended for more complex applications. For a more advanced routing solution, install the `@lazarv/react-server-router` package and follow the instructions in the next chapter.
+
+## Routes
+
+You can wrap your components into a `Route` component imported from `@lazarv/react-server/router` to define a route. You have to define the absolute path pattern for the route where the child components of the `Route` component will need to render. You can also define the route component as the `element` prop of the `Route` component.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/about">
+      <About />
+    </Route>
+    <Route path="/readme" element={<Readme />} />
+  );
+}
+```
+
+## Exact routes
+
+When you define a route, it will match any path that starts with the defined path. If you want to match only the exact path, you can use the `exact` prop.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/about" exact>
+      <About />
+    </Route>
+  );
+}
+```
+
+## Nested routes
+
+You can nest routes by defining a route inside another route.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+function About() {
+  return (
+    <div>
+      <h1>About</h1>
+      <Route path="/about/team" element={<Tean />} />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Route path="/about" element={<About />} />
+  );
+}
+```
+
+## Route layouts
+
+To define how to render the children of a route, you can use the `render` prop. The `render` prop accepts a function that receives the `children` prop all route params as props and returns a React element.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+function Layout({ children }) {
+  return (
+    <div>
+      <h1>Layout</h1>
+      {children}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Route path="/" render={Layout}>
+      <Route path="/" exact element={<Home />} />
+      <Route path="/about" element={<About />} />
+    </Route>
+  );
+}
+```
+
+## Route parameters
+
+You can define route parameters by wrapping a path segment in brackets. The value of the route parameter will be available in the `params` prop of the `Route` component. You can access the route parameters by using the `useParams` hook.
+
+```tsx
+import { Route, useParams } from '@lazarv/react-server/router';
+
+function User() {
+  const { id } = useParams();
+  return (
+    <div>
+      <h1>User ID</h1>
+      <h2>{id}</h2>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Route path="/users/[id]" element={<User />} />
+  );
+}
+```
+
+## Variable length route parameters
+
+You can define variable length route parameters by wrapping a path segment in brackets and prefixing it with three dots. The value of the route parameter will be available in the `params` prop of the `Route` component.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/files/[...path]" element={<File />} />
+  );
+}
+```
+
+## Route parameter matchers
+
+You can define a custom matcher for a route parameter by wrapping a path segment in brackets and specifying the matcher name after the parameter name. The path pattern will only match if the route parameter matches the specified matcher.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+const matchers = {
+  number: (value) => /^\d+$/.test(value),
+};
+
+export default function App() {
+  return (
+    <Route path="/files/[id=number]" element={<File />} matchers={matchers} />
+  );
+}
+```
+
+## Fallback routes
+
+You can define a fallback route by defining a route with a path of `*` or using the `fallback` prop on the `Route` component. The fallback route will match any path that does not match any other route.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/about" element={<About />} />
+    <Route fallback element={<NotFound />} />
+  );
+}
+```
+
+## Route rendering in standalone-mode
+
+If you want a route to render only it's children when using client-side navigation, you can set the value of the `standalone` prop on the `Route` component to be `false`. This will prevent the route from using it's `render` function when the path matches the route. Upon client-side navigation or refreshing, the route will only render it's children.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+function Layout({ children }) {
+  return (
+    <div>
+      <h1>Layout</h1>
+      {children}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Route path="/" render={Layout} standalone={false}>
+      <Route path="/" exact element={<Home />} />
+      <Route path="/about" element={<About />} />
+    </Route>
+  );
+}
+```
+
+## Redirects
+
+You can redirect to any other location by using the `redirect` function in a component. More precisely, you can use `redirect` anywhere during server-side rendering, but it will throw a `RedirectError`. The framework will catch this error and send a redirect response to the client.
+
+```tsx
+import { redirect } from "@lazarv/react-server";
+
+export default function App() {
+  return redirect("/user");
+}
+```
+
+## Rewrites
+
+You can use the `rewrite` function to change the pathname in the URL of the current request. This is useful when you want to change the URL of the current request without redirecting the client. Best used in a middleware.
+
+```tsx
+import { rewrite } from "@lazarv/react-server";
+
+export default function App() {
+  return rewrite("/user");
+}
+```

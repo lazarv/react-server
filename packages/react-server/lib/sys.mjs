@@ -38,6 +38,24 @@ export function immediate(fn) {
   return typeof Deno !== "undefined" ? fn() : setImmediate(fn);
 }
 
+export function experimentalWarningSilence() {
+  if (typeof process !== "undefined") {
+    // patch process.emit to ignore ExperimentalWarning
+    const originalEmit = process.emit;
+    process.emit = function (name, data, ...args) {
+      if (
+        name === "warning" &&
+        ((typeof data === "object" &&
+          data.name.includes("ExperimentalWarning")) ||
+          data.includes("ExperimentalWarning"))
+      ) {
+        return false;
+      }
+      return originalEmit.call(process, name, data, ...args);
+    };
+  }
+}
+
 if (typeof Deno !== "undefined") {
   globalThis.process = {
     env: Deno.env.toObject(),

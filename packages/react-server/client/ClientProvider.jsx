@@ -1,3 +1,5 @@
+"use client";
+
 import {
   createFromFetch,
   createFromReadableStream,
@@ -142,43 +144,55 @@ window.addEventListener("popstate", () => {
 });
 const streamOptions = (outlet) => ({
   async callServer(id, args) {
-    // eslint-disable-next-line no-async-promise-executor
     return new Promise(async (resolve, reject) => {
       try {
-        let formData = await encodeReply(args);
-        let target = outlet;
-        let url = outlet || PAGE_ROOT;
-        // if (args?.length > 1) {
-        //   const remote = args[0];
-        //   if (
-        //     typeof remote?.__react_server_remote_component_url__ === "string" &&
-        //     remote?.__react_server_remote_component_url__
-        //   ) {
-        //     url = remote.__react_server_remote_component_url__;
-        //   }
-        //   if (
-        //     typeof remote?.__react_server_remote_component_outlet__ ===
-        //       "string" &&
-        //     remote?.__react_server_remote_component_outlet__
-        //   ) {
-        //     target = remote.__react_server_remote_component_outlet__;
-        //   }
-        // }
-        cache.delete(url);
-        cache.delete(target);
-        getFlightResponse(outlets.get(target) || url, {
-          method: "POST",
-          body: formData,
-          outlet: target,
-          standalone: target !== PAGE_ROOT,
-          headers: {
-            "React-Server-Action": id,
-          },
-        });
-        emit(target, url, (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        });
+        const formData = await encodeReply(args);
+        const url = outlet || PAGE_ROOT;
+        if (
+          formData instanceof FormData &&
+          !Array.from(formData.keys()).find((key) =>
+            key.includes("$ACTION_KEY")
+          )
+        ) {
+          let target = outlet;
+          cache.delete(url);
+          cache.delete(target);
+          getFlightResponse(outlets.get(target) || url, {
+            method: "POST",
+            body: formData,
+            outlet: target,
+            standalone: target !== PAGE_ROOT,
+            headers: Array.from(formData.keys()).find((key) =>
+              key.includes("ACTION_ID")
+            )
+              ? {}
+              : {
+                  "React-Server-Action": id,
+                },
+          });
+          emit(target, url, (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          });
+        } else {
+          const response = await fetch(
+            url === PAGE_ROOT ? location.href : url,
+            {
+              method: "POST",
+              body: formData,
+              headers: {
+                accept: "application/json",
+                "React-Server-Action": id,
+                "React-Server-Outlet": outlet || PAGE_ROOT,
+              },
+            }
+          );
+          if (!response.ok) {
+            reject(new Error(response.statusText));
+          } else {
+            resolve(await response.json());
+          }
+        }
       } catch (e) {
         reject(e);
       }

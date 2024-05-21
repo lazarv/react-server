@@ -1,11 +1,13 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
 
 import { forChild } from "../../config/index.mjs";
-import packageJson from "../../package.json" assert { type: "json" };
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
+import { createWorker } from "../../server/create-worker.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getRuntime } from "../../server/runtime.mjs";
 import {
+  ACTION_CONTEXT,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
   ERROR_CONTEXT,
@@ -16,24 +18,30 @@ import {
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
   REDIRECT_CONTEXT,
+  RENDER_STREAM,
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
 import errorHandler from "../handlers/error.mjs";
+import * as sys from "../sys.mjs";
 import getModules from "./modules.mjs";
 
 const __require = createRequire(import.meta.url);
+const cwd = sys.cwd();
 
 export default async function ssrHandler(root) {
   const { entryModule, rootModule, memoryCacheModule } = getModules(root);
   const viteDevServer = getRuntime(SERVER_CONTEXT);
   const ssrLoadModule = getRuntime(MODULE_LOADER);
-  const { default: React } = await import("react");
   const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
+  const renderStream = createWorker(
+    new URL("./render-stream.mjs", import.meta.url)
+  );
+  const moduleCacheStorage = new AsyncLocalStorage();
 
   return async (httpContext) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       try {
         ContextStorage.run(
           {
@@ -43,29 +51,16 @@ export default async function ssrHandler(root) {
             [ERROR_CONTEXT]: errorHandler,
             [MODULE_LOADER]: ssrLoadModule,
             [LOGGER_CONTEXT]: logger,
-            [MAIN_MODULE]: [
-              "/@vite/client",
-              `/${packageJson.name}/client/hmr.mjs`,
-            ],
+            [MAIN_MODULE]: ["/@vite/client", `/@hmr`, `/@__webpack_require__`],
             [FORM_DATA_PARSER]: getRuntime(FORM_DATA_PARSER),
             [MEMORY_CACHE_CONTEXT]: getRuntime(MEMORY_CACHE_CONTEXT),
             [REDIRECT_CONTEXT]: {},
             [COLLECT_STYLESHEETS]: getRuntime(COLLECT_STYLESHEETS),
+            [ACTION_CONTEXT]: {},
+            [RENDER_STREAM]: renderStream,
           },
           async () => {
             try {
-              // clear up server context registry object
-              Reflect.ownKeys(
-                React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
-                  .ContextRegistry
-              ).forEach((key) =>
-                Reflect.deleteProperty(
-                  React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
-                    .ContextRegistry,
-                  key
-                )
-              );
-
               const cacheModule = forChild(httpContext.url)?.cache?.module;
 
               const [
@@ -78,7 +73,7 @@ export default async function ssrHandler(root) {
                 import(
                   cacheModule
                     ? __require.resolve(cacheModule, {
-                        paths: [process.cwd()],
+                        paths: [cwd],
                       })
                     : memoryCacheModule
                 ),
@@ -118,7 +113,7 @@ export default async function ssrHandler(root) {
                 getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
               context$(STYLES_CONTEXT, styles);
 
-              await module_loader_init$?.(ssrLoadModule);
+              await module_loader_init$?.(ssrLoadModule, moduleCacheStorage);
               return resolve(render(Component));
             } catch (e) {
               logger.error(e);

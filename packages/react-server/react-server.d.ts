@@ -1,14 +1,15 @@
 declare module "@lazarv/react-server" {
   import type { RequestContextExtensions } from "@hattip/compose";
   import type { CookieSerializeOptions } from "@hattip/cookie";
+  import type { AdapterRequestContext } from "@hattip/core";
 
-  export function server$<T extends (...args: any[]) => any>(action: T): T;
-  export function cache$<T extends React.FC>(
+  export function withCache<T extends React.FC>(
     Component: T,
     ttl?: number | true
   ): T;
   export function redirect(url: string, status?: number): void;
 
+  export function useHttpContext(): AdapterRequestContext;
   export function useRequest(): Request;
   export function useResponse(): Response;
   export function useUrl(): URL;
@@ -30,6 +31,15 @@ declare module "@lazarv/react-server" {
     name: string,
     options?: CookieSerializeOptions
   ): void;
+
+  export interface ReactServerCache {
+    get<T = unknown>(keys: string[]): Promise<T | undefined>;
+    set<T = unknown>(keys: string[], value: T): Promise<void>;
+    has(keys: string[]): Promise<boolean>;
+    setExpiry(keys: string[], ttl: number): Promise<void>;
+    hasExpiry(keys: string[], ttl: number): Promise<boolean>;
+    delete(keys: string[]): Promise<void>;
+  }
 }
 
 declare module "@lazarv/react-server/client" {
@@ -37,19 +47,19 @@ declare module "@lazarv/react-server/client" {
     registerOutlet(outlet: string, url: string): void;
     refresh(outlet?: string): Promise<void>;
     prefetch(
-      url: string,
+      url: __react_server_routing__.ReactServerRouting["path"],
       options?: { outlet?: string; ttl?: number }
     ): Promise<void>;
     navigate(
-      url: string,
+      url: __react_server_routing__.ReactServerRouting["path"],
       options?: { outlet?: string; push?: boolean; rollback?: number }
     ): Promise<void>;
     replace(
-      url: string,
+      url: __react_server_routing__.ReactServerRouting["path"],
       options?: { outlet?: string; rollback?: number }
     ): Promise<void>;
     subscribe(
-      url: string,
+      url: __react_server_routing__.ReactServerRouting["path"],
       listener: (
         to: string,
         done?: (err: unknown | null, result: unknown) => void
@@ -84,14 +94,7 @@ declare module "@lazarv/react-server/error-boundary" {
 }
 
 declare module "@lazarv/react-server/memory-cache" {
-  export interface ReactServerCache {
-    get<T = unknown>(keys: string[]): Promise<T | undefined>;
-    set<T = unknown>(keys: string[], value: T): Promise<void>;
-    has(keys: string[]): Promise<boolean>;
-    setExpiry(keys: string[], ttl: number): Promise<void>;
-    hasExpiry(keys: string[], ttl: number): Promise<boolean>;
-    delete(keys: string[]): Promise<void>;
-  }
+  import type { ReactServerCache } from "@lazarv/react-server";
 
   export class MemoryCache implements ReactServerCache {
     get<T = unknown>(keys: string[]): Promise<T | undefined>;
@@ -111,59 +114,52 @@ declare module "@lazarv/react-server/memory-cache" {
 }
 
 declare module "@lazarv/react-server/navigation" {
-  import type { ReactServerRouting } from "@lazarv/react-server/router";
+  type LinkProps<T> = React.PropsWithChildren<{
+    to: __react_server_routing__.ReactServerRouting<T>["path"];
+    target?: string;
+    transition?: boolean;
+    push?: boolean;
+    replace?: boolean;
+    prefetch?: boolean;
+    ttl?: number;
+    rollback?: number;
+    onNavigate?: () => void;
+    onError?: (error: unknown) => void;
+  }> &
+    React.DetailedHTMLProps<
+      React.HTMLAttributes<HTMLAnchorElement>,
+      HTMLAnchorElement
+    >;
+  export function Link<T extends string = string>(
+    props: LinkProps<T>
+  ): JSX.Element;
 
-  export const Link: React.FC<
-    React.PropsWithChildren<{
-      to: ReactServerRouting["path"];
-      target?: string;
-      transition?: boolean;
-      push?: boolean;
-      replace?: boolean;
-      prefetch?: boolean;
-      ttl?: number;
-      rollback?: number;
-      onNavigate?: () => void;
-      onError?: (error: unknown) => void;
-    }> &
-      React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLAnchorElement>,
-        HTMLAnchorElement
-      >
-  >;
-  export const Refresh: React.FC<
-    React.PropsWithChildren<{
-      url?: string;
-      outlet?: string;
-      transition?: boolean;
-      prefetch?: boolean;
-      ttl?: number;
-      onRefresh?: () => void;
-      onError?: (error: unknown) => void;
-    }> &
-      React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLAnchorElement>,
-        HTMLAnchorElement
-      >
-  >;
+  type RefreshProps = React.PropsWithChildren<{
+    url?: string;
+    outlet?: string;
+    transition?: boolean;
+    prefetch?: boolean;
+    ttl?: number;
+    onRefresh?: () => void;
+    onError?: (error: unknown) => void;
+  }> &
+    React.DetailedHTMLProps<
+      React.HTMLAttributes<HTMLAnchorElement>,
+      HTMLAnchorElement
+    >;
+  export function Refresh(props: RefreshProps): JSX.Element;
 }
 
-declare module "@lazarv/react-server/remote-component" {
-  const RemoteComponent: React.FC<{
-    url: string;
-    outlet?: string;
-    ttl?: number;
-    request?: RequestInit;
-  }>;
-  export default RemoteComponent;
+declare namespace __react_server_routing__ {
+  interface ReactServerRouting<T = any, P = Record<string, any> | null> {
+    path: T;
+    params: P | null;
+  }
 }
 
 declare module "@lazarv/react-server/router" {
-  interface ReactServerRouting {
-    path: string;
-  }
-
-  export type RouteParams = Record<string, string | string[]>;
+  export type RouteParams =
+    __react_server_routing__.ReactServerRouting["params"];
   export type RouteMatchers = Record<string, (value: string) => boolean>;
 
   export const ClientOnly: React.FC<React.PropsWithChildren>;
@@ -177,7 +173,6 @@ declare module "@lazarv/react-server/router" {
         props: React.PropsWithChildren<RouteParams>
       ) => React.ReactElement;
       standalone?: boolean;
-      remote?: boolean;
       fallback?: boolean;
     }>
   >;
@@ -201,9 +196,11 @@ declare module "@lazarv/react-server/router" {
     matchers?: RouteMatchers;
   };
   export function useMatch<T = RouteParams>(
-    path: string,
+    path: __react_server_routing__.ReactServerRouting<T>["path"],
     options?: MatchOptions
-  ): T | null;
+  ): __react_server_routing__.ReactServerRouting<T>["params"] | null;
 
-  export function useParams<T = RouteParams>(): T;
+  export function useParams<T = string>():
+    | __react_server_routing__.ReactServerRouting<T>["params"]
+    | null;
 }

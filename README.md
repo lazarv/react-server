@@ -1,15 +1,14 @@
 # What is @lazarv/react-server?
 
-An experimental [React](https://react.dev) meta-framework using [Vite](https://vitejs.dev). It's a playground project to try out all the new React features available in the experimental versions of React.
+A [React](https://react.dev) meta-framework using [Vite](https://vitejs.dev).
 
-Combines the fantastic developer experience of using Vite for React development and all the new React features presented by Next.js 13.
+Combines the fantastic developer experience of using Vite for React development and all the new React 19 features.
 
 And more...
 
 ## Features
 
 #### React Server Components
-
 - [x] async components
 - [x] client components with `"use client";`
 - [x] error boundaries
@@ -29,17 +28,12 @@ And more...
 - [x] Markdown support
 - [x] REST API routes
 - [x] middlewares
-- [ ] data loaders
-- [ ] layout breaking pages
+- [x] static export
 
 #### Performance
 - [x] response caching and revalidation
 - [x] React hot module replacement using Vite
 - [x] blazing-fast production build using node.js cluster
-
-### Experimental features
-- [ ] Remote components using React Server Components
-- [ ] static export
 
 ## Getting started
 
@@ -129,7 +123,7 @@ pnpm exec react-server --open
 
 ## Documentation
 
-Coming soon...
+Check out the full documentation at [react-server.dev](https://react-server.dev).
 
 ## Examples
 

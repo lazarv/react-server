@@ -1,0 +1,104 @@
+---
+title: Basics
+category: Router
+order: 1
+---
+
+# Basics
+
+In this chapter we will learn about the basics of the file-system based router. We will learn how to create routes, how to use parameters and how to use the router in a project.
+
+> TypeScript support for typed routes is coming soon... Stay tuned!
+
+## Configuration
+
+The router can be configured by creating a `react-server.config.mjs` or `react-server.config.json` file in the root of your project. The configuration file should export a configuration object and it should include the `root` path for your routes. You can also specify a `public` path for your static files. The `@lazarv/react-server-router` package will automatically scaffold the files in the root directory for routing and prepares and builds the routing based on your files in the root directory.
+
+```js
+export default {
+  root: "src/pages",
+  public: "public",
+};
+```
+
+## Creating Routes
+
+Your directories and files specify the routes your application will use. There are built-in conventions in the router which translates the names of directories and files to route paths and route parameters. To create a new route you need to create a file in the root directory.
+
+Route files have to export default a React Server Component which will be used to render the route.
+
+```jsx
+export default function Home() {
+  return <h1>Home</h1>;
+}
+```
+
+### Index routes
+
+If you name your file `index` or `page` it will be treated as an index route. Index routes are the default routes for directories. For example if you create a file named `index.jsx` in the root directory it will be treated as the default route for your application. If you create a file named `index.jsx` in a directory named `about` it will be treated as the default route for the `about` directory.
+
+### Named routes
+
+If you name your file anything other than `index` or `page` it will be treated as a named route. For example if you create a file named `about.jsx` in the root directory it will be treated as a named route with the path `/about`. If you create a file named `about.jsx` in a directory named `users` it will be treated as a named route with the path `/users/about`.
+
+### Nested routes
+
+You can create nested routes by creating directories in the root directory. For example if you create a directory named `users` in the root directory and create a file named `index.jsx` in the `users` directory it will be treated as a nested route with the path `/users`. If you create a file named `about.jsx` in the `users` directory it will be treated as a nested route with the path `/users/about`.
+
+### Route parameters
+
+You can create route parameters by adding a parameter name in brackets to the name of the file. For example if you create a file named `[id].jsx` in the root directory it will be treated as a named route with the path `/[id]`. If you create a file named `[id].jsx` in a directory named `users` it will be treated as a named route with the path `/users/[id]`. You can also create nested route parameters by creating nested directories. For example if you create a directory named `users` in the root directory and create a file named `[id].jsx` in the `users` directory it will be treated as a nested route with the path `/users/[id]`.
+
+To use the route parameter in your component you can use the `useParams` hook from the `@lazarv/react-server` package.
+
+```jsx
+import { useParams } from "@lazarv/react-server";
+
+export default function User() {
+  const { id } = useParams();
+
+  return <h1>User #{id}</h1>;
+}
+```
+
+### Route parameters for multiple segments
+
+You can create route parameters for multiple segments by adding a parameter name in brackets to the name of the file. For example if you create a file named `[...id].jsx` in the root directory it will be treated as a named route with the path `/[...id]`. If you create a file named `[...id].jsx` in a directory named `users` it will be treated as a named route with the path `/users/[...id]`. You can also create nested route parameters by creating nested directories. For example if you create a directory named `users` in the root directory and create a file named `[...id].jsx` in the `users` directory it will be treated as a nested route with the path `/users/[...id]`.
+
+The parameter at runtime will be an array of strings. To use the route parameter in your component you can use the `useParams` hook from the `@lazarv/react-server` package.
+
+```jsx
+// /[...slug].page.jsx
+import { useParams } from "@lazarv/react-server";
+
+export default function Page() {
+  const { slug } = useParams();
+
+  return <h1>/{slug.join("/")}</h1>;
+}
+```
+
+### Route parameters for optional segments
+
+You can create route parameters for optional segments by adding a parameter name in brackets to the name of the file. For example if you create a file named `[[...id]].jsx` in the root directory it will be treated as a named route with the path `/[[...id]]`. If you create a file named `[[...id]].jsx` in a directory named `users` it will be treated as a named route with the path `/users/[[...id]]`. You can also create nested route parameters by creating nested directories. For example if you create a directory named `users` in the root directory and create a file named `[[...id]].jsx` in the `users` directory it will be treated as a nested route with the path `/users/[[...id]]`.
+
+> **Omit:** you can omit any part of the directory or file name by wrapping the part in parentheses. For example if you create a file named `(404).[[...slug]].page.mdx` in the root directory it will be treated as a route with the path `/[[...slug]]`. You can use this to extend the directory/file name with additional information without affecting the route path.
+
+## Layouts
+
+You can create layouts by creating a file including `layout.jsx` in the file name. The layout file will be used to wrap all the routes in the same directory where the layout file is. You can also create nested layouts by creating a file named `layout.jsx` in a sub-directory. You can also use omitted parts in the layout file name. For example if you create a file named `(root).layout.jsx` in the root directory it will be used as the layout for all the routes in the root directory.
+
+Your layout component will receive a `children` prop which you need to use to render your route components.
+
+```jsx
+export default function Layout({ children }) {
+  return (
+    <>
+      <h1>Layout</h1>
+      {children}
+    </>
+  );
+}
+```
+
+> **Example:** see the Photos example in the [examples](https://github.com/lazarv/react-server/tree/main/examples/photos) directory for a basic example of file-system based routing.

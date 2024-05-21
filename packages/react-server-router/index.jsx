@@ -1,14 +1,14 @@
 import { dirname } from "node:path";
 
 import { status } from "@lazarv/react-server";
-import { useMatch } from "@lazarv/react-server/router";
-import { context$ } from "@lazarv/react-server/server/context.mjs";
-import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";
 import {
   middlewares,
   pages,
   routes,
 } from "@lazarv/react-server-router/manifest";
+import { useMatch } from "@lazarv/react-server/router";
+import { context$ } from "@lazarv/react-server/server/context.mjs";
+import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";
 
 export async function init$() {
   return async (context) => {
@@ -64,14 +64,19 @@ export default async function App() {
 
     match = type === "page" && outlet ? useMatch(path, { exact: true }) : null;
     if (match) {
-      const [, , , lazy] = pages.find(
-        ([, type, outlet, , pageSrc]) =>
-          type === "page" && !outlet && dirname(src).includes(dirname(pageSrc))
-      );
-      const { default: Component, init$: page_init$ } = await lazy();
-      Page = Component;
-      page_init$();
-      break;
+      const [, , , lazy] =
+        pages.find(
+          ([, type, outlet, , pageSrc]) =>
+            type === "page" &&
+            !outlet &&
+            dirname(src).includes(dirname(pageSrc))
+        ) ?? [];
+      if (lazy) {
+        const { default: Component, init$: page_init$ } = await lazy();
+        Page = Component;
+        page_init$();
+        break;
+      }
     }
   }
 

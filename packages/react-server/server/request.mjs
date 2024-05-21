@@ -4,6 +4,10 @@ import {
   HTTP_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 
+export function useHttpContext() {
+  return getContext(HTTP_CONTEXT);
+}
+
 export function useUrl() {
   return getContext(HTTP_CONTEXT).url;
 }

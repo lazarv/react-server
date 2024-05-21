@@ -1,16 +1,18 @@
 import * as acorn from "acorn";
 import * as escodegen from "escodegen";
-import * as estraverse from "estraverse";
+import { relative } from "node:path";
+import * as sys from "../sys.mjs";
 
-export default function useClient() {
+const cwd = sys.cwd();
+
+export default function useClient(type) {
   return {
     name: "use-client",
     async transform(code, id) {
-      const firstLine = code.slice(0, code.indexOf("\n"));
-      if (
-        firstLine.includes('"use client"') ||
-        firstLine.includes("'use client'")
-      ) {
+      if (!/\.m?[jt]sx?$/.test(id)) return;
+      if (!code.includes("use client")) return;
+
+      try {
         const ast = acorn.parse(code, {
           sourceType: "module",
           ecmaVersion: 2021,
@@ -18,109 +20,80 @@ export default function useClient() {
           locations: true,
         });
 
-        estraverse.replace(ast, {
-          leave(node) {
-            if (node.type === "Program") {
-              node.body.unshift({
-                type: "ImportDeclaration",
-                specifiers: [
-                  {
-                    type: "ImportSpecifier",
-                    imported: {
-                      type: "Identifier",
-                      name: "client$",
-                    },
-                    local: {
-                      type: "Identifier",
-                      name: "__react_server_client$__",
-                    },
-                  },
-                ],
-                source: {
-                  type: "Literal",
-                  value: "@lazarv/react-server/client/components.mjs",
-                },
-                loc: {
-                  start: { line: 1, column: 0 },
-                  end: { line: 1, column: 0 },
-                },
-              });
-            }
-          },
-          enter(node) {
-            if (node.type === "ExportNamedDeclaration") {
-              if (node.declaration.type === "VariableDeclaration") {
-                for (const declaration of node.declaration.declarations) {
-                  if (
-                    declaration.init.type === "ArrowFunctionExpression" ||
-                    declaration.init.type === "FunctionExpression"
-                  ) {
-                    declaration.init = {
-                      type: "CallExpression",
-                      callee: {
-                        type: "Identifier",
-                        name: "__react_server_client$__",
-                      },
-                      arguments: [
-                        declaration.init,
-                        { type: "Literal", value: declaration.id.name },
-                      ],
-                    };
-                  }
-                }
-              } else if (
-                node.declaration.type === "FunctionDeclaration" ||
-                node.declaration.type === "Identifier"
-              ) {
-                node.declaration = {
-                  type: "VariableDeclaration",
-                  kind: "const",
-                  declarations: [
-                    {
-                      type: "VariableDeclarator",
-                      id: {
-                        type: "Identifier",
-                        name: node.declaration.id.name,
-                      },
-                      init: {
-                        type: "CallExpression",
-                        callee: {
-                          type: "Identifier",
-                          name: "__react_server_client$__",
-                        },
-                        arguments: [
-                          node.declaration,
-                          { type: "Literal", value: node.declaration.id.name },
-                        ],
-                      },
-                    },
-                  ],
-                };
-              }
-            } else if (node.type === "ExportDefaultDeclaration") {
-              if (
-                node.declaration.type === "ArrowFunctionExpression" ||
-                node.declaration.type === "FunctionExpression" ||
-                node.declaration.type === "FunctionDeclaration" ||
-                node.declaration.type === "Identifier"
-              ) {
-                node.declaration = {
-                  type: "CallExpression",
-                  callee: {
-                    type: "Identifier",
-                    name: "__react_server_client$__",
-                  },
-                  arguments: [
-                    node.declaration,
-                    { type: "Literal", value: "default" },
-                  ],
-                };
-              }
-            }
-          },
-        });
+        const directives = ast.body
+          .filter((node) => node.type === "ExpressionStatement")
+          .map(({ directive }) => directive);
 
-        const gen = escodegen.generate(ast, {
+        if (!directives.includes("use client")) return;
+        if (directives.includes("use server"))
+          throw new Error(
+            "Cannot use both 'use client' and 'use server' in the same module."
+          );
+
+        if (type === "client") {
+          ast.body = ast.body.filter(
+            (node) =>
+              node.type !== "ExpressionStatement" ||
+              node.directive !== "use client"
+          );
+
+          const gen = escodegen.generate(ast, {
+            sourceMap: true,
+            sourceMapWithCode: true,
+          });
+
+          return {
+            code: gen.code,
+            map: gen.map.toString(),
+          };
+        }
+
+        const defaultExport = ast.body.some(
+          (node) =>
+            node.type === "ExportDefaultDeclaration" ||
+            (node.type === "ExportNamedDeclaration" &&
+              node.specifiers?.find(
+                ({ exported }) => exported?.name === "default"
+              ))
+        )
+          ? `export default function _default() { throw new Error("Attempted to call the default export of ${id} from the server but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); };
+registerClientReference(_default, "${relative(cwd, id)}", "default");`
+          : "";
+        const namedExports = ast.body
+          .filter((node) => node.type === "ExportNamedDeclaration")
+          .flatMap(({ declaration, specifiers }) => {
+            const names = [
+              ...(declaration?.id?.name ? [declaration.id.name] : []),
+              ...(declaration?.declarations?.map(({ id }) => id.name) || []),
+              ...specifiers.map(({ exported }) => exported.name),
+            ];
+            return names.map((name) =>
+              name === "default"
+                ? ""
+                : `export function ${name}() { throw new Error("Attempted to call ${name}() from the server but ${name} is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); };
+registerClientReference(${name}, "${relative(cwd, id)}", "${name}");`
+            );
+          })
+          .concat(
+            ast.body
+              .filter((node) => node.type === "ExportAllDeclaration")
+              .map((node) => {
+                return `export * from "${node.source.value}";`;
+              })
+          )
+          .join("\n\n");
+
+        const clientReferenceCode = `import { registerClientReference } from "@lazarv/react-server/server/client-register.mjs";\n\n${
+          defaultExport ? `${namedExports}\n\n${defaultExport}` : namedExports
+        }`;
+
+        const clientReferenceAst = acorn.parse(clientReferenceCode, {
+          sourceType: "module",
+          ecmaVersion: 2021,
+          sourceFile: id,
+          locations: true,
+        });
+        const gen = escodegen.generate(clientReferenceAst, {
           sourceMap: true,
           sourceMapWithCode: true,
         });
@@ -129,6 +102,8 @@ export default function useClient() {
           code: gen.code,
           map: gen.map.toString(),
         };
+      } catch (e) {
+        // noop
       }
     },
   };

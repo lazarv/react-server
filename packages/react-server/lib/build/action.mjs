@@ -4,8 +4,9 @@ import { rimraf } from "rimraf";
 
 import { loadConfig } from "../../config/index.mjs";
 import { ContextStorage } from "../../server/context.mjs";
-import { CONFIG_CONTEXT } from "../../server/symbols.mjs";
+import { BUILD_OPTIONS, CONFIG_CONTEXT } from "../../server/symbols.mjs";
 import { cwd, setEnv } from "../sys.mjs";
+import adapter from "./adapter.mjs";
 import clientBuild from "./client.mjs";
 import serverBuild from "./server.mjs";
 import staticSiteGenerator from "./static.mjs";
@@ -13,11 +14,11 @@ import staticSiteGenerator from "./static.mjs";
 export default async function build(root, options) {
   const config = await loadConfig();
 
-  // eslint-disable-next-line no-async-promise-executor
-  return new Promise(async (resolve) => {
+  await new Promise((resolve) => {
     ContextStorage.run(
       {
         [CONFIG_CONTEXT]: config,
+        [BUILD_OPTIONS]: options,
       },
       async () => {
         try {
@@ -44,9 +45,12 @@ export default async function build(root, options) {
           }
           // static export
           if (options.export) {
+            // empty line
+            console.log();
             await rimraf(join(cwd(), ".react-server/dist"));
             await staticSiteGenerator(root, options);
           }
+          await adapter(root, options);
         } catch (e) {
           console.error(e);
         }

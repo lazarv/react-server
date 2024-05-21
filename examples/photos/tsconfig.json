@@ -10,5 +10,6 @@
       "@lazarv/react-server/react-server"
     ],
     "plugins": [{ "name": "typescript-plugin-css-modules" }]
-  }
+  },
+  "exclude": ["**/*.js", "**/*.mjs"]
 }

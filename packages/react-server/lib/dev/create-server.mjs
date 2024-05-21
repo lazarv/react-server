@@ -1,5 +1,5 @@
-import { createRequire } from "node:module";
-import { join } from "node:path";
+import { createRequire, register } from "node:module";
+import { dirname, join } from "node:path";
 
 import { createMiddleware } from "@hattip/adapter-node";
 import { compose } from "@hattip/compose";
@@ -7,7 +7,7 @@ import { cookie } from "@hattip/cookie";
 import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
 import react from "@vitejs/plugin-react";
-import { createServer as createViteDevServer } from "vite";
+import { createServer as createViteDevServer, createViteRuntime } from "vite";
 
 import { MemoryCache } from "../../memory-cache/index.mjs";
 import packageJson from "../../package.json" assert { type: "json" };
@@ -24,19 +24,25 @@ import {
 } from "../../server/symbols.mjs";
 import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
-import staticHandler from "../handlers/static.mjs";
+import staticWatchHandler from "../handlers/static-watch.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
-import reactServer from "../plugins/react-server.mjs";
+import { alias } from "../loader/module-alias.mjs";
+import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import useClient from "../plugins/use-client.mjs";
+import useServerInline from "../plugins/use-server-inline.mjs";
 import useServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
 import merge from "../utils/merge.mjs";
 import createLogger from "./create-logger.mjs";
 import ssrHandler from "./ssr-handler.mjs";
 
+alias("react-server");
+register("../loader/node-loader.react-server.mjs", import.meta.url);
+
 const __require = createRequire(import.meta.url);
 const packageName = packageJson.name;
 const cwd = sys.cwd();
+const rootDir = join(dirname(__require.resolve(`${packageName}`)), "/..");
 
 export default async function createServer(root, options) {
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT];
@@ -62,16 +68,49 @@ export default async function createServer(root, options) {
       https: options.https ?? config.server?.https,
       fs: {
         ...config.server?.fs,
-        allow: [cwd, ...(config.server?.fs?.allow ?? [])],
+        allow: [cwd, rootDir, ...(config.server?.fs?.allow ?? [])],
       },
     },
+    resolve: {
+      ...config.resolve,
+      alias: [...clientAlias(true), ...(config.resolve?.alias ?? [])],
+    },
     publicDir: false,
-    root: __require.resolve(`${packageName}`),
-    appType: "ssr",
+    root: cwd,
+    appType: "custom",
     clearScreen: options.clearScreen,
     configFile: false,
+    plugins: [reactServerRuntime(), react(), ...(config.plugins ?? [])],
+    optimizeDeps: {
+      ...config.optimizeDeps,
+      force: options.force ?? config.optimizeDeps?.force,
+    },
+    css: {
+      ...config.css,
+      postcss: cwd,
+    },
+    customLogger: createLogger(),
+  };
+
+  const viteConfig =
+    typeof config.vite === "function"
+      ? config.vite(devServerConfig) ?? devServerConfig
+      : merge(devServerConfig, config.vite);
+
+  const viteDevServer = await createViteDevServer({
+    ...viteConfig,
+    cacheDir: join(cwd, ".react-server/.cache/client"),
+  });
+  const viteSSRDevServer = await createViteDevServer({
+    ...viteConfig,
+    server: {
+      ...viteConfig.server,
+      hmr: {
+        ...viteConfig.server.hmr,
+        port: viteConfig.server.hmr.port + 1,
+      },
+    },
     plugins: [
-      reactServer(),
       ...(reactServerRouterModule &&
       (!root || root === "@lazarv/react-server-router")
         ? [
@@ -85,51 +124,30 @@ export default async function createServer(root, options) {
               ).default())(),
           ]
         : []),
+      react(),
       useClient(),
       useServer(),
-      react(),
+      useServerInline(),
       ...(config.plugins ?? []),
     ],
+    root: rootDir,
+    cacheDir: join(cwd, ".react-server/.cache/rsc"),
     resolve: {
-      ...config.resolve,
-      alias: [...clientAlias(true), ...(config.resolve?.alias ?? [])],
+      preserveSymlinks: true,
     },
-    optimizeDeps: {
-      ...config.optimizeDeps,
-      include: [
-        "react",
-        "react-dom",
-        "react-dom/client",
-        "react-server-dom-webpack/client.browser",
-        "react-error-boundary",
-        ...(config.optimizeDeps?.include ?? []).map((m) =>
-          __require.resolve(m, { paths: [cwd] })
-        ),
-      ],
-      exclude: [
-        ...(config.optimizeDeps?.exclude ?? []).map((m) =>
-          __require.resolve(m, { paths: [cwd] })
-        ),
-      ],
-      force: options.force ?? config.optimizeDeps?.force,
+    ssr: {
+      resolve: {
+        conditions: ["react-server"],
+        externalConditions: ["react-server"],
+      },
     },
-    css: {
-      ...config.css,
-      postcss: cwd,
-    },
-    customLogger: createLogger(),
-  };
-
-  const viteDevServer = await createViteDevServer(
-    typeof config.vite === "function"
-      ? config.vite(devServerConfig) ?? devServerConfig
-      : merge(devServerConfig, config.vite)
-  );
+  });
+  const viteRuntime = await createViteRuntime(viteSSRDevServer);
 
   const initialRuntime = {
-    [SERVER_CONTEXT]: viteDevServer,
-    [LOGGER_CONTEXT]: viteDevServer.config.logger,
-    [MODULE_LOADER]: (id) => viteDevServer.ssrLoadModule(id.split("::")[0]),
+    [SERVER_CONTEXT]: viteSSRDevServer,
+    [LOGGER_CONTEXT]: viteSSRDevServer.config.logger,
+    [MODULE_LOADER]: (id) => viteRuntime.executeEntrypoint(id.split("#")[0]),
     [FORM_DATA_PARSER]: parseMultipartFormData,
     [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
     [COLLECT_STYLESHEETS]: function collectCss(rootModule) {
@@ -142,7 +160,7 @@ export default async function createServer(root, options) {
           !moduleId.startsWith("virtual:")
         ) {
           visited.add(moduleId);
-          const mod = viteDevServer.moduleGraph.getModuleById(moduleId);
+          const mod = viteSSRDevServer.moduleGraph.getModuleById(moduleId);
           const values = Array.from(mod.importedModules.values());
           const importedStyles = values.filter(
             (mod) => /\.(css|scss|less)/.test(mod.id) && !styles.includes(mod)
@@ -170,11 +188,11 @@ export default async function createServer(root, options) {
   );
 
   const publicDir =
-    typeof config.publicDir === "string" ? config.publicDir : "public";
+    typeof config.public === "string" ? config.public : "public";
   const initialHandlers = [
-    ...(config.publicDir !== false
+    ...(config.public !== false
       ? [
-          await staticHandler(join(cwd, publicDir), {
+          await staticWatchHandler(join(cwd, publicDir), {
             cwd: publicDir,
           }),
         ]
@@ -203,6 +221,6 @@ export default async function createServer(root, options) {
   return {
     listen: (...args) => viteDevServer.middlewares.listen(...args),
     close: () => viteDevServer.close(),
-    ws: viteDevServer.ws,
+    ws: viteDevServer.hot,
   };
 }

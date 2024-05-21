@@ -5,14 +5,12 @@ import { startTransition, useContext, useEffect, useState } from "react";
 import { ClientContext, useClient } from "./context.mjs";
 import { FlightContext } from "./FlightContext.mjs";
 
-function FlightComponent({ standalone = false, remote = false, children }) {
+function FlightComponent({ standalone = false, children }) {
   const { url, outlet } = useContext(FlightContext);
   const client = useClient();
   const { registerOutlet, subscribe, getFlightResponse } = client;
   const [Component, setComponent] = useState(
-    remote
-      ? getFlightResponse(url, { outlet, standalone })
-      : children || getFlightResponse(url, { outlet, standalone })
+    children || getFlightResponse(url, { outlet, standalone })
   );
   const [error, setError] = useState(null);
 
@@ -26,9 +24,7 @@ function FlightComponent({ standalone = false, remote = false, children }) {
           if (!mounted) return;
           startTransition(async () => {
             setError(null);
-            const {
-              value: { data: result },
-            } = Component.value.props;
+            const result = Component.value;
             setComponent(Component);
             callback(null, result);
           });
@@ -37,9 +33,7 @@ function FlightComponent({ standalone = false, remote = false, children }) {
           if (!mounted) return;
           startTransition(() => {
             setError(Component.reason);
-            const {
-              value: { data: result },
-            } = Component.value.props;
+            const result = Component.value;
             callback(Component.reason, result);
           });
         }
@@ -59,10 +53,6 @@ function FlightComponent({ standalone = false, remote = false, children }) {
   );
 }
 
-/**
- * @typedef {import("react").PropsWithChildren<{ url: string, standalone?: boolean }>} ReactServerComponentProps
- * @param { ReactServerComponentProps } props
- */
 export default function ReactServerComponent({
   url,
   outlet = null,

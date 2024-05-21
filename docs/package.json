@@ -2,7 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "react-server",
-    "build": "react-server build --export",
+    "build": "react-server build",
     "start": "react-server start"
   },
   "keywords": [],
@@ -11,12 +11,19 @@
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "@lazarv/react-server-router": "workspace:^",
-    "highlight.js": "^11.8.0",
-    "rehype-highlight": "^6.0.0"
+    "@lazarv/react-server-adapter-vercel": "workspace:^",
+    "highlight.js": "^11.9.0",
+    "rehype-highlight": "^7.0.0",
+    "remark-gfm": "^4.0.0",
+    "vite-plugin-svgr": "^4.2.0"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.14",
-    "sass": "^1.63.6",
-    "tailwindcss": "^3.3.3"
+    "@types/react": "^18.3.2",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "sass": "^1.77.1",
+    "tailwindcss": "^3.4.3",
+    "typedoc": "^0.25.13",
+    "typedoc-plugin-markdown": "^4.0.2"
   }
 }

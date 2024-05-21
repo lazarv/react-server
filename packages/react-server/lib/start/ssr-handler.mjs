@@ -1,8 +1,10 @@
-import { createRequire } from "node:module";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { createRequire, register } from "node:module";
 
 import { forChild } from "../../config/index.mjs";
 import { init$ as memory_cache_init$ } from "../../memory-cache/index.mjs";
 import { ContextStorage, getContext } from "../../server/context.mjs";
+import { createWorker } from "../../server/create-worker.mjs";
 import { logger } from "../../server/logger.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getRuntime } from "../../server/runtime.mjs";
@@ -19,28 +21,35 @@ import {
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
   REDIRECT_CONTEXT,
+  RENDER_STREAM,
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
 import errorHandler from "../handlers/error.mjs";
+import { alias } from "../loader/module-alias.mjs";
+import * as sys from "../sys.mjs";
 import { init$ as manifest_init$ } from "./manifest.mjs";
 
-const __require = createRequire(import.meta.url);
+alias("react-server");
+register("../loader/node-loader.react-server.mjs", import.meta.url);
 
-const defaultRoot = `${process.cwd()}/.react-server/server/index.mjs`;
+const __require = createRequire(import.meta.url);
+const cwd = sys.cwd();
+
+const defaultRoot = `${cwd}/.react-server/server/index.mjs`;
 export default async function ssrHandler(root) {
   const config = getRuntime(CONFIG_CONTEXT);
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 
   await manifest_init$();
 
-  const entryModule = __require.resolve(
-    `${process.cwd()}/.react-server/server/entry.mjs`
-  );
+  const entryModule = __require.resolve("./.react-server/server/render.mjs", {
+    paths: [cwd],
+  });
   const rootModule = __require.resolve(
     root ?? configRoot.entry ?? defaultRoot,
     {
-      paths: [process.cwd()],
+      paths: [cwd],
     }
   );
   const { render } = await import(entryModule);
@@ -52,16 +61,13 @@ export default async function ssrHandler(root) {
   const moduleLoader = getRuntime(MODULE_LOADER);
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const manifest = getRuntime(MANIFEST);
-  await module_loader_init$(moduleLoader);
+  const moduleCacheStorage = new AsyncLocalStorage();
+  await module_loader_init$(moduleLoader, moduleCacheStorage);
+  const renderStream = createWorker(
+    new URL("./render-stream.mjs", import.meta.url)
+  );
 
   return async (httpContext) => {
-    // const accept = httpContext.request.headers.get("accept");
-    // if (
-    //   !accept ||
-    //   !(accept.includes("text/html") || accept.includes("text/x-component"))
-    // ) {
-    //   return;
-    // }
     return new Promise((resolve, reject) => {
       try {
         ContextStorage.run(
@@ -79,6 +85,7 @@ export default async function ssrHandler(root) {
             [REDIRECT_CONTEXT]: {},
             [COLLECT_STYLESHEETS]: collectStylesheets,
             [STYLES_CONTEXT]: styles,
+            [RENDER_STREAM]: renderStream,
           },
           async () => {
             const cacheModule = forChild(httpContext.url)?.cache?.module;
@@ -86,7 +93,7 @@ export default async function ssrHandler(root) {
             if (cacheModule) {
               const { init$: cache_init$ } = await import(
                 __require.resolve(cacheModule, {
-                  paths: [process.cwd()],
+                  paths: [cwd],
                 })
               );
               await cache_init$?.();

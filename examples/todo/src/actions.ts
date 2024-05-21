@@ -28,7 +28,7 @@ const deleteTodoSchema = zod.object({
 });
 
 export async function addTodo(formData: FormData) {
-  const result = addTodoSchema.safeParse(formData);
+  const result = addTodoSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
     throw result.error.issues;
@@ -44,7 +44,7 @@ export function allTodos() {
 }
 
 export async function deleteTodo(formData: FormData) {
-  const result = deleteTodoSchema.safeParse(formData);
+  const result = deleteTodoSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
     throw result.error.issues;

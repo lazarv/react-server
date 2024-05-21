@@ -7,7 +7,7 @@ const __require = createRequire(import.meta.url);
 
 export default function getModules(root) {
   const entryModule = __require.resolve(
-    `${packageJson.name}/server/entry.server.jsx`
+    `${packageJson.name}/server/render-rsc.jsx`
   );
   const rootModule = __require.resolve(root ?? "@lazarv/react-server-router", {
     paths: [cwd()],

@@ -2,7 +2,7 @@ import { getContext } from "@lazarv/react-server/server/context.mjs";
 import { HTTP_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
 
 export function cookie() {
-  return getContext(HTTP_CONTEXT)?.cookie;
+  return getContext(HTTP_CONTEXT)?.cookie ?? {};
 }
 
 export function setCookie(name, value, options) {

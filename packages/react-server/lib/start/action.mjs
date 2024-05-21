@@ -5,7 +5,7 @@ import { availableParallelism } from "node:os";
 
 import { loadConfig } from "../../config/index.mjs";
 import { logger } from "../../server/logger.mjs";
-import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
+import { runtime$, init$ as runtime_init$ } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,

@@ -10,7 +10,11 @@ export default function Header({ lang }) {
   return (
     <header>
       <nav>
-        <a href={baseUrl}>
+        <a href={baseUrl} className="relative pl-7">
+          <img
+            src="/react-server.svg"
+            className="w-6 h-6 absolute left-0 top-1/2 -translate-y-1/2 -mt-1"
+          />
           <h4>@lazarv</h4>
           <h3>react-server</h3>
         </a>

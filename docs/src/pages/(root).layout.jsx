@@ -17,6 +17,7 @@ export default function Layout({ header, sidebar, navigation, children }) {
         <meta name="view-transition" content="same-origin" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>@lazarv/react-server</title>
+        <link rel="icon" href="/favicon.png" />
         <script
           type="application/javascript"
           dangerouslySetInnerHTML={{

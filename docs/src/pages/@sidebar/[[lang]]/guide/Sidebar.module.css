@@ -1,0 +1,105 @@
+.toggle {
+  opacity: 0;
+  height: 0;
+
+  &:checked {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+
+    & ~ .sidebar {
+      transform: translateX(0);
+
+      & + .backdrop {
+        opacity: 1;
+      }
+    }
+  }
+
+  @media screen(sm) {
+    display: none;
+  }
+}
+
+.label {
+  @apply w-full mb-4 border-b cursor-pointer;
+
+  & label {
+    @apply flex items-center p-4 text-xs cursor-pointer;
+
+    & svg {
+      @apply inline-block h-4 w-4 mr-1;
+    }
+  }
+
+  @media screen(sm) {
+    display: none;
+  }
+}
+
+.sidebar {
+  transform: translateX(-100vw);
+  transition: transform 0.5s ease-in-out;
+  justify-items: left;
+  padding: 4rem 1rem 1rem 1rem;
+  width: 100%;
+  z-index: 2;
+  overflow: auto;
+  /* view-transition-name: sidebar; */
+
+  @media (prefers-reduced-motion) {
+    view-transition-name: none;
+  }
+
+  position: fixed;
+  max-width: min-content;
+  top: 0;
+  bottom: 0;
+  min-height: 100%;
+  box-shadow: 0 0 8px 8px rgba(0, 0, 0, 0.5);
+
+  @media screen(sm) {
+    position: sticky;
+    top: 4rem;
+    align-self: flex-start;
+    min-height: min-content;
+    height: auto;
+    box-shadow: none;
+    transform: none;
+    padding-top: 0rem;
+    @apply bg-transparent dark:bg-transparent;
+  }
+
+  & + .backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none;
+  }
+
+  & nav {
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+
+    & a {
+      display: inline-flex;
+      white-space: nowrap;
+      float: left;
+      clear: left;
+      margin-right: auto;
+
+      &:first-child {
+        margin-right: 0;
+      }
+    }
+  }
+}

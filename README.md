@@ -125,6 +125,12 @@ pnpm exec react-server --open
 
 Check out the full documentation at [react-server.dev](https://react-server.dev).
 
+The documentation site was fully created using this framework and so it also functions as a static site example. To start the documentation site locally, use:
+
+```sh
+pnpm --filter ./docs dev
+```
+
 ## Examples
 
 You can try out the existing examples in this repo by using the following commands:
@@ -139,12 +145,9 @@ And then run the example you want to check out:
 
 ```sh
 pnpm --filter ./examples/todo dev --open
-```
-
-or
-
-```sh
 pnpm --filter ./examples/photos dev --open
+pnpm --filter ./examples/express dev
+pnpm --filter ./examples/nestjs start:dev
 ```
 
 You will need to have `pnpm` installed. Follow instructions at https://pnpm.io/installation.

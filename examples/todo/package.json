@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "react-server ./src/index.tsx",
     "build": "react-server build ./src/index.tsx",
-    "build:app": "react-server build ./src/App.tsx",
     "start": "react-server start"
   },
   "keywords": [],

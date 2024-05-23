@@ -5,7 +5,7 @@
   "type": "module",
   "module": "server/index.mjs",
   "bin": "bin/cli.mjs",
-  "types": "react-server.d.ts",
+  "types": "types.d.ts",
   "exports": {
     "./client": "./client/index.jsx",
     "./config": "./config/index.mjs",
@@ -13,6 +13,8 @@
     "./memory-cache": "./memory-cache/index.mjs",
     "./navigation": "./client/navigation.jsx",
     "./router": "./server/router.jsx",
+    "./dev": "./lib/dev/index.mjs",
+    "./node": "./lib/start/node.mjs",
     "./client/*": "./client/*",
     "./server/*": "./server/*",
     "./lib/*": "./lib/*",
@@ -67,16 +69,17 @@
   "peerDependencies": {
     "react": "0.0.0-experimental-670811593-20240322",
     "react-dom": "0.0.0-experimental-670811593-20240322",
-    "react-error-boundary": "^4.0.10",
+    "react-error-boundary": "^4.0.13",
     "react-server-dom-webpack": "0.0.0-experimental-670811593-20240322"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@types/node": "^20",
     "react": "0.0.0-experimental-04b058868c-20240508",
     "react-dom": "0.0.0-experimental-04b058868c-20240508",
-    "react-error-boundary": "^4.0.10",
+    "react-error-boundary": "^4.0.13",
     "react-server-dom-webpack": "0.0.0-experimental-04b058868c-20240508"
   }
 }

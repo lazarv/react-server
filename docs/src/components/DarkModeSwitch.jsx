@@ -34,9 +34,8 @@ export default function DarkModeSwitch({ className }) {
       />
       <label className="relative cursor-pointer p-2" htmlFor="light-switch">
         <svg
-          className="dark:hidden"
-          width="16"
-          height="16"
+          className="dark:hidden size-4"
+          viewBox="0 0 16 16"
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
@@ -49,9 +48,8 @@ export default function DarkModeSwitch({ className }) {
           />
         </svg>
         <svg
-          className="hidden dark:block"
-          width="16"
-          height="16"
+          className="hidden dark:block size-4"
+          viewBox="0 0 16 16"
           xmlns="http://www.w3.org/2000/svg"
         >
           <path

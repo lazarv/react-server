@@ -222,5 +222,6 @@ export default async function createServer(root, options) {
     listen: (...args) => viteDevServer.middlewares.listen(...args),
     close: () => viteDevServer.close(),
     ws: viteDevServer.hot,
+    middlewares: viteDevServer.middlewares,
   };
 }

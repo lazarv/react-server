@@ -5,6 +5,8 @@ import { useUrl } from "@lazarv/react-server";
 import Menu from "../../../../../public/menu.svg?react";
 import { defaultLanguage } from "../../../../const.mjs";
 
+import classes from "./Sidebar.module.css";
+
 const guides = Array.from(
   Object.entries(
     import.meta.glob("../../../*/guide/**/*.{md,mdx}", { eager: true })
@@ -16,8 +18,10 @@ export default function Sidebar({ lang }) {
 
   return (
     <>
-      <input type="checkbox" id="sidebar-toggle" />
-      <aside id="sidebar">
+      <input type="checkbox" id="sidebar-toggle" className={classes.toggle} />
+      <aside
+        className={`${classes.sidebar} bg-white dark:bg-gray-800 dark:text-gray-300`}
+      >
         <nav>
           {Array.from(
             Object.entries(
@@ -40,8 +44,8 @@ export default function Sidebar({ lang }) {
               a === "Guide"
                 ? -1
                 : 1 - b === "Guide"
-                ? -1
-                : 1 || a.localeCompare(b)
+                  ? -1
+                  : 1 || a.localeCompare(b)
             )
             .map(([category, guides], i) => (
               <div key={category} className="mb-4">
@@ -91,7 +95,8 @@ export default function Sidebar({ lang }) {
             ))}
         </nav>
       </aside>
-      <div id="sidebar-toggle-label">
+      <div className={classes.backdrop}></div>
+      <div className={classes.label}>
         <label htmlFor="sidebar-toggle">
           <Menu />
           Menu

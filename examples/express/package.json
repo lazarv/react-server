@@ -1,0 +1,25 @@
+{
+  "name": "@lazarv/react-server-example-express",
+  "private": true,
+  "type": "module",
+  "description": "@lazarv/react-server Expres.js example application",
+  "scripts": {
+    "dev": "node ./src/server.mjs",
+    "dev:app": "react-server ./src/app/index.jsx",
+    "build": "react-server build ./src/app/index.jsx",
+    "start": "node ./src/server.mjs",
+    "start:app": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.3.0"
+  }
+}

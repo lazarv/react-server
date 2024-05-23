@@ -80,10 +80,14 @@ export default async function createServer(root, options) {
         process.env.ORIGIN ??
         `${
           config.server?.https || options.https ? "https" : "http"
-        }://localhost:${config.server?.port ?? options.port}`,
+        }://${config.server?.host ?? options.host ?? "localhost"}:${config.server?.port ?? options.port}`,
       trustProxy: config.server?.trustProxy ?? options.trustProxy,
     }
   );
+
+  if (options.middlewareMode) {
+    return { middlewares };
+  }
 
   const httpsOptions = config.server?.https ?? options.https;
   if (!httpsOptions) {

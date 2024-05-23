@@ -12,6 +12,8 @@ import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs
 import {
   ACTION_CONTEXT,
   CACHE_CONTEXT,
+  CONFIG_CONTEXT,
+  CONFIG_ROOT,
   ERROR_CONTEXT,
   FLIGHT_CACHE,
   FORM_DATA_PARSER,
@@ -50,6 +52,7 @@ const decoder = new TextDecoder();
 export async function render(Component) {
   const logger = getContext(LOGGER_CONTEXT);
   const renderStream = getContext(RENDER_STREAM);
+  const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
   try {
     // eslint-disable-next-line no-async-promise-executor
     const streaming = new Promise(async (resolve, reject) => {
@@ -482,7 +485,11 @@ export async function render(Component) {
                   `const moduleCache = new Map();
                     self.__webpack_require__ = function (id) {
                       if (!moduleCache.has(id)) {
-                        const modulePromise = import(id);
+                        ${
+                          config.base
+                            ? `const modulePromise = import(("${`/${config.base || ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));`
+                            : `const modulePromise = import(id);`
+                        }
                         modulePromise.then(
                           (module) => {
                             modulePromise.value = module;

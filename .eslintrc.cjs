@@ -61,5 +61,12 @@ module.exports = {
     "react/prop-types": "off",
     "simple-import-sort/imports": ["error"],
   },
-  exclude: ["./packages/client/react*/**", "./packages/server/react*/**"],
+  exclude: [
+    "node_modules",
+    "dist",
+    "build",
+    ".eslintrc.{js,cjs}",
+    ".react-server",
+    ".vercel",
+  ],
 };

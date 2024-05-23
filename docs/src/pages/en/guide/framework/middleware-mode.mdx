@@ -1,0 +1,47 @@
+---
+title: Middleware mode
+category: Framework
+order: 11
+---
+
+# Middleware mode
+
+You can also run the `@lazarv/react-server` development and production servers in middleware mode. This is useful if you want to integrate `@lazarv/react-server` into an existing server or framework. In middleware mode, `@lazarv/react-server` will not start an HTTP server, but it will provide a middleware function that you can use within your existing server.
+
+## Basic usage
+
+To use the development server, you need to import `reactServer` from `@lazarv/react-server/dev` and pass the path to your entrypoint. This is the same path you would pass to the `react-server` CLI. The path needs to be resolvable from your working directory, it's not relative to your file where you call `reactServer`!
+
+```mjs
+import { reactServer } from '@lazarv/react-server/dev';
+
+const server = reactServer("./src/App.tsx");
+app.use("/react-server", async (req, res, next) => {
+  const { middlewares } = await server;
+  middlewares(req, res, next);
+});
+```
+
+In production, just change your import source to `@lazarv/react-server/node` and pass an `origin` option to the `reactServer` function.
+
+```mjs
+import { reactServer } from '@lazarv/react-server/node';
+
+const server = reactServer({
+  origin: 'http://localhost:3000',
+});
+app.use("/react-server", async (req, res, next) => {
+  const { middlewares } = await server;
+  middlewares(req, res, next);
+});
+```
+
+> **Note:** The `reactServer` function returns a promise that resolves to an object with a `middlewares` function. You need to `await` the promise before you can use the `middlewares` function.
+
+When you add the `@lazarv/react-server` middleware to your server, you will probably use a path. When this path is not the root path, you need to define the base URL of your app. This is necessary for the server to correctly resolve the paths of your assets. To define the base URL, you can add the `base` option to the `react-server.config.json` file.
+
+```json
+{
+  "base": "/react-server/"
+}
+```

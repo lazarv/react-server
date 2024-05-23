@@ -1,14 +1,8 @@
-import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
-import {
-  HTTP_CONTEXT,
-  MANIFEST,
-} from "@lazarv/react-server/server/symbols.mjs";
+import { MANIFEST } from "@lazarv/react-server/server/symbols.mjs";
 
 export const clientCache = (globalThis.__react_server_client_components__ =
   globalThis.__react_server_client_components__ || new Map());
-
-const root = sys.cwd();
 
 export const clientReferenceMap = new Proxy(
   {},
@@ -35,7 +29,6 @@ export const clientReferenceMap = new Proxy(
             return serverEntry.src.endsWith(entry.src);
           });
 
-          const httpContext = getContext(HTTP_CONTEXT);
           def = {
             id: `/${browserEntry.file}`,
             chunks: [],

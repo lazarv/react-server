@@ -12,5 +12,4 @@ export const chunks = {
     ".js"
   )]: "react-server-dom-webpack/client.browser",
   [dependencies.reactErrorBoundary]: "react-error-boundary",
-  [dependencies.scheduler]: "scheduler",
 };

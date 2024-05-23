@@ -204,3 +204,39 @@ declare module "@lazarv/react-server/router" {
     | __react_server_routing__.ReactServerRouting<T>["params"]
     | null;
 }
+
+declare module "@lazarv/react-server/dev" {
+  import * as http from "node:http";
+  import type { Connect, HMRBroadcaster } from "vite";
+
+  export function reactServer(
+    root: string,
+    options?: Record<string, any>
+  ): Promise<{
+    listen: () => http.Server;
+    close: () => Promise<void>;
+    ws: HMRBroadcaster;
+    middlewares: Connect.Server;
+  }>;
+}
+
+declare module "@lazarv/react-server/node" {
+  import type { NodeMiddleware } from "@hattip/adapter-node";
+
+  function reactServer(options?: Record<string, any>): Promise<{
+    middlewares: NodeMiddleware;
+  }>;
+  export function reactServer(
+    root?: string,
+    options?: {
+      cors?: boolean;
+      origin?: string;
+      https?: boolean;
+      host?: string;
+      port?: number;
+      trustProxy?: boolean;
+    }
+  ): Promise<{
+    middlewares: NodeMiddleware;
+  }>;
+}

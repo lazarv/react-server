@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
 
 import { forChild } from "../../config/index.mjs";
-import { context$, ContextStorage, getContext } from "../../server/context.mjs";
+import { ContextStorage, context$, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getRuntime } from "../../server/runtime.mjs";
@@ -41,7 +41,7 @@ export default async function ssrHandler(root) {
   const moduleCacheStorage = new AsyncLocalStorage();
 
   return async (httpContext) => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       try {
         ContextStorage.run(
           {
@@ -51,7 +51,13 @@ export default async function ssrHandler(root) {
             [ERROR_CONTEXT]: errorHandler,
             [MODULE_LOADER]: ssrLoadModule,
             [LOGGER_CONTEXT]: logger,
-            [MAIN_MODULE]: ["/@vite/client", `/@hmr`, `/@__webpack_require__`],
+            [MAIN_MODULE]: ["@vite/client", `@hmr`, `@__webpack_require__`].map(
+              (mod) =>
+                `${viteDevServer.config.base || "/"}/${mod}`.replace(
+                  /\/+/g,
+                  "/"
+                )
+            ),
             [FORM_DATA_PARSER]: getRuntime(FORM_DATA_PARSER),
             [MEMORY_CACHE_CONTEXT]: getRuntime(MEMORY_CACHE_CONTEXT),
             [REDIRECT_CONTEXT]: {},

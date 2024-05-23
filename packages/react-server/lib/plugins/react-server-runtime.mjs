@@ -1,6 +1,10 @@
 export default function viteReactServerRuntime() {
+  let config = {};
   return {
     name: "react-server-runtime",
+    configResolved(resolvedConfig) {
+      config = resolvedConfig;
+    },
     load(id) {
       if (id.endsWith("/@hmr")) {
         return `
@@ -18,7 +22,11 @@ export default function viteReactServerRuntime() {
           const moduleCache = new Map();
           self.__webpack_require__ = function (id) {
           if (!moduleCache.has(id)) {
-          const mod = import(/* @vite-ignore */ new URL(id, location.origin).href);
+          ${
+            config.base
+              ? `const mod = import(/* @vite-ignore */ new URL("${`/${config.base || ""}/`.replace(/\/+/g, "/")}" + id, location.origin).href);`
+              : `const mod = import(/* @vite-ignore */ new URL(id, location.origin).href);`
+          }
           moduleCache.set(id, mod);
           return mod;
           }

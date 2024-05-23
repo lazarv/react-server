@@ -15,6 +15,8 @@ import {
   ERROR_CONTEXT,
   FORM_DATA_PARSER,
   HTTP_CONTEXT,
+  HTTP_HEADERS,
+  HTTP_STATUS,
   LOGGER_CONTEXT,
   MAIN_MODULE,
   MANIFEST,
@@ -25,7 +27,6 @@ import {
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
-import errorHandler from "../handlers/error.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
 import { init$ as manifest_init$ } from "./manifest.mjs";
@@ -56,7 +57,9 @@ export default async function ssrHandler(root) {
   const { default: Component, init$: root_init$ } = await import(rootModule);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
-  const mainModule = getRuntime(MAIN_MODULE);
+  const mainModule = getRuntime(MAIN_MODULE)?.map((mod) =>
+    `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")
+  );
   const formDataParser = getRuntime(FORM_DATA_PARSER);
   const moduleLoader = getRuntime(MODULE_LOADER);
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
@@ -66,6 +69,19 @@ export default async function ssrHandler(root) {
   const renderStream = createWorker(
     new URL("./render-stream.mjs", import.meta.url)
   );
+  const errorHandler = async (e) => {
+    const httpStatus = getContext(HTTP_STATUS) ?? {
+      status: 500,
+      statusText: "Internal Server Error",
+    };
+    return new Response(e?.stack ?? null, {
+      ...httpStatus,
+      headers: {
+        "Content-Type": "text/plain",
+        ...(getContext(HTTP_HEADERS) ?? {}),
+      },
+    });
+  };
 
   return async (httpContext) => {
     return new Promise((resolve, reject) => {
@@ -134,7 +150,7 @@ export default async function ssrHandler(root) {
         );
       } catch (e) {
         logger.error(e);
-        errorHandler(e).then(resolve);
+        errorHandler(e)?.then(resolve);
       }
     });
   };

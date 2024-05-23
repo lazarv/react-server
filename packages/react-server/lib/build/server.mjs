@@ -92,7 +92,6 @@ export default async function serverBuild(root, options) {
           /^bun:/,
           "react",
           "react/jsx-runtime",
-          "scheduler",
           "react-dom",
           "react-dom/client",
           "react-dom/server.edge",

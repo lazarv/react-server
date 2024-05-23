@@ -13,7 +13,7 @@ export default function Header({ lang }) {
         <a href={baseUrl} className="relative pl-7">
           <img
             src="/react-server.svg"
-            className="w-6 h-6 absolute left-0 top-1/2 -translate-y-1/2 -mt-1"
+            className="size-6 absolute left-0 top-1/2 -translate-y-1/2 -mt-1"
           />
           <h4>@lazarv</h4>
           <h3>react-server</h3>
@@ -33,7 +33,7 @@ export default function Header({ lang }) {
           rel="noreferrer"
           className="absolute right-3 sm:right-4"
         >
-          <GitHub className="w-4 h-4 max-w-none" />
+          <GitHub className="size-4 max-w-none" />
         </a>
       </nav>
     </header>

@@ -30,7 +30,6 @@ const reactServerNavigation = __require.resolve(
 const reactServerClientContext = __require.resolve(
   "@lazarv/react-server/client/context.mjs"
 );
-const scheduler = __require.resolve("scheduler");
 
 export {
   react,
@@ -46,5 +45,4 @@ export {
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
   reactServerNavigation,
-  scheduler,
 };

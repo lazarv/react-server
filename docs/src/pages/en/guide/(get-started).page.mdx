@@ -17,6 +17,22 @@ You will only need node.js and a package manager to get started. We suggest the 
 
 > Support for other JavaScript runtimes including Bun and Deno is planned. Support for multiple cloud platforms is also planned and contributions are welcome. If you would like to contribute, please open an issue on GitHub.
 
+#### Peer dependencies
+
+`@lazarv/react-server` uses react, react-dom, react-server-dom-webpack and react-error-boundary as peer dependencies. Until all React dependencies are not released as latest the framework uses a pinned version of React. To install this version specifically the best way is to let `pnpm` install these for you.
+
+If your project is not set up to auto-install peer dependencies, add this to your `.npmrc`:
+
+```sh
+auto-install-peers=true
+```
+
+or alternatively run:
+
+```sh
+pnpm config set auto-install-peers true --location project
+```
+
 ## Install
 
 Just add `@lazarv/react-server` to your project. You will not need anything else to get started with a micro-application.

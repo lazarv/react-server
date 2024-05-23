@@ -45,6 +45,22 @@ Use a package manager to add `@lazarv/react-server` to your project. pnpm is a g
 pnpm add @lazarv/react-server
 ```
 
+#### Peer dependencies
+
+`@lazarv/react-server` uses react, react-dom, react-server-dom-webpack and react-error-boundary as peer dependencies. Until all React dependencies are not released as latest the framework uses a pinned version of React. To install this version specifically the best way is to let `pnpm` install these for you.
+
+If your project is not set up to auto-install peer dependencies, add this to your `.npmrc`:
+
+```sh
+auto-install-peers=true
+```
+
+or alternatively run:
+
+```sh
+pnpm config set auto-install-peers true --location project
+```
+
 #### Create your app
 
 Create an entrypoint for your app and export your root component as default.

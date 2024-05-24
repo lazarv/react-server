@@ -235,6 +235,7 @@ export const createRenderer = ({
                 }
 
                 controller.close();
+                parentPort.postMessage({ id, done: true });
               };
 
               render();

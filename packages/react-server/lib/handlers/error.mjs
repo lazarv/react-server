@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import strip from "strip-ansi";
 
 import packageJson from "../../package.json" assert { type: "json" };
@@ -17,11 +18,10 @@ function cleanStack(stack) {
     .join("\n");
 }
 
-export function prepareError(err) {
+export async function prepareError(err) {
   try {
     if (!err.id) {
       const viteDevServer = getContext(SERVER_CONTEXT);
-      viteDevServer.ssrFixStacktrace(err);
       const [id, line, column] =
         err.stack
           .split("\n")[1]
@@ -29,9 +29,10 @@ export function prepareError(err) {
           .split(":") ?? [];
 
       if (viteDevServer.moduleGraph.idToModuleMap.has(id)) {
-        const {
-          ssrTransformResult: { map },
-        } = viteDevServer.moduleGraph.getModuleById(id);
+        const map = viteDevServer.moduleGraph.getModuleById(id)
+          ?.ssrTransformResult?.map ?? {
+          sourcesContent: [await readFile(id, "utf-8")],
+        };
 
         err.id = id;
         if (!err.loc) {

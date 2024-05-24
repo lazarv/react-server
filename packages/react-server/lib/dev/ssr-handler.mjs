@@ -41,7 +41,7 @@ export default async function ssrHandler(root) {
   const moduleCacheStorage = new AsyncLocalStorage();
 
   return async (httpContext) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       try {
         ContextStorage.run(
           {
@@ -123,13 +123,13 @@ export default async function ssrHandler(root) {
               return resolve(render(Component));
             } catch (e) {
               logger.error(e);
-              return resolve(await getContext(ERROR_CONTEXT)?.(e));
+              return errorHandler(e).then(resolve, reject);
             }
           }
         );
       } catch (e) {
         logger.error(e);
-        return resolve(errorHandler(e));
+        return errorHandler(e).then(resolve, reject);
       }
     });
   };

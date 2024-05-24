@@ -87,7 +87,10 @@ declare module "@lazarv/react-server/error-boundary" {
   import type { ErrorBoundaryProps } from "react-error-boundary";
 
   export type ReactServerErrorBoundaryProps = React.PropsWithChildren<
-    Omit<ErrorBoundaryProps, "fallback"> & { fallback: React.ReactNode }
+    Omit<ErrorBoundaryProps, "fallback"> & {
+      fallback?: React.ReactNode;
+      component?: React.ComponentType<{ error?: Error }> | React.ReactNode;
+    }
   >;
   const ErrorBoundary: React.FC<ReactServerErrorBoundaryProps>;
   export default ErrorBoundary;

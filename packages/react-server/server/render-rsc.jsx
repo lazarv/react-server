@@ -25,7 +25,6 @@ import {
   MAIN_MODULE,
   REDIRECT_CONTEXT,
   RENDER_STREAM,
-  SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 import server from "react-server-dom-webpack/server.edge";
@@ -398,84 +397,29 @@ export async function render(Component) {
             }
           }
 
-          let flightWriter = false;
           const flight = server.renderToReadableStream(
             app,
             clientReferenceMap,
             {
               onError(e) {
-                if (!flightWriter) {
-                  const redirect = getContext(REDIRECT_CONTEXT);
-                  if (redirect?.response) {
-                    return resolve(redirect.response);
-                  }
-
-                  status(
-                    e.status || 500,
-                    e.statusText || "Internal Server Error"
-                  );
-
-                  const viteDevServer = getContext(SERVER_CONTEXT);
-                  viteDevServer?.ssrFixStacktrace?.(e);
-                  logger.error(e);
+                const redirect = getContext(REDIRECT_CONTEXT);
+                if (redirect?.response) {
+                  return resolve(redirect.response);
                 }
+
+                status(
+                  e.status || 500,
+                  e.statusText || "Internal Server Error"
+                );
+
+                logger.error(e);
+                getContext(ERROR_CONTEXT)?.(e).then(resolve, reject);
+                return e.message;
               },
             }
           );
 
           const contextStore = ContextStorage.getStore();
-          const start = async () => {
-            ContextStorage.run(contextStore, async () => {
-              const redirect = getContext(REDIRECT_CONTEXT);
-              if (redirect?.response) {
-                return resolve(redirect.response);
-              }
-
-              const httpStatus = getContext(HTTP_STATUS) ?? {
-                status: 200,
-                statusText: "OK",
-              };
-              const httpHeaders = getContext(HTTP_HEADERS) ?? {};
-
-              const [responseStream, cacheStream] = stream.tee();
-              const payload = [];
-              (async () => {
-                for await (const chunk of cacheStream) {
-                  payload.push(copyBytesFrom(chunk));
-                }
-                await getContext(CACHE_CONTEXT)?.set(
-                  [context.url, accept, HTML_CACHE, lastModified],
-                  {
-                    ...httpStatus,
-                    buffer: concat(payload),
-                    headers: httpHeaders,
-                  }
-                );
-                const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
-                  context.url,
-                  accept,
-                  HTML_CACHE,
-                ]);
-              })();
-
-              resolve(
-                new Response(responseStream, {
-                  ...httpStatus,
-                  headers: {
-                    "content-type": "text/html",
-                    "cache-control":
-                      context.request.headers.get("cache-control") ===
-                      "no-cache"
-                        ? "no-cache"
-                        : "must-revalidate",
-                    "last-modified": lastModified,
-                    ...httpHeaders,
-                  },
-                })
-              );
-            });
-          };
-
           const stream = await renderStream({
             stream: flight,
             bootstrapModules: standalone ? [] : getContext(MAIN_MODULE),
@@ -506,7 +450,58 @@ export async function render(Component) {
                     };`.replace(/\n/g, ""),
                 ],
             outlet,
-            start,
+            start: async () => {
+              ContextStorage.run(contextStore, async () => {
+                const redirect = getContext(REDIRECT_CONTEXT);
+                if (redirect?.response) {
+                  return resolve(redirect.response);
+                }
+
+                const httpStatus = getContext(HTTP_STATUS) ?? {
+                  status: 200,
+                  statusText: "OK",
+                };
+                const httpHeaders = getContext(HTTP_HEADERS) ?? {};
+
+                const [responseStream, cacheStream] = stream.tee();
+                const payload = [];
+                (async () => {
+                  for await (const chunk of cacheStream) {
+                    payload.push(copyBytesFrom(chunk));
+                  }
+                  await getContext(CACHE_CONTEXT)?.set(
+                    [context.url, accept, HTML_CACHE, lastModified],
+                    {
+                      ...httpStatus,
+                      buffer: concat(payload),
+                      headers: httpHeaders,
+                    }
+                  );
+                })();
+
+                resolve(
+                  new Response(responseStream, {
+                    ...httpStatus,
+                    headers: {
+                      "content-type": "text/html",
+                      "cache-control":
+                        context.request.headers.get("cache-control") ===
+                        "no-cache"
+                          ? "no-cache"
+                          : "must-revalidate",
+                      "last-modified": lastModified,
+                      ...httpHeaders,
+                    },
+                  })
+                );
+              });
+            },
+            onError(e) {
+              ContextStorage.run(contextStore, async () => {
+                logger.error(e);
+                getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
+              });
+            },
             formState,
           });
         } else {

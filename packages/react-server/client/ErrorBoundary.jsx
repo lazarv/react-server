@@ -18,10 +18,6 @@ function ResetErrorBoundary() {
   return null;
 }
 
-/**
- * @typedef {import("react").PropsWithChildren<Omit<import("react-error-boundary").ErrorBoundaryProps, 'fallback'> & { fallback: import("react").ReactNode }>} ReactServerErrorBoundaryProps
- * @param { ReactServerErrorBoundaryProps } props
- */
 export default function ReactServerErrorBoundary({
   component: FallbackComponent,
   render: fallbackRender,
@@ -34,7 +30,11 @@ export default function ReactServerErrorBoundary({
       fallbackRender={(props) => (
         <>
           <ResetErrorBoundary />
-          {FallbackComponent && <FallbackComponent {...props} />}
+          {FallbackComponent && typeof FallbackComponent === "function" ? (
+            <FallbackComponent {...props} />
+          ) : (
+            FallbackComponent
+          )}
           {fallbackRender?.(props)}
         </>
       )}

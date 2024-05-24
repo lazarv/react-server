@@ -8,32 +8,29 @@ export function createWorker(url) {
   runtime$(WORKER_THREAD, worker);
 
   const workerMap = new Map();
-  worker.on("message", ({ id, stream, start, error, stack }) => {
+  worker.on("message", ({ id, stream, start, done, error, stack }) => {
     if (id) {
       if (error) {
         const err = new Error(error);
         err.stack = stack;
-        workerMap.get(id).reject(err);
+        workerMap.get(id)?.onError?.(err);
         workerMap.delete(id);
       } else if (stream) {
         workerMap.get(id).resolve(stream);
       } else if (start) {
         workerMap.get(id).start({ id });
+      } else if (done) {
         workerMap.delete(id);
       }
     }
   });
 
-  return async ({ start, stream, ...options }) => {
-    try {
-      const id = randomUUID();
-      const promise = new Promise((resolve, reject) =>
-        workerMap.set(id, { resolve, reject, start })
-      );
-      worker.postMessage({ id, stream, ...options }, [stream]);
-      return promise;
-    } catch (e) {
-      reject(e);
-    }
+  return async ({ start, onError, stream, ...options }) => {
+    const id = randomUUID();
+    const promise = new Promise((resolve, reject) =>
+      workerMap.set(id, { resolve, reject, start, onError })
+    );
+    worker.postMessage({ id, stream, ...options }, [stream]);
+    return promise;
   };
 }

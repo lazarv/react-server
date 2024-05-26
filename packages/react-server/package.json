@@ -1,7 +1,7 @@
 {
   "name": "@lazarv/react-server",
   "version": "0.0.0",
-  "description": "Experimental React meta-framework using Vite",
+  "description": "A minimalist React meta-framework using Vite",
   "type": "module",
   "module": "server/index.mjs",
   "bin": "bin/cli.mjs",

@@ -1,6 +1,8 @@
 # What is @lazarv/react-server?
 
-A [React](https://react.dev) meta-framework using [Vite](https://vitejs.dev).
+![@lazarv/react-server](https://github.com/lazarv/react-server/blob/7f56153ae10f304a2777c652c82d394c7560cf91/docs/public/opengraph.jpg?raw=true "@lazarv/react-server")
+
+A minimalist [React](https://react.dev) meta-framework using [Vite](https://vitejs.dev).
 
 Combines the fantastic developer experience of using Vite for React development and all the new React 19 features.
 

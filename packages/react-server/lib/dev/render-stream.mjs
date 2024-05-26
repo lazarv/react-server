@@ -4,7 +4,6 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire, register } from "node:module";
 import { dirname, join } from "node:path";
 import { parentPort } from "node:worker_threads";
-import colors from "picocolors";
 import { createServer, createViteRuntime } from "vite";
 
 import { loadConfig } from "../../config/index.mjs";
@@ -16,13 +15,6 @@ import merge from "../utils/merge.mjs";
 sys.experimentalWarningSilence();
 alias();
 register("../loader/node-loader.mjs", import.meta.url);
-
-Object.entries(console).forEach(([key, value]) => {
-  const oldConsoleFn = value;
-  console[key] = (...args) => {
-    oldConsoleFn(colors.bgWhite("React-Server-Worker"), ...args);
-  };
-});
 
 const packageJson = (
   await import("../../package.json", {

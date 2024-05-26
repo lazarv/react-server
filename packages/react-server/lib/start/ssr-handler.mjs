@@ -33,6 +33,7 @@ import { init$ as manifest_init$ } from "./manifest.mjs";
 
 alias("react-server");
 register("../loader/node-loader.react-server.mjs", import.meta.url);
+globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();

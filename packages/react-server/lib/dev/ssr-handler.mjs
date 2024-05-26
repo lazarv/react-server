@@ -28,6 +28,7 @@ import getModules from "./modules.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
+globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
 export default async function ssrHandler(root) {
   const { entryModule, rootModule, memoryCacheModule } = getModules(root);

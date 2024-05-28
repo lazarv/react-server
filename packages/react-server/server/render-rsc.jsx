@@ -23,6 +23,8 @@ import {
   HTTP_STATUS,
   LOGGER_CONTEXT,
   MAIN_MODULE,
+  POSTPONE_STATE,
+  PRELUDE_HTML,
   REDIRECT_CONTEXT,
   RENDER_STREAM,
   STYLES_CONTEXT,
@@ -45,8 +47,6 @@ const serverReferenceMap = new Proxy(
     },
   }
 );
-
-const decoder = new TextDecoder();
 
 export async function render(Component) {
   const logger = getContext(LOGGER_CONTEXT);
@@ -420,6 +420,9 @@ export async function render(Component) {
           );
 
           const contextStore = ContextStorage.getStore();
+          const { onPostponed } = context;
+          const prelude = getContext(PRELUDE_HTML);
+          const postponed = getContext(POSTPONE_STATE);
           const stream = await renderStream({
             stream: flight,
             bootstrapModules: standalone ? [] : getContext(MAIN_MODULE),
@@ -503,6 +506,10 @@ export async function render(Component) {
               });
             },
             formState,
+            isPrerender: typeof onPostponed === "function",
+            onPostponed,
+            prelude,
+            postponed,
           });
         } else {
           return resolve(

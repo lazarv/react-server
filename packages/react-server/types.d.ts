@@ -243,3 +243,8 @@ declare module "@lazarv/react-server/node" {
     middlewares: NodeMiddleware;
   }>;
 }
+
+declare module "@lazarv/react-server/prerender" {
+  export function usePrerender(reason?: string): void;
+  export function withPrerender<T extends React.FC>(Component: T): T;
+}

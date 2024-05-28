@@ -5,6 +5,8 @@ import { experimentalWarningSilence } from "../lib/sys.mjs";
 
 experimentalWarningSilence();
 
+globalThis.__react_server_start__ = Date.now();
+
 const oldConsoleError = console.error;
 console.error = function (message, ...args) {
   if (!message) return;

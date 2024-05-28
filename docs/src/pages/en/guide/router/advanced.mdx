@@ -73,3 +73,7 @@ export default function Loading() {
   return <div>Loading...</div>;
 }
 ```
+
+When you add a loading component or a fallback error component beside your layout, the router will enable partial pre-rendering for the page it renders automatically. To disable partial pre-rendering, add `prerender: false` to your `react-server.config.mjs`. See more details at [Partial pre-rendering](/guide/framework/ppr).
+
+> **Warning:** you can define an error boundy, error fallback or loading component only for layouts, not for pages.

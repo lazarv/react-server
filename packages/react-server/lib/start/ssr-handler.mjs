@@ -7,6 +7,7 @@ import { ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { logger } from "../../server/logger.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
+import { getPrerender } from "../../server/prerender-storage.mjs";
 import { getRuntime } from "../../server/runtime.mjs";
 import {
   COLLECT_STYLESHEETS,
@@ -22,6 +23,8 @@ import {
   MANIFEST,
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
+  POSTPONE_STATE,
+  PRELUDE_HTML,
   REDIRECT_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
@@ -103,6 +106,8 @@ export default async function ssrHandler(root) {
             [COLLECT_STYLESHEETS]: collectStylesheets,
             [STYLES_CONTEXT]: styles,
             [RENDER_STREAM]: renderStream,
+            [PRELUDE_HTML]: getPrerender(PRELUDE_HTML),
+            [POSTPONE_STATE]: getPrerender(POSTPONE_STATE),
           },
           async () => {
             const cacheModule = forChild(httpContext.url)?.cache?.module;
@@ -145,8 +150,7 @@ export default async function ssrHandler(root) {
               return resolve();
             }
 
-            const styles = getContext(STYLES_CONTEXT);
-            render(Component, styles).then(resolve, reject);
+            render(Component).then(resolve, reject);
           }
         );
       } catch (e) {

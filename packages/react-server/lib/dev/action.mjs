@@ -3,12 +3,18 @@ import colors from "picocolors";
 
 import { loadConfig } from "../../config/index.mjs";
 import { logger } from "../../server/logger.mjs";
-import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
+import {
+  getRuntime,
+  runtime$,
+  init$ as runtime_init$,
+} from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
+  LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
 import createServer from "./create-server.mjs";
 
@@ -45,6 +51,9 @@ export default async function dev(root, options) {
                 }://${host}:${port}`
               );
             }
+            getRuntime(LOGGER_CONTEXT)?.info?.(
+              `${colors.green("✔")} Ready in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
+            );
           });
         })
         .on("error", (e) => {

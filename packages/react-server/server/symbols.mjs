@@ -24,3 +24,5 @@ export const BUILD_OPTIONS = Symbol.for("BUILD_OPTIONS");
 export const ACTION_CONTEXT = Symbol.for("ACTION_CONTEXT");
 export const RENDER_STREAM = Symbol.for("RENDER_STREAM");
 export const WORKER_THREAD = Symbol.for("WORKER_THREAD");
+export const PRELUDE_HTML = Symbol.for("PRELUDE_HTML");
+export const POSTPONE_STATE = Symbol.for("POSTPONE_STATE");

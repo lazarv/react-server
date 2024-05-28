@@ -12,6 +12,7 @@ import {
   LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
 import createServer from "./create-server.mjs";
 
@@ -66,7 +67,7 @@ async function worker(root, options) {
       logger.info(
         `worker #${process.pid} listening on ${
           config.server?.https || options.https ? "https" : "http"
-        }://${address.address}:${listener.address().port}`
+        }://${address.address}:${listener.address().port} in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
       )
     );
   });

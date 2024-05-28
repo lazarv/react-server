@@ -1,6 +1,6 @@
 import { createWriteStream } from "node:fs";
 import { mkdir, stat, writeFile } from "node:fs/promises";
-import { join, dirname, basename } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createBrotliCompress, createGzip } from "node:zlib";
@@ -11,14 +11,16 @@ import colors from "picocolors";
 import { forRoot } from "../../config/index.mjs";
 import { getContext } from "../../server/context.mjs";
 import {
-  init$ as runtime_init$,
-  runtime$,
   getRuntime,
+  runtime$,
+  init$ as runtime_init$,
 } from "../../server/runtime.mjs";
 import { CONFIG_CONTEXT, WORKER_THREAD } from "../../server/symbols.mjs";
 import ssrHandler from "../start/ssr-handler.mjs";
-import { cwd } from "../sys.mjs";
+import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
+
+const cwd = sys.cwd();
 
 function size(bytes) {
   const s = filesize(bytes);
@@ -30,6 +32,7 @@ function log(
   htmlStat,
   gzipStat,
   brotliStat,
+  postponedStat,
   maxFilenameLength
 ) {
   console.log(
@@ -41,7 +44,7 @@ function log(
     )} ${`${" ".repeat(
       maxFilenameLength - normalizedBasename.length
     )}${colors.gray(colors.bold(size(htmlStat.size)))} ${colors.dim(
-      `│ gzip: ${size(gzipStat.size)} │ brotli: ${size(brotliStat.size)}`
+      `│ gzip: ${size(gzipStat.size)} │ brotli: ${size(brotliStat.size)}${postponedStat.size ? ` │ postponed: ${size(postponedStat.size)}` : ""}`
     )}`}`
   );
 }
@@ -77,6 +80,21 @@ export default async function staticSiteGenerator(root, options) {
             ? await configRoot.export(paths)
             : [...configRoot.export, ...paths];
 
+        if (paths.length === 0) {
+          console.log(
+            colors.yellow("warning: no paths to export, skipping...")
+          );
+          return;
+        }
+
+        if (configRoot.prerender === false) {
+          console.log(
+            colors.yellow(
+              "warning: partial pre-rendering is disabled, skipping pre-rendering..."
+            )
+          );
+        }
+
         const filenames = paths.flatMap(({ path }) => {
           const normalizedPath = path.replace(/^\/+/g, "").replace(/\/+$/g, "");
           const basename = `${normalizedPath}/index.html`.replace(/^\/+/g, "");
@@ -97,17 +115,7 @@ export default async function staticSiteGenerator(root, options) {
                 config.host ?? "localhost"
               }:${config.port ?? 3000}${path}`
             );
-            const stream = await render({
-              url,
-              request: {
-                url,
-                headers: new Headers({
-                  accept: "text/html",
-                }),
-              },
-            });
-            const html = await stream.text();
-            await mkdir(join(cwd(), ".react-server/dist", path), {
+            await mkdir(join(cwd, ".react-server/dist", path), {
               recursive: true,
             });
             const normalizedPath = path
@@ -118,30 +126,58 @@ export default async function staticSiteGenerator(root, options) {
               ""
             );
             const filename = join(
-              cwd(),
+              cwd,
               ".react-server/dist",
               normalizedBasename
             );
+
+            let postponed;
+            const stream = await render({
+              url,
+              request: {
+                url,
+                headers: new Headers({
+                  accept: "text/html",
+                }),
+              },
+              onPostponed:
+                configRoot.prerender === false
+                  ? null
+                  : (_postponed) => (postponed = _postponed),
+            });
+            const html = await stream.text();
             const gzip = createGzip();
             const brotli = createBrotliCompress();
             const gzipWriteStream = createWriteStream(`${filename}.gz`);
             const brotliWriteStream = createWriteStream(`${filename}.br`);
-            await Promise.all([
+            const files = [
               pipeline(Readable.from(html), gzip, gzipWriteStream),
               pipeline(Readable.from(html), brotli, brotliWriteStream),
               writeFile(filename, html, "utf8"),
-            ]);
-            const [htmlStat, gzipStat, brotliStat] = await Promise.all([
-              stat(filename),
-              stat(`${filename}.gz`),
-              stat(`${filename}.br`),
-            ]);
+            ];
+            const postponedFilename = `${filename}.postponed.json`;
+            if (postponed) {
+              files.push(
+                writeFile(postponedFilename, JSON.stringify(postponed), "utf8")
+              );
+            }
+            await Promise.all(files);
+            const [htmlStat, gzipStat, brotliStat, postponedStat] =
+              await Promise.all([
+                stat(filename),
+                stat(`${filename}.gz`),
+                stat(`${filename}.br`),
+                postponed
+                  ? stat(postponedFilename)
+                  : Promise.resolve({ size: 0 }),
+              ]);
 
             log(
               normalizedBasename,
               htmlStat,
               gzipStat,
               brotliStat,
+              postponedStat,
               maxFilenameLength
             );
           })
@@ -165,7 +201,7 @@ export default async function staticSiteGenerator(root, options) {
                 },
               });
               const html = await stream.text();
-              await mkdir(join(cwd(), ".react-server/dist", path), {
+              await mkdir(join(cwd, ".react-server/dist", path), {
                 recursive: true,
               });
               const normalizedPath = path
@@ -174,7 +210,7 @@ export default async function staticSiteGenerator(root, options) {
               const normalizedBasename =
                 `${normalizedPath}/x-component.rsc`.replace(/^\/+/g, "");
               const filename = join(
-                cwd(),
+                cwd,
                 ".react-server/dist",
                 normalizedBasename
               );
@@ -198,6 +234,7 @@ export default async function staticSiteGenerator(root, options) {
                 htmlStat,
                 gzipStat,
                 brotliStat,
+                { size: 0 },
                 maxFilenameLength
               );
             } catch (e) {

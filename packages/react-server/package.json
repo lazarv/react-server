@@ -13,6 +13,7 @@
     "./memory-cache": "./memory-cache/index.mjs",
     "./navigation": "./client/navigation.jsx",
     "./router": "./server/router.jsx",
+    "./prerender": "./server/prerender.jsx",
     "./dev": "./lib/dev/index.mjs",
     "./node": "./lib/start/node.mjs",
     "./client/*": "./client/*",

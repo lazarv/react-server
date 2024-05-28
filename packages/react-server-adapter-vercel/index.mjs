@@ -1,3 +1,4 @@
+import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import packageJson from "@lazarv/react-server/package.json" assert { type: "json" };
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 import {
@@ -11,7 +12,7 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import colors from "picocolors";
 
-const cwd = process.cwd();
+const cwd = sys.cwd();
 const reactServerDir = join(cwd, ".react-server");
 const distDir = join(reactServerDir, "dist");
 const clientDir = join(reactServerDir, "client");

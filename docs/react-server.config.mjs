@@ -9,6 +9,7 @@ export default {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [rehypeHighlight],
   },
+  prerender: false,
   export(paths) {
     return paths.map(({ path }) => ({
       path: path.replace(/^\/en/, ""),

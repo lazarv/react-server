@@ -8,29 +8,48 @@ export function createWorker(url) {
   runtime$(WORKER_THREAD, worker);
 
   const workerMap = new Map();
-  worker.on("message", ({ id, stream, start, done, error, stack }) => {
-    if (id) {
-      if (error) {
-        const err = new Error(error);
-        err.stack = stack;
-        workerMap.get(id)?.onError?.(err);
-        workerMap.delete(id);
-      } else if (stream) {
-        workerMap.get(id).resolve(stream);
-      } else if (start) {
-        workerMap.get(id).start({ id });
-      } else if (done) {
-        workerMap.delete(id);
+  worker.on(
+    "message",
+    ({ id, stream, postponed, start, done, error, stack }) => {
+      if (id) {
+        if (error) {
+          const err = new Error(error);
+          err.stack = stack;
+          workerMap.get(id)?.onError?.(err);
+          workerMap.delete(id);
+        } else if (stream) {
+          workerMap.get(id).resolve(stream);
+        } else if (start) {
+          workerMap.get(id).start({ id });
+        } else if (postponed) {
+          workerMap.get(id).onPostponed?.(postponed);
+        } else if (done) {
+          workerMap.delete(id);
+        }
       }
     }
-  });
+  );
 
-  return async ({ start, onError, stream, ...options }) => {
+  return async ({
+    start,
+    onError,
+    onPostponed,
+    stream,
+    prelude,
+    ...options
+  }) => {
     const id = randomUUID();
     const promise = new Promise((resolve, reject) =>
-      workerMap.set(id, { resolve, reject, start, onError })
+      workerMap.set(id, { resolve, reject, start, onError, onPostponed })
     );
-    worker.postMessage({ id, stream, ...options }, [stream]);
+    if (prelude) {
+      worker.postMessage({ id, stream, prelude, ...options }, [
+        stream,
+        prelude,
+      ]);
+    } else {
+      worker.postMessage({ id, stream, ...options }, [stream]);
+    }
     return promise;
   };
 }

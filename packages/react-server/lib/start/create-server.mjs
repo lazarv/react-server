@@ -7,6 +7,7 @@ import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
 
 import { MemoryCache } from "../../memory-cache/index.mjs";
+import { PrerenderStorage } from "../../server/prerender-storage.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
@@ -18,8 +19,10 @@ import {
 import notFoundHandler from "../handlers/not-found.mjs";
 import staticHandler from "../handlers/static.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
-import { cwd } from "../sys.mjs";
+import * as sys from "../sys.mjs";
 import ssrHandler from "./ssr-handler.mjs";
+
+const cwd = sys.cwd();
 
 export default async function createServer(root, options) {
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
@@ -41,16 +44,17 @@ export default async function createServer(root, options) {
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
   const initialHandlers = [
-    await staticHandler(join(cwd(), ".react-server/dist"), {
+    async () => PrerenderStorage.enterWith({}),
+    await staticHandler(join(cwd, ".react-server/dist"), {
       cwd: ".react-server/dist",
     }),
     await staticHandler("{client,assets}", { cwd: ".react-server" }),
-    await staticHandler(join(cwd(), ".react-server"), {
+    await staticHandler(join(cwd, ".react-server"), {
       cwd: ".react-server",
     }),
     ...(config.public !== false
       ? [
-          await staticHandler(join(cwd(), publicDir), {
+          await staticHandler(join(cwd, publicDir), {
             cwd: publicDir,
           }),
         ]

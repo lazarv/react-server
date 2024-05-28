@@ -648,6 +648,7 @@ export default function viteReactServerRouter() {
               : ""
           }
           import { withCache } from "@lazarv/react-server";
+          import { withPrerender } from "@lazarv/react-server/prerender";
           import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
           import { ${
             viteCommand === "build" ? "MANIFEST, " : ""
@@ -701,6 +702,7 @@ export default function viteReactServerRouter() {
           const { default: Page, ...pageProps } = await import("${src}");
           const ttl = pageProps?.frontmatter?.ttl ?? pageProps?.frontmatter?.revalidate ?? pageProps?.ttl ?? pageProps?.revalidate;
           const CachedPage = typeof ttl === "number" ? withCache(Page, ttl) : Page;
+          const PrerenderedPage = withPrerender(CachedPage);
           ${layouts
             .map(
               ([src], i) =>
@@ -905,7 +907,7 @@ export default function viteReactServerRouter() {
                   }`;
                 })
                 .join("\n")}
-                <CachedPage {...pageProps} {...props} />
+                <${loadingIndex.length > 0 || errorBoundaryIndex.length > 0 ? "PrerenderedPage" : "CachedPage"} {...pageProps} {...props} />
               ${layouts
                 .map(
                   (_, i) =>

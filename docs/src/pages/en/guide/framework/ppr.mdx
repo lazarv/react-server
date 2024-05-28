@@ -1,0 +1,56 @@
+---
+title: Partial pre-rendering
+category: Framework
+order: 5
+---
+
+# Partial pre-rendering
+
+When you have a page that contains a static shell and dynamic content, you can use partial pre-rendering to pre-render only the static content and then the framework will use the pre-rendered content and a state stored in a JSON file to continue rendering the dynamic content on demand.
+
+You can split your JSX to static and dynamic content by using Suspense and marking dynamic components by using the `usePrerender` hook or the `withPrerender` higher-order component helper function. The marked component's rendering will be "postponed" for rendering it at runtime in the production server using the pre-rendered HTML content and the JSON state.
+
+```jsx
+import { Suspense } from "react";
+import { usePrerender } from "@lazarv/react-server/prerender";
+
+async function DynamicComponent() {
+  usePrerender();
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  return <div>Dynamic content</div>;
+}
+
+export default function App() {
+  return (
+    <div>
+      <h1>Static content</h1>
+      <Suspense fallback={<div>Loading...</div>}>
+        <DynamicComponent data={data} />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+To enable partial pre-rendering, you will also need to export your pre-rendered pages as static pages. To do so, add `export` to your `react-server.config.mjs`. See more details about static exporting at [Static generation](/guide/router/static).
+
+```js
+export default {
+  export(paths) {
+    return [
+      ...paths,
+      { path: "/" }
+    ]
+  }
+};
+```
+
+When you run the `build` command, the framework will pre-render the pages you have exported and store the pre-rendered content in the `.react-server` folder of your project. The pre-rendered content will be used by the production server to render the pages faster.
+
+To disable partial pre-rendering, add `prerender: false` to your `react-server.config.mjs`:
+
+```js
+export default {
+  prerender: false
+};
+```

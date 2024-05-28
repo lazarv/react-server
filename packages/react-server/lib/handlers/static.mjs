@@ -4,6 +4,8 @@ import { join, relative } from "node:path";
 import glob from "fast-glob";
 import mime from "mime";
 
+import { prerender$ } from "../../server/prerender-storage.mjs";
+import { POSTPONE_STATE, PRELUDE_HTML } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 
 const cwd = sys.cwd();
@@ -28,6 +30,10 @@ export default async function staticHandler(dir, options = {}) {
   const fileCache = new Map();
 
   return async (context) => {
+    if (context.request.method !== "GET") {
+      return;
+    }
+
     let { pathname } = context.url;
 
     if (pathname.startsWith("/@source")) {
@@ -46,13 +52,24 @@ export default async function staticHandler(dir, options = {}) {
       (!isRSC && !accept);
     let contentEncoding = undefined;
 
+    let prelude = null;
     if (isHTML) {
       const acceptEncoding = context.request.headers.get("accept-encoding");
       const isBrotli = acceptEncoding?.includes("br");
       const isGzip = acceptEncoding?.includes("gzip");
 
       const basename = `${pathname}/index.html`.replace(/^\/+/g, "/");
-      if (isBrotli && files.has(`${basename}.br`)) {
+      if (files.has(`${basename}.postponed.json`)) {
+        prelude = basename;
+        pathname = basename;
+        const { default: postponed } = await import(
+          join(dir, `${basename}.postponed.json`),
+          {
+            assert: { type: "json" },
+          }
+        );
+        prerender$(POSTPONE_STATE, postponed);
+      } else if (isBrotli && files.has(`${basename}.br`)) {
         pathname = `${basename}.br`;
         contentEncoding = "br";
       } else if (isGzip && files.has(`${basename}.gz`)) {
@@ -101,10 +118,10 @@ export default async function staticHandler(dir, options = {}) {
               async start(controller) {
                 const payload = [];
                 for await (const chunk of fs) {
-                  payload.push(Buffer.copyBytesFrom(chunk));
+                  payload.push(sys.copyBytesFrom(chunk));
                   controller.enqueue(chunk);
                 }
-                fileCache.set(pathname, Buffer.concat(payload));
+                fileCache.set(pathname, sys.concat(payload));
                 controller.close();
               },
             });
@@ -116,6 +133,20 @@ export default async function staticHandler(dir, options = {}) {
           res = fileCache.get(pathname);
         }
         if (res) {
+          if (prelude) {
+            if (!(res instanceof ReadableStream)) {
+              const buffer = res;
+              res = new ReadableStream({
+                type: "bytes",
+                async start(controller) {
+                  controller.enqueue(new Uint8Array(sys.copyBytesFrom(buffer)));
+                  controller.close();
+                },
+              });
+            }
+            prerender$(PRELUDE_HTML, res);
+            return;
+          }
           return new Response(res, {
             headers: {
               "content-type": file.mime,
@@ -125,8 +156,8 @@ export default async function staticHandler(dir, options = {}) {
                 context.request.headers.get("cache-control") === "no-cache"
                   ? "no-cache"
                   : isHTML
-                  ? "must-revalidate"
-                  : "public,max-age=600",
+                    ? "must-revalidate"
+                    : "public,max-age=600",
               "last-modified": file.stats.mtime.toUTCString(),
               ...(contentEncoding && { "content-encoding": contentEncoding }),
             },

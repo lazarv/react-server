@@ -1,6 +1,7 @@
 import { getEnv, immediate } from "@lazarv/react-server/lib/sys.mjs";
 import { ssrManifest } from "@lazarv/react-server/server/ssr-manifest.mjs";
-import { renderToReadableStream } from "react-dom/server.edge";
+import { renderToReadableStream, resume } from "react-dom/server.edge";
+import { prerender } from "react-dom/static.edge";
 import { createFromReadableStream } from "react-server-dom-webpack/client.edge";
 
 export const createRenderer = ({
@@ -16,6 +17,9 @@ export const createRenderer = ({
     bootstrapScripts,
     outlet,
     formState,
+    isPrerender,
+    prelude,
+    postponed,
   }) => {
     let started = false;
     moduleCacheStorage.run(new Map(), async () => {
@@ -41,9 +45,36 @@ export const createRenderer = ({
               let hasClientComponent = false;
               let bootstrapped = false;
 
-              const html = await renderToReadableStream(tree, {
-                formState,
-              });
+              let html;
+
+              if (isPrerender) {
+                const { postponed, prelude } = await prerender(tree, {
+                  formState,
+                });
+                html = prelude;
+                if (postponed) {
+                  parentPort.postMessage({
+                    id,
+                    postponed,
+                  });
+                } else {
+                  isPrerender = false;
+                }
+              } else if (postponed) {
+                if (prelude) {
+                  for await (const chunk of prelude) {
+                    controller.enqueue(chunk);
+                  }
+                }
+                html = await resume(tree, postponed, {
+                  formState,
+                });
+              } else {
+                html = await renderToReadableStream(tree, {
+                  formState,
+                });
+              }
+
               const htmlReader = html.getReader();
 
               let forwardReady = null;
@@ -167,6 +198,7 @@ export const createRenderer = ({
                 }
 
                 if (
+                  !isPrerender &&
                   !hydrated &&
                   bootstrapped &&
                   (hasClientComponent || isDevelopment)
@@ -215,7 +247,9 @@ export const createRenderer = ({
               const worker = async function* () {
                 while (!(forwardDone && htmlDone)) {
                   for await (const value of forwardWorker()) {
-                    yield value;
+                    if (!isPrerender) {
+                      yield value;
+                    }
                   }
 
                   for await (const value of htmlWorker()) {

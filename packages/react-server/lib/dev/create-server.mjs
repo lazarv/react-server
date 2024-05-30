@@ -73,6 +73,7 @@ export default async function createServer(root, options) {
     },
     resolve: {
       ...config.resolve,
+      preserveSymlinks: true,
       alias: [...clientAlias(true), ...(config.resolve?.alias ?? [])],
     },
     publicDir: false,
@@ -136,6 +137,14 @@ export default async function createServer(root, options) {
       preserveSymlinks: true,
     },
     ssr: {
+      ...config.ssr,
+      external: [
+        "react",
+        "react-dom",
+        "react-server-dom-webpack",
+        ...(config.ssr?.external ?? []),
+        ...(config.external ?? []),
+      ],
       resolve: {
         conditions: ["react-server"],
         externalConditions: ["react-server"],

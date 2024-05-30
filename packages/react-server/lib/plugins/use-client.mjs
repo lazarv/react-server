@@ -1,11 +1,11 @@
 import * as acorn from "acorn";
 import * as escodegen from "escodegen";
-import { relative } from "node:path";
+import { extname, relative } from "node:path";
 import * as sys from "../sys.mjs";
 
 const cwd = sys.cwd();
 
-export default function useClient(type) {
+export default function useClient(type, manifest) {
   return {
     name: "use-client",
     async transform(code, id) {
@@ -97,6 +97,12 @@ registerClientReference(${name}, "${relative(cwd, id)}", "${name}");`
           sourceMap: true,
           sourceMapWithCode: true,
         });
+
+        if (manifest) {
+          const specifier = relative(cwd, id);
+          const name = specifier.replace(extname(specifier), "");
+          manifest.set(name, id);
+        }
 
         return {
           code: gen.code,

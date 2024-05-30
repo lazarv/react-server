@@ -42,29 +42,30 @@ export default async function build(root, options) {
           else if (options.client)
             await rimraf(join(cwd, ".react-server/client"));
           // build server
+          let buildOutput = false;
           if (options.server) {
-            await serverBuild(root, options);
-            // empty line
-            console.log();
+            const serverBuildOutput = await serverBuild(root, options);
+            buildOutput ||= serverBuildOutput;
           }
           // build client
           if (options.client) {
-            await clientBuild(root, options);
+            const clientBuildOutput = await clientBuild(root, options);
+            buildOutput ||= clientBuildOutput;
           }
           // static export
           if (
             options.export ||
             typeof config[CONFIG_ROOT]?.export !== "undefined"
           ) {
-            // empty line
-            console.log();
             await rimraf(join(cwd, ".react-server/dist"));
             await staticSiteGenerator(root, options);
           }
           await adapter(root, options);
-          console.log(
-            `\n${colors.green("✔")} Build completed successfully in ${formatDuration(Date.now() - globalThis.__react_server_start__)}!`
-          );
+          if (buildOutput) {
+            console.log(
+              `\n${colors.green("✔")} Build completed successfully in ${formatDuration(Date.now() - globalThis.__react_server_start__)}!`
+            );
+          }
         } catch (e) {
           console.error(colors.red(e.stack || e.message));
           console.log(

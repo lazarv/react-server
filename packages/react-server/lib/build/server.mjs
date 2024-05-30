@@ -1,4 +1,6 @@
+import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { join } from "node:path";
 
 import replace from "@rollup/plugin-replace";
 import viteReact from "@vitejs/plugin-react";
@@ -6,7 +8,6 @@ import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
-import viteReactServer from "../plugins/react-server.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
@@ -20,9 +21,13 @@ const cwd = sys.cwd();
 export default async function serverBuild(root, options) {
   banner("server", options.dev);
   const config = forRoot();
+  const clientManifest = new Map();
+  const serverManifest = new Map();
   const buildConfig = {
     root: cwd,
     resolve: {
+      ...config.resolve,
+      preserveSymlinks: true,
       alias: [...(config.resolve?.alias ?? [])],
       conditions: ["react-server"],
       externalConditions: ["react-server"],
@@ -61,31 +66,6 @@ export default async function serverBuild(root, options) {
             root ?? "@lazarv/react-server-router",
             { paths: [cwd] }
           ),
-          "server/@lazarv/react-server/client/ClientOnly.react-server":
-            __require.resolve("@lazarv/react-server/client/ClientOnly.jsx", {
-              paths: [cwd],
-            }),
-          "server/@lazarv/react-server/client/ErrorBoundary.react-server":
-            __require.resolve("@lazarv/react-server/client/ErrorBoundary.jsx", {
-              paths: [cwd],
-            }),
-          "server/@lazarv/react-server/client/Link.react-server":
-            __require.resolve("@lazarv/react-server/client/Link.jsx", {
-              paths: [cwd],
-            }),
-          "server/@lazarv/react-server/client/Refresh.react-server":
-            __require.resolve("@lazarv/react-server/client/Refresh.jsx", {
-              paths: [cwd],
-            }),
-          "server/@lazarv/react-server/client/ReactServerComponent.react-server":
-            __require.resolve(
-              "@lazarv/react-server/client/ReactServerComponent.jsx",
-              { paths: [cwd] }
-            ),
-          "server/@lazarv/react-server/client/navigation.react-server":
-            __require.resolve("@lazarv/react-server/client/navigation.jsx", {
-              paths: [cwd],
-            }),
         },
         external: [
           /manifest\.json/,
@@ -100,6 +80,7 @@ export default async function serverBuild(root, options) {
           "react-server-dom-webpack/server.edge",
           "react-error-boundary",
           ...(config.build?.rollupOptions?.external ?? []),
+          ...(config.external ?? []),
         ],
         plugins: [
           replace({
@@ -108,16 +89,14 @@ export default async function serverBuild(root, options) {
               options.dev ? "development" : "production"
             ),
           }),
-          rollupUseClient("server"),
-          rollupUseServer(),
-          rollupUseServerInline(),
+          rollupUseClient("server", clientManifest),
+          rollupUseServer(serverManifest),
+          rollupUseServerInline(serverManifest),
           ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },
     },
     plugins: [
-      viteReactServer("client", (name) => `server/${name}.react-server`),
-      viteReactServer("server", (name) => `server/${name}`),
       ...(!root || root === "@lazarv/react-server-router"
         ? [
             (async () =>
@@ -138,7 +117,16 @@ export default async function serverBuild(root, options) {
       postcss: cwd,
     },
     ssr: {
+      ...config.ssr,
+      external: [
+        "react",
+        "react-dom",
+        "react-server-dom-webpack",
+        ...(config.ssr?.external ?? []),
+        ...(config.external ?? []),
+      ],
       resolve: {
+        ...config.ssr?.resolve,
         conditions: ["react-server"],
         externalConditions: ["react-server"],
       },
@@ -158,62 +146,48 @@ export default async function serverBuild(root, options) {
   if (typeof config.vite === "object")
     viteConfig = merge(viteConfig, config.vite);
 
-  const viteConfigClientComponents = {
-    ...viteConfig,
-    build: {
-      ...viteConfig.build,
-      manifest: "server/client-manifest.json",
-      rollupOptions: {
-        ...viteConfig.build.rollupOptions,
-        input: {
-          "server/@lazarv/react-server/client/ClientOnly": __require.resolve(
-            "@lazarv/react-server/client/ClientOnly.jsx",
-            { paths: [cwd] }
-          ),
-          "server/@lazarv/react-server/client/ErrorBoundary": __require.resolve(
-            "@lazarv/react-server/client/ErrorBoundary.jsx",
-            { paths: [cwd] }
-          ),
-          "server/@lazarv/react-server/client/Link": __require.resolve(
-            "@lazarv/react-server/client/Link.jsx",
-            { paths: [cwd] }
-          ),
-          "server/@lazarv/react-server/client/Refresh": __require.resolve(
-            "@lazarv/react-server/client/Refresh.jsx",
-            { paths: [cwd] }
-          ),
-          "server/@lazarv/react-server/client/ReactServerComponent":
-            __require.resolve(
-              "@lazarv/react-server/client/ReactServerComponent.jsx",
-              { paths: [cwd] }
-            ),
-          "server/@lazarv/react-server/client/navigation": __require.resolve(
-            "@lazarv/react-server/client/navigation.jsx",
-            {
-              paths: [cwd],
-            }
-          ),
-        },
-        plugins: [
-          replace({
-            preventAssignment: true,
-            "process.env.NODE_ENV": JSON.stringify(
-              options.dev ? "development" : "production"
-            ),
-          }),
-          rollupUseClient("client"),
-          ...(config.build?.rollupOptions?.plugins ?? []),
-        ],
-      },
-    },
-    plugins: [
-      viteReactServer("client", (name) => `server/${name}`),
-      viteReact(),
-      ...(config.plugins ?? []),
-    ],
-    ssr: {},
-  };
-
   await viteBuild(viteConfig);
-  await viteBuild(viteConfigClientComponents);
+
+  if (clientManifest.size > 0) {
+    const viteConfigClientComponents = {
+      ...viteConfig,
+      build: {
+        ...viteConfig.build,
+        manifest: "server/client-manifest.json",
+        rollupOptions: {
+          ...viteConfig.build.rollupOptions,
+          input: Array.from(clientManifest.entries()).reduce(
+            (input, [key, value]) => {
+              input["server/client/" + key] = value;
+              return input;
+            },
+            {}
+          ),
+          plugins: [
+            replace({
+              preventAssignment: true,
+              "process.env.NODE_ENV": JSON.stringify(
+                options.dev ? "development" : "production"
+              ),
+            }),
+            rollupUseClient("client"),
+            ...(config.build?.rollupOptions?.plugins ?? []),
+          ],
+        },
+      },
+      plugins: [viteReact(), ...(config.plugins ?? [])],
+      ssr: {
+        ...config.ssr,
+      },
+    };
+
+    await viteBuild(viteConfigClientComponents);
+  } else {
+    await writeFile(
+      join(cwd, ".react-server/server/client-manifest.json"),
+      "{}",
+      "utf8"
+    );
+  }
+  return true;
 }

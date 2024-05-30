@@ -20,17 +20,8 @@ export const clientReferenceMap = new Proxy(
             async: true,
           };
         } else {
-          const { browser, server } = manifest;
-          const serverEntry = Object.values(server).find((entry) => {
-            if (!entry.src) return false;
-            return entry.src === id;
-          });
-          const browserEntry = Object.values(browser).find((entry) => {
-            return serverEntry.src.endsWith(entry.src);
-          });
-
           def = {
-            id: `/${browserEntry.file}`,
+            id: `/${manifest.browser[id].file}`,
             chunks: [],
             name,
             async: true,

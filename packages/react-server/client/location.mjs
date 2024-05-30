@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 
 export function useLocation() {
-  const [location, setLocation] = useState(location);
+  const [location, setLocation] = useState(
+    typeof window !== "undefined" ? window.location : null
+  );
 
   useEffect(() => {
     const listener = () => {
-      setLocation(location);
+      setLocation(window.location);
     };
     window.addEventListener("popstate", listener);
     window.addEventListener("pushstate", listener);
@@ -22,10 +24,10 @@ export function useLocation() {
 
 export function useSearchParams() {
   const location = useLocation();
-  return new URLSearchParams(location.search);
+  return location ? new URLSearchParams(location.search) : null;
 }
 
 export function usePathname() {
   const location = useLocation();
-  return location.pathname;
+  return location?.pathname ?? null;
 }

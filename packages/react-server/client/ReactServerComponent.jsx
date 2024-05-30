@@ -2,8 +2,7 @@
 
 import { startTransition, useContext, useEffect, useState } from "react";
 
-import { ClientContext, useClient } from "./context.mjs";
-import { FlightContext } from "./FlightContext.mjs";
+import { ClientContext, FlightContext, useClient } from "./context.mjs";
 
 function FlightComponent({ standalone = false, children }) {
   const { url, outlet } = useContext(FlightContext);

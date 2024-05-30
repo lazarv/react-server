@@ -1,12 +1,14 @@
+import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { join } from "node:path";
 
 import replace from "@rollup/plugin-replace";
 import viteReact from "@vitejs/plugin-react";
+import colors from "picocolors";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
-import viteReactServer from "../plugins/react-server.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
@@ -18,11 +20,48 @@ const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
 export default async function clientBuild(_, options) {
+  let clientManifest;
+  try {
+    const { default: _clientManifest } = await import(
+      join(cwd, ".react-server/server/client-manifest.json"),
+      {
+        assert: { type: "json" },
+      }
+    );
+    if (Object.keys(_clientManifest).length > 0) {
+      clientManifest = _clientManifest;
+    }
+  } catch (e) {
+    // client manifest not found
+  }
+
+  if (!clientManifest) {
+    // skipping client build
+    if (!options.server && options.client) {
+      console.log(
+        colors.yellow("No client manifest found. Skipping client build.")
+      );
+    }
+    await mkdir(join(cwd, ".react-server/client"), { recursive: true });
+    await writeFile(
+      join(cwd, ".react-server/client/browser-manifest.json"),
+      "{}",
+      "utf8"
+    );
+    return false;
+  }
+
+  if (options.server) {
+    // empty line
+    console.log();
+  }
   banner("client", options.dev);
   const config = forRoot();
+
   const buildConfig = {
     root: cwd,
     resolve: {
+      ...config.resolve,
       alias: [...clientAlias(options.dev), ...(config.resolve?.alias ?? [])],
     },
     customLogger,
@@ -42,47 +81,21 @@ export default async function clientBuild(_, options) {
           chunkFileNames: "client/[name].[hash].mjs",
           manualChunks: (id) => {
             if (id in chunks) return chunks[id];
-            if (id.includes("@lazarv/react-server") && id.endsWith(".mjs")) {
-              return "@lazarv/react-server";
+            if (id.includes("react-server/client/context")) {
+              return "react-server/client/context";
             }
           },
         },
         input: {
           "client/index": __require.resolve(
-            "@lazarv/react-server/client/entry.client.jsx",
-            { paths: [cwd] }
+            "@lazarv/react-server/client/entry.client.jsx"
           ),
-          "client/@lazarv/react-server/client/ClientOnly": __require.resolve(
-            "@lazarv/react-server/client/ClientOnly.jsx",
-            { paths: [cwd] }
-          ),
-          "client/@lazarv/react-server/client/ClientOnly": __require.resolve(
-            "@lazarv/react-server/client/ClientOnly.jsx",
-            { paths: [cwd] }
-          ),
-          "client/@lazarv/react-server/client/ErrorBoundary": __require.resolve(
-            "@lazarv/react-server/client/ErrorBoundary.jsx",
-            { paths: [cwd] }
-          ),
-          "client/@lazarv/react-server/client/Link": __require.resolve(
-            "@lazarv/react-server/client/Link.jsx",
-            { paths: [cwd] }
-          ),
-          "client/@lazarv/react-server/client/Refresh": __require.resolve(
-            "@lazarv/react-server/client/Refresh.jsx",
-            { paths: [cwd] }
-          ),
-          "client/@lazarv/react-server/client/ReactServerComponent":
-            __require.resolve(
-              "@lazarv/react-server/client/ReactServerComponent.jsx",
-              { paths: [cwd] }
-            ),
-          "client/@lazarv/react-server/client/navigation": __require.resolve(
-            "@lazarv/react-server/client/navigation.jsx",
-            {
-              paths: [cwd],
+          ...Object.entries(clientManifest).reduce((input, [key, value]) => {
+            if (value.isEntry) {
+              input["client/" + key] = value.src;
             }
-          ),
+            return input;
+          }, {}),
         },
         plugins: [
           replace({
@@ -95,11 +108,7 @@ export default async function clientBuild(_, options) {
         ],
       },
     },
-    plugins: [
-      viteReactServer("client", (name) => `client/${name}`),
-      viteReact(),
-      ...(config.plugins ?? []),
-    ],
+    plugins: [viteReact(), ...(config.plugins ?? [])],
     css: {
       ...config.css,
       postcss: cwd,
@@ -119,5 +128,6 @@ export default async function clientBuild(_, options) {
   if (typeof config.vite === "object")
     viteConfig = merge(viteConfig, config.vite);
 
-  return viteBuild(viteConfig);
+  await viteBuild(viteConfig);
+  return true;
 }

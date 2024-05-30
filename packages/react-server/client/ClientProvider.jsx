@@ -1,14 +1,13 @@
-"use client";
-
 import {
   createFromFetch,
   createFromReadableStream,
   encodeReply,
 } from "react-server-dom-webpack/client.browser";
 
-import { ClientContext } from "./context.mjs";
+import { ClientContext } from "@lazarv/react-server/client/context";
 
 export const PAGE_ROOT = "PAGE_ROOT";
+
 let activeChunk = null;
 const cache = new Map();
 const listeners = new Map();

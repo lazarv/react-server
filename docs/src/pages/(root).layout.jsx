@@ -2,6 +2,7 @@ import "highlight.js/styles/github-dark-dimmed.css";
 import "./global.css";
 
 import { cookie, useUrl } from "@lazarv/react-server";
+import { Analytics } from "@vercel/analytics/react";
 
 export default function Layout({ header, sidebar, navigation, children }) {
   const { pathname } = useUrl();
@@ -65,6 +66,7 @@ export default function Layout({ header, sidebar, navigation, children }) {
           Copyright © 2023-{new Date().getFullYear()} Viktor Lázár &
           Contributors
         </footer>
+        <Analytics />
       </body>
     </html>
   );

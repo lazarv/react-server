@@ -434,7 +434,7 @@ export async function render(Component) {
                       if (!moduleCache.has(id)) {
                         ${
                           config.base
-                            ? `const modulePromise = import(("${`/${config.base || ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));`
+                            ? `const modulePromise = import(("${`/${config.base}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));`
                             : `const modulePromise = import(id);`
                         }
                         modulePromise.then(

@@ -1,7 +1,11 @@
 import * as acorn from "acorn";
 import * as escodegen from "escodegen";
+import { extname, relative } from "node:path";
+import * as sys from "../sys.mjs";
 
-export default function useServer() {
+const cwd = sys.cwd();
+
+export default function useServer(manifest) {
   let viteCommand;
   return {
     name: "use-server",
@@ -104,7 +108,7 @@ export default function useServer() {
               },
               {
                 type: "Literal",
-                value: id,
+                value: relative(cwd, id),
               },
               {
                 type: "Literal",
@@ -141,6 +145,18 @@ export default function useServer() {
         sourceMap: true,
         sourceMapWithCode: true,
       });
+
+      if (manifest) {
+        const specifier = relative(cwd, id);
+        const name = specifier.replace(extname(specifier), "");
+        manifest.set(name, id);
+
+        this.emitFile({
+          type: "chunk",
+          id,
+          name,
+        });
+      }
 
       return {
         code: gen.code,

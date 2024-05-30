@@ -151,6 +151,10 @@ declare module "@lazarv/react-server/navigation" {
       HTMLAnchorElement
     >;
   export function Refresh(props: RefreshProps): JSX.Element;
+
+  export function useLocation(): Location | null;
+  export function useSearchParams(): URLSearchParams | null;
+  export function usePathname(): string | null;
 }
 
 declare namespace __react_server_routing__ {

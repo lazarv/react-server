@@ -1,7 +1,7 @@
 export default (cli) =>
   cli
     .command("build [root]", "build for production")
-    .option("--minify", "minify", { default: false })
+    .option("--minify", "minify", { default: true })
     .option(
       "--sourcemap [type]",
       "[boolean|inline|hidden] generate source map",

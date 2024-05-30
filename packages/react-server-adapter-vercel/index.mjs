@@ -41,74 +41,82 @@ export async function adapter(adapterOptions, root, options) {
   console.log(colors.gray(`preparing .vercel/output for deployment`));
   await rm(outDir, { recursive: true, force: true });
 
-  banner("copying static files");
   const distFiles = await glob("**/*.html", {
     onlyFiles: true,
     cwd: distDir,
   });
-  await Promise.all(
-    distFiles.map(async (file) => {
-      const src = join(distDir, file);
-      const dest = join(outStaticDir, file);
-      console.log(
-        `copy ${colors.gray(`.react-server/dist/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/${colors.cyan(file)}`)}`
-      );
-      await cp(src, dest);
-    })
-  );
-  console.log(`${colors.green("✓")} ${distFiles.length} files copied.`);
-
-  banner("copying assets");
-  const assetFiles = await glob("**/*", {
-    onlyFiles: true,
-    cwd: assetsDir,
-  });
-  await Promise.all(
-    assetFiles.map(async (file) => {
-      const src = join(assetsDir, file);
-      const dest = join(outStaticDir, "assets", file);
-      console.log(
-        `copy ${colors.gray(`.react-server/assets/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/assets/${colors.cyan(file)}`)}`
-      );
-      await cp(src, dest);
-    })
-  );
-  console.log(`${colors.green("✓")} ${assetFiles.length} files copied.`);
-
-  banner("copying client components");
-  const clientFiles = await glob("**/*", {
-    onlyFiles: true,
-    cwd: clientDir,
-  });
-  await Promise.all(
-    clientFiles.map(async (file) => {
-      const src = join(clientDir, file);
-      const dest = join(outStaticDir, "client", file);
-      console.log(
-        `copy ${colors.gray(`.react-server/client/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/client/${colors.cyan(file)}`)}`
-      );
-      await cp(src, dest);
-    })
-  );
-  console.log(`${colors.green("✓")} ${clientFiles.length} files copied.`);
-
-  if (config.public !== false) {
-    banner("copying public");
-    const publicFiles = await glob("**/*", {
-      onlyFiles: true,
-      cwd: publicDir,
-    });
+  if (distFiles.length > 0) {
+    banner("copying static files");
     await Promise.all(
-      publicFiles.map(async (file) => {
-        const src = join(publicDir, file);
+      distFiles.map(async (file) => {
+        const src = join(distDir, file);
         const dest = join(outStaticDir, file);
         console.log(
-          `copy ${colors.gray(`${relative(cwd, publicDir)}/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/${colors.cyan(file)}`)}`
+          `copy ${colors.gray(`.react-server/dist/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/${colors.cyan(file)}`)}`
         );
         await cp(src, dest);
       })
     );
-    console.log(`${colors.green("✓")} ${publicFiles.length} files copied.`);
+    console.log(`${colors.green("✓")} ${distFiles.length} files copied.`);
+  }
+
+  const assetFiles = await glob("**/*", {
+    onlyFiles: true,
+    cwd: assetsDir,
+  });
+  if (assetFiles.length > 0) {
+    banner("copying assets");
+    await Promise.all(
+      assetFiles.map(async (file) => {
+        const src = join(assetsDir, file);
+        const dest = join(outStaticDir, "assets", file);
+        console.log(
+          `copy ${colors.gray(`.react-server/assets/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/assets/${colors.cyan(file)}`)}`
+        );
+        await cp(src, dest);
+      })
+    );
+    console.log(`${colors.green("✓")} ${assetFiles.length} files copied.`);
+  }
+
+  const clientFiles = await glob("**/*", {
+    onlyFiles: true,
+    cwd: clientDir,
+  });
+  if (clientFiles.length > 0) {
+    banner("copying client components");
+    await Promise.all(
+      clientFiles.map(async (file) => {
+        const src = join(clientDir, file);
+        const dest = join(outStaticDir, "client", file);
+        console.log(
+          `copy ${colors.gray(`.react-server/client/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/client/${colors.cyan(file)}`)}`
+        );
+        await cp(src, dest);
+      })
+    );
+    console.log(`${colors.green("✓")} ${clientFiles.length} files copied.`);
+  }
+
+  if (config.public !== false) {
+    const publicFiles = await glob("**/*", {
+      onlyFiles: true,
+      cwd: publicDir,
+    });
+    if (publicFiles.length > 0) {
+      banner("copying public");
+      await Promise.all(
+        publicFiles.map(async (file) => {
+          const src = join(publicDir, file);
+          const dest = join(outStaticDir, file);
+          console.log(
+            `copy ${colors.gray(`${relative(cwd, publicDir)}/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/${colors.cyan(file)}`)}`
+          );
+          await cp(src, dest);
+        })
+      );
+      console.log(`${colors.green("✓")} ${publicFiles.length} files copied.`);
+    }
   }
 
   banner("creating deployment configuration");

@@ -1,7 +1,8 @@
 "use client";
 
-import { useClient } from "@lazarv/react-server/client";
 import { startTransition, useCallback } from "react";
+
+import { useClient } from "./context.mjs";
 
 export default function Refresh({
   url,

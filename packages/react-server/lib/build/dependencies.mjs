@@ -1,9 +1,6 @@
 import { createRequire } from "node:module";
 
-import * as sys from "../sys.mjs";
-
 const __require = createRequire(import.meta.url);
-const cwd = sys.cwd();
 
 const react = __require.resolve("react");
 const reactJsxRuntime = __require.resolve("react/jsx-runtime");
@@ -21,15 +18,6 @@ const reactServerDomWebpackServerEdge = __require.resolve(
   "react-server-dom-webpack/server.edge"
 );
 const reactErrorBoundary = __require.resolve("react-error-boundary");
-const reactServerClient = __require.resolve("@lazarv/react-server/client", {
-  paths: [cwd],
-});
-const reactServerNavigation = __require.resolve(
-  "@lazarv/react-server/navigation"
-);
-const reactServerClientContext = __require.resolve(
-  "@lazarv/react-server/client/context.mjs"
-);
 
 export {
   react,
@@ -39,10 +27,7 @@ export {
   reactErrorBoundary,
   reactJsxDevRuntime,
   reactJsxRuntime,
-  reactServerClient,
-  reactServerClientContext,
   reactServerDomWebpackClientBrowser,
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
-  reactServerNavigation,
 };

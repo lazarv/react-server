@@ -60,8 +60,8 @@ Output will also include your machine's architecture and node.js version.
 
 ### Build options
 
-**minify:** Minify your build. Default is `false`.  
-You don't need to minify your app if you only use React Server Components and you are not using any client components, like in the [Todo](https://github.com/lazarv/react-server/tree/main/examples/todo) example.
+**minify:** Minify your build. Default is `true`.  
+You don't need to minify your app if you only use React Server Components and you are not using any client components, like in the [Todo](https://github.com/lazarv/react-server/tree/main/examples/todo) example. If you want to disable minification of client component code, use `--no-minify`.
 
 **sourcemap:** Generate source map. Default is `false`.
 See more details in the Vite documentation at [build.sourcemap](https://vitejs.dev/config/build-options.html#build-sourcemap).

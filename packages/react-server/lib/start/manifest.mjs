@@ -54,7 +54,7 @@ export async function init$(type = "server") {
   const mainModule = `/${
     Object.values(manifest.browser).find(
       (entry) => join(cwd, entry.src) === mainSrc
-    ).file
+    )?.file
   }`;
   runtime$(MAIN_MODULE, [mainModule]);
 

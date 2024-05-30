@@ -16,6 +16,7 @@
     "./prerender": "./server/prerender.jsx",
     "./dev": "./lib/dev/index.mjs",
     "./node": "./lib/start/node.mjs",
+    "./client/context": "./client/context.mjs",
     "./client/*": "./client/*",
     "./server/*": "./server/*",
     "./lib/*": "./lib/*",

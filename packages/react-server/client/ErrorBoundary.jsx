@@ -1,10 +1,9 @@
 "use client";
 
-import { useClient } from "@lazarv/react-server/client";
 import { useContext, useEffect } from "react";
 import { ErrorBoundary, useErrorBoundary } from "react-error-boundary";
 
-import { FlightContext } from "./FlightContext.mjs";
+import { FlightContext, useClient } from "./context.mjs";
 
 function ResetErrorBoundary() {
   const { url, outlet } = useContext(FlightContext);

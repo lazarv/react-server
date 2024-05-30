@@ -8,7 +8,7 @@ order: 3
 
 > These are core features of the `@lazarv/react-server` framework, so you don't need to install `@lazarv/react-server-router` for these features to work.
 
-After the server has rendered the initial page, the client takes over and handles all subsequent navigation. This can be done by using the client components exported by the `@lazarv/react-server/navigation` module or by the functions exposed by the `useClient` hook from the `@lazarv/react-server/client` module. You can use these functions to navigate to a new page, prefetch a page, or refresh the current page. Please see details of these components and functions in the [API reference](/api).
+After the server has rendered the initial page, the client takes over and handles all subsequent navigation. This can be done by using the client components exported by the `@lazarv/react-server/navigation` module or by the functions exposed by the `useClient` hook from the `@lazarv/react-server/client` module. You can use these functions to navigate to a new page, prefetch a page, or refresh the current page.
 
 It's recommended to use the built-in client components for navigation and refresh. These components will automatically start a React transition to render only the parts of the page that are changing. This will improve the user experience by reducing the amount of time the user has to wait for the page to load.
 
@@ -142,6 +142,42 @@ export default function Home() {
 
   return (
     <div>
+      <button onClick={() => startTransition(async () => refresh())}>
+        Refresh
+      </button>
+    </div>
+  );
+}
+```
+
+## useClient
+
+The `useClient` hook returns an object with the following properties:
+
+- `navigate(url: string, options: { rollback?: number })`: A function that navigates to a new page. The `rollback` option allows you to cache the current page for a specified amount of time.
+- `replace(url: string, options: { rollback?: number })`: A function that replaces the current page with a new page. The `rollback` option allows you to cache the current page for a specified amount of time.
+- `prefetch(url: string, options: { ttl?: number })`: A function that prefetches a page. The `ttl` option allows you to cache the page for a specified amount of time.
+- `refresh()`: A function that refreshes the current page.
+
+You can use these functions for programmatic navigation.
+
+```jsx
+import { startTransition } from "react";
+
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate, replace, prefetch, refresh } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => startTransition(async () => navigate("/about"))}>
+        About
+      </button>
+      <button onClick={() => startTransition(async () => replace("/about"))}>
+        Replace
+      </button>
+      <button onMouseOver={() => prefetch("/about")}>Prefetch</button>
       <button onClick={() => startTransition(async () => refresh())}>
         Refresh
       </button>

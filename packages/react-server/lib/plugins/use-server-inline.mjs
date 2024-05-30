@@ -1,8 +1,12 @@
 import * as acorn from "acorn";
 import * as escodegen from "escodegen";
 import * as estraverse from "estraverse";
+import { extname, relative } from "node:path";
+import * as sys from "../sys.mjs";
 
-export default function useServerInline() {
+const cwd = sys.cwd();
+
+export default function useServerInline(manifest) {
   return {
     name: "use-server",
     async transform(code, id) {
@@ -200,7 +204,7 @@ export default function useServerInline() {
                 },
                 {
                   type: "Literal",
-                  value: id,
+                  value: relative(cwd, id),
                 },
                 {
                   type: "Literal",
@@ -216,6 +220,18 @@ export default function useServerInline() {
         sourceMap: true,
         sourceMapWithCode: true,
       });
+
+      if (manifest) {
+        const specifier = relative(cwd, id);
+        const name = specifier.replace(extname(specifier), "");
+        manifest.set(name, id);
+
+        this.emitFile({
+          type: "chunk",
+          id,
+          name,
+        });
+      }
 
       return {
         code: gen.code,

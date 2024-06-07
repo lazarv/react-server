@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getRuntime } from "./runtime.mjs";
 import { WORKER_THREAD } from "./symbols.mjs";
 
-export function createWorker(url) {
+export function createWorker() {
   const worker = getRuntime(WORKER_THREAD);
 
   if (!worker) {

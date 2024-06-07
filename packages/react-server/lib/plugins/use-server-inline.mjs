@@ -8,7 +8,7 @@ const cwd = sys.cwd();
 
 export default function useServerInline(manifest) {
   return {
-    name: "use-server",
+    name: "react-server:use-server-inline",
     async transform(code, id) {
       if (!code.includes("use server")) return null;
 
@@ -127,7 +127,7 @@ export default function useServerInline(manifest) {
         ],
         source: {
           type: "Literal",
-          value: "@lazarv/react-server/server/action-register.mjs",
+          value: `${sys.rootDir}/server/action-register.mjs`,
         },
         importKind: "value",
       });
@@ -204,7 +204,7 @@ export default function useServerInline(manifest) {
                 },
                 {
                   type: "Literal",
-                  value: relative(cwd, id),
+                  value: id,
                 },
                 {
                   type: "Literal",

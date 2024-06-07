@@ -47,7 +47,7 @@ pnpm add @lazarv/react-server
 
 #### Peer dependencies
 
-`@lazarv/react-server` uses react, react-dom, react-server-dom-webpack and react-error-boundary as peer dependencies. Until all React dependencies are not released as latest the framework uses a pinned version of React. To install this version specifically the best way is to let `pnpm` install these for you.
+`@lazarv/react-server` uses react, react-dom and react-server-dom-webpack as peer dependencies. Until all React dependencies are not released as latest the framework uses a pinned version of React. To install this version specifically the best way is to let `pnpm` install these for you.
 
 If your project is not set up to auto-install peer dependencies, add this to your `.npmrc`:
 
@@ -88,6 +88,8 @@ Similarly how you would run a script with `node`, use `react-server` to start yo
 ```sh
 pnpm exec react-server ./App.tsx --open
 ```
+
+> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx --open` to start your application in development mode.
 
 #### Build
 

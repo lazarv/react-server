@@ -17,6 +17,7 @@ export default (cli) =>
       default: false,
     })
     .option("--no-color", "disable color output", { default: false })
+    .option("-e, --eval <code>", "evaluate code", { type: "string" })
     .action(async (...args) => {
       setEnv("NODE_ENV", "development");
       return (await import("../../lib/dev/action.mjs")).default(...args);

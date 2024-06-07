@@ -62,6 +62,7 @@ export default async function createServer(root, options) {
     });
   } catch (e) {
     // ignore
+    root ||= "virtual:react-server-eval.jsx";
   }
 
   const worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
@@ -110,6 +111,24 @@ export default async function createServer(root, options) {
               ).default())(),
           ]
         : []),
+      {
+        name: "react-server:eval",
+        async load(id) {
+          if (id === "virtual:react-server-eval.jsx") {
+            if (options.eval) {
+              return options.eval;
+            } else if (!process.stdin.isTTY) {
+              let code = "";
+              process.stdin.setEncoding("utf8");
+              for await (const chunk of process.stdin) {
+                code += chunk;
+              }
+              return code;
+            }
+            return "throw new Error('Root module not provided')";
+          }
+        },
+      },
       reactServerRuntime(),
       react(),
       useClient(),
@@ -130,7 +149,11 @@ export default async function createServer(root, options) {
     environments: {
       client: {
         resolve: {
-          alias: [...clientAlias(true), ...(config.resolve?.alias ?? [])],
+          alias: [
+            { find: /^@lazarv\/react-server$/, replacement: rootDir },
+            ...clientAlias(true),
+            ...(config.resolve?.alias ?? []),
+          ],
         },
         optimizeDeps: {
           ...config.optimizeDeps,
@@ -144,12 +167,13 @@ export default async function createServer(root, options) {
                 ...config,
                 resolve: {
                   alias: [
+                    { find: /^@lazarv\/react-server$/, replacement: rootDir },
                     ...clientAlias(true),
                     ...(config.resolve?.alias ?? []),
                   ],
                 },
                 logger: createViteLogger("info", {
-                  prefix: `[react-server-client]`,
+                  prefix: `[react-server]`,
                 }),
               },
               {}
@@ -187,6 +211,7 @@ export default async function createServer(root, options) {
                     "react-server-dom-webpack",
                   ],
                   alias: [
+                    { find: /^@lazarv\/react-server$/, replacement: rootDir },
                     ...clientAlias(true),
                     ...(config.resolve?.alias ?? []),
                   ],
@@ -194,7 +219,7 @@ export default async function createServer(root, options) {
                   externalConditions: ["default"],
                 },
                 logger: createViteLogger("info", {
-                  prefix: `[react-server-ssr]`,
+                  prefix: `[react-server]`,
                 }),
               },
               {
@@ -219,6 +244,7 @@ export default async function createServer(root, options) {
       },
       rsc: {
         resolve: {
+          alias: [{ find: /^@lazarv\/react-server$/, replacement: rootDir }],
           external: [
             "react",
             "react-dom",
@@ -253,7 +279,7 @@ export default async function createServer(root, options) {
                   externalConditions: ["react-server"],
                 },
                 logger: createViteLogger("info", {
-                  prefix: `[react-server-rsc]`,
+                  prefix: `[react-server]`,
                 }),
               },
               {}
@@ -275,6 +301,7 @@ export default async function createServer(root, options) {
   viteDevServer.environments.rsc.watcher = viteDevServer.watcher;
   viteDevServer.environments.rsc.hot = {
     send: (data) => {
+      data.triggeredBy = data.triggeredBy?.replace(rootDir, cwd + "/");
       if (
         !viteDevServer.environments.client.moduleGraph.idToModuleMap.has(
           data.triggeredBy
@@ -383,7 +410,7 @@ export default async function createServer(root, options) {
       viteDevServer.close();
       viteDevServer.environments.client.hot.close();
     },
-    ws: viteDevServer.ws,
+    ws: viteDevServer.environments.client.hot,
     middlewares: viteDevServer.middlewares,
   };
 }

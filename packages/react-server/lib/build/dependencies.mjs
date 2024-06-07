@@ -17,14 +17,12 @@ const reactServerDomWebpackClientEdge = __require.resolve(
 const reactServerDomWebpackServerEdge = __require.resolve(
   "react-server-dom-webpack/server.edge"
 );
-const reactErrorBoundary = __require.resolve("react-error-boundary");
 
 export {
   react,
   reactDom,
   reactDomClient,
   reactDomServerEdge,
-  reactErrorBoundary,
   reactJsxDevRuntime,
   reactJsxRuntime,
   reactServerDomWebpackClientBrowser,

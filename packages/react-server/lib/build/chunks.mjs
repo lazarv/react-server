@@ -11,5 +11,4 @@ export const chunks = {
     ".react-server.js",
     ".js"
   )]: "react-server-dom-webpack/client.browser",
-  [dependencies.reactErrorBoundary]: "react-error-boundary",
 };

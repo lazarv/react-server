@@ -33,7 +33,6 @@ export function moduleAliases(condition) {
   const reactServerDomWebpackServerEdge = __require.resolve(
     "react-server-dom-webpack/server.edge"
   );
-  const reactErrorBoundary = __require.resolve("react-error-boundary");
 
   const moduleAliases = {
     react,
@@ -46,7 +45,6 @@ export function moduleAliases(condition) {
       reactServerDomWebpackClientBrowser,
     "react-server-dom-webpack/client.edge": reactServerDomWebpackClientEdge,
     "react-server-dom-webpack/server.edge": reactServerDomWebpackServerEdge,
-    "react-error-boundary": reactErrorBoundary,
   };
 
   return moduleAliases;

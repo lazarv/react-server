@@ -7,7 +7,7 @@ const cwd = sys.cwd();
 
 export default function useClient(type, manifest) {
   return {
-    name: "use-client",
+    name: "react-server:use-client",
     async transform(code, id) {
       const viteEnv = this.environment.name;
       const mode = this.environment.mode;
@@ -88,7 +88,7 @@ registerClientReference(${name}, "${relative(cwd, id)}", "${name}");`
           )
           .join("\n\n");
 
-        const clientReferenceCode = `import { registerClientReference } from "@lazarv/react-server/server/client-register.mjs";\n\n${
+        const clientReferenceCode = `import { registerClientReference } from "${sys.rootDir}/server/client-register.mjs";\n\n${
           defaultExport ? `${namedExports}\n\n${defaultExport}` : namedExports
         }`;
 

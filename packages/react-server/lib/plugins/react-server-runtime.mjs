@@ -1,3 +1,18 @@
+import { createRequire } from "node:module";
+import { cwd, rootDir } from "../sys.mjs";
+
+const __require = createRequire(import.meta.url);
+
+let reactServerInstalled = false;
+try {
+  __require.resolve("@lazarv/react-server", { paths: [cwd()] });
+  reactServerInstalled = true;
+} catch (e) {
+  reactServerInstalled = false;
+}
+
+const reactServerDir = reactServerInstalled ? "@lazarv/react-server" : rootDir;
+
 export default function viteReactServerRuntime() {
   let config = {};
   return {
@@ -15,7 +30,7 @@ export default function viteReactServerRuntime() {
           window.__vite_plugin_react_preamble_installed__ = true;
           console.log("Hot Module Replacement installed.");
           if (typeof __react_server_hydrate__ !== "undefined") {
-            import("@lazarv/react-server/client/entry.client.jsx");
+            import("${reactServerDir}/client/entry.client.jsx");
           }`;
       } else if (id.endsWith("/@__webpack_require__")) {
         return `

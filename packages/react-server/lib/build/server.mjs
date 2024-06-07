@@ -28,7 +28,13 @@ export default async function serverBuild(root, options) {
     resolve: {
       ...config.resolve,
       preserveSymlinks: true,
-      alias: [...(config.resolve?.alias ?? [])],
+      alias: [
+        {
+          find: /^@lazarv\/react-server$/,
+          replacement: sys.rootDir,
+        },
+        ...(config.resolve?.alias ?? []),
+      ],
       conditions: ["react-server"],
       externalConditions: ["react-server"],
     },
@@ -78,7 +84,6 @@ export default async function serverBuild(root, options) {
           "react-server-dom-webpack/client.browser",
           "react-server-dom-webpack/client.edge",
           "react-server-dom-webpack/server.edge",
-          "react-error-boundary",
           ...(config.build?.rollupOptions?.external ?? []),
           ...(config.external ?? []),
         ],

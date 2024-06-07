@@ -13,11 +13,6 @@ import {
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
 
-const oldConsoleError = console.error;
-console.error = (...args) => {
-  oldConsoleError("WORKER!", ...args);
-};
-
 sys.experimentalWarningSilence();
 alias();
 register("../loader/node-loader.mjs", import.meta.url);

@@ -13,7 +13,9 @@ export function reactServer(root, options = {}) {
 
       await runtime_init$(async () => {
         runtime$(CONFIG_CONTEXT, config);
-        resolve(await createServer(root, options));
+        const server = await createServer(root, options);
+        server.ws.listen();
+        resolve(server);
       });
     } catch (e) {
       reject(e);

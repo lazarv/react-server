@@ -26,7 +26,12 @@ export default async function dev(root, options) {
     await runtime_init$(async () => {
       runtime$(CONFIG_CONTEXT, config);
 
-      const server = await createServer(root, options);
+      const server = await createServer(
+        options.eval || !process.stdin.isTTY
+          ? "virtual:react-server-eval.jsx"
+          : root,
+        options
+      );
 
       const port = options.port ?? configRoot.port;
       const host = options.host ?? configRoot.host;

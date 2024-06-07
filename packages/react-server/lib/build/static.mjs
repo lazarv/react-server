@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createBrotliCompress, createGzip } from "node:zlib";
+import { Worker } from "node:worker_threads";
 
 import { filesize } from "filesize";
 import colors from "picocolors";
@@ -56,6 +57,10 @@ export default async function staticSiteGenerator(root, options) {
   const config = getContext(CONFIG_CONTEXT);
 
   await runtime_init$(async () => {
+    const worker = new Worker(
+      new URL("../start/render-stream.mjs", import.meta.url)
+    );
+    runtime$(WORKER_THREAD, worker);
     runtime$(CONFIG_CONTEXT, config);
 
     const configRoot = forRoot();

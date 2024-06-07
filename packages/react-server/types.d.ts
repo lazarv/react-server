@@ -83,6 +83,61 @@ declare module "@lazarv/react-server/config" {
   export function forChild(config?: ReactServerConfig): ReactServerConfig;
 }
 
+declare module "react-error-boundary" {
+  import {
+    Component,
+    ComponentType,
+    ErrorInfo,
+    FunctionComponent,
+    PropsWithChildren,
+    ReactElement,
+    ReactNode,
+  } from "react";
+
+  function FallbackRender(props: FallbackProps): ReactNode;
+
+  export type FallbackProps = {
+    error: any;
+    resetErrorBoundary: (...args: any[]) => void;
+  };
+
+  type ErrorBoundarySharedProps = PropsWithChildren<{
+    onError?: (error: Error, info: ErrorInfo) => void;
+    onReset?: (
+      details:
+        | { reason: "imperative-api"; args: any[] }
+        | { reason: "keys"; prev: any[] | undefined; next: any[] | undefined }
+    ) => void;
+    resetKeys?: any[];
+  }>;
+
+  export type ErrorBoundaryPropsWithComponent = ErrorBoundarySharedProps & {
+    fallback?: never;
+    FallbackComponent: ComponentType<FallbackProps>;
+    fallbackRender?: never;
+  };
+
+  export type ErrorBoundaryPropsWithRender = ErrorBoundarySharedProps & {
+    fallback?: never;
+    FallbackComponent?: never;
+    fallbackRender: typeof FallbackRender;
+  };
+
+  export type ErrorBoundaryPropsWithFallback = ErrorBoundarySharedProps & {
+    fallback: ReactElement<
+      unknown,
+      string | FunctionComponent | typeof Component
+    > | null;
+    FallbackComponent?: never;
+    fallbackRender?: never;
+  };
+
+  export type ErrorBoundaryProps =
+    | ErrorBoundaryPropsWithFallback
+    | ErrorBoundaryPropsWithComponent
+    | ErrorBoundaryPropsWithRender;
+}
+
 declare module "@lazarv/react-server/error-boundary" {
   import type { ErrorBoundaryProps } from "react-error-boundary";
 
@@ -214,7 +269,7 @@ declare module "@lazarv/react-server/router" {
 
 declare module "@lazarv/react-server/dev" {
   import * as http from "node:http";
-  import type { Connect, HMRBroadcaster } from "vite";
+  import type { Connect, WebSocketServer } from "vite";
 
   export function reactServer(
     root: string,
@@ -222,7 +277,7 @@ declare module "@lazarv/react-server/dev" {
   ): Promise<{
     listen: () => http.Server;
     close: () => Promise<void>;
-    ws: HMRBroadcaster;
+    ws: WebSocketServer;
     middlewares: Connect.Server;
   }>;
 }

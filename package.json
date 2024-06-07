@@ -39,5 +39,14 @@
   "workspaces": [
     "packages/*",
     "examples/*"
-  ]
+  ],
+  "pnpm": {
+    "overrides": {
+      "react-click-away-listener>react": "19.0.0-rc-cc1ec60d0d-20240607",
+      "react-click-away-listener>react-dom": "19.0.0-rc-cc1ec60d0d-20240607",
+      "vite-plugin-svgr>vite": "6.0.0-alpha.18",
+      "@vitejs/plugin-react>vite": "6.0.0-alpha.18",
+      "supertest>superagent": "9.0.2"
+    }
+  }
 }

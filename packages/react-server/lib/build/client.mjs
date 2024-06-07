@@ -62,7 +62,14 @@ export default async function clientBuild(_, options) {
     root: cwd,
     resolve: {
       ...config.resolve,
-      alias: [...clientAlias(options.dev), ...(config.resolve?.alias ?? [])],
+      alias: [
+        {
+          find: /^@lazarv\/react-server$/,
+          replacement: sys.rootDir,
+        },
+        ...clientAlias(options.dev),
+        ...(config.resolve?.alias ?? []),
+      ],
     },
     customLogger,
     build: {

@@ -8,7 +8,7 @@ const cwd = sys.cwd();
 export default function useServer(manifest) {
   let viteCommand;
   return {
-    name: "use-server",
+    name: "react-server:use-server",
     async config(_, { command }) {
       viteCommand = command;
     },
@@ -108,7 +108,7 @@ export default function useServer(manifest) {
               },
               {
                 type: "Literal",
-                value: relative(cwd, id),
+                value: id,
               },
               {
                 type: "Literal",
@@ -136,7 +136,7 @@ export default function useServer(manifest) {
         ],
         source: {
           type: "Literal",
-          value: "@lazarv/react-server/server/action-register.mjs",
+          value: `${sys.rootDir}/server/action-register.mjs`,
         },
         importKind: "value",
       });

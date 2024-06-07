@@ -131,7 +131,10 @@ export default async function errorHandler(err) {
         <meta charset="UTF-8" />
         <title>Error</title>
         <script type="module">
-          import { ErrorOverlay } from '/@vite/client'
+          import { ErrorOverlay } from "${`${server.config.base || "/"}/@vite/client`.replace(
+            /\/+/g,
+            "/"
+          )}";
           document.body.appendChild(new ErrorOverlay(${JSON.stringify(
             await prepareError(err)
           ).replace(/</g, "\\u003c")}))

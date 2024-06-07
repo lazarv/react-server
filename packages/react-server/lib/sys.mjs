@@ -1,3 +1,6 @@
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
 export function cwd() {
   return typeof Deno !== "undefined" ? Deno.cwd() : process.cwd();
 }
@@ -65,3 +68,5 @@ if (typeof Deno !== "undefined") {
     emit: function () {},
   };
 }
+
+export const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");

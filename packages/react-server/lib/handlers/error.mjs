@@ -28,8 +28,8 @@ export async function prepareError(err) {
           .match(/\((.*:[0-9]+:[0-9]+)\)/)?.[1]
           .split(":") ?? [];
 
-      if (viteDevServer.moduleGraph.idToModuleMap.has(id)) {
-        const map = viteDevServer.moduleGraph.getModuleById(id)
+      if (viteDevServer.environments.ssr.moduleGraph.idToModuleMap.has(id)) {
+        const map = viteDevServer.environments.ssr.moduleGraph.getModuleById(id)
           ?.ssrTransformResult?.map ?? {
           sourcesContent: [await readFile(id, "utf-8")],
         };
@@ -79,7 +79,7 @@ export async function prepareError(err) {
       err.plugin = err.plugin || packageJson.name;
     }
   } catch (e) {
-    console.error(e);
+    console.error("[react-server]", e);
   }
   return {
     message: strip(err.message),

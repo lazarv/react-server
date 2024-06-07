@@ -78,6 +78,6 @@ try {
   });
   await cli.runMatchedCommand();
 } catch (error) {
-  console.error(error.stack);
+  console.error("[react-server]", error.stack ?? error.message);
   exit(1);
 }

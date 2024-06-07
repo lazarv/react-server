@@ -1,34 +1,36 @@
 import { randomUUID } from "node:crypto";
-import { Worker } from "node:worker_threads";
-import { runtime$ } from "./runtime.mjs";
+import { getRuntime } from "./runtime.mjs";
 import { WORKER_THREAD } from "./symbols.mjs";
 
 export function createWorker(url) {
-  const worker = new Worker(url);
-  runtime$(WORKER_THREAD, worker);
+  const worker = getRuntime(WORKER_THREAD);
+
+  if (!worker) {
+    return async () => {
+      throw new Error("Worker thread is not available.");
+    };
+  }
 
   const workerMap = new Map();
-  worker.on(
-    "message",
-    ({ id, stream, postponed, start, done, error, stack }) => {
-      if (id) {
-        if (error) {
-          const err = new Error(error);
-          err.stack = stack;
-          workerMap.get(id)?.onError?.(err);
-          workerMap.delete(id);
-        } else if (stream) {
-          workerMap.get(id).resolve(stream);
-        } else if (start) {
-          workerMap.get(id).start({ id });
-        } else if (postponed) {
-          workerMap.get(id).onPostponed?.(postponed);
-        } else if (done) {
-          workerMap.delete(id);
-        }
+  worker.on("message", (payload) => {
+    const { id, stream, postponed, start, done, error, stack } = payload;
+    if (id) {
+      if (error) {
+        const err = new Error(error);
+        err.stack = stack;
+        workerMap.get(id)?.onError?.(err);
+        workerMap.delete(id);
+      } else if (stream) {
+        workerMap.get(id).resolve(stream);
+      } else if (start) {
+        workerMap.get(id).start({ id });
+      } else if (postponed) {
+        workerMap.get(id).onPostponed?.(postponed);
+      } else if (done) {
+        workerMap.delete(id);
       }
     }
-  );
+  });
 
   return async ({
     start,

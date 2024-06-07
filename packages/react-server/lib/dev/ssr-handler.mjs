@@ -36,9 +36,7 @@ export default async function ssrHandler(root) {
   const ssrLoadModule = getRuntime(MODULE_LOADER);
   const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
-  const renderStream = createWorker(
-    new URL("./render-stream.mjs", import.meta.url)
-  );
+  const renderStream = createWorker();
   const moduleCacheStorage = new AsyncLocalStorage();
 
   return async (httpContext) => {

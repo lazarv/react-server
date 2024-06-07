@@ -2,7 +2,7 @@ import svgr from "vite-plugin-svgr";
 
 export default {
   plugins: [svgr()],
-  ssr: {
+  resolve: {
     noExternal: ["@vercel/analytics"],
   },
 };

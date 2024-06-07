@@ -9,6 +9,8 @@ export default function useClient(type, manifest) {
   return {
     name: "use-client",
     async transform(code, id) {
+      const viteEnv = this.environment.name;
+      const mode = this.environment.mode;
       if (!/\.m?[jt]sx?$/.test(id)) return;
       if (!code.includes("use client")) return;
 
@@ -30,7 +32,10 @@ export default function useClient(type, manifest) {
             "Cannot use both 'use client' and 'use server' in the same module."
           );
 
-        if (type === "client") {
+        if (
+          type === "client" ||
+          (mode !== "build" && (viteEnv === "client" || viteEnv === "ssr"))
+        ) {
           ast.body = ast.body.filter(
             (node) =>
               node.type !== "ExpressionStatement" ||

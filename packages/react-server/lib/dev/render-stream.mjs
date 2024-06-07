@@ -1,16 +1,22 @@
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
-import react from "@vitejs/plugin-react";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire, register } from "node:module";
 import { dirname, join } from "node:path";
 import { parentPort } from "node:worker_threads";
-import { createServer, createViteRuntime } from "vite";
 
-import { loadConfig } from "../../config/index.mjs";
-import { CONFIG_ROOT } from "../../server/symbols.mjs";
+import {
+  ESModulesEvaluator,
+  ModuleRunner,
+  RemoteRunnerTransport,
+} from "vite/module-runner";
+
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
-import merge from "../utils/merge.mjs";
+
+const oldConsoleError = console.error;
+console.error = (...args) => {
+  oldConsoleError("WORKER!", ...args);
+};
 
 sys.experimentalWarningSilence();
 alias();
@@ -27,35 +33,38 @@ const packageName = packageJson.name;
 const cwd = sys.cwd();
 const rootDir = join(dirname(__require.resolve(`${packageName}`)), "/..");
 
-const config = (await loadConfig())?.[CONFIG_ROOT];
-const devServerConfig = {
-  ...config.client,
-  cacheDir: join(cwd, ".react-server/.cache/dom"),
-  server: {
-    hmr: false,
-    fs: {
-      allow: [cwd, rootDir],
-    },
+const remoteTransport = new RemoteRunnerTransport({
+  send: (data) => {
+    parentPort.postMessage({ type: "import", data });
   },
-  root: rootDir,
-  plugins: [react(), ...(config.client?.plugins ?? [])],
-  appType: "custom",
+  onMessage: (listener) =>
+    parentPort.on("message", (payload) => {
+      if (payload.type === "import") {
+        listener(payload.data);
+      }
+    }),
+  timeout: 5000,
+});
+remoteTransport.fetchModule = (id, importer) => {
+  if (["react", "react/jsx-dev-runtime", "react-dom/client"].includes(id)) {
+    return { externalize: id };
+  }
+  return remoteTransport.resolve("fetchModule", id, importer);
 };
-const viteConfig =
-  typeof config.client?.vite === "function"
-    ? config.client.vite(devServerConfig) ?? devServerConfig
-    : merge(devServerConfig, config.client?.vite ?? {});
-
-const server = await createServer(viteConfig);
-const runtime = await createViteRuntime(server);
+const moduleRunner = new ModuleRunner(
+  {
+    root: rootDir,
+    transport: remoteTransport,
+  },
+  new ESModulesEvaluator()
+);
 
 const moduleCacheStorage = new AsyncLocalStorage();
 globalThis.__webpack_require__ = function (id) {
   const moduleCache = moduleCacheStorage.getStore() ?? new Map();
   id = join(cwd, id);
   if (!moduleCache.has(id)) {
-    runtime.moduleCache.invalidate(id);
-    const mod = runtime.executeEntrypoint(id);
+    const mod = moduleRunner.import(id);
     moduleCache.set(id, mod);
     return mod;
   }

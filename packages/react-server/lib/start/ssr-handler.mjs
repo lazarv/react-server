@@ -70,9 +70,7 @@ export default async function ssrHandler(root) {
   const manifest = getRuntime(MANIFEST);
   const moduleCacheStorage = new AsyncLocalStorage();
   await module_loader_init$(moduleLoader, moduleCacheStorage);
-  const renderStream = createWorker(
-    new URL("./render-stream.mjs", import.meta.url)
-  );
+  const renderStream = createWorker();
   const errorHandler = async (e) => {
     const httpStatus = getContext(HTTP_STATUS) ?? {
       status: 500,

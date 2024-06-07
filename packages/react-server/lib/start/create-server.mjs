@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { Worker } from "node:worker_threads";
 
 import { createMiddleware } from "@hattip/adapter-node";
 import { compose } from "@hattip/compose";
@@ -15,6 +16,7 @@ import {
   FORM_DATA_PARSER,
   LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
+  WORKER_THREAD,
 } from "../../server/symbols.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import staticHandler from "../handlers/static.mjs";
@@ -25,6 +27,9 @@ import ssrHandler from "./ssr-handler.mjs";
 const cwd = sys.cwd();
 
 export default async function createServer(root, options) {
+  const worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
+  runtime$(WORKER_THREAD, worker);
+
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
   const logger = getRuntime(LOGGER_CONTEXT);
 

@@ -1,5 +1,6 @@
 import { createRequire, register } from "node:module";
 import { dirname, join } from "node:path";
+import { Worker } from "node:worker_threads";
 
 import { createMiddleware } from "@hattip/adapter-node";
 import { compose } from "@hattip/compose";
@@ -7,8 +8,15 @@ import { cookie } from "@hattip/cookie";
 import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
 import react from "@vitejs/plugin-react";
-import { createServer as createViteDevServer, createViteRuntime } from "vite";
+import {
+  DevEnvironment,
+  RemoteEnvironmentTransport,
+  createNodeDevEnvironment,
+  createServer as createViteDevServer,
+  createLogger as createViteLogger,
+} from "vite";
 
+import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
 import { MemoryCache } from "../../memory-cache/index.mjs";
 import packageJson from "../../package.json" assert { type: "json" };
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
@@ -21,6 +29,7 @@ import {
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
   SERVER_CONTEXT,
+  WORKER_THREAD,
 } from "../../server/symbols.mjs";
 import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
@@ -42,7 +51,7 @@ register("../loader/node-loader.react-server.mjs", import.meta.url);
 const __require = createRequire(import.meta.url);
 const packageName = packageJson.name;
 const cwd = sys.cwd();
-const rootDir = join(dirname(__require.resolve(`${packageName}`)), "/..");
+const rootDir = join(dirname(__require.resolve(`${packageName}`)), "/../");
 
 export default async function createServer(root, options) {
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT];
@@ -54,6 +63,9 @@ export default async function createServer(root, options) {
   } catch (e) {
     // ignore
   }
+
+  const worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
+  runtime$(WORKER_THREAD, worker);
 
   const devServerConfig = {
     ...config,
@@ -71,17 +83,11 @@ export default async function createServer(root, options) {
         allow: [cwd, rootDir, ...(config.server?.fs?.allow ?? [])],
       },
     },
-    resolve: {
-      ...config.resolve,
-      preserveSymlinks: true,
-      alias: [...clientAlias(true), ...(config.resolve?.alias ?? [])],
-    },
     publicDir: false,
     root: cwd,
     appType: "custom",
     clearScreen: options.clearScreen,
     configFile: false,
-    plugins: [reactServerRuntime(), react(), ...(config.plugins ?? [])],
     optimizeDeps: {
       ...config.optimizeDeps,
       force: options.force ?? config.optimizeDeps?.force,
@@ -89,27 +95,6 @@ export default async function createServer(root, options) {
     css: {
       ...config.css,
       postcss: cwd,
-    },
-    customLogger: createLogger(),
-  };
-
-  const viteConfig =
-    typeof config.vite === "function"
-      ? config.vite(devServerConfig) ?? devServerConfig
-      : merge(devServerConfig, config.vite);
-
-  const viteDevServer = await createViteDevServer({
-    ...viteConfig,
-    cacheDir: join(cwd, ".react-server/.cache/client"),
-  });
-  const viteSSRDevServer = await createViteDevServer({
-    ...viteConfig,
-    server: {
-      ...viteConfig.server,
-      hmr: {
-        ...viteConfig.server.hmr,
-        port: viteConfig.server.hmr.port + 1,
-      },
     },
     plugins: [
       ...(reactServerRouterModule &&
@@ -125,38 +110,197 @@ export default async function createServer(root, options) {
               ).default())(),
           ]
         : []),
+      reactServerRuntime(),
       react(),
       useClient(),
       useServer(),
       useServerInline(),
       ...(config.plugins ?? []),
     ],
-    root: rootDir,
-    cacheDir: join(cwd, ".react-server/.cache/rsc"),
+    cacheDir: join(cwd, ".react-server/.cache/client"),
     resolve: {
+      ...config.resolve,
       preserveSymlinks: true,
     },
-    ssr: {
-      ...config.ssr,
-      external: [
-        "react",
-        "react-dom",
-        "react-server-dom-webpack",
-        ...(config.ssr?.external ?? []),
-        ...(config.external ?? []),
-      ],
-      resolve: {
-        conditions: ["react-server"],
-        externalConditions: ["react-server"],
+    customLogger: createLogger(),
+    optimizeDeps: {
+      ...config.optimizeDeps,
+      include: ["react-dom/client", "react-server-dom-webpack/client.browser"],
+    },
+    environments: {
+      client: {
+        resolve: {
+          alias: [...clientAlias(true), ...(config.resolve?.alias ?? [])],
+        },
+        optimizeDeps: {
+          ...config.optimizeDeps,
+          include: ["react-dom/client"],
+        },
+        dev: {
+          createEnvironment: (name, config) => {
+            const dev = new DevEnvironment(
+              name,
+              {
+                ...config,
+                resolve: {
+                  alias: [
+                    ...clientAlias(true),
+                    ...(config.resolve?.alias ?? []),
+                  ],
+                },
+                logger: createViteLogger("info", {
+                  prefix: `[react-server-client]`,
+                }),
+              },
+              {}
+            );
+            return dev;
+          },
+        },
+      },
+      ssr: {
+        resolve: {
+          external: [
+            "react",
+            "react/jsx-dev-runtime",
+            "react-dom",
+            "react-dom/client",
+            "react-server-dom-webpack",
+          ],
+          conditions: ["default"],
+          externalConditions: ["default"],
+        },
+        dev: {
+          createEnvironment: (name, config) => {
+            return createNodeDevEnvironment(
+              name,
+              {
+                ...config,
+                root: rootDir,
+                cacheDir: join(cwd, ".react-server/.cache/ssr"),
+                resolve: {
+                  external: [
+                    "react",
+                    "react/jsx-dev-runtime",
+                    "react-dom",
+                    "react-dom/client",
+                    "react-server-dom-webpack",
+                  ],
+                  alias: [
+                    ...clientAlias(true),
+                    ...(config.resolve?.alias ?? []),
+                  ],
+                  conditions: ["default"],
+                  externalConditions: ["default"],
+                },
+                logger: createViteLogger("info", {
+                  prefix: `[react-server-ssr]`,
+                }),
+              },
+              {
+                runner: {
+                  transport: new RemoteEnvironmentTransport({
+                    send: (data) => {
+                      worker.postMessage({ type: "import", data });
+                    },
+                    onMessage: (listener) => {
+                      worker.on("message", (payload) => {
+                        if (payload.type === "import") {
+                          listener(payload.data);
+                        }
+                      });
+                    },
+                  }),
+                },
+              }
+            );
+          },
+        },
+      },
+      rsc: {
+        resolve: {
+          external: [
+            "react",
+            "react-dom",
+            "react-server-dom-webpack",
+            ...(config.ssr?.external ?? []),
+            ...(config.external ?? []),
+          ],
+          conditions: ["react-server"],
+          externalConditions: ["react-server"],
+        },
+        dev: {
+          createEnvironment: (name, config) => {
+            const dev = createNodeDevEnvironment(
+              name,
+              {
+                ...config,
+                root: rootDir,
+                cacheDir: join(cwd, ".react-server/.cache/rsc"),
+                optimizeDeps: {
+                  ...config.optimizeDeps,
+                  include: [],
+                },
+                resolve: {
+                  external: [
+                    // "react",
+                    "react-dom",
+                    "react-server-dom-webpack",
+                    ...(config.ssr?.external ?? []),
+                    ...(config.external ?? []),
+                  ],
+                  conditions: ["react-server"],
+                  externalConditions: ["react-server"],
+                },
+                logger: createViteLogger("info", {
+                  prefix: `[react-server-rsc]`,
+                }),
+              },
+              {}
+            );
+            return dev;
+          },
+        },
       },
     },
-  });
-  const viteRuntime = await createViteRuntime(viteSSRDevServer);
+  };
+
+  const viteConfig =
+    typeof config.vite === "function"
+      ? config.vite(devServerConfig) ?? devServerConfig
+      : merge(devServerConfig, config.vite);
+
+  const viteDevServer = await createViteDevServer(viteConfig);
+  viteDevServer.environments.client.hot = viteDevServer.ws;
+  viteDevServer.environments.rsc.watcher = viteDevServer.watcher;
+  viteDevServer.environments.rsc.hot = {
+    send: (data) => {
+      if (
+        !viteDevServer.environments.client.moduleGraph.idToModuleMap.has(
+          data.triggeredBy
+        )
+      ) {
+        viteDevServer.environments.client.hot.send(data);
+      }
+    },
+  };
+
+  const moduleRunner = new ModuleRunner(
+    {
+      root: rootDir,
+      transport: viteDevServer.environments.rsc,
+    },
+    new ESModulesEvaluator()
+  );
 
   const initialRuntime = {
-    [SERVER_CONTEXT]: viteSSRDevServer,
-    [LOGGER_CONTEXT]: viteSSRDevServer.config.logger,
-    [MODULE_LOADER]: (id) => viteRuntime.executeEntrypoint(id.split("#")[0]),
+    [SERVER_CONTEXT]: viteDevServer,
+    [LOGGER_CONTEXT]: viteDevServer.config.logger,
+    [MODULE_LOADER]: ($$id) => {
+      const [id] = $$id.split("#");
+      moduleRunner.moduleCache.invalidateUrl(id);
+      return moduleRunner.import(id);
+    },
     [FORM_DATA_PARSER]: parseMultipartFormData,
     [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
     [COLLECT_STYLESHEETS]: function collectCss(rootModule) {
@@ -169,7 +313,10 @@ export default async function createServer(root, options) {
           !moduleId.startsWith("virtual:")
         ) {
           visited.add(moduleId);
-          const mod = viteSSRDevServer.moduleGraph.getModuleById(moduleId);
+          const mod =
+            viteDevServer.environments.rsc.moduleGraph.getModuleById(moduleId);
+          if (!mod) return;
+
           const values = Array.from(mod.importedModules.values());
           const importedStyles = values.filter(
             (mod) => /\.(css|scss|less)/.test(mod.id) && !styles.includes(mod)
@@ -228,9 +375,15 @@ export default async function createServer(root, options) {
   );
 
   return {
-    listen: (...args) => viteDevServer.middlewares.listen(...args),
-    close: () => viteDevServer.close(),
-    ws: viteDevServer.hot,
+    listen: (...args) => {
+      viteDevServer.environments.client.hot.listen();
+      return viteDevServer.middlewares.listen(...args);
+    },
+    close: () => {
+      viteDevServer.close();
+      viteDevServer.environments.client.hot.close();
+    },
+    ws: viteDevServer.ws,
     middlewares: viteDevServer.middlewares,
   };
 }

@@ -4,10 +4,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import glob from "fast-glob";
 
-import { CONFIG_PARENT, CONFIG_ROOT } from "../server/symbols.mjs";
-export * from "./context.mjs";
 import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
+import { CONFIG_PARENT, CONFIG_ROOT } from "../server/symbols.mjs";
+export * from "./context.mjs";
 
 import * as sys from "../lib/sys.mjs";
 import merge from "../lib/utils/merge.mjs";
@@ -76,7 +76,7 @@ export async function loadConfig(initialConfig) {
 
       config[key] = merge(config[key] ?? {}, configModule);
     } catch (e) {
-      console.error(e);
+      console.error("[react-server]", e);
     }
   }
 

@@ -8,6 +8,7 @@ import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
+import reactServerEval from "../plugins/react-server-eval.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
@@ -19,6 +20,16 @@ const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
 export default async function serverBuild(root, options) {
+  let reactServerRouterModule;
+  try {
+    reactServerRouterModule = __require.resolve("@lazarv/react-server-router", {
+      paths: [cwd],
+    });
+  } catch {
+    // ignore
+    root ||= "virtual:react-server-eval.jsx";
+  }
+
   banner("server", options.dev);
   const config = forRoot();
   const clientManifest = new Map();
@@ -68,10 +79,15 @@ export default async function serverBuild(root, options) {
             "@lazarv/react-server/server/render-rsc.jsx",
             { paths: [cwd] }
           ),
-          "server/index": __require.resolve(
-            root ?? "@lazarv/react-server-router",
-            { paths: [cwd] }
-          ),
+          "server/index":
+            !root &&
+            (!reactServerRouterModule || options.eval || !process.stdin.isTTY)
+              ? "virtual:react-server-eval.jsx"
+              : root?.startsWith("virtual:")
+                ? root
+                : __require.resolve(root ?? "@lazarv/react-server-router", {
+                    paths: [cwd],
+                  }),
         },
         external: [
           /manifest\.json/,
@@ -102,7 +118,8 @@ export default async function serverBuild(root, options) {
       },
     },
     plugins: [
-      ...(!root || root === "@lazarv/react-server-router"
+      ...(reactServerRouterModule &&
+      (!root || root === "@lazarv/react-server-router")
         ? [
             (async () =>
               (
@@ -114,6 +131,7 @@ export default async function serverBuild(root, options) {
               ).default())(),
           ]
         : []),
+      reactServerEval(options),
       viteReact(),
       ...(config.plugins ?? []),
     ],

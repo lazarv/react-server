@@ -36,6 +36,7 @@ import notFoundHandler from "../handlers/not-found.mjs";
 import staticWatchHandler from "../handlers/static-watch.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import { alias } from "../loader/module-alias.mjs";
+import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import useClient from "../plugins/use-client.mjs";
 import useServerInline from "../plugins/use-server-inline.mjs";
@@ -60,7 +61,7 @@ export default async function createServer(root, options) {
     reactServerRouterModule = __require.resolve("@lazarv/react-server-router", {
       paths: [cwd],
     });
-  } catch (e) {
+  } catch {
     // ignore
     root ||= "virtual:react-server-eval.jsx";
   }
@@ -111,24 +112,7 @@ export default async function createServer(root, options) {
               ).default())(),
           ]
         : []),
-      {
-        name: "react-server:eval",
-        async load(id) {
-          if (id === "virtual:react-server-eval.jsx") {
-            if (options.eval) {
-              return options.eval;
-            } else if (!process.stdin.isTTY) {
-              let code = "";
-              process.stdin.setEncoding("utf8");
-              for await (const chunk of process.stdin) {
-                code += chunk;
-              }
-              return code;
-            }
-            return "throw new Error('Root module not provided')";
-          }
-        },
-      },
+      reactServerEval(options),
       reactServerRuntime(),
       react(),
       useClient(),

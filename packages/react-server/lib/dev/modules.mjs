@@ -25,8 +25,7 @@ export default function getModules(root) {
       : reactServerRouterModule
         ? "@lazarv/react-server-router"
         : "virtual:react-server-eval.jsx";
-  } catch (e) {
-    console.error(e);
+  } catch {
     rootModule = "virtual:react-server-eval.jsx";
   }
 

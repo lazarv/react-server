@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 
 import packageJson from "../../package.json" assert { type: "json" };
-import { cwd } from "../sys.mjs";
+import { cwd, rootDir } from "../sys.mjs";
 
 const __require = createRequire(import.meta.url);
 
@@ -15,7 +15,7 @@ export default function getModules(root) {
     // ignore
   }
 
-  const entryModule = `${packageJson.name}/server/render-rsc.jsx`;
+  const entryModule = `${rootDir}/server/render-rsc.jsx`;
   let rootModule;
   try {
     rootModule = root

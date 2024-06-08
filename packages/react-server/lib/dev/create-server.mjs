@@ -140,6 +140,10 @@ export default async function createServer(root, options) {
     resolve: {
       ...config.resolve,
       preserveSymlinks: true,
+      alias: [
+        { find: /^@lazarv\/react-server$/, replacement: rootDir },
+        ...(config.resolve?.alias ?? []),
+      ],
     },
     customLogger: createLogger(),
     optimizeDeps: {
@@ -314,7 +318,7 @@ export default async function createServer(root, options) {
 
   const moduleRunner = new ModuleRunner(
     {
-      root: rootDir,
+      root: cwd,
       transport: viteDevServer.environments.rsc,
     },
     new ESModulesEvaluator()

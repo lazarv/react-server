@@ -1,12 +1,17 @@
 import { createRequire } from "node:module";
+import { relative } from "node:path";
 import { cwd, rootDir } from "../sys.mjs";
 
 const __require = createRequire(import.meta.url);
 
 let reactServerInstalled = false;
 try {
-  __require.resolve("@lazarv/react-server", { paths: [cwd()] });
-  reactServerInstalled = true;
+  reactServerInstalled = !relative(
+    cwd(),
+    __require.resolve("@lazarv/react-server", {
+      paths: [cwd()],
+    })
+  ).startsWith("../");
 } catch (e) {
   reactServerInstalled = false;
 }

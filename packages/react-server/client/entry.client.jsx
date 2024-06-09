@@ -1,10 +1,8 @@
 import { startTransition, StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";
 
-import ClientProvider, {
-  PAGE_ROOT,
-} from "@lazarv/react-server/client/ClientProvider.jsx";
-import ReactServerComponent from "@lazarv/react-server/client/ReactServerComponent.jsx";
+import ClientProvider, { PAGE_ROOT } from "./ClientProvider.jsx";
+import ReactServerComponent from "./ReactServerComponent.jsx";
 
 function ReactServer() {
   return (

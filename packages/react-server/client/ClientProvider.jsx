@@ -4,7 +4,7 @@ import {
   encodeReply,
 } from "react-server-dom-webpack/client.browser";
 
-import { ClientContext } from "@lazarv/react-server/client/context";
+import { ClientContext } from "./context.mjs";
 
 export const PAGE_ROOT = "PAGE_ROOT";
 

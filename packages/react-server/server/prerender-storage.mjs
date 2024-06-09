@@ -1,7 +1,7 @@
-import { AsyncLocalStorage } from "node:async_hooks";
+import { ContextManager } from "../lib/async-local-storage.mjs";
 
 export const PrerenderStorage = (globalThis.__react_server_prerender__ =
-  globalThis.__react_server_prerender__ || new AsyncLocalStorage());
+  globalThis.__react_server_prerender__ || new ContextManager());
 
 export function getPrerender(type) {
   const store = PrerenderStorage.getStore();

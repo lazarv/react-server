@@ -1,4 +1,3 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
 
 import { forChild } from "../../config/index.mjs";
@@ -22,13 +21,14 @@ import {
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
+import { ContextManager } from "../async-local-storage.mjs";
 import errorHandler from "../handlers/error.mjs";
 import * as sys from "../sys.mjs";
 import getModules from "./modules.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
-globalThis.AsyncLocalStorage = AsyncLocalStorage;
+globalThis.AsyncLocalStorage = ContextManager;
 
 export default async function ssrHandler(root) {
   const { entryModule, rootModule, memoryCacheModule } = getModules(root);
@@ -37,7 +37,7 @@ export default async function ssrHandler(root) {
   const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
   const renderStream = createWorker();
-  const moduleCacheStorage = new AsyncLocalStorage();
+  const moduleCacheStorage = new ContextManager();
 
   return async (httpContext) => {
     return new Promise((resolve, reject) => {

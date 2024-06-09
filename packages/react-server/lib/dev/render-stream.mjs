@@ -1,8 +1,8 @@
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
-import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire, register } from "node:module";
 import { dirname, join } from "node:path";
 import { parentPort } from "node:worker_threads";
+import { ContextManager } from "../async-local-storage.mjs";
 
 import {
   ESModulesEvaluator,
@@ -48,13 +48,13 @@ remoteTransport.fetchModule = (id, importer) => {
 };
 const moduleRunner = new ModuleRunner(
   {
-    root: rootDir,
+    root: cwd,
     transport: remoteTransport,
   },
   new ESModulesEvaluator()
 );
 
-const moduleCacheStorage = new AsyncLocalStorage();
+const moduleCacheStorage = new ContextManager();
 globalThis.__webpack_require__ = function (id) {
   const moduleCache = moduleCacheStorage.getStore() ?? new Map();
   id = join(cwd, id);

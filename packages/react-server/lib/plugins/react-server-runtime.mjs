@@ -35,7 +35,7 @@ export default function viteReactServerRuntime() {
           window.__vite_plugin_react_preamble_installed__ = true;
           console.log("Hot Module Replacement installed.");
           if (typeof __react_server_hydrate__ !== "undefined") {
-            import("${reactServerDir}/client/entry.client.jsx");
+            import(/* @vite-ignore */ "${reactServerDir}/client/entry.client.jsx");
           }`;
       } else if (id.endsWith("/@__webpack_require__")) {
         return `
@@ -44,8 +44,8 @@ export default function viteReactServerRuntime() {
           if (!moduleCache.has(id)) {
           ${
             config.base
-              ? `const mod = import(/* @vite-ignore */ new URL("${`/${config.base || ""}/`.replace(/\/+/g, "/")}" + id, location.origin).href);`
-              : `const mod = import(/* @vite-ignore */ new URL(id, location.origin).href);`
+              ? `const mod = import(/* @vite-ignore */ new URL("${`${config.base}/`.replace(/\/+/g, "/")}@fs${cwd()}/" + id, location.origin).href);`
+              : `const mod = import(/* @vite-ignore */ new URL("${`/@fs${cwd()}/`}" + id, location.origin).href);`
           }
           moduleCache.set(id, mod);
           return mod;

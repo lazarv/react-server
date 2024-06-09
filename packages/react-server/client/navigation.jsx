@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "@lazarv/react-server/client/Link.jsx";
-import Refresh from "@lazarv/react-server/client/Refresh.jsx";
+import Link from "./Link.jsx";
+import Refresh from "./Refresh.jsx";
 export * from "./location.mjs";
 
 export { Link, Refresh };

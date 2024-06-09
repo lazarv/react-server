@@ -137,6 +137,7 @@ export default async function createServer(root, options) {
     environments: {
       client: {
         resolve: {
+          preserveSymlinks: false,
           alias: [
             { find: /^@lazarv\/react-server$/, replacement: rootDir },
             ...clientAlias(true),

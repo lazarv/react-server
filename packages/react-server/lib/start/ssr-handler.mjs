@@ -1,4 +1,3 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire, register } from "node:module";
 
 import { forChild } from "../../config/index.mjs";
@@ -30,13 +29,14 @@ import {
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
+import { ContextManager } from "../async-local-storage.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
 import { init$ as manifest_init$ } from "./manifest.mjs";
 
 alias("react-server");
 register("../loader/node-loader.react-server.mjs", import.meta.url);
-globalThis.AsyncLocalStorage = AsyncLocalStorage;
+globalThis.AsyncLocalStorage = ContextManager;
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -68,7 +68,7 @@ export default async function ssrHandler(root) {
   const moduleLoader = getRuntime(MODULE_LOADER);
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const manifest = getRuntime(MANIFEST);
-  const moduleCacheStorage = new AsyncLocalStorage();
+  const moduleCacheStorage = new ContextManager();
   await module_loader_init$(moduleLoader, moduleCacheStorage);
   const renderStream = createWorker();
   const errorHandler = async (e) => {

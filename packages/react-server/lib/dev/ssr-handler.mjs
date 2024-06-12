@@ -31,7 +31,8 @@ const cwd = sys.cwd();
 globalThis.AsyncLocalStorage = ContextManager;
 
 export default async function ssrHandler(root) {
-  const { entryModule, rootModule, memoryCacheModule } = getModules(root);
+  const { entryModule, rootModule, rootName, memoryCacheModule } =
+    getModules(root);
   const viteDevServer = getRuntime(SERVER_CONTEXT);
   const ssrLoadModule = getRuntime(MODULE_LOADER);
   const logger = getRuntime(LOGGER_CONTEXT);
@@ -70,7 +71,7 @@ export default async function ssrHandler(root) {
 
               const [
                 { render },
-                { default: Component, init$: root_init$ },
+                { [rootName]: Component, init$: root_init$ },
                 { init$: cache_init$ },
               ] = await Promise.all([
                 ssrLoadModule(entryModule),
@@ -83,6 +84,12 @@ export default async function ssrHandler(root) {
                     : memoryCacheModule
                 ),
               ]);
+
+              if (!Component) {
+                throw new Error(
+                  `Module "${rootModule}" does not export "${rootName}"`
+                );
+              }
 
               await cache_init$?.();
               try {

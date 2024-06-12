@@ -17,9 +17,10 @@ export default function getModules(root) {
 
   const entryModule = `${rootDir}/server/render-rsc.jsx`;
   let rootModule;
+  const [module, name] = root?.split("#") ?? [];
   try {
     rootModule = root
-      ? __require.resolve(root, {
+      ? __require.resolve(module, {
           paths: [cwd()],
         })
       : reactServerRouterModule
@@ -31,5 +32,10 @@ export default function getModules(root) {
 
   const memoryCacheModule = `${packageJson.name}/memory-cache`;
 
-  return { entryModule, rootModule, memoryCacheModule };
+  return {
+    entryModule,
+    rootModule,
+    rootName: name ?? "default",
+    memoryCacheModule,
+  };
 }

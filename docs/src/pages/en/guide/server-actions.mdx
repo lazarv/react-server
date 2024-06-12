@@ -16,7 +16,7 @@ You can expose any `"use server";` marked function as a server action. Server ac
 You can define server actions inline in your components as any other event handler in a React component.
 
 ```jsx
-export function App() {
+export default function App() {
   async function action() {
     "use server";
     console.log("Server action called!");
@@ -35,7 +35,7 @@ export function App() {
 You can even define your server actions inline your JSX.
 
 ```jsx
-export function App() {
+export default function App() {
   return (
     <form
       action={async () => {
@@ -68,7 +68,7 @@ export async function action() {
 You will get all form data as an object as the first parameter to your server action function.
 
 ```jsx
-export function App() {
+export default function App() {
   async function action(formData) {
     "use server";
     console.log(`Server action called by ${formData.get("name")}!`);
@@ -88,7 +88,7 @@ export function App() {
 ```jsx
 import { useActionState } from "@lazarv/react-server/router";
 
-export function App() {
+export default function App() {
   async function action(formData) {
     "use server";
     console.log(`Server action called by ${formData.get("name")}!`);
@@ -132,7 +132,7 @@ export default function MyClientComponent({ action }) {
 ```jsx
 import MyClientComponent from "./MyClientComponent";
 
-export function App() {
+export default function App() {
   async function action({ name }) {
     "use server";
     console.log(`Server action called by ${name}!`);
@@ -173,7 +173,7 @@ export default function MyClientComponent({ action }) {
 ```jsx
 import MyClientComponent from "./MyClientComponent";
 
-export function App() {
+export default function App() {
   async function action({ name }) {
     "use server";
     console.log(`Server action called by ${name}!`);

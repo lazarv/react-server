@@ -69,7 +69,7 @@ export default async function build(root, options) {
         } catch (e) {
           console.error(colors.red(e.stack || e.message));
           console.log(
-            `\n${colors.red(`ⅹ Build failed in ${formatDuration(Date.now() - globalThis.__react_server_start__)}!`)}`
+            `\n${colors.red("ⅹ")} Build failed in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
           );
         }
         resolve();

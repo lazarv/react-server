@@ -23,6 +23,8 @@ You need to always define the entrypoint of your app as the first argument of th
 
 The `[root]` of your app has to export default a React Server Component. This is the entrypoint of your app and this will be rendered on the server side for every request.
 
+You can also use a hash fragment in the entrypoint to specify a specific export. For example, if you have an entrypoint at `./index.jsx` and you want to use the `App` export, you can use `./index.jsx#App`.
+
 ### Development server options
 
 If your entrypoint is at `./App.jsx`, you can start the development server with:

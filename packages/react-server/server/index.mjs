@@ -6,6 +6,7 @@ export { redirect } from "./redirects.mjs";
 export {
   rewrite,
   useFormData,
+  useHttpContext,
   useRequest,
   useResponse,
   useUrl,

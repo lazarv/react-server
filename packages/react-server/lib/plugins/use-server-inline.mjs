@@ -39,6 +39,8 @@ export default function useServerInline(manifest) {
 
       estraverse.replace(ast, {
         enter(node) {
+          node.parent = parent;
+
           if (
             node.body?.body?.find?.(
               (node) =>
@@ -51,12 +53,13 @@ export default function useServerInline(manifest) {
               node,
               parent,
               name: actionKey(node),
+              identifier:
+                node.type === "FunctionDeclaration" ? node.id.name : null,
               params: [],
               locals: [],
             };
             actions.push(useServerAction);
           }
-          parent = node;
 
           if (useServerNode && node.type === "Identifier") {
             if (locals.includes(node.name)) {
@@ -71,6 +74,8 @@ export default function useServerInline(manifest) {
               locals.push(node.id.name);
             }
           }
+
+          parent = node;
         },
         leave(node) {
           if (node === useServerNode) {
@@ -98,13 +103,37 @@ export default function useServerInline(manifest) {
                 })),
               ];
             } else {
-              node.type = "Identifier";
-              node.name = useServerAction.name;
+              useServerNode.type = "Identifier";
+              useServerNode.name = useServerAction.name;
+            }
+
+            if (useServerAction.parent?.type === "BlockStatement") {
+              useServerAction.parent.body = useServerAction.parent.body.map(
+                (n) =>
+                  n === useServerAction.node
+                    ? {
+                        type: "VariableDeclaration",
+                        kind: "const",
+                        declarations: [
+                          {
+                            type: "VariableDeclarator",
+                            id: {
+                              type: "Identifier",
+                              name: useServerAction.identifier,
+                            },
+                            init: useServerNode,
+                          },
+                        ],
+                      }
+                    : n
+              );
             }
 
             useServerNode = null;
             useServerAction = null;
           }
+
+          parent = node.parent ?? null;
         },
       });
 

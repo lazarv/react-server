@@ -1,9 +1,8 @@
 import { createRequire } from "node:module";
-
-import * as sys from "../lib/sys.mjs";
+import { redirect } from "./redirects.mjs";
+import { useUrl } from "./request.mjs";
 
 const __require = createRequire(import.meta.url);
-const cwd = sys.cwd();
 
 export async function init$(ssrLoadModule, moduleCacheStorage) {
   globalThis.__non_webpack_require__ = function (id) {
@@ -20,9 +19,12 @@ export async function init$(ssrLoadModule, moduleCacheStorage) {
             return async (...args) => {
               const action = (await mod)[prop];
               try {
+                if (!action) {
+                  redirect(useUrl().pathname);
+                }
                 return { result: await action(...args), actionId: action.$$id };
               } catch (e) {
-                return { error: e, actionId: action.$$id };
+                return { error: e, actionId: action?.$$id ?? null };
               }
             };
           },

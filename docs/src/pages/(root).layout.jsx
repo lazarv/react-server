@@ -43,12 +43,12 @@ export default function Layout({ header, sidebar, navigation, children }) {
         <meta property="twitter:card" content="summary_large_image" />
         <meta
           property="description"
-          content="A minimalist React meta-framework using Vite. The easiest way to build React apps with server-side rendering"
+          content="The easiest way to build React apps with server-side rendering"
         />
         <meta property="og:title" content="@lazarv/react-server" />
         <meta
           property="og:description"
-          content="A minimalist React meta-framework using Vite. The easiest way to build React apps with server-side rendering."
+          content="The easiest way to build React apps with server-side rendering."
         />
       </head>
       <body>

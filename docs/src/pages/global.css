@@ -46,6 +46,13 @@ header {
   & nav {
     @apply container max-w-screen-xl px-4 pr-16 flex gap-4 sm:gap-8 self-center justify-center items-center relative;
 
+    & label svg,
+    & a svg {
+      path {
+        @apply fill-black dark:fill-gray-300;
+      }
+    }
+
     & > a:first-child {
       @apply pb-1 mr-auto;
 
@@ -78,12 +85,6 @@ header {
 
   @media screen(sm) {
     @apply mb-4;
-  }
-
-  & > svg {
-    path {
-      @apply fill-black dark:fill-gray-300;
-    }
   }
 }
 

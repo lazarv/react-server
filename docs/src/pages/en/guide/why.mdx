@@ -3,13 +3,17 @@ title: Why @lazarv/react-server?
 slug: why
 ---
 
+import Link from "../../../components/Link.jsx";
+
 # Why `@lazarv/react-server`?
 
 This is a page dedicated to answer the question: Why `@lazarv/react-server`? Hopefully you will get the answers why you should try out this framework and why it's a great choice for your next project.
 
 > I created `@lazarv/react-server` because I wanted to use React Server Components and Server Actions using Vite <span className="text-red-500">❤️</span>. For most small apps Next.js was too much and too heavy and slow. I wanted to have the same experience as you run a simple JavaScript file using node.js. This framework is trying to be non-opinionated as much as possible. You can achieve possibly anything you want. The only restriction is that it will use it's own React version. You don't even need to install React in your project. It's all included in the framework. I hope you will enjoy using this framework as much as I enjoyed creating it and using it to create this documentation too.
 
+<Link name="what-is-a-meta-framework">
 ## What is a meta-framework?
+</Link>
 
 `@lazarv/react-server` is best compared to Next.js / Remix / Astro. We can consider a solution to be a meta-framework when the following features are supported and the framework is using a specific library as it's base.
 
@@ -19,11 +23,15 @@ This is a page dedicated to answer the question: Why `@lazarv/react-server`? Hop
 - [x] Data fetching
 - [x] Isomorphic component trees
 
+<Link name="is-this-framework-for-you">
 ## Is this framework for you?
+</Link>
 
 This framework is for you when you want to use bleeding-edge new technologies and you want a fast development process. When you want full control over how your application is built and how it works.
 
+<Link name="the-goal">
 ## The goal
+</Link>
 
 The goal of `@lazarv/react-server` is to provide a meta-framework that has these features:
 
@@ -42,23 +50,31 @@ The goal of `@lazarv/react-server` is to provide a meta-framework that has these
 - [x] supports React hot module replacement
 - [x] supports node.js cluster for blazing-fast production builds
 
+<Link name="why-react-server-components">
 ## Why React Server Components?
+</Link>
 
 With React Server Components the developer is in control of what part of the application is static and what part is dynamic. It is possible to create a fully server rendered application without any client-side JavaScript. But with client components, interactive parts can be added with progressive enhancement in mind.
 
 Data fetching with React Server Components is very simple, yet hard to master. It requires a specific mindset than usual, but the developer is in control when to fetch the data needed to render a component and how the data is used and sent to the client.
 
+<Link name="why-es-modules">
 ## Why ES modules?
+</Link>
 
 ES modules are the present and future of JavaScript. They are the standard for importing and exporting modules. They are supported by all modern browsers and Node.js by now. When there is a native solution to a problem, it's always better to use it. ES modules are the native solution to importing and exporting modules in JavaScript. It is like when jQuery became obsolete and now every part of jQuery is supported by all modern browsers. The same goes for ES modules.
 
+<Link name="why-vite">
 ## Why Vite?
+</Link>
 
 Vite is a fast development server and a lightweight bundler based on Rollup. It uses ES modules and provides a great developer experience. It's fast, it's simple, it's modern. For single page applications, Vite is the best bundler out there, but it's also great for server side rendering. Many frameworks already chose to use Vite, including Astro, Nuxt.js, SvelteKit, SolidStart and Qwik.
 
 Don't forget to read [why Vite](https://vitejs.dev/guide/why.html).
 
+<Link name="why-plugins">
 ## Why plugins?
+</Link>
 
 Plugins are a great way to extend the framework. They are easy to write and easy to use. They can be used to add new features or to customize existing ones. You can always bring your own set of tools to this framework as the core is very small and extensible.
 
@@ -66,51 +82,71 @@ The file-system based router itself is a plugin and you can also use any React o
 
 Every part of the framework is configurable and extensible. If not, it's a bug and should be reported.
 
+<Link name="why-server-actions">
 ## Why server actions?
+</Link>
 
 React Server Components are already steering the wheel of development style in the direction of PHP. Server actions are pushing it even further. With PHP you still need to switch languages between server and client. You need to work with both PHP and JavaScript. With React Server Components and server actions even without JavaScript you can use TypeScript or JavaScript throughout the whole application. You can use the same language on the server and on the client. You can use the same language for data fetching and for rendering. You can use the same language for everything.
 
 This is especially nice when you use TypeScript as your whole application will be type-safe!
 
+<Link name="why-file-system-based-routing">
 ## Why file-system based routing?
+</Link>
 
 Advanced routing is hard to set up and to maintain, even worse when you need to refactor or restructure your application. File-system based routing is the best solution to this problem. So while the `@lazarv/react-server` framework is not including a file-system-based routing solution as a core component, you can install the `@lazarv/react-server-router` package to get this feature. This is to keep the core as small and un-opinionated as possible and to allow you to use any routing solution you want.
 
+<Link name="why-markdown-and-mdx-pages">
 ## Why Markdown and MDX pages?
+</Link>
 
 When creating static pages it's very easy to create the page with a simpler tool, like Markdown or MDX. Your page will be a server component and with MDX you can also use any React component inside your Markdown page. This feature made the creation of this documentation website very easy. All pages of this site are made using MDX.
 
 You can also extend the Markdown configuration with any Remark or Rehype plugins.
 
+<Link name="why-static-generation">
 ## Why static generation?
+</Link>
 
 Frameworks are not just for server-side rendered applications. You can also create static multi-page applications using a framework. The best example for such a framework is Astro. `@lazarv/react-server` also supports multi-page applications and static generation. You can export any page as a static HTML page together with the React Server Component format output, so client-side navigation can still work. After exporting your application, you can still use `@lazarv/react-server` to serve your files or use any static file server to host your application.
 
+<Link name="why-progressive-enhancement">
 ## Why progressive enhancement?
+</Link>
 
 React server actions support progressive enhancement even when the user disabled JavaScript in the browser. This is a great feature for accessibility and SEO. You can create a fully server rendered application without any client-side JavaScript. But with client components, interactive parts can be added with progressive enhancement in mind.
 
 As links and forms are the basic building blocks of the web, they are also the basic building blocks for React Server Components with server actions. Add links to your pages and use server actions on your forms to make your application work without JavaScript. Lazy loaded client components with ES modules makes your application fast and to work with any browser.
 
+<Link name="why-streaming-server-side-rendering">
 ## Why streaming server-side rendering?
+</Link>
 
 With streaming server-side rendering the browser does not need to wait for the whole page to be rendered. It can start rendering the page as soon as the first part of the page is ready. This is a great feature for accessibility and SEO. It also makes your application feel faster. Using `Suspense` on the server-side you can make server-side loading a bliss.
 
+<Link name="why-selective-hydration">
 ## Why selective hydration?
+</Link>
 
 As your streamed page is loading, your application starts hydration as soon as needed and your client components will start to work instantly. As new client components getting rendered during page load the new components will be hydrated as soon as they are rendered.
 
+<Link name="why-response-caching-and-revalidation">
 ## Why response caching and revalidation?
+</Link>
 
 After you successfully rendered a page, you can make use of the caching layer of the framework with absolute control to store your response and make the page load almost instantly for the next user. You can also use revalidation to make sure your page is always up to date.
 
 `@lazarv/react-server` supports in-memory caching out of the box, but you can also use any other caching implementation best suited for your use case.
 
+<Link name="why-react-hot-module-replacement">
 ## Why React hot module replacement?
+</Link>
 
 As the framework uses Vite, it leverages the blazing fast React HMR implementation of Vite. Even when you are not using client components, you can still use React HMR to make your development experience faster and more enjoyable.
 
+<Link name="why-node-js-cluster">
 ## Why node.js cluster?
+</Link>
 
 When you are ready to deploy your application to production, you can use the node.js cluster feature of the framework to run your application with blazing fast speed. The framework will use all the cores of your CPU to run your application. This is a great feature for production builds.
 

@@ -1,0 +1,47 @@
+---
+title: Server
+category: Router
+order: 4
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Server
+
+With `@lazarv/react-server-router` you can create server middlewares and API routes too. You can use the same routing structure as the basic routing for pages.
+
+You can use all functions available from the `@lazarv/react-server` module in your middlewares and API routes. You can redirect or rewrite the request, manage cookies or add headers to the response. Everything is available and possible that would be available in a React server component.
+
+<Link name="middlewares">
+## Middlewares
+</Link>
+
+Middlewares are functions that are executed before the route handler. They can be used for many things, like authentication, logging, parsing, etc. To create a middleware route, create a file with the matching path for the middleware with the `.middleware.{js,mjs,ts,mts}` extension and export default an async function from your module. This function will be the middleware handler. You can either return a response from your middleware to stop executing any futher middlewares or the route handler, or you can omit the return value to continue executing the next middleware or the route handler.
+
+```jsx
+// index.jsx
+
+export async function init$() {
+  return async (context) {
+    // do something
+  };
+}
+```
+
+<Link name="api-routes">
+## API routes
+</Link>
+
+API routes are similar to middlewares, but they are used for handling API requests. To create an API route, create a file with the matching path for the API route with the `.server.{js,mjs,ts,mts}` extension and export default an async function or async functions with an HTTP method name from your module. These functions will be the API route handlers. You can also create your API route handler in files with a HTTP method prefix, like `GET.posts.server.mjs` or `POST.posts.server.mjs` to apply the handler only for the specified HTTP method. If you create a file with the `.server.mjs` extension without the prefix, it will be used for all HTTP methods and only the exported function with the current HTTP method name or the default exported function will be called. Supported HTTP methods are `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
+
+```jsx
+// GET.posts.server.mjs
+
+export default async function GetPosts(context) {
+  return new Response(JSON.stringify({ posts: [ /* posts */ ] }), {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+};
+```

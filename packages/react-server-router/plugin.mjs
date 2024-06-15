@@ -381,6 +381,16 @@ export default function viteReactServerRouter() {
             mdxCounter++;
             await setupMdx();
           }
+
+          const manifestModule =
+            viteServer.environments.rsc.moduleGraph.getModuleById(
+              "virtual:@lazarv/react-server-router/manifest"
+            );
+          if (manifestModule) {
+            viteServer.environments.rsc.moduleGraph.invalidateModule(
+              manifestModule
+            );
+          }
         });
         sourceWatcher.on("unlink", async (src) => {
           logger.info(
@@ -416,13 +426,23 @@ export default function viteReactServerRouter() {
             await setupMdx();
           }
 
-          Array.from(viteServer.moduleGraph.urlToModuleMap.entries()).forEach(
-            ([url, mod]) => {
-              if (url.includes(src)) {
-                viteServer.moduleGraph.invalidateModule(mod);
-              }
+          Array.from(
+            viteServer.environments.rsc.moduleGraph.urlToModuleMap.entries()
+          ).forEach(([url, mod]) => {
+            if (url.includes(src) || url.startsWith("virtual:")) {
+              viteServer.environments.rsc.moduleGraph.invalidateModule(mod);
             }
-          );
+          });
+
+          const manifestModule =
+            viteServer.environments.rsc.moduleGraph.getModuleById(
+              "virtual:@lazarv/react-server-router/manifest"
+            );
+          if (manifestModule) {
+            viteServer.environments.rsc.moduleGraph.invalidateModule(
+              manifestModule
+            );
+          }
         });
       }
     } catch (e) {
@@ -558,22 +578,25 @@ export default function viteReactServerRouter() {
                   const normalized = filename
                     .replace(/^\+*/g, "")
                     .replace(/\.\.\./g, "_dot_dot_dot_")
+                    .replace(/(\[|\(|\{)[^)]*(\]|\)|\})/g, (match) =>
+                      match.replace(/\./g, "_dot_")
+                    )
                     .split(".");
                   const [method, name, ext] = apiEndpointRegExp.test(filename)
                     ? normalized
                     : [
                         "*",
-                        normalized[0] === "server"
-                          ? ""
-                          : normalized[0].replace(/_dot_dot_dot_/g, "..."),
+                        normalized[0] === "server" ? "" : normalized[0],
                         normalized[0] === "server"
                           ? ""
                           : normalized.slice(1).join("."),
                       ];
-                  const path = `/${directory}/${ext ? name : ""}`.replace(
-                    /\/+$/g,
-                    ""
-                  );
+                  const path = `/${directory}/${ext ? name : ""}`
+                    .replace(/\/+$/g, "")
+                    .replace(/_dot_dot_dot_/g, "...")
+                    .replace(/_dot_/g, ".")
+                    .replace(/(\[|\(|\{)([^)]*)(\]|\)|\})/g, "$2")
+                    .replace(/^\/+/, "/");
                   return `["${method}", "${path}", async () => {
                 return import("${src}");
               }]`;

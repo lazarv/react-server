@@ -1,0 +1,15 @@
+.DocSearch-Modal {
+  @apply overflow-hidden pt-3;
+}
+
+.DocSearch-Hit-source {
+  @apply bg-transparent;
+}
+
+.DocSearch-Form {
+  @apply dark:shadow-none;
+}
+
+.DocSearch-Footer {
+  @apply px-4 py-3 rounded-none;
+}

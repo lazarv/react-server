@@ -3,6 +3,8 @@ title: CLI
 order: 5
 ---
 
+import Link from "../../../components/Link.jsx";
+
 ## CLI
 
 The `react-server` CLI is the main tool for developing and deploying your `@lazarv/react-server` applications. It provides a set of commands to help you build, run, and deploy your app.
@@ -13,7 +15,9 @@ To check out the available commands, run:
 pnpm exec react-server --help
 ```
 
+<Link name="commands">
 ### Commands
+</Link>
 
 You need to always define the entrypoint of your app as the first argument of the `react-server` command. Only exception is when you use the `@lazarv/react-server-router` package as it will define the entrypoint for you.
 
@@ -25,7 +29,9 @@ The `[root]` of your app has to export default a React Server Component. This is
 
 You can also use a hash fragment in the entrypoint to specify a specific export. For example, if you have an entrypoint at `./index.jsx` and you want to use the `App` export, you can use `./index.jsx#App`.
 
+<Link name="development-server-options">
 ### Development server options
+</Link>
 
 If your entrypoint is at `./App.jsx`, you can start the development server with:
 
@@ -62,7 +68,9 @@ This is useful for CI/CD environments.
 **version:** Display version number.  
 Output will also include your machine's architecture and node.js version.
 
+<Link name="build-options">
 ### Build options
+</Link>
 
 **minify:** Minify your build. Default is `true`.  
 You don't need to minify your app if you only use React Server Components and you are not using any client components, like in the [Todo](https://github.com/lazarv/react-server/tree/main/examples/todo) example. If you want to disable minification of client component code, use `--no-minify`.
@@ -85,7 +93,9 @@ You can export your app as static HTML pages. You can define the routes to expor
 **deploy:** Deploy using adapter. Default is `false`.
 If you use an adapter in your `react-server.config.mjs` file, the adapter will pre-build your app for deployment and when you use this argument, the adapter will also deploy your app at the end of the build process.
 
+<Link name="start-options">
 ### Start options
+</Link>
 
 **host**, **port**, **https** and **cors** are the same as in the development server options.
 

@@ -66,10 +66,12 @@ globalThis.__webpack_require__ = function (id) {
   return moduleCache.get(id);
 };
 
+const linkQueueStorage = new ContextManager();
 parentPort.on(
   "message",
   createRenderer({
     moduleCacheStorage,
+    linkQueueStorage,
     parentPort,
   })
 );

@@ -4,11 +4,15 @@ category: Deploy
 order: 1
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # Vercel
 
 To deploy to Vercel, use the `@lazarv/react-server-adapter-vercel` package. This adapter is specifically designed to work with Vercel and it's configuration.
 
+<Link name="installation">
 ## Installation
+</Link>
 
 First you need to initialize your project with Vercel. You can do this by running the following command:
 
@@ -32,11 +36,15 @@ export default {
 };
 ```
 
+<Link name="configuration">
 ## Configuration
+</Link>
 
 Configuration for this adapter will be added to your Vercel `config.json` file so you can use all available Vercel configuration options, like headers, redirects, and rewrites.
 
+<Link name="deploy">
 ## Deploy
+</Link>
 
 When using `@lazarv/react-server` with the Vercel adapter, you can deploy your application to Vercel using the following command:
 

@@ -3,13 +3,17 @@ title: Server components
 order: 2
 ---
 
+import Link from "../../../components/Link.jsx";
+
 # Server components
 
 React Server Components are the main building blocks of your application. They are React components that are rendered on the server and streamed to the client as HTML or as a JSON serialized React component tree. The source code of these components will not be sent to the client, only the rendered HTML or JSON.
 
 You can't use stateful React hooks in server components as server components are stateless. To use state for server components, you can use query parameters or cookies.
 
+<Link name="async-server-components">
 ## Async server components
+</Link>
 
 Server components can be asynchronous. This means that they can fetch data from a database or an API, and then render the result. The rendering will wait for the data to be fetched before sending the HTML or JSON to the client.
 

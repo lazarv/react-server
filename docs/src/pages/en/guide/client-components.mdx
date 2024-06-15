@@ -3,6 +3,8 @@ title: Client components
 order: 3
 ---
 
+import Link from "../../../components/Link.jsx";
+
 # Client components
 
 > **Note:** for client components to work, you need to have an `<html>` element rendered in your document.
@@ -11,7 +13,9 @@ When you need interactivity on the client side, you can use client components. C
 
 All client components will be loaded asynchronously, so they will not block the rendering of the page. All client component will be compiled into an ES module and get lazy loaded only when needed.
 
+<Link name="creating-a-client-component">
 ## Creating a client component
+</Link>
 
 To create a client component, add the `"use client";` pragma at the top of the file.
 
@@ -23,7 +27,9 @@ export default function MyClientComponent() {
 }
 ```
 
+<Link name="interactive-client-components">
 ## Interactive client components
+</Link>
 
 Client components can use any React hooks, like the `useState` hook and can attach event handlers to elements like `onClick`. The client components are rendered both on the server side and on the client side.
 
@@ -44,7 +50,9 @@ export default function Counter() {
 }
 ```
 
+<Link name="client-component-serialization">
 ## Client component serialization
+</Link>
 
 Client components can receive props from server components. The props will get serialized and passed to the client. All props passed to a client component must be serializable. You can pass any primitive values, arrays and objects, but functions are not allowed.
 
@@ -93,7 +101,9 @@ export default async function MyServerComponent() {
 }
 ```
 
+<Link name="client-only-components">
 ## Client-only components
+</Link>
 
 You can make a component client-only by wrapping the component into a `ClientOnly` component. Children of the `ClientOnly` component will be rendered only on the client side.
 

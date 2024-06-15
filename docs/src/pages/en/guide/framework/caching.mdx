@@ -4,11 +4,15 @@ category: Framework
 order: 1
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # Caching
 
 `@lazarv/react-server` provides a caching mechanism for the rendering response and a built-in in-memory cache for any value with TTL outage and compound cache keys.
 
+<Link name="response-cache">
 ## Response Cache
+</Link>
 
 You can enable response caching when you use a server component with the `withCache` wrapper or using the `useResponseCache` hook. Not only the wrapped component or the component where you used the cache hook will be cached, but the entire HTTP response where the cache was enabled.
 
@@ -32,7 +36,9 @@ export default async function App() {
 }
 ```
 
+<Link name="in-memory-cache">
 ## In-memory Cache
+</Link>
 
 You can use the in-memory cache by importing the `useCache` helper function from `@lazarv/react-server`. You can use this caching solution to cache any async value with a TTL outage and a compound cache key. The cache is shared between all server components.
 
@@ -51,7 +57,9 @@ export default async function FileContent({ filename }) {
 }
 ```
 
+<Link name="revalidate">
 ## Revalidate
+</Link>
 
 You can use the `revalidate` function to revalidate the cache using a compound key. Calling this function will instantly invalidate the cache for the given key. This function is only available in server components.
 
@@ -76,7 +84,9 @@ export default async function App() {
 }
 ```
 
+<Link name="cache-adapters">
 ## Cache adapters
+</Link>
 
 You can specify a cache adapter to use instead of the default in-memory cache. The default cache adapter is `@lazarv/react-server/memory-cache`. You can specify a different cache adapter by using the `cache` option in the server configuration. The cache adapter should be a module that exports an `init$` function that returns a cache instance. The cache should implement the `ReactServerCache` interface from `@lazarv/react-server`. The example implementation of a cache adapter is the `@lazarv/react-server/memory-cache` module which you can find at [packages/react-server/memory-cache/index.mjs](https://github.com/lazarv/react-server/blob/main/packages/react-server/memory-cache/index.mjs).
 

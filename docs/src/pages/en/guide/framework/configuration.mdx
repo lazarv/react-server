@@ -4,21 +4,29 @@ category: Framework
 order: -1
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # Configuration
 
 To configure the behavior of the framework, you need to create a `react-server.config.*` file in the root of your project. This file is used to configure the server and the build process. The file type could be `.mjs`, `.ts`, or `.json`.
 
 The configuration object you need to export as default is an extension of the Vite config object. You can find the full list of options [here](https://vitejs.dev/config/).
 
+<Link name="vite-configuration">
 ## Vite configuration
+</Link>
 
 To provide full control over the Vite configuration, you can use the `vite` option to configure the Vite server and the build process. The `vite` option is an object that extends the Vite config object or a function that returns a new Vite config object. As a function you can discover and mutate the default configuration for Vite.
 
+<Link name="additional-configuration">
 ## Additional configuration
+</Link>
 
 The following options are specific to the `@lazarv/react-server` framework.
 
+<Link name="runtime">
 #### Runtime
+</Link>
 
 Add new entries to the runtime context. The runtime context is a singleton store and can be used to share state in your application.
 
@@ -43,7 +51,9 @@ export default {
 };
 ```
 
+<Link name="cookies">
 #### Cookies
+</Link>
 
 Provide cookies configuration, see available options [here](https://www.npmjs.com/package/cookie#options-1).
 
@@ -59,7 +69,9 @@ export default {
 };
 ```
 
+<Link name="handlers">
 #### Handlers
+</Link>
 
 You can add `pre` and `post` handlers to the Hattip middleware stack. You can define the async handler functions in an array for both `pre` and `post` options. See more details about Hattip handlers [here](https://github.com/hattipjs/hattip).
 
@@ -84,6 +96,8 @@ export default {
 
 Or the `handlers` option can be an array, where the array of handlers will be used as `post` handlers.
 
+<Link name="public">
 #### Public directory
+</Link>
 
 The public directory is the directory where the static assets are served from. The default value is `public`.

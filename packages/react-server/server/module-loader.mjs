@@ -4,7 +4,11 @@ import { useUrl } from "./request.mjs";
 
 const __require = createRequire(import.meta.url);
 
-export async function init$(ssrLoadModule, moduleCacheStorage) {
+export async function init$(
+  ssrLoadModule,
+  moduleCacheStorage,
+  linkQueueStorage
+) {
   globalThis.__non_webpack_require__ = function (id) {
     return __require(id);
   };
@@ -32,7 +36,7 @@ export async function init$(ssrLoadModule, moduleCacheStorage) {
         moduleCache.set(id, proxy);
         return proxy;
       } else {
-        const modulePromise = ssrLoadModule(id);
+        const modulePromise = ssrLoadModule(id, linkQueueStorage);
         modulePromise.then(
           () => {
             modulePromise.value = modulePromise;

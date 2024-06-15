@@ -4,6 +4,8 @@ category: Framework
 order: 3
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # Client-side routing
 
 > These are core features of the `@lazarv/react-server` framework, so you don't need to install `@lazarv/react-server-router` for these features to work.
@@ -14,7 +16,9 @@ It's recommended to use the built-in client components for navigation and refres
 
 Functions exposed by the `useClient` hook are more low-level and should be used only when you need to start a React transition manually.
 
+<Link name="navigation">
 ## Navigation
+</Link>
 
 ```jsx
 import { Link } from "@lazarv/react-server/navigation";
@@ -47,7 +51,9 @@ export default function Home() {
 }
 ```
 
+<Link name="prefetch">
 ### Prefetch
+</Link>
 
 You can enable prefetching of the page by passing the `prefetch` prop to the `Link` component. This will prefetch the page when the user hovers over the link.
 
@@ -97,7 +103,9 @@ export default function Home() {
 }
 ```
 
+<Link name="rollback">
 ### Rollback
+</Link>
 
 When the user navigates away from a page the router will cache the last page when you specify a `rollback` prop on the `Link` component. This will allow the user to navigate back to the previous page without having to wait for the server to render the page again. The provided value represents the number of milliseconds the page will be cached for. After the timeout expires, the page will be removed from the cache and the next time the user navigates back to the page, the page will be rendered again by the server.
 
@@ -115,7 +123,9 @@ export default function Home() {
 }
 ```
 
+<Link name="refresh">
 ## Refresh
+</Link>
 
 You can refresh the current page by using the `<Refresh>` client component exported by the `@lazarv/react-server/navigation` module or the `refresh` function returned by the `useClient` hook from the `@lazarv/react-server/client` module.
 
@@ -150,7 +160,9 @@ export default function Home() {
 }
 ```
 
+<Link name="use-client">
 ## useClient
+</Link>
 
 The `useClient` hook returns an object with the following properties:
 

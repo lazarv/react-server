@@ -3,8 +3,8 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { createBrotliCompress, createGzip } from "node:zlib";
 import { Worker } from "node:worker_threads";
+import { createBrotliCompress, createGzip } from "node:zlib";
 
 import { filesize } from "filesize";
 import colors from "picocolors";
@@ -44,8 +44,8 @@ function log(
         basename(normalizedBasename)
     )} ${`${" ".repeat(
       maxFilenameLength - normalizedBasename.length
-    )}${colors.gray(colors.bold(size(htmlStat.size)))} ${colors.dim(
-      `│ gzip: ${size(gzipStat.size)} │ brotli: ${size(brotliStat.size)}${postponedStat.size ? ` │ postponed: ${size(postponedStat.size)}` : ""}`
+    )}${colors.gray(colors.bold(size(htmlStat.size)))}${colors.dim(
+      `${gzipStat.size ? ` │ gzip: ${size(gzipStat.size)}` : ""}${brotliStat.size ? ` │ brotli: ${size(brotliStat.size)}` : ""}${postponedStat.size ? ` │ postponed: ${size(postponedStat.size)}` : ""}`
     )}`}`
   );
 }
@@ -99,7 +99,10 @@ export default async function staticSiteGenerator(root, options) {
         );
       }
 
-      const filenames = paths.flatMap(({ path }) => {
+      const filenames = paths.flatMap(({ path, filename }) => {
+        if (filename) {
+          return [filename];
+        }
         const normalizedPath = path.replace(/^\/+/g, "").replace(/\/+$/g, "");
         const basename = `${normalizedPath}/index.html`.replace(/^\/+/g, "");
         return [basename, basename.replace(/index\.html$/, "x-component.rsc")];
@@ -110,132 +113,169 @@ export default async function staticSiteGenerator(root, options) {
 
       const render = await ssrHandler();
       await Promise.all(
-        paths.map(async ({ path }) => {
-          const url = new URL(
-            `http${config.server?.https ? "s" : ""}://${
-              config.host ?? "localhost"
-            }:${config.port ?? 3000}${path}`
-          );
-          await mkdir(join(cwd, ".react-server/dist", path), {
-            recursive: true,
-          });
-          const normalizedPath = path.replace(/^\/+/g, "").replace(/\/+$/g, "");
-          const normalizedBasename = `${normalizedPath}/index.html`.replace(
-            /^\/+/g,
-            ""
-          );
-          const filename = join(cwd, ".react-server/dist", normalizedBasename);
-
-          let postponed;
-          const stream = await render({
-            url,
-            request: {
-              url,
-              headers: new Headers({
-                accept: "text/html",
-              }),
-            },
-            onPostponed:
-              configRoot.prerender === false
-                ? null
-                : (_postponed) => (postponed = _postponed),
-          });
-          const html = await stream.text();
-          const gzip = createGzip();
-          const brotli = createBrotliCompress();
-          const gzipWriteStream = createWriteStream(`${filename}.gz`);
-          const brotliWriteStream = createWriteStream(`${filename}.br`);
-          const files = [
-            pipeline(Readable.from(html), gzip, gzipWriteStream),
-            pipeline(Readable.from(html), brotli, brotliWriteStream),
-            writeFile(filename, html, "utf8"),
-          ];
-          const postponedFilename = `${filename}.postponed.json`;
-          if (postponed) {
-            files.push(
-              writeFile(postponedFilename, JSON.stringify(postponed), "utf8")
-            );
-          }
-          await Promise.all(files);
-          const [htmlStat, gzipStat, brotliStat, postponedStat] =
-            await Promise.all([
-              stat(filename),
-              stat(`${filename}.gz`),
-              stat(`${filename}.br`),
-              postponed
-                ? stat(postponedFilename)
-                : Promise.resolve({ size: 0 }),
-            ]);
-
-          log(
-            normalizedBasename,
-            htmlStat,
-            gzipStat,
-            brotliStat,
-            postponedStat,
-            maxFilenameLength
-          );
-        })
-      );
-
-      await Promise.all(
-        paths.map(async ({ path }) => {
+        paths.map(async ({ path, filename: out, method, headers }) => {
           try {
             const url = new URL(
               `http${config.server?.https ? "s" : ""}://${
                 config.host ?? "localhost"
               }:${config.port ?? 3000}${path}`
             );
-            const stream = await render({
-              url,
-              request: {
-                url,
-                headers: new Headers({
-                  accept: "text/x-component",
-                }),
-              },
-            });
-            const html = await stream.text();
-            await mkdir(join(cwd, ".react-server/dist", path), {
-              recursive: true,
-            });
+            if (!out) {
+              await mkdir(join(cwd, ".react-server/dist", path), {
+                recursive: true,
+              });
+            }
             const normalizedPath = path
               .replace(/^\/+/g, "")
               .replace(/\/+$/g, "");
-            const normalizedBasename =
-              `${normalizedPath}/x-component.rsc`.replace(/^\/+/g, "");
+            const normalizedBasename = (
+              out ?? `${normalizedPath}/index.html`
+            ).replace(/^\/+/g, "");
             const filename = join(
               cwd,
               ".react-server/dist",
               normalizedBasename
             );
-            const gzip = createGzip();
-            const brotli = createBrotliCompress();
-            const gzipWriteStream = createWriteStream(`${filename}.gz`);
-            const brotliWriteStream = createWriteStream(`${filename}.br`);
-            await Promise.all([
-              pipeline(Readable.from(html), gzip, gzipWriteStream),
-              pipeline(Readable.from(html), brotli, brotliWriteStream),
-              writeFile(filename, html, "utf8"),
-            ]);
-            const [htmlStat, gzipStat, brotliStat] = await Promise.all([
-              stat(filename),
-              stat(`${filename}.gz`),
-              stat(`${filename}.br`),
-            ]);
 
-            log(
-              normalizedBasename,
-              htmlStat,
-              gzipStat,
-              brotliStat,
-              { size: 0 },
-              maxFilenameLength
-            );
+            let postponed;
+            const stream = await render({
+              url,
+              method: method ?? "GET",
+              request: {
+                url,
+                method: method ?? "GET",
+                headers: new Headers({
+                  accept: "text/html",
+                  ...headers,
+                }),
+              },
+              onPostponed:
+                configRoot.prerender === false
+                  ? null
+                  : (_postponed) => (postponed = _postponed),
+            });
+
+            if (out) {
+              const content = await stream.text();
+              await mkdir(dirname(filename), { recursive: true });
+              await writeFile(filename, content, "utf8");
+              const outStat = await stat(filename);
+
+              log(
+                normalizedBasename,
+                outStat,
+                { size: 0 },
+                { size: 0 },
+                { size: 0 },
+                maxFilenameLength
+              );
+            } else {
+              const html = await stream.text();
+              const gzip = createGzip();
+              const brotli = createBrotliCompress();
+              const gzipWriteStream = createWriteStream(`${filename}.gz`);
+              const brotliWriteStream = createWriteStream(`${filename}.br`);
+              const files = [
+                pipeline(Readable.from(html), gzip, gzipWriteStream),
+                pipeline(Readable.from(html), brotli, brotliWriteStream),
+                writeFile(filename, html, "utf8"),
+              ];
+              const postponedFilename = `${filename}.postponed.json`;
+              if (postponed) {
+                files.push(
+                  writeFile(
+                    postponedFilename,
+                    JSON.stringify(postponed),
+                    "utf8"
+                  )
+                );
+              }
+              await Promise.all(files);
+              const [htmlStat, gzipStat, brotliStat, postponedStat] =
+                await Promise.all([
+                  stat(filename),
+                  stat(`${filename}.gz`),
+                  stat(`${filename}.br`),
+                  postponed
+                    ? stat(postponedFilename)
+                    : Promise.resolve({ size: 0 }),
+                ]);
+
+              log(
+                normalizedBasename,
+                htmlStat,
+                gzipStat,
+                brotliStat,
+                postponedStat,
+                maxFilenameLength
+              );
+            }
           } catch (e) {
             console.log(e);
           }
         })
+      );
+
+      await Promise.all(
+        paths
+          .filter(({ filename }) => !filename)
+          .map(async ({ path }) => {
+            try {
+              const url = new URL(
+                `http${config.server?.https ? "s" : ""}://${
+                  config.host ?? "localhost"
+                }:${config.port ?? 3000}${path}`
+              );
+              const stream = await render({
+                url,
+                request: {
+                  url,
+                  headers: new Headers({
+                    accept: "text/x-component",
+                  }),
+                },
+              });
+              const html = await stream.text();
+              await mkdir(join(cwd, ".react-server/dist", path), {
+                recursive: true,
+              });
+              const normalizedPath = path
+                .replace(/^\/+/g, "")
+                .replace(/\/+$/g, "");
+              const normalizedBasename =
+                `${normalizedPath}/x-component.rsc`.replace(/^\/+/g, "");
+              const filename = join(
+                cwd,
+                ".react-server/dist",
+                normalizedBasename
+              );
+              const gzip = createGzip();
+              const brotli = createBrotliCompress();
+              const gzipWriteStream = createWriteStream(`${filename}.gz`);
+              const brotliWriteStream = createWriteStream(`${filename}.br`);
+              await Promise.all([
+                pipeline(Readable.from(html), gzip, gzipWriteStream),
+                pipeline(Readable.from(html), brotli, brotliWriteStream),
+                writeFile(filename, html, "utf8"),
+              ]);
+              const [htmlStat, gzipStat, brotliStat] = await Promise.all([
+                stat(filename),
+                stat(`${filename}.gz`),
+                stat(`${filename}.br`),
+              ]);
+
+              log(
+                normalizedBasename,
+                htmlStat,
+                gzipStat,
+                brotliStat,
+                { size: 0 },
+                maxFilenameLength
+              );
+            } catch (e) {
+              console.log(e);
+            }
+          })
       );
 
       const worker = getRuntime(WORKER_THREAD);

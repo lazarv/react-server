@@ -4,6 +4,8 @@ category: Framework
 order: 0
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # HTTP context
 
 With `@lazarv/react-server` you have access to everything related to the context of server-side rendering. This guide provides information for you how to access the HTTP context.
@@ -31,7 +33,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="request">
 ## Request
+</Link>
 
 With `useRequest()` you can get access to the full HTTP request.
 
@@ -52,7 +56,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="response">
 ## Response
+</Link>
 
 With `useResponse()` you can get access to the full HTTP response.
 
@@ -72,7 +78,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="url">
 ## URL
+</Link>
 
 With `useUrl()` you can get access to the URL of the current request.
 
@@ -86,7 +94,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="headers">
 ## Headers
+</Link>
 
 With `headers()` you can get access to the headers of the current request.
 
@@ -114,7 +124,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="cookies">
 ## Cookies
+</Link>
 
 With `cookie()` you can get access to the cookies of the current request.
 
@@ -141,7 +153,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="status">
 ## Status
+</Link>
 
 With `status()` you can set the status code and text of the current response.
 
@@ -155,7 +169,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="form-data">
 ## Form Data
+</Link>
 
 With `useFormData()` you can get access to the form data of the current request.
 
@@ -171,7 +187,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="redirect">
 ## Redirect
+</Link>
 
 With `redirect()` you can redirect the current request to another URL.
 
@@ -185,7 +203,9 @@ const MyComponent = () => {
 };
 ```
 
+<Link name="rewrite">
 ## Rewrite
+</Link>
 
 With `rewrite()` you can rewrite the current request to another URL. This is useful to modify the URL pathname of the current request in a middleware function.
 

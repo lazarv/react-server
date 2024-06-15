@@ -4,11 +4,15 @@ category: Framework
 order: 4
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # Middlewares
 
 Middlewares are functions that are executed before the route handler. They can be used for many things, like authentication, logging, parsing, etc.
 
+<Link name="basic-usage">
 ## Basic usage
+</Link>
 
 Export an async function named `init$` from your entry module. This function can initialize your request handler that will be the middleware runner. The `init$` function needs to return with an async function. This function will be the middleware runner.
 

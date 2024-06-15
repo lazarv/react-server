@@ -4,6 +4,8 @@ category: Router
 order: 6
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # Static generation
 
 When you mark a page as static `@lazarv/react-server-router` will add the page as an export to `@lazarv/react-server`'s exports.
@@ -24,7 +26,9 @@ true
 
 > **Warning:** you can't use `true` as the value for routes with parameters. You need to define an array of possible parameters or a function returning an array of possible parameters. If you use `true` for a route with parameters, the build will fail.
 
+<Link name="dynamic-routes">
 ## Dynamic routes
+</Link>
 
 For dynamic routes, if you have a page at `/users/:id` you can create a file at `/users/[id].static.ts` with the following content:
 
@@ -40,7 +44,9 @@ export default async () => [{ id: 1 }, { id: 2 }, { id: 3 }];
 
 Your function will be executed at build time and the result will be used to generate the static pages.
 
+<Link name="static-json-data">
 ## Static JSON data
+</Link>
 
 You can use static JSON data for your static pages by creating a file with the `.static.json` extension.
 
@@ -52,7 +58,9 @@ For example, if you have a page at `/users/:id` you can create a file at `/users
 
 > **Note:** we define static routes independently from the page component to separate the concerns of routing and page rendering. This way `@lazarv/react-server-router` doesn't need to import the code defining your page component during build time, which can be useful if you have a large dependency tree for your page component or your code has side-effects.
 
+<Link name="override-static-paths">
 ## Override static paths
+</Link>
 
 You can override all static paths by defining an `export()` function in your `@lazarv/react-server` configuration file. This function will be called with an array of all static paths and you can return a new array of paths to override the default static paths. In this example, we remove the `/en` prefix from all static paths.
 
@@ -85,4 +93,27 @@ export default {
     return paths.filter(({ path }) => path !== "/en");
   },
 };
+```
+
+<Link name="static-export-api-routes">
+## Static export API routes
+</Link>
+
+You can also export API routes as static routes. To do this, you can define your static path as an object with the `path`, `filename`, `method` and `headers` properties, where `path` is the route path, `filename` is the filename for the static file, `method` is the HTTP method for the request and `headers` is an object with the headers for the request. `method` and `headers` are optional.
+
+```js
+export default {
+  export() {
+    return [
+      {
+        path: "/sitemap.xml",
+        filename: "sitemap.xml",
+        method: "GET",
+        headers: {
+          accept: "application/xml",
+        },
+      },
+    ];
+  },
+}
 ```

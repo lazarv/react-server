@@ -1,6 +1,7 @@
 import { ClientOnly } from "@lazarv/react-server/client";
 
 import GitHub from "../../../../public/github.svg?react";
+import AlgoliaSearch from "../../../components/AlgoliaSearch";
 import DarkModeSwitch from "../../../components/DarkModeSwitch";
 import { defaultLanguage } from "../../../const.mjs";
 
@@ -14,6 +15,7 @@ export default function Header({ lang }) {
           <img
             src="/react-server.svg"
             className="size-6 absolute left-0 top-1/2 -translate-y-1/2 -mt-1"
+            alt="@lazarv/react-server logo"
           />
           <h4>@lazarv</h4>
           <h3>react-server</h3>
@@ -25,6 +27,7 @@ export default function Header({ lang }) {
           Team
         </a>
         <ClientOnly>
+          <AlgoliaSearch />
           <DarkModeSwitch className="absolute right-8 sm:right-12" />
         </ClientOnly>
         <a
@@ -32,6 +35,7 @@ export default function Header({ lang }) {
           target="_blank"
           rel="noreferrer"
           className="absolute right-3 sm:right-4"
+          aria-label="GitHub"
         >
           <GitHub className="size-4 max-w-none" />
         </a>

@@ -11,8 +11,18 @@ export default {
   },
   prerender: false,
   export(paths) {
-    return paths.map(({ path }) => ({
-      path: path.replace(/^\/en/, ""),
-    }));
+    return [
+      ...paths.map(({ path }) => ({
+        path: path.replace(/^\/en/, ""),
+      })),
+      {
+        path: "/sitemap.xml",
+        filename: "sitemap.xml",
+        method: "GET",
+        headers: {
+          accept: "application/xml",
+        },
+      },
+    ];
   },
 };

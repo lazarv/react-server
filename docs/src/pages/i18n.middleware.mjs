@@ -5,6 +5,11 @@ import { defaultLanguage, languages } from "../const.mjs";
 
 export default function I18n() {
   const { pathname } = useUrl();
+
+  if (pathname === "/sitemap.xml") {
+    return;
+  }
+
   const { lang, slug } = useMatch("/[lang=i18n]/[[...slug]]", {
     matchers: {
       i18n: (lang) => languages.includes(lang),

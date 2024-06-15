@@ -3,6 +3,7 @@ import "./global.css";
 
 import { cookie, useUrl } from "@lazarv/react-server";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 export default function Layout({ header, sidebar, navigation, children }) {
   const { pathname } = useUrl();
@@ -42,13 +43,22 @@ export default function Layout({ header, sidebar, navigation, children }) {
         <meta property="og:url" content="https://react-server.dev" />
         <meta property="twitter:card" content="summary_large_image" />
         <meta
-          property="description"
+          name="description"
           content="The easiest way to build React apps with server-side rendering"
         />
         <meta property="og:title" content="@lazarv/react-server" />
         <meta
           property="og:description"
           content="The easiest way to build React apps with server-side rendering."
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@docsearch/css@3"
+        />
+        <link
+          rel="preconnect"
+          href="https://OVQLOZDOSH-dsn.algolia.net"
+          crossOrigin="anonymous"
         />
       </head>
       <body>
@@ -67,6 +77,7 @@ export default function Layout({ header, sidebar, navigation, children }) {
           Contributors
         </footer>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

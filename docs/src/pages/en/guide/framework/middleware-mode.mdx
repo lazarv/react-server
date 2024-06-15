@@ -4,11 +4,15 @@ category: Framework
 order: 11
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # Middleware mode
 
 You can also run the `@lazarv/react-server` development and production servers in middleware mode. This is useful if you want to integrate `@lazarv/react-server` into an existing server or framework. In middleware mode, `@lazarv/react-server` will not start an HTTP server, but it will provide a middleware function that you can use within your existing server.
 
+<Link name="basic-usage">
 ## Basic usage
+</Link>
 
 To use the development server, you need to import `reactServer` from `@lazarv/react-server/dev` and pass the path to your entrypoint. This is the same path you would pass to the `react-server` CLI. The path needs to be resolvable from your working directory, it's not relative to your file where you call `reactServer`!
 

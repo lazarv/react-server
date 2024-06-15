@@ -59,7 +59,8 @@ export async function init$(type = "server") {
   runtime$(MAIN_MODULE, [mainModule]);
 
   const entryCache = new Map();
-  function ssrLoadModule($$id) {
+  function ssrLoadModule($$id, linkQueueStorage) {
+    const linkQueue = linkQueueStorage.getStore() ?? new Set();
     const httpContext = getContext(HTTP_CONTEXT);
     const [id] = (
       httpContext
@@ -83,7 +84,11 @@ export async function init$(type = "server") {
       // noop
     }
     if (entryCache.has(id)) {
-      return import(entryCache.get(id));
+      const { specifier, links } = entryCache.get(id);
+      if (links.length > 0) {
+        linkQueue.add(...links);
+      }
+      return import(specifier);
     }
     const browserEntry = Object.values(manifest.browser).find(
       (entry) => entry.file === id
@@ -104,14 +109,18 @@ export async function init$(type = "server") {
         paths: [cwd],
       }
     );
-    entryCache.set(id, specifier);
+    const links = collectStylesheets(specifier, manifest.client) ?? [];
+    entryCache.set(id, { specifier, links });
+    if (links.length > 0) {
+      linkQueue.add(...links);
+    }
     return import(specifier);
   }
   runtime$(MODULE_LOADER, ssrLoadModule);
 
-  function collectStylesheets(rootModule) {
+  function collectStylesheets(rootModule, manifestEnv = manifest.server) {
     if (!rootModule) return [];
-    const rootManifest = Array.from(Object.values(manifest.server)).find(
+    const rootManifest = Array.from(Object.values(manifestEnv)).find(
       (entry) =>
         rootModule.endsWith(entry.file) || entry.src?.endsWith(rootModule)
     );
@@ -122,9 +131,7 @@ export async function init$(type = "server") {
         styles.push(...entry.css.map((href) => `/${href}`));
       }
       if (entry.imports) {
-        entry.imports.forEach((imported) =>
-          collectCss(manifest.server[imported])
-        );
+        entry.imports.forEach((imported) => collectCss(manifestEnv[imported]));
       }
     }
     collectCss(rootManifest);

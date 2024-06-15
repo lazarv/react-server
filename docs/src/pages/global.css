@@ -80,7 +80,7 @@ header {
     @apply mb-4;
   }
 
-  svg {
+  & > svg {
     path {
       @apply fill-black dark:fill-gray-300;
     }

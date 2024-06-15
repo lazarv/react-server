@@ -41,10 +41,13 @@ export async function adapter(adapterOptions, root, options) {
   console.log(colors.gray(`preparing .vercel/output for deployment`));
   await rm(outDir, { recursive: true, force: true });
 
-  const distFiles = await glob("**/*.html", {
-    onlyFiles: true,
-    cwd: distDir,
-  });
+  const distFiles = await glob(
+    ["**/*", "!**/*.html.gz", "!**/*.html.br", "!**/x-component.*"],
+    {
+      onlyFiles: true,
+      cwd: distDir,
+    }
+  );
   if (distFiles.length > 0) {
     banner("copying static files");
     await Promise.all(

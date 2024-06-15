@@ -4,22 +4,30 @@ category: Deploy
 order: 0
 ---
 
+import Link from "../../../../components/Link.jsx";
+
 # Adapters
 
 You can use adapters to configure your app for different deployment environments. This is a list of available adapters and how to configure them.
 
+<Link name="available-adapters">
 ### Available adapters
+</Link>
 
 - [x] `@lazarv/react-server-adapter-vercel` for Vercel deployment
 
+<Link name="adapters-in-development">
 #### Adapters in development
+</Link>
 
 - [x] `@lazarv/react-server-adapter-netlify` for Netlify deployment
 - [x] `@lazarv/react-server-adapter-cloudflare-pages` for Cloudflare Pages deployment
 - [x] `@lazarv/react-server-adapter-cloudflare-workers` for Cloudflare Workers deployment
 - [x] `@lazarv/react-server-adapter-sst` for Serverless Stack deployment
 
+<Link name="configuration">
 ## Configuration
+</Link>
 
 Add `adapter` entry to your `react-server.config.mjs` file. You can specify the name of the adapter as a string. The adapter package will be resolved from your project's dependencies.
 

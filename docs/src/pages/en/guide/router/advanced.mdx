@@ -1,14 +1,18 @@
 ---
 title: Advanced
 category: Router
-order: 2
+order: 5
 ---
+
+import Link from "../../../../components/Link.jsx";
 
 # Advanced
 
 In this chapter, we'll cover some advanced topics related to file-system based routing. These are features of the router that you will surely use in a more advanced application, but you might not need in a simple one.
 
+<Link name="layouts">
 ## Outlets
+</Link>
 
 You can add outlets to your layouts by defining routes in a subdirectory of your layout with a name starting with `@`. When the route under your outlet directory matches the URL, the component exported from that route definition file will be passed as a React prop to your layout component.
 
@@ -40,7 +44,9 @@ export default function Sidebar() {
 }
 ```
 
+<Link name="error-handling">
 ## Error handling
+</Link>
 
 You can define a custom error components by creating a route definition file for any path by using the same rules like normal route files, but named `error.jsx`. This file will be used to render the error component when an error occurs during the rendering of a page.
 
@@ -62,7 +68,9 @@ export default function FallbackError({ error }) {
 }
 ```
 
+<Link name="loading">
 ## Loading
+</Link>
 
 You can define a custom loading component by creating a route definition file for any path by using the same rules like normal route files, but named `loading.jsx`. This file will be used to render the loader component while the page is being fetched.
 

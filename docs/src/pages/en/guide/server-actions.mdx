@@ -3,6 +3,8 @@ title: Server actions
 order: 4
 ---
 
+import Link from "../../../components/Link.jsx";
+
 # Server actions
 
 Server actions are async functions that can be called from the client-side. You don't have to implement API endpoints for these functions to be callable as the client can call these functions like a direct reference to the function itself. Server actions are usable on forms, buttons, submit inputs, and as props to client components. React and the framework will manage calling these functions on the server-side.
@@ -11,7 +13,9 @@ You can expose any `"use server";` marked function as a server action. Server ac
 
 > If you use TypeScript, all of your server actions are type-safe and you will get type errors if you pass the wrong parameters to a server action or if you try to access a property on the response object that doesn't exist.
 
+<Link name="inline-server-actions">
 ## Inline server actions
+</Link>
 
 You can define server actions inline in your components as any other event handler in a React component.
 
@@ -51,7 +55,9 @@ export default function App() {
 
 > Server actions are able to access all variables in scope, including references to props and any variables available in the scope of the server action function from the last render of the component as server action functions are mapped on each render of the server component.
 
+<Link name="server-action-modules">
 ## Server action modules
+</Link>
 
 If you want to keep your server actions in separate modules, you can do so by using the `"use server";` pragma at the top of your module. All exported functions from a server action module will be usable as server actions.
 
@@ -63,7 +69,9 @@ export async function action() {
 }
 ```
 
+<Link name="server-action-parameters">
 ## Server action parameters
+</Link>
 
 You will get all form data as an object as the first parameter to your server action function.
 
@@ -83,7 +91,9 @@ export default function App() {
 }
 ```
 
+<Link name="action-state">
 ## Action state
+</Link>
 
 ```jsx
 import { useActionState } from "@lazarv/react-server/router";
@@ -113,7 +123,9 @@ To access the action state, you can use the `useActionState` hook. The `useActio
 - `error`: the error object if the action failed
 - `actionId`: the action ID of the current action
 
+<Link name="server-actions-with-client-components">
 ## Server actions with client components
+</Link>
 
 You can also pass server action function references to client components as props and call them from the client component as any other async function.
 
@@ -146,7 +158,9 @@ export default function App() {
 }
 ```
 
+<Link name="server-action-response-to-client-component-calls">
 ## Server action response to client component calls
+</Link>
 
 Server actions called from client components can return data to the client component directly. This can be useful if you want to display a message to the user after the server action has been completed or if you want to display an error message if the server action failed.
 

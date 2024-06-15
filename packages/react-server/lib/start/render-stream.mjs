@@ -17,14 +17,16 @@ setEnv("NODE_ENV", "production");
 
 await runtime_init$(async () => {
   const moduleCacheStorage = new ContextManager();
+  const linkQueueStorage = new ContextManager();
   await manifest_init$("client");
   const moduleLoader = getRuntime(MODULE_LOADER);
-  await module_loader_init$(moduleLoader, moduleCacheStorage);
+  await module_loader_init$(moduleLoader, moduleCacheStorage, linkQueueStorage);
 
   parentPort.on(
     "message",
     createRenderer({
       moduleCacheStorage,
+      linkQueueStorage,
       parentPort,
     })
   );

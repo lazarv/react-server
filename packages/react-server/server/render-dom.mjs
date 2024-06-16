@@ -159,6 +159,8 @@ export const createRenderer = ({
 
                 let htmlDone = false;
                 let htmlNext = null;
+                let firstChunk = true;
+                let hydrationContainer = "document";
                 const htmlWorker = async function* () {
                   await forwardReady;
 
@@ -195,9 +197,16 @@ export const createRenderer = ({
                     if (value) {
                       hasNewLine = value[value.length - 1] === 0x0a;
                       force = value[value.length - 1] !== 0x3e;
+                      const chunk = decoder.decode(value);
+                      if (firstChunk) {
+                        firstChunk = false;
+                        if (!chunk.includes("<html")) {
+                          hydrationContainer = "document.body";
+                        }
+                      }
 
                       yield value;
-                      const chunk = decoder.decode(value);
+
                       if (chunk.endsWith("<!--/$-->")) {
                         done = true;
                       }
@@ -213,11 +222,7 @@ export const createRenderer = ({
                     if (hasClientComponent) {
                       // TODO: bootstrapScripts should be buffers instead of strings, fix script parts should be pre-encoded buffers then yield copy of those buffers
                       const script = encoder.encode(
-                        `${
-                          isDevelopment
-                            ? `<script>self.__react_server_hydrate__ = true;</script>`
-                            : ""
-                        }<script>document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
+                        `<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
                           ""
                         )}</script>${
                           importMap

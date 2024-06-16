@@ -137,7 +137,7 @@ if (import.meta.env.DEV) {
 
 startTransition(() => {
   hydrateRoot(
-    document,
+    __react_server_hydration_container__ ?? document,
     <StrictMode>
       <ReactServer />
     </StrictMode>

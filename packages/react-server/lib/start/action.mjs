@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { createRequire } from "node:module";
 import { availableParallelism } from "node:os";
 
+import { pathToFileURL } from "node:url";
 import { loadConfig } from "../../config/index.mjs";
 import { logger } from "../../server/logger.mjs";
 import { runtime$, init$ as runtime_init$ } from "../../server/runtime.mjs";
@@ -45,7 +46,7 @@ async function worker(root, options) {
 
     if (!configRoot?.logger || typeof configRoot?.logger === "string") {
       const { default: loggerModule } = await import(
-        __require.resolve(configRoot?.logger ?? "pino")
+        pathToFileURL(__require.resolve(configRoot?.logger ?? "pino"))
       );
       const logger = loggerModule();
       runtime$(LOGGER_CONTEXT, logger);

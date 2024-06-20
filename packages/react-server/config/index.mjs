@@ -19,10 +19,10 @@ export async function loadConfig(initialConfig) {
   const config = {};
   const configFiles = (
     await glob(
-      join(
+      "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
+      {
         cwd,
-        "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}"
-      )
+      }
     )
   ).map((file) => relative(cwd, file));
 

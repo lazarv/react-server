@@ -1,15 +1,15 @@
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
-import { createRequire, register } from "node:module";
-import { dirname, join } from "node:path";
+import { register } from "node:module";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { parentPort } from "node:worker_threads";
-import { ContextManager } from "../async-local-storage.mjs";
-
 import {
   ESModulesEvaluator,
   ModuleRunner,
   RemoteRunnerTransport,
 } from "vite/module-runner";
 
+import { ContextManager } from "../async-local-storage.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
 
@@ -17,16 +17,7 @@ sys.experimentalWarningSilence();
 alias();
 register("../loader/node-loader.mjs", import.meta.url);
 
-const packageJson = (
-  await import("../../package.json", {
-    assert: { type: "json" },
-  })
-).default;
-
-const __require = createRequire(import.meta.url);
-const packageName = packageJson.name;
 const cwd = sys.cwd();
-const rootDir = join(dirname(__require.resolve(`${packageName}`)), "/..");
 
 const remoteTransport = new RemoteRunnerTransport({
   send: (data) => {
@@ -59,7 +50,9 @@ globalThis.__webpack_require__ = function (id) {
   const moduleCache = moduleCacheStorage.getStore() ?? new Map();
   id = join(cwd, id);
   if (!moduleCache.has(id)) {
-    const mod = moduleRunner.import(id);
+    const mod = moduleRunner.import(
+      /\:\//.test(id) ? pathToFileURL(id).href : id
+    );
     moduleCache.set(id, mod);
     return mod;
   }

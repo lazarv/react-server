@@ -17,7 +17,10 @@ export async function init$(
     const moduleCache = moduleCacheStorage.getStore() ?? new Map();
     if (!moduleCache.has(id)) {
       if (id.startsWith("server://")) {
-        const mod = ssrLoadModule(id.replace("server://", ""));
+        const mod = ssrLoadModule(
+          id.replace("server://", ""),
+          linkQueueStorage
+        );
         const proxy = new Proxy(mod, {
           get(_, prop) {
             return async (...args) => {

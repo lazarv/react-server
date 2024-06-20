@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { watch } from "chokidar";
 import mime from "mime";
+import { normalizePath } from "../sys.mjs";
 
 export default async function staticHandler(dir, options = {}) {
   const files = new Map();
@@ -14,7 +15,7 @@ export default async function staticHandler(dir, options = {}) {
   });
 
   watcher.on("add", (path, stats) => {
-    files.set(`/${path}`, {
+    files.set(normalizePath(`/${path}`), {
       path: join(dir, path),
       stats,
       etag: `W/"${stats.size}-${stats.mtime.getTime()}"`,
@@ -24,10 +25,10 @@ export default async function staticHandler(dir, options = {}) {
     });
   });
   watcher.on("unlink", (path) => {
-    files.delete(`/${path}`);
+    files.delete(normalizePath(`/${path}`));
   });
   watcher.on("change", (path) => {
-    fileCache.delete(`/${path}`);
+    fileCache.delete(normalizePath(`/${path}`));
   });
 
   return async (context) => {
@@ -128,8 +129,8 @@ export default async function staticHandler(dir, options = {}) {
                 context.request.headers.get("cache-control") === "no-cache"
                   ? "no-cache"
                   : isHTML
-                  ? "must-revalidate"
-                  : "public,max-age=600",
+                    ? "must-revalidate"
+                    : "public,max-age=600",
               "last-modified": file.stats.mtime.toUTCString(),
               ...(contentEncoding && { "content-encoding": contentEncoding }),
             },

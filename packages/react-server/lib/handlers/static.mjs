@@ -18,13 +18,18 @@ export default async function staticHandler(dir, options = {}) {
       absolute: true,
     })
   ).reduce((files, file) => {
-    files.set(`/${relative(join(cwd, options.cwd ?? "."), file.path)}`, {
-      ...file,
-      etag: `W/"${file.stats.size}-${file.stats.mtime.getTime()}"`,
-      mime:
-        mime.getType(file.path.replace(/\.(br|gz)$/, "")) ||
-        "application/octet-stream",
-    });
+    files.set(
+      sys.normalizePath(
+        `/${relative(join(cwd, options.cwd ?? "."), file.path)}`
+      ),
+      {
+        ...file,
+        etag: `W/"${file.stats.size}-${file.stats.mtime.getTime()}"`,
+        mime:
+          mime.getType(file.path.replace(/\.(br|gz)$/, "")) ||
+          "application/octet-stream",
+      }
+    );
     return files;
   }, new Map());
   const fileCache = new Map();
@@ -63,7 +68,7 @@ export default async function staticHandler(dir, options = {}) {
         prelude = basename;
         pathname = basename;
         const { default: postponed } = await import(
-          join(dir, `${basename}.postponed.json`),
+          pathToFileURL(join(dir, `${basename}.postponed.json`)),
           {
             assert: { type: "json" },
           }

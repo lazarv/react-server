@@ -33,10 +33,10 @@ function match(files, includes, excludes) {
 
 function source(files, rootDir, root) {
   return files.map((src) => ({
-    directory: relative(root, dirname(src)),
+    directory: sys.normalizePath(relative(root, dirname(src))),
     filename: basename(src),
-    module: relative(root, src),
-    src,
+    module: sys.normalizePath(relative(root, src)),
+    src: sys.normalizePath(src),
   }));
 }
 
@@ -294,10 +294,13 @@ export default function viteReactServerRouter() {
       rootDir = join(cwd, root);
 
       if (viteCommand === "build") {
-        const sourceFiles = await glob([
-          join(cwd, root, "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}"),
-          "!**/node_modules/**",
-        ]);
+        const sourceFiles = await glob(
+          ["**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}", "!**/node_modules/**"],
+          {
+            cwd: join(cwd, root),
+            absolute: true,
+          }
+        );
 
         entry.layouts = source(
           match(
@@ -347,15 +350,18 @@ export default function viteReactServerRouter() {
       } else {
         logger.info(`Router configuration ${colors.green("successful")}`);
 
-        const sourceWatcher = watch([
-          join(cwd, root, "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}"),
-          "!**/node_modules/**",
-        ]);
+        const sourceWatcher = watch(
+          ["**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}", "!**/node_modules/**"],
+          {
+            cwd: join(cwd, root),
+          }
+        );
 
-        sourceWatcher.on("add", async (src) => {
+        sourceWatcher.on("add", async (rawSrc) => {
+          const src = sys.normalizePath(join(cwd, root, rawSrc));
           logger.info(
             `Adding source file ${colors.cyan(
-              relative(rootDir, src)
+              sys.normalizePath(relative(rootDir, src))
             )} to router`
           );
 
@@ -392,7 +398,8 @@ export default function viteReactServerRouter() {
             );
           }
         });
-        sourceWatcher.on("unlink", async (src) => {
+        sourceWatcher.on("unlink", async (rawSrc) => {
+          const src = sys.normalizePath(rawSrc);
           logger.info(
             `Removing source file ${colors.red(
               relative(rootDir, src)
@@ -512,13 +519,15 @@ export default function viteReactServerRouter() {
         }
       } else {
         return new Promise((resolve, reject) => {
-          const configWatcher = watch([
-            join(
+          const configWatcher = watch(
+            [
+              "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
+              "!**/node_modules/**",
+            ],
+            {
               cwd,
-              "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}"
-            ),
-            "!**/node_modules/**",
-          ]);
+            }
+          );
           configWatcher.on("error", reject);
           configWatcher.on("ready", async () => {
             await config_init$();

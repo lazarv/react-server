@@ -1,5 +1,6 @@
 import { createRequire, register } from "node:module";
 
+import { pathToFileURL } from "node:url";
 import { forChild } from "../../config/index.mjs";
 import { init$ as memory_cache_init$ } from "../../memory-cache/index.mjs";
 import { ContextStorage, getContext } from "../../server/context.mjs";
@@ -57,8 +58,10 @@ export default async function ssrHandler(root) {
       paths: [cwd],
     }
   );
-  const { render } = await import(entryModule);
-  const { default: Component, init$: root_init$ } = await import(rootModule);
+  const { render } = await import(pathToFileURL(entryModule));
+  const { default: Component, init$: root_init$ } = await import(
+    pathToFileURL(rootModule)
+  );
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
   const mainModule = getRuntime(MAIN_MODULE)?.map((mod) =>
@@ -112,9 +115,11 @@ export default async function ssrHandler(root) {
 
             if (cacheModule) {
               const { init$: cache_init$ } = await import(
-                __require.resolve(cacheModule, {
-                  paths: [cwd],
-                })
+                pathToFileURL(
+                  __require.resolve(cacheModule, {
+                    paths: [cwd],
+                  })
+                )
               );
               await cache_init$?.();
             } else {

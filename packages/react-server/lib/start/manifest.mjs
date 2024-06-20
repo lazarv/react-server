@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+import { pathToFileURL } from "node:url";
 import { getContext } from "../../server/context.mjs";
 import { runtime$ } from "../../server/runtime.mjs";
 import {
@@ -36,9 +37,9 @@ export async function init$(type = "server") {
   );
   const [{ default: server }, { default: client }, { default: browser }] =
     await Promise.all([
-      import(serverManifest, { assert: { type: "json" } }),
-      import(clientManifest, { assert: { type: "json" } }),
-      import(browserManifest, { assert: { type: "json" } }),
+      import(pathToFileURL(serverManifest), { assert: { type: "json" } }),
+      import(pathToFileURL(clientManifest), { assert: { type: "json" } }),
+      import(pathToFileURL(browserManifest), { assert: { type: "json" } }),
     ]);
   const manifest = {
     server,
@@ -60,7 +61,7 @@ export async function init$(type = "server") {
 
   const entryCache = new Map();
   function ssrLoadModule($$id, linkQueueStorage) {
-    const linkQueue = linkQueueStorage.getStore() ?? new Set();
+    const linkQueue = linkQueueStorage?.getStore() ?? new Set();
     const httpContext = getContext(HTTP_CONTEXT);
     const [id] = (
       httpContext
@@ -78,7 +79,7 @@ export async function init$(type = "server") {
     try {
       const moduleUri = new URL(id);
       if (moduleUri.protocol === "http:" || moduleUri.protocol === "https:") {
-        return import(id);
+        return import(pathToFileURL(id));
       }
     } catch (e) {
       // noop
@@ -88,7 +89,7 @@ export async function init$(type = "server") {
       if (links.length > 0) {
         linkQueue.add(...links);
       }
-      return import(specifier);
+      return import(pathToFileURL(specifier));
     }
     const browserEntry = Object.values(manifest.browser).find(
       (entry) => entry.file === id
@@ -114,15 +115,17 @@ export async function init$(type = "server") {
     if (links.length > 0) {
       linkQueue.add(...links);
     }
-    return import(specifier);
+    return import(pathToFileURL(specifier));
   }
   runtime$(MODULE_LOADER, ssrLoadModule);
 
   function collectStylesheets(rootModule, manifestEnv = manifest.server) {
     if (!rootModule) return [];
+    const normalizedRootModule = sys.normalizePath(rootModule);
     const rootManifest = Array.from(Object.values(manifestEnv)).find(
       (entry) =>
-        rootModule.endsWith(entry.file) || entry.src?.endsWith(rootModule)
+        normalizedRootModule.endsWith(entry.file) ||
+        entry.src?.endsWith(normalizedRootModule)
     );
     const styles = [];
     function collectCss(entry) {

@@ -1,5 +1,6 @@
 import { createRequire, register } from "node:module";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 
 import { createMiddleware } from "@hattip/adapter-node";
@@ -15,10 +16,9 @@ import {
   createServer as createViteDevServer,
   createLogger as createViteLogger,
 } from "vite";
-
 import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
+
 import { MemoryCache } from "../../memory-cache/index.mjs";
-import packageJson from "../../package.json" assert { type: "json" };
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   COLLECT_STYLESHEETS,
@@ -50,9 +50,7 @@ alias("react-server");
 register("../loader/node-loader.react-server.mjs", import.meta.url);
 
 const __require = createRequire(import.meta.url);
-const packageName = packageJson.name;
 const cwd = sys.cwd();
-const rootDir = join(dirname(__require.resolve(`${packageName}`)), "/../");
 
 export default async function createServer(root, options) {
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT];
@@ -82,7 +80,7 @@ export default async function createServer(root, options) {
       https: options.https ?? config.server?.https,
       fs: {
         ...config.server?.fs,
-        allow: [cwd, rootDir, ...(config.server?.fs?.allow ?? [])],
+        allow: [cwd, sys.rootDir, ...(config.server?.fs?.allow ?? [])],
       },
     },
     publicDir: false,
@@ -105,9 +103,11 @@ export default async function createServer(root, options) {
             (async () =>
               (
                 await import(
-                  __require.resolve("@lazarv/react-server-router/plugin", {
-                    paths: [cwd],
-                  })
+                  pathToFileURL(
+                    __require.resolve("@lazarv/react-server-router/plugin", {
+                      paths: [cwd],
+                    })
+                  )
                 )
               ).default())(),
           ]
@@ -125,7 +125,7 @@ export default async function createServer(root, options) {
       ...config.resolve,
       preserveSymlinks: true,
       alias: [
-        { find: /^@lazarv\/react-server$/, replacement: rootDir },
+        { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
         ...(config.resolve?.alias ?? []),
       ],
     },
@@ -139,7 +139,7 @@ export default async function createServer(root, options) {
         resolve: {
           preserveSymlinks: false,
           alias: [
-            { find: /^@lazarv\/react-server$/, replacement: rootDir },
+            { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
             ...clientAlias(true),
             ...(config.resolve?.alias ?? []),
           ],
@@ -156,7 +156,10 @@ export default async function createServer(root, options) {
                 ...config,
                 resolve: {
                   alias: [
-                    { find: /^@lazarv\/react-server$/, replacement: rootDir },
+                    {
+                      find: /^@lazarv\/react-server$/,
+                      replacement: sys.rootDir,
+                    },
                     ...clientAlias(true),
                     ...(config.resolve?.alias ?? []),
                   ],
@@ -189,7 +192,7 @@ export default async function createServer(root, options) {
               name,
               {
                 ...config,
-                root: rootDir,
+                root: sys.rootDir,
                 cacheDir: join(cwd, ".react-server/.cache/ssr"),
                 resolve: {
                   external: [
@@ -200,7 +203,10 @@ export default async function createServer(root, options) {
                     "react-server-dom-webpack",
                   ],
                   alias: [
-                    { find: /^@lazarv\/react-server$/, replacement: rootDir },
+                    {
+                      find: /^@lazarv\/react-server$/,
+                      replacement: sys.rootDir,
+                    },
                     ...clientAlias(true),
                     ...(config.resolve?.alias ?? []),
                   ],
@@ -233,7 +239,9 @@ export default async function createServer(root, options) {
       },
       rsc: {
         resolve: {
-          alias: [{ find: /^@lazarv\/react-server$/, replacement: rootDir }],
+          alias: [
+            { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
+          ],
           external: [
             "react",
             "react-dom",
@@ -250,7 +258,7 @@ export default async function createServer(root, options) {
               name,
               {
                 ...config,
-                root: rootDir,
+                root: sys.rootDir,
                 cacheDir: join(cwd, ".react-server/.cache/rsc"),
                 optimizeDeps: {
                   ...config.optimizeDeps,
@@ -290,7 +298,11 @@ export default async function createServer(root, options) {
   viteDevServer.environments.rsc.watcher = viteDevServer.watcher;
   viteDevServer.environments.rsc.hot = {
     send: (data) => {
-      data.triggeredBy = data.triggeredBy?.replace(rootDir, cwd + "/");
+      data.triggeredBy = sys
+        .normalizePath(
+          sys.normalizePath(data.triggeredBy)?.replace(sys.rootDir, cwd + "/")
+        )
+        .replace(/\/+/g, "/");
       if (
         !viteDevServer.environments.client.moduleGraph.idToModuleMap.has(
           data.triggeredBy
@@ -329,8 +341,9 @@ export default async function createServer(root, options) {
           !moduleId.startsWith("virtual:")
         ) {
           visited.add(moduleId);
-          const mod =
-            viteDevServer.environments.rsc.moduleGraph.getModuleById(moduleId);
+          const mod = viteDevServer.environments.rsc.moduleGraph.getModuleById(
+            sys.normalizePath(moduleId)
+          );
           if (!mod) return;
 
           const values = Array.from(mod.importedModules.values());

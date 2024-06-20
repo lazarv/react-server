@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
 import viteReact from "@vitejs/plugin-react";
@@ -23,7 +24,7 @@ export default async function clientBuild(_, options) {
   let clientManifest;
   try {
     const { default: _clientManifest } = await import(
-      join(cwd, ".react-server/server/client-manifest.json"),
+      pathToFileURL(join(cwd, ".react-server/server/client-manifest.json")),
       {
         assert: { type: "json" },
       }

@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 
 import { forChild } from "../../config/index.mjs";
 import { ContextStorage, context$, getContext } from "../../server/context.mjs";
@@ -78,9 +79,11 @@ export default async function ssrHandler(root) {
                 ssrLoadModule(rootModule),
                 import(
                   cacheModule
-                    ? __require.resolve(cacheModule, {
-                        paths: [cwd],
-                      })
+                    ? pathToFileURL(
+                        __require.resolve(cacheModule, {
+                          paths: [cwd],
+                        })
+                      )
                     : memoryCacheModule
                 ),
               ]);

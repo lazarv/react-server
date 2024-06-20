@@ -1,8 +1,14 @@
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
+export function normalizePath(path) {
+  return path.replace(/\\/g, "/");
+}
+
 export function cwd() {
-  return typeof Deno !== "undefined" ? Deno.cwd() : process.cwd();
+  return normalizePath(
+    typeof Deno !== "undefined" ? Deno.cwd() : process.cwd()
+  );
 }
 
 export function argv() {
@@ -69,4 +75,6 @@ if (typeof Deno !== "undefined") {
   };
 }
 
-export const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+export const rootDir = normalizePath(
+  join(dirname(fileURLToPath(import.meta.url)), "..")
+);

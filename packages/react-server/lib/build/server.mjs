@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
 import viteReact from "@vitejs/plugin-react";
@@ -178,9 +179,11 @@ export default async function serverBuild(root, options) {
             (async () =>
               (
                 await import(
-                  __require.resolve("@lazarv/react-server-router/plugin", {
-                    paths: [cwd],
-                  })
+                  pathToFileURL(
+                    __require.resolve("@lazarv/react-server-router/plugin", {
+                      paths: [cwd],
+                    })
+                  )
                 )
               ).default())(),
           ]

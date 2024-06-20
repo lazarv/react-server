@@ -44,8 +44,8 @@ export default function viteReactServerRuntime() {
           if (!moduleCache.has(id)) {
           ${
             config.base
-              ? `const mod = import(/* @vite-ignore */ new URL("${`${config.base}/`.replace(/\/+/g, "/")}@fs${cwd()}/" + id, location.origin).href);`
-              : `const mod = import(/* @vite-ignore */ new URL("${`/@fs${cwd()}/`}" + id, location.origin).href);`
+              ? `const mod = import(/* @vite-ignore */ new URL("${`${config.base}/@fs/${cwd()}/`.replace(/\/+/g, "/")}" + id, location.origin).href);`
+              : `const mod = import(/* @vite-ignore */ new URL("${`/@fs/${cwd()}/`.replace(/\/+/g, "/")}" + id, location.origin).href);`
           }
           moduleCache.set(id, mod);
           return mod;

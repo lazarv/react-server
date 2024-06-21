@@ -1,5 +1,4 @@
 import { createRequire } from "node:module";
-import { join } from "node:path";
 
 import { pathToFileURL } from "node:url";
 import { getContext } from "../../server/context.mjs";
@@ -48,13 +47,9 @@ export async function init$(type = "server") {
   };
   runtime$(MANIFEST, manifest);
 
-  const mainSrc = __require.resolve(
-    "@lazarv/react-server/client/entry.client.jsx",
-    { paths: [cwd] }
-  );
   const mainModule = `/${
     Object.values(manifest.browser).find(
-      (entry) => join(cwd, entry.src) === mainSrc
+      (entry) => entry.name === "client/index"
     )?.file
   }`;
   runtime$(MAIN_MODULE, [mainModule]);

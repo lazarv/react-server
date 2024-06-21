@@ -4,7 +4,12 @@ import remarkGfm from "remark-gfm";
 export default {
   root: "src/pages",
   public: "public",
-  adapter: "@lazarv/react-server-adapter-vercel",
+  adapter: [
+    "@lazarv/react-server-adapter-vercel",
+    {
+      serverlessFunctions: false,
+    },
+  ],
   mdx: {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [rehypeHighlight],

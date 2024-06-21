@@ -1,3 +1,4 @@
 {
-  "root": "src/app"
+  "root": "src/app",
+  "adapter": "@lazarv/react-server-adapter-vercel"
 }

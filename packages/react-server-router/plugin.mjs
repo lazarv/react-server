@@ -151,6 +151,7 @@ export default function viteReactServerRouter() {
       .map(({ directory, filename, src }) => {
         const normalized = filename
           .replace(/\.\.\./g, "_dot_dot_dot_")
+          .replace(/(\{)[^}]*(\})/g, (match) => match.replace(/\./g, "_dot_"))
           .replace(/^\+*/g, "")
           .split(".");
         const path =
@@ -172,7 +173,9 @@ export default function viteReactServerRouter() {
                       : 1
                   )
                   .join("/")
-                  .replace(/_dot_dot_dot_/g, "...")}`
+                  .replace(/_dot_dot_dot_/g, "...")
+                  .replace(/_dot_/g, ".")
+                  .replace(/(\{)([^\}]*)(\})/g, "$2")}`
           }`
             .replace(/\/\([^)]+\)/g, "")
             .replace(/\/@[^/]*/g, "")
@@ -399,7 +402,7 @@ export default function viteReactServerRouter() {
           }
         });
         sourceWatcher.on("unlink", async (rawSrc) => {
-          const src = sys.normalizePath(rawSrc);
+          const src = sys.normalizePath(join(rootDir, rawSrc));
           logger.info(
             `Removing source file ${colors.red(
               relative(rootDir, src)
@@ -587,7 +590,7 @@ export default function viteReactServerRouter() {
                   const normalized = filename
                     .replace(/^\+*/g, "")
                     .replace(/\.\.\./g, "_dot_dot_dot_")
-                    .replace(/(\[|\(|\{)[^)]*(\]|\)|\})/g, (match) =>
+                    .replace(/(\{)[^}]*(\})/g, (match) =>
                       match.replace(/\./g, "_dot_")
                     )
                     .split(".");
@@ -604,7 +607,7 @@ export default function viteReactServerRouter() {
                     .replace(/\/+$/g, "")
                     .replace(/_dot_dot_dot_/g, "...")
                     .replace(/_dot_/g, ".")
-                    .replace(/(\[|\(|\{)([^)]*)(\]|\)|\})/g, "$2")
+                    .replace(/(\{)([^\}]*)(\})/g, "$2")
                     .replace(/^\/+/, "/");
                   return `["${method}", "${path}", async () => {
                 return import("${src}");

@@ -161,6 +161,7 @@ export const createRenderer = ({
                 let htmlNext = null;
                 let firstChunk = true;
                 let hydrationContainer = "document";
+                let contentLength = 0;
                 const htmlWorker = async function* () {
                   await forwardReady;
 
@@ -195,6 +196,7 @@ export const createRenderer = ({
                     if (_done) break;
 
                     if (value) {
+                      contentLength += value.length;
                       hasNewLine = value[value.length - 1] === 0x0a;
                       force = value[value.length - 1] !== 0x3e;
                       const chunk = decoder.decode(value);
@@ -230,16 +232,25 @@ export const createRenderer = ({
                                 importMap
                               )}</script>`
                             : ""
-                        }${bootstrapModules
-                          .map(
-                            (mod) =>
-                              `<script type="module" src="${mod}" async></script>`
-                          )
-                          .join("")}`
+                        }${
+                          contentLength > 0
+                            ? bootstrapModules
+                                .map(
+                                  (mod) =>
+                                    `<script type="module" src="${mod}" async></script>`
+                                )
+                                .join("")
+                            : ""
+                        }`
                       );
                       yield script;
                       hydrated = true;
-                    } else if (!hmr && isDevelopment) {
+                    } else if (
+                      !hmr &&
+                      isDevelopment &&
+                      contentLength > 0 &&
+                      bootstrapModules.length > 0
+                    ) {
                       const script = encoder.encode(
                         `${bootstrapModules
                           .map(

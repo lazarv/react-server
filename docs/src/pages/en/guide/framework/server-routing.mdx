@@ -78,7 +78,7 @@ export default function App() {
 ## Route layouts
 </Link>
 
-To define how to render the children of a route, you can use the `render` prop. The `render` prop accepts a function that receives the `children` prop all route params as props and returns a React element.
+To define how to render the children of a route, you can use the `render` prop. The `render` prop accepts a function that receives the `children` prop together with all route params as props and returns a React element.
 
 ```tsx
 import { Route } from '@lazarv/react-server/router';
@@ -106,13 +106,12 @@ export default function App() {
 ## Route parameters
 </Link>
 
-You can define route parameters by wrapping a path segment in brackets. The value of the route parameter will be available in the `params` prop of the `Route` component. You can access the route parameters by using the `useParams` hook.
+You can define route parameters by wrapping a path segment in brackets. The value of the route parameter will be available as a prop when you use `render` on the `Route` component.
 
 ```tsx
-import { Route, useParams } from '@lazarv/react-server/router';
+import { Route } from '@lazarv/react-server/router';
 
-function User() {
-  const { id } = useParams();
+function User({ id }) {
   return (
     <div>
       <h1>User ID</h1>
@@ -123,7 +122,7 @@ function User() {
 
 export default function App() {
   return (
-    <Route path="/users/[id]" element={<User />} />
+    <Route path="/users/[id]" render={User} />
   );
 }
 ```
@@ -139,7 +138,7 @@ import { Route } from '@lazarv/react-server/router';
 
 export default function App() {
   return (
-    <Route path="/files/[...path]" element={<File />} />
+    <Route path="/files/[...path]" render={File} />
   );
 }
 ```
@@ -159,7 +158,7 @@ const matchers = {
 
 export default function App() {
   return (
-    <Route path="/files/[id=number]" element={<File />} matchers={matchers} />
+    <Route path="/files/[id=number]" render={File} matchers={matchers} />
   );
 }
 ```

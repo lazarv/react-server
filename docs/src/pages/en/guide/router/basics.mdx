@@ -61,17 +61,19 @@ You can create nested routes by creating directories in the root directory. For 
 ### Route parameters
 </Link>
 
-You can create route parameters by adding a parameter name in brackets to the name of the file. For example if you create a file named `[id].jsx` in the root directory it will be treated as a named route with the path `/[id]`. If you create a file named `[id].jsx` in a directory named `users` it will be treated as a named route with the path `/users/[id]`. You can also create nested route parameters by creating nested directories. For example if you create a directory named `users` in the root directory and create a file named `[id].jsx` in the `users` directory it will be treated as a nested route with the path `/users/[id]`.
-
-To use the route parameter in your component you can use the `useParams` hook from the `@lazarv/react-server` package.
+You can create route parameters by adding a parameter name in brackets to the name of the file. For example if you create a file named `[id].jsx` in the root directory it will be treated as a named route with the path `/[id]`. If you create a file named `[id].jsx` in a directory named `users` it will be treated as a named route with the path `/users/[id]`. You can also create nested route parameters by creating nested directories. For example if you create a directory named `users` in the root directory and create a file named `[id].jsx` in the `users` directory it will be treated as a nested route with the path `/users/[id]`. You will be able to access the route parameter in your component as React props.
 
 ```jsx
-import { useParams } from "@lazarv/react-server";
-
-export default function User() {
-  const { id } = useParams();
-
+export default function User({ id }) {
   return <h1>User #{id}</h1>;
+}
+```
+
+You can also use multiple route parameters in a single route segment. For example if you create a file named `[id]-[name].jsx` it will be treated as a route with the path pattern of `/[id]-[name]` and you will receive both `id` and `name` as props in your component.
+
+```jsx
+export default function User({ id, name }) {
+  return <h1>User #{id} - {name}</h1>;
 }
 ```
 
@@ -81,15 +83,11 @@ export default function User() {
 
 You can create route parameters for multiple segments by adding a parameter name in brackets to the name of the file. For example if you create a file named `[...id].jsx` in the root directory it will be treated as a named route with the path `/[...id]`. If you create a file named `[...id].jsx` in a directory named `users` it will be treated as a named route with the path `/users/[...id]`. You can also create nested route parameters by creating nested directories. For example if you create a directory named `users` in the root directory and create a file named `[...id].jsx` in the `users` directory it will be treated as a nested route with the path `/users/[...id]`.
 
-The parameter at runtime will be an array of strings. To use the route parameter in your component you can use the `useParams` hook from the `@lazarv/react-server` package.
+The parameter at runtime will be an array of strings. You will be able to access the route parameter in your component as a React prop.
 
 ```jsx
 // /[...slug].page.jsx
-import { useParams } from "@lazarv/react-server";
-
-export default function Page() {
-  const { slug } = useParams();
-
+export default function Page({ slug }) {
   return <h1>/{slug.join("/")}</h1>;
 }
 ```

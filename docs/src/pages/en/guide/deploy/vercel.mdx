@@ -42,6 +42,24 @@ export default {
 
 Configuration for this adapter will be added to your Vercel `config.json` file so you can use all available Vercel configuration options, like headers, redirects, and rewrites.
 
+You can also override the Serverless Function configuration for the `index` function handling all of the server-side rendering by using the following adapter options:
+
+```mjs
+export default {
+  adapter: ['@lazarv/react-server-adapter-vercel', {
+    serverlessFunctions: {
+      index: {
+        memory: 1024,
+        maxDuration: 10,
+        // ...
+      },
+    }
+  }],
+};
+```
+
+This configration will be created at `.vercel/output/functions/index.func/.vc-config.json` and you can learn more about the available options in the [Serverless Function configuration](https://vercel.com/docs/build-output-api/v3/primitives#serverless-function-configuration) part of the Vercel Primitives section of the Vercel Build Output API documentation.
+
 <Link name="deploy">
 ## Deploy
 </Link>
@@ -49,14 +67,16 @@ Configuration for this adapter will be added to your Vercel `config.json` file s
 When using `@lazarv/react-server` with the Vercel adapter, you can deploy your application to Vercel using the following command:
 
 ```sh
-pnpm exec react-server build
+pnpm exec react-server build [root] # [root] is the entry point of your application
 vercel deploy --prebuilt
 ```
 
 You can also deploy with the `react-server` CLI by using the `deploy` argument:
 
 ```sh
-pnpm exec react-server build --deploy
+pnpm exec react-server build [root] --deploy
 ```
 
-> **Warning:** The Vercel adapter only supports static sites at the moment. If you need runtime server-side rendering, stay tuned for updates.
+This will build your application and deploy it to Vercel.
+
+> Vercel Edge Functions, Edge Middlewares, Prerender Functions, ISR (Incremental Static Regeneration), Image Optimization and other Vercel features are not supported by the `@lazarv/react-server-adapter-vercel` package yet. Please, stay tuned for updates!

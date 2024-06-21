@@ -1,7 +1,6 @@
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { build } from "esbuild";
 import glob from "fast-glob";
 
 import { createHash } from "node:crypto";
@@ -42,6 +41,7 @@ export async function loadConfig(initialConfig) {
             `${join(cwd, ".react-server", key, filename)}.${hash}.mjs`
           );
         } catch (e) {
+          const { build } = await import("esbuild");
           await build({
             absWorkingDir: filename.includes("vite.config")
               ? join(fileURLToPath(import.meta.url), "../..")

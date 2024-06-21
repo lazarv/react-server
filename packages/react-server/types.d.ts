@@ -261,10 +261,6 @@ declare module "@lazarv/react-server/router" {
     path: __react_server_routing__.ReactServerRouting<T>["path"],
     options?: MatchOptions
   ): __react_server_routing__.ReactServerRouting<T>["params"] | null;
-
-  export function useParams<T = string>():
-    | __react_server_routing__.ReactServerRouting<T>["params"]
-    | null;
 }
 
 declare module "@lazarv/react-server/dev" {

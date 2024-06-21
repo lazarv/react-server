@@ -13,6 +13,9 @@ export default async function adapter(root, options) {
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
 
   if (config.adapter) {
+    if (typeof config.adapter === "function") {
+      return await config.adapter({}, root, options);
+    }
     const [adapterModule, adapterOptions] =
       typeof config.adapter === "string" ? [config.adapter] : config.adapter;
     const { adapter } = await import(

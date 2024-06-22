@@ -4,9 +4,7 @@ export const clientAlias = (dev) => [
   { find: /^react$/, replacement: dependencies.react },
   {
     find: /^react\/jsx-runtime$/,
-    replacement: dev
-      ? dependencies.reactJsxDevRuntime
-      : dependencies.reactJsxRuntime,
+    replacement: dependencies.reactJsxRuntime,
   },
   {
     find: /^react\/jsx-dev-runtime$/,

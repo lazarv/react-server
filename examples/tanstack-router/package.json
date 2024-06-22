@@ -1,0 +1,26 @@
+{
+  "name": "@lazarv/react-server-example-tanstack-router",
+  "private": true,
+  "description": "@lazarv/react-server Tanstack Router example",
+  "scripts": {
+    "dev": "react-server ./src/index.tsx",
+    "build": "react-server build ./src/index.tsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@tanstack/react-router": "^1.40.0"
+  },
+  "devDependencies": {
+    "@tanstack/router-devtools": "^1.40.0",
+    "@tanstack/router-plugin": "^1.39.13",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3"
+  }
+}

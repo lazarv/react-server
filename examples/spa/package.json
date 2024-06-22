@@ -1,0 +1,21 @@
+{
+  "name": "@lazarv/react-server-example-spa",
+  "private": true,
+  "description": "@lazarv/react-server SPA example application",
+  "scripts": {
+    "dev": "react-server ./src/index.jsx",
+    "build": "react-server build ./src/index.jsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3"
+  }
+}

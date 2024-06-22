@@ -7,6 +7,7 @@
   "bin": "bin/cli.mjs",
   "types": "types.d.ts",
   "exports": {
+    "./types": "./types.d.ts",
     "./client": "./client/index.jsx",
     "./config": "./config/index.mjs",
     "./error-boundary": "./server/error-boundary.jsx",

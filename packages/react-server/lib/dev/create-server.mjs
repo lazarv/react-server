@@ -197,6 +197,7 @@ export default async function createServer(root, options) {
                 resolve: {
                   external: [
                     "react",
+                    "react/jsx-runtime",
                     "react/jsx-dev-runtime",
                     "react-dom",
                     "react-dom/client",
@@ -266,7 +267,6 @@ export default async function createServer(root, options) {
                 },
                 resolve: {
                   external: [
-                    // "react",
                     "react-dom",
                     "react-server-dom-webpack",
                     ...(config.ssr?.external ?? []),

@@ -68,6 +68,7 @@ declare module "@lazarv/react-server/client" {
     getFlightResponse(): Promise<Response | null>;
   };
   export function useClient(): ReactServerClientContext;
+  export function ClientOnly(props: React.PropsWithChildren): JSX.Element;
 }
 
 declare module "@lazarv/react-server/config" {

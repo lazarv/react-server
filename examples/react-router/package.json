@@ -1,0 +1,20 @@
+{
+  "name": "@lazarv/react-server-example-react-router",
+  "private": true,
+  "description": "@lazarv/react-server React Router example",
+  "scripts": {
+    "dev": "react-server ./src/index.jsx",
+    "build": "react-server build ./src/index.jsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "localforage": "^1.10.0",
+    "match-sorter": "^6.3.4",
+    "react-router-dom": "^6.23.1",
+    "sort-by": "^1.2.0"
+  }
+}

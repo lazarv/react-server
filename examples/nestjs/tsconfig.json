@@ -19,11 +19,7 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
-    "types": [
-      "react/experimental",
-      "react-dom/experimental",
-      "@lazarv/react-server/types.d.ts"
-    ]
+    "types": ["react/experimental", "react-dom/experimental"]
   },
   "exclude": ["node_modules", "dist"]
 }

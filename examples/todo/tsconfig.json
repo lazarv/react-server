@@ -4,6 +4,8 @@
     "jsx": "preserve",
     "strict": true,
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "types": ["react/experimental", "react-dom/experimental"]
   },
   "exclude": ["**/*.js", "**/*.mjs"]

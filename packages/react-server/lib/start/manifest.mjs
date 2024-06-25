@@ -36,9 +36,9 @@ export async function init$(type = "server") {
   );
   const [{ default: server }, { default: client }, { default: browser }] =
     await Promise.all([
-      import(pathToFileURL(serverManifest), { assert: { type: "json" } }),
-      import(pathToFileURL(clientManifest), { assert: { type: "json" } }),
-      import(pathToFileURL(browserManifest), { assert: { type: "json" } }),
+      import(pathToFileURL(serverManifest), { with: { type: "json" } }),
+      import(pathToFileURL(clientManifest), { with: { type: "json" } }),
+      import(pathToFileURL(browserManifest), { with: { type: "json" } }),
     ]);
   const manifest = {
     server,

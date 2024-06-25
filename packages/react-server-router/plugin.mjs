@@ -1,8 +1,3 @@
-import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { basename, dirname, join, relative } from "node:path";
-import { pathToFileURL } from "node:url";
-
 import { loadConfig } from "@lazarv/react-server/config";
 import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
@@ -13,9 +8,20 @@ import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
 import micromatch from "micromatch";
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { basename, dirname, join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 import colors from "picocolors";
 
 const cwd = sys.cwd();
+const __require = createRequire(import.meta.url);
+const reactServerRouterDir = dirname(
+  __require.resolve("@lazarv/react-server-router", {
+    paths: [cwd],
+  })
+);
 
 function mergeOrApply(a, b = {}) {
   if (typeof b === "function") {
@@ -65,6 +71,11 @@ const PAGE_EXTENSION_TYPES = [
   "static",
 ];
 
+const reactServerRouterDtsTemplate = await readFile(
+  pathToFileURL(join(reactServerRouterDir, "react-server-router.d.ts")),
+  "utf8"
+);
+
 export default function viteReactServerRouter() {
   const entry = {
     layouts: [],
@@ -81,6 +92,7 @@ export default function viteReactServerRouter() {
   let viteServer;
   let mdxCounter = 0;
   let mdx;
+  let debounceTypesGeneration;
 
   let rootDir = cwd;
   let root = ".";
@@ -217,6 +229,113 @@ export default function viteReactServerRouter() {
       if (manifestModule) {
         viteServer.moduleGraph.invalidateModule(manifestModule);
       }
+    }
+
+    const dynamicRouteGenericTypes = new Array(
+      manifest.pages.reduce((acc, [, path, , type]) => {
+        if (type === "page") {
+          const params = path.match(/\[(\[?[^\]]+\]?)\]/g);
+          if (params) {
+            return Math.max(acc, params.length);
+          }
+        }
+
+        return acc;
+      }, 0)
+    ).fill(0);
+    const reactServerRouterDts = reactServerRouterDtsTemplate
+      .replace(/\/\/ start generation types[\s\S]*?\/\/ end\n\n\s*/g, "")
+      .replace(
+        "__react_server_router_static_routes__",
+        manifest.pages
+          .reduce((acc, [, path, , type]) => {
+            const staticPath = `"${path}"`;
+            if (
+              !acc.includes(staticPath) &&
+              type === "page" &&
+              !/\[[^\]]+\]/.test(path)
+            ) {
+              acc.push(staticPath);
+            }
+            return acc;
+          }, [])
+          .join(" | ")
+      )
+      .replace(
+        "__react_server_router_dynamic_route_types__",
+        dynamicRouteGenericTypes
+          .map((_, i) => `T${i} extends string`)
+          .join(", ") || "_"
+      )
+      .replaceAll(
+        "__react_server_router_dynamic_route_infer_types__<T>",
+        dynamicRouteGenericTypes
+          .map((_, i) => `infer ${"_".repeat(i + 1)}`)
+          .join(", ") || "infer _"
+      )
+      .replace(
+        /P extends __react_server_routing_params_patterns__[\s\S]*?\? never[\s\S]*?\:\s*/,
+        manifest.pages.reduce(
+          (acc, [, path, , type]) => {
+            if (type === "page") {
+              const segments = path.split("/").filter(Boolean);
+              for (const segment of segments) {
+                const params = segment.match(/\[(\[?[^\]]+\]?)\]/g);
+                if (
+                  params?.length > 0 &&
+                  segment.replace(/\[(\[?[^\]]+\]?)\]/g, "").length > 0
+                ) {
+                  let index = 0;
+                  acc.types += `P extends \`${segment.replace(/\[(\[?[^\]]+\]?)\]/g, () => `[\${infer K${index++}}]`)}\`\n${acc.indent}? ${params.map((_, index) => `{ [key in K${index}]: string } & `).join("")}R\n${acc.indent}: `;
+                  acc.indent += "  ";
+                }
+              }
+            }
+            return acc;
+          },
+          { types: "", indent: " ".repeat(10) }
+        ).types
+      )
+      .replace(
+        "__react_server_router_dynamic_route_definitions__",
+        manifest.pages.reduce((acc, [, path, , type]) => {
+          if (type === "page") {
+            const params = path.match(/\/?\[(\[?[^\]]+\]?)\]/g);
+            if (params) {
+              let paramIndex = 0;
+              let dynamicRouteDefinition = `\`${path.replace(
+                /\/?\[(\[?[^\]]+\]?)\]/g,
+                (param) =>
+                  `${param.startsWith("/") ? "/" : ""}\${${param.includes("[...") ? "CatchAllSlug" : "SafeSlug"}<T${paramIndex++}>}`
+              )}\``;
+              if (params[params.length - 1].includes("[[...")) {
+                dynamicRouteDefinition += `${acc ? `\n    ` : ""}| ${dynamicRouteDefinition.replace(/(\/\$\{CatchAllSlug\<T[0-9]+\>\})/, "")}`;
+              }
+              return `${acc ? `${acc}\n    ` : ""}| ${dynamicRouteDefinition}`;
+            }
+          }
+          return acc;
+        }, "") || "never"
+      );
+
+    if (viteCommand !== "build") {
+      const writeTypedRouter = async () => {
+        await writeFile(
+          join(cwd, ".react-server", "react-server-router.d.ts"),
+          reactServerRouterDts
+        );
+        logger.info(
+          `Types generated successfully at ${colors.cyan(".react-server/react-server-router.d.ts")}`
+        );
+        debounceTypesGeneration = null;
+      };
+
+      if (debounceTypesGeneration) {
+        clearTimeout(debounceTypesGeneration);
+        debounceTypesGeneration = null;
+      }
+
+      debounceTypesGeneration = setTimeout(writeTypedRouter, 200);
     }
   }
 

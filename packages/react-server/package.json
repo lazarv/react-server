@@ -4,25 +4,53 @@
   "description": "The easiest way to build React apps with server-side rendering",
   "type": "module",
   "module": "server/index.mjs",
+  "types": "server/index.d.ts",
   "bin": "bin/cli.mjs",
-  "types": "types.d.ts",
   "exports": {
-    "./types": "./types.d.ts",
-    "./client": "./client/index.jsx",
-    "./config": "./config/index.mjs",
-    "./error-boundary": "./server/error-boundary.jsx",
-    "./memory-cache": "./memory-cache/index.mjs",
-    "./navigation": "./client/navigation.jsx",
-    "./router": "./server/router.jsx",
-    "./prerender": "./server/prerender.jsx",
-    "./dev": "./lib/dev/index.mjs",
-    "./node": "./lib/start/node.mjs",
-    "./client/context": "./client/context.mjs",
+    "./client": {
+      "default": "./client/index.jsx",
+      "types": "./client/index.d.ts"
+    },
+    "./config": {
+      "default": "./config/index.mjs",
+      "types": "./config/index.d.ts"
+    },
+    "./error-boundary": {
+      "default": "./server/error-boundary.jsx",
+      "types": "./server/error-boundary.d.ts"
+    },
+    "./memory-cache": {
+      "default": "./memory-cache/index.mjs",
+      "types": "./memory-cache/index.d.ts"
+    },
+    "./navigation": {
+      "default": "./client/navigation.jsx",
+      "types": "./client/navigation.d.ts"
+    },
+    "./router": {
+      "default": "./server/router.jsx",
+      "types": "./server/router.d.ts"
+    },
+    "./prerender": {
+      "default": "./server/prerender.jsx",
+      "types": "./server/prerender.d.ts"
+    },
+    "./dev": {
+      "default": "./lib/dev/index.mjs",
+      "types": "./lib/dev/index.d.ts"
+    },
+    "./node": {
+      "default": "./lib/start/node.mjs",
+      "types": "./lib/start/node.d.ts"
+    },
     "./client/*": "./client/*",
     "./server/*": "./server/*",
     "./lib/*": "./lib/*",
     "./*": "./*",
-    ".": "./server/index.mjs"
+    ".": {
+      "default": "./server/index.mjs",
+      "types": "./server/index.d.ts"
+    }
   },
   "scripts": {},
   "keywords": [

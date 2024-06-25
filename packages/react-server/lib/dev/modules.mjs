@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 
-import packageJson from "../../package.json" assert { type: "json" };
+import packageJson from "../../package.json" with { type: "json" };
 import { cwd, rootDir } from "../sys.mjs";
 
 const __require = createRequire(import.meta.url);

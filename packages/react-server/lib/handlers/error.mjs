@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import strip from "strip-ansi";
 
-import packageJson from "../../package.json" assert { type: "json" };
+import packageJson from "../../package.json" with { type: "json" };
 import { getContext } from "../../server/context.mjs";
 import {
   HTTP_CONTEXT,

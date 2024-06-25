@@ -70,7 +70,7 @@ export default async function staticHandler(dir, options = {}) {
         const { default: postponed } = await import(
           pathToFileURL(join(dir, `${basename}.postponed.json`)),
           {
-            assert: { type: "json" },
+            with: { type: "json" },
           }
         );
         prerender$(POSTPONE_STATE, postponed);

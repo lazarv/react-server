@@ -10,8 +10,6 @@ import Link from "../../../../components/Link.jsx";
 
 In this chapter we will learn about the basics of the file-system based router. We will learn how to create routes, how to use parameters and how to use the router in a project.
 
-> TypeScript support for typed routes is coming soon... Stay tuned!
-
 <Link name="configuration">
 ## Configuration
 </Link>
@@ -126,3 +124,20 @@ export default function Layout({ children }) {
 You can escape route segments by wrapping the segment in curly braces. For example if you create a file named `{sitemap.xml}.server.mjs` in the root directory it will be treated as a named route with the path `/sitemap.xml`.
 
 > **Example:** see the Photos example in the [examples](https://github.com/lazarv/react-server/tree/main/examples/photos) directory for a basic example of file-system based routing.
+
+<Link name="typed-routes">
+## Typed routes
+</Link>
+
+The router supports typed routes out of the box. If you use TypeScript, you can include the generated types in your project and all of your routes will be type checked. Typed routes work for `Link` components, `useMatch` hooks and `navigate`, `replace` and `prefetch` functions from the `useClient` hook.
+
+To include the generated types in your project you only need to include `.ts` files from the `.react-server` directory in your TypeScript configuration. To do so, add `.react-server/**/*.ts` to the `include` array in your `tsconfig.json` file:
+
+```json
+{
+  "compilerOptions": {
+    // ...
+  },
+  "include": [/* ... */, ".react-server/**/*.ts"]
+}
+```

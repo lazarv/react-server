@@ -26,7 +26,7 @@ export default async function clientBuild(_, options) {
     const { default: _clientManifest } = await import(
       pathToFileURL(join(cwd, ".react-server/server/client-manifest.json")),
       {
-        assert: { type: "json" },
+        with: { type: "json" },
       }
     );
     if (Object.keys(_clientManifest).length > 0) {

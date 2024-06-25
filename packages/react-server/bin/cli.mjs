@@ -51,13 +51,9 @@ import glob from "fast-glob";
 
 import { argv, exit } from "../lib/sys.mjs";
 
-// const { default: packageJson } = await import("../package.json", {
-//   assert: { type: "json" },
-// });
-const packageJson = {
-  name: "@lazarv/react-server",
-  version: "0.0.0-development",
-};
+const { default: packageJson } = await import("../package.json", {
+  with: { type: "json" },
+});
 const commands = await glob("commands/*.mjs", {
   cwd: fileURLToPath(new URL(".", import.meta.url)),
 });

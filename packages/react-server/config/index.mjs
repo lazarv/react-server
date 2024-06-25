@@ -67,9 +67,7 @@ export async function loadConfig(initialConfig) {
         configModule = (
           await import(
             pathToFileURL(src),
-            filename.endsWith(".json")
-              ? { assert: { type: "json" } }
-              : undefined
+            filename.endsWith(".json") ? { with: { type: "json" } } : undefined
           )
         ).default;
       }

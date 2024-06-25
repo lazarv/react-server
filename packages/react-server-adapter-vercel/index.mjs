@@ -1,6 +1,6 @@
 import { moduleAliases } from "@lazarv/react-server/lib/loader/module-alias.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
-import packageJson from "@lazarv/react-server/package.json" assert { type: "json" };
+import packageJson from "@lazarv/react-server/package.json" with { type: "json" };
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 import {
   CONFIG_CONTEXT,

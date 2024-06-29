@@ -5,14 +5,14 @@ import * as sys from "../sys.mjs";
 
 const cwd = sys.cwd();
 
-export default function useServer(manifest) {
+export default function useServer(type, manifest) {
   let viteCommand;
   return {
     name: "react-server:use-server",
-    async config(_, { command }) {
+    config(_, { command }) {
       viteCommand = command;
     },
-    async transform(code, id) {
+    async transform(code, id, options) {
       if (!code.includes("use server")) return null;
 
       const ast = acorn.parse(code, {
@@ -92,54 +92,157 @@ export default function useServer(manifest) {
           }),
       ];
 
-      for (const { name } of exports) {
-        ast.body.push({
-          type: "ExpressionStatement",
-          expression: {
-            type: "CallExpression",
-            callee: {
-              type: "Identifier",
-              name: "registerServerReference",
-            },
-            arguments: [
-              {
+      if (
+        (viteCommand === "serve" && this.environment?.name === "ssr") ||
+        type === "ssr"
+      ) {
+        ast.body = exports.map(({ name }) => {
+          return {
+            type: "ExportNamedDeclaration",
+            declaration: {
+              type: "FunctionDeclaration",
+              id: {
                 type: "Identifier",
-                name: name,
+                name,
               },
-              {
-                type: "Literal",
-                value: id,
+              params: [],
+              body: {
+                type: "BlockStatement",
+                body: [
+                  {
+                    type: "ThrowStatement",
+                    argument: {
+                      type: "NewExpression",
+                      callee: {
+                        type: "Identifier",
+                        name: "Error",
+                      },
+                      arguments: [
+                        {
+                          type: "Literal",
+                          value: `Warning: you are trying to call the "${name}" server action during server-side rendering from a client component.`,
+                        },
+                      ],
+                    },
+                  },
+                ],
               },
+            },
+          };
+        });
+      } else if (this.environment?.name === "client" || !options.ssr) {
+        ast.body = [
+          {
+            type: "ImportDeclaration",
+            specifiers: [
               {
-                type: "Literal",
-                value: name,
+                type: "ImportSpecifier",
+                imported: {
+                  type: "Identifier",
+                  name: "createServerReference",
+                },
+                local: {
+                  type: "Identifier",
+                  name: "createServerReference",
+                },
               },
             ],
+            source: {
+              type: "Literal",
+              value: "react-server-dom-webpack/client.browser",
+            },
+            importKind: "value",
           },
+          ...exports.map(({ name }) => {
+            return {
+              type: "ExportNamedDeclaration",
+              declaration: {
+                type: "VariableDeclaration",
+                kind: "const",
+                id: {
+                  type: "Identifier",
+                  name,
+                },
+                declarations: [
+                  {
+                    type: "VariableDeclarator",
+                    id: {
+                      type: "Identifier",
+                      name,
+                    },
+                    init: {
+                      type: "CallExpression",
+                      callee: {
+                        type: "Identifier",
+                        name: "createServerReference",
+                      },
+                      arguments: [
+                        {
+                          type: "Literal",
+                          value: `${id}#${name}`,
+                        },
+                        {
+                          type: "Identifier",
+                          name: "__react_server_callServer__",
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            };
+          }),
+        ];
+      } else {
+        for (const { name } of exports) {
+          ast.body.push({
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {
+                type: "Identifier",
+                name: "registerServerReference",
+              },
+              arguments: [
+                {
+                  type: "Identifier",
+                  name: name,
+                },
+                {
+                  type: "Literal",
+                  value: id,
+                },
+                {
+                  type: "Literal",
+                  value: name,
+                },
+              ],
+            },
+          });
+        }
+
+        ast.body.unshift({
+          type: "ImportDeclaration",
+          specifiers: [
+            {
+              type: "ImportSpecifier",
+              imported: {
+                type: "Identifier",
+                name: "registerServerReference",
+              },
+              local: {
+                type: "Identifier",
+                name: "registerServerReference",
+              },
+            },
+          ],
+          source: {
+            type: "Literal",
+            value: `${sys.rootDir}/server/action-register.mjs`,
+          },
+          importKind: "value",
         });
       }
-
-      ast.body.unshift({
-        type: "ImportDeclaration",
-        specifiers: [
-          {
-            type: "ImportSpecifier",
-            imported: {
-              type: "Identifier",
-              name: "registerServerReference",
-            },
-            local: {
-              type: "Identifier",
-              name: "registerServerReference",
-            },
-          },
-        ],
-        source: {
-          type: "Literal",
-          value: `${sys.rootDir}/server/action-register.mjs`,
-        },
-        importKind: "value",
-      });
 
       const gen = escodegen.generate(ast, {
         sourceMap: true,

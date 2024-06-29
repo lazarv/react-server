@@ -55,8 +55,8 @@ export function experimentalWarningSilence() {
       if (
         name === "warning" &&
         ((typeof data === "object" &&
-          data.name.includes("ExperimentalWarning")) ||
-          data.includes("ExperimentalWarning"))
+          data.name?.includes?.("ExperimentalWarning")) ||
+          data.includes?.("ExperimentalWarning"))
       ) {
         return false;
       }

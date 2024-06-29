@@ -49,6 +49,7 @@ export default async function serverBuild(root, options) {
       ],
       conditions: ["react-server"],
       externalConditions: ["react-server"],
+      dedupe: ["picocolors"],
     },
     customLogger,
     build: {
@@ -104,6 +105,7 @@ export default async function serverBuild(root, options) {
           "react-server-dom-webpack/client.browser",
           "react-server-dom-webpack/client.edge",
           "react-server-dom-webpack/server.edge",
+          "picocolors",
           ...(config.build?.rollupOptions?.external ?? []),
           ...(config.external ?? []),
         ],
@@ -115,7 +117,7 @@ export default async function serverBuild(root, options) {
             ),
           }),
           rollupUseClient("server", clientManifest),
-          rollupUseServer(serverManifest),
+          rollupUseServer("rsc", serverManifest),
           rollupUseServerInline(serverManifest),
           {
             name: "react-server:root-module",
@@ -251,6 +253,7 @@ export default async function serverBuild(root, options) {
               ),
             }),
             rollupUseClient("client"),
+            rollupUseServer("ssr"),
             ...(config.build?.rollupOptions?.plugins ?? []),
           ],
         },

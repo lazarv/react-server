@@ -17,26 +17,13 @@ function FlightComponent({ standalone = false, children }) {
     let mounted = true;
     const unregisterOutlet = registerOutlet(outlet, url);
     const unsubscribe = subscribe(outlet || url, (to, callback) => {
-      const Component = getFlightResponse(to, { outlet, standalone });
-      Component.then(
-        () => {
-          if (!mounted) return;
-          startTransition(async () => {
-            setError(null);
-            const result = Component.value;
-            setComponent(Component);
-            callback(null, result);
-          });
-        },
-        () => {
-          if (!mounted) return;
-          startTransition(() => {
-            setError(Component.reason);
-            const result = Component.value;
-            callback(Component.reason, result);
-          });
-        }
-      );
+      const nextComponent = getFlightResponse(to, { outlet, standalone });
+      if (!mounted) return;
+      startTransition(() => {
+        setError(null);
+        setComponent(nextComponent);
+        callback(null, nextComponent);
+      });
     });
     return () => {
       mounted = false;

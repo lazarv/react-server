@@ -72,10 +72,24 @@ export const createRenderer = ({
                   }
                   html = await resume(tree, postponed, {
                     formState,
+                    onError(e) {
+                      parentPort.postMessage({
+                        id,
+                        error: e.message,
+                        stack: e.stack,
+                      });
+                    },
                   });
                 } else {
                   html = await renderToReadableStream(tree, {
                     formState,
+                    onError(e) {
+                      parentPort.postMessage({
+                        id,
+                        error: e.message,
+                        stack: e.stack,
+                      });
+                    },
                   });
                 }
 

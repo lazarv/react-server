@@ -1,8 +1,10 @@
 import { startTransition, StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";
 
-import ClientProvider, { PAGE_ROOT } from "./ClientProvider.jsx";
+import ClientProvider, { PAGE_ROOT, streamOptions } from "./ClientProvider.jsx";
 import ReactServerComponent from "./ReactServerComponent.jsx";
+
+self.__react_server_callServer__ = streamOptions(PAGE_ROOT).callServer;
 
 function ReactServer() {
   return (

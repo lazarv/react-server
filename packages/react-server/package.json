@@ -92,25 +92,25 @@
     "mime": "^3.0.0",
     "module-alias": "^2.2.3",
     "open": "^9.1.0",
-    "picocolors": "^1.0.0",
+    "picocolors": "^1.0.1",
     "pino": "^8.14.1",
+    "react": "0.0.0-experimental-58af67a8f8-20240628",
+    "react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+    "react-server-dom-webpack": "0.0.0-experimental-58af67a8f8-20240628",
     "rimraf": "^5.0.1",
     "sass": "^1.63.6",
     "strip-ansi": "^7.1.0",
     "vite": "6.0.0-alpha.18"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-cc1ec60d0d-20240607",
-    "react-dom": "0.0.0-experimental-cc1ec60d0d-20240607",
-    "react-server-dom-webpack": "0.0.0-experimental-cc1ec60d0d-20240607"
+    "react": "0.0.0-experimental-58af67a8f8-20240628",
+    "react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+    "react-server-dom-webpack": "0.0.0-experimental-58af67a8f8-20240628"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "react": "0.0.0-experimental-cc1ec60d0d-20240607",
-    "react-dom": "0.0.0-experimental-cc1ec60d0d-20240607",
-    "react-server-dom-webpack": "0.0.0-experimental-cc1ec60d0d-20240607"
+    "@types/node": "^20"
   }
 }

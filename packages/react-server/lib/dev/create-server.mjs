@@ -14,7 +14,6 @@ import {
   RemoteEnvironmentTransport,
   createNodeDevEnvironment,
   createServer as createViteDevServer,
-  createLogger as createViteLogger,
 } from "vite";
 import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
 
@@ -42,6 +41,7 @@ import useClient from "../plugins/use-client.mjs";
 import useServerInline from "../plugins/use-server-inline.mjs";
 import useServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
+import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
 import createLogger from "./create-logger.mjs";
 import ssrHandler from "./ssr-handler.mjs";
@@ -90,7 +90,8 @@ export default async function createServer(root, options) {
     configFile: false,
     optimizeDeps: {
       ...config.optimizeDeps,
-      force: options.force ?? config.optimizeDeps?.force,
+      force: options.force || config.optimizeDeps?.force,
+      include: ["react-dom/client", "react-server-dom-webpack/client.browser"],
     },
     css: {
       ...config.css,
@@ -129,24 +130,15 @@ export default async function createServer(root, options) {
         ...(config.resolve?.alias ?? []),
       ],
     },
-    customLogger: createLogger(),
-    optimizeDeps: {
-      ...config.optimizeDeps,
-      include: ["react-dom/client", "react-server-dom-webpack/client.browser"],
-    },
+    customLogger:
+      config.customLogger ??
+      createLogger("info", {
+        prefix: `[react-server]`,
+      }),
     environments: {
       client: {
         resolve: {
           preserveSymlinks: false,
-          alias: [
-            { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
-            ...clientAlias(true),
-            ...(config.resolve?.alias ?? []),
-          ],
-        },
-        optimizeDeps: {
-          ...config.optimizeDeps,
-          include: ["react-dom/client"],
         },
         dev: {
           createEnvironment: (name, config) => {
@@ -155,18 +147,9 @@ export default async function createServer(root, options) {
               {
                 ...config,
                 resolve: {
-                  alias: [
-                    {
-                      find: /^@lazarv\/react-server$/,
-                      replacement: sys.rootDir,
-                    },
-                    ...clientAlias(true),
-                    ...(config.resolve?.alias ?? []),
-                  ],
+                  ...config.resolve,
+                  alias: [...clientAlias(true), ...config.resolve.alias],
                 },
-                logger: createViteLogger("info", {
-                  prefix: `[react-server]`,
-                }),
               },
               {}
             );
@@ -178,6 +161,7 @@ export default async function createServer(root, options) {
         resolve: {
           external: [
             "react",
+            "react/jsx-runtime",
             "react/jsx-dev-runtime",
             "react-dom",
             "react-dom/client",
@@ -195,28 +179,12 @@ export default async function createServer(root, options) {
                 root: sys.rootDir,
                 cacheDir: join(cwd, ".react-server/.cache/ssr"),
                 resolve: {
-                  external: [
-                    "react",
-                    "react/jsx-runtime",
-                    "react/jsx-dev-runtime",
-                    "react-dom",
-                    "react-dom/client",
-                    "react-server-dom-webpack",
-                  ],
+                  ...config.resolve,
                   alias: [
-                    {
-                      find: /^@lazarv\/react-server$/,
-                      replacement: sys.rootDir,
-                    },
                     ...clientAlias(true),
                     ...(config.resolve?.alias ?? []),
                   ],
-                  conditions: ["default"],
-                  externalConditions: ["default"],
                 },
-                logger: createViteLogger("info", {
-                  prefix: `[react-server]`,
-                }),
               },
               {
                 runner: {
@@ -240,9 +208,6 @@ export default async function createServer(root, options) {
       },
       rsc: {
         resolve: {
-          alias: [
-            { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
-          ],
           external: [
             "react",
             "react-dom",
@@ -252,6 +217,7 @@ export default async function createServer(root, options) {
           ],
           conditions: ["react-server"],
           externalConditions: ["react-server"],
+          dedupe: ["picocolors"],
         },
         dev: {
           createEnvironment: (name, config) => {
@@ -261,23 +227,6 @@ export default async function createServer(root, options) {
                 ...config,
                 root: sys.rootDir,
                 cacheDir: join(cwd, ".react-server/.cache/rsc"),
-                optimizeDeps: {
-                  ...config.optimizeDeps,
-                  include: [],
-                },
-                resolve: {
-                  external: [
-                    "react-dom",
-                    "react-server-dom-webpack",
-                    ...(config.ssr?.external ?? []),
-                    ...(config.external ?? []),
-                  ],
-                  conditions: ["react-server"],
-                  externalConditions: ["react-server"],
-                },
-                logger: createViteLogger("info", {
-                  prefix: `[react-server]`,
-                }),
               },
               {}
             );
@@ -313,7 +262,21 @@ export default async function createServer(root, options) {
     },
   };
 
-  const moduleRunner = new ModuleRunner(
+  class RSCModuleRunner extends ModuleRunner {
+    constructor(options, evaluator) {
+      super(options, evaluator);
+    }
+
+    async import(...args) {
+      try {
+        return await super.import(...args);
+      } catch (e) {
+        throw replaceError(e);
+      }
+    }
+  }
+
+  const moduleRunner = new RSCModuleRunner(
     {
       root: cwd,
       transport: viteDevServer.environments.rsc,
@@ -405,8 +368,9 @@ export default async function createServer(root, options) {
 
   return {
     listen: (...args) => {
-      viteDevServer.environments.client.hot.listen();
-      return viteDevServer.middlewares.listen(...args);
+      return viteDevServer.middlewares.listen(...args).once("listening", () => {
+        viteDevServer.environments.client.hot.listen();
+      });
     },
     close: () => {
       viteDevServer.close();

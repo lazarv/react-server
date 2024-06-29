@@ -141,7 +141,7 @@ window.addEventListener("popstate", () => {
     }
   });
 });
-const streamOptions = (outlet) => ({
+export const streamOptions = (outlet) => ({
   async callServer(id, args) {
     return new Promise(async (resolve, reject) => {
       try {

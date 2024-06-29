@@ -11,6 +11,7 @@ import { build as viteBuild } from "vite";
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
+import rollupUseServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
 import { chunks } from "./chunks.mjs";
@@ -113,6 +114,7 @@ export default async function clientBuild(_, options) {
             ),
           }),
           rollupUseClient("client"),
+          rollupUseServer("client"),
         ],
       },
     },

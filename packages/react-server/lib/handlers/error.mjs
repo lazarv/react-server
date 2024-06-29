@@ -9,6 +9,7 @@ import {
   HTTP_STATUS,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import { replaceError } from "../utils/error.mjs";
 
 function cleanStack(stack) {
   return stack
@@ -108,6 +109,8 @@ function plainResponse(e) {
 
 export default async function errorHandler(err) {
   try {
+    err = replaceError(err);
+
     const server = getContext(SERVER_CONTEXT);
     // TODO: is there a better way to check if this is a vite dev server?
     if (typeof server?.ssrFixStacktrace !== "function") {

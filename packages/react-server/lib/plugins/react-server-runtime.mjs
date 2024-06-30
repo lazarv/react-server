@@ -21,7 +21,7 @@ const reactServerDir = reactServerInstalled ? "@lazarv/react-server" : rootDir;
 export default function viteReactServerRuntime() {
   let config = {};
   return {
-    name: "react-server-runtime",
+    name: "react-server:runtime",
     configResolved(resolvedConfig) {
       config = resolvedConfig;
     },

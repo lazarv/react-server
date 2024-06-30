@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
-import viteReact from "@vitejs/plugin-react";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
@@ -14,6 +13,10 @@ import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
+import {
+  filterOutVitePluginReact,
+  userOrBuiltInVitePluginReact,
+} from "../utils/plugins.mjs";
 import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
 
@@ -35,6 +38,10 @@ export default async function serverBuild(root, options) {
   const config = forRoot();
   const clientManifest = new Map();
   const serverManifest = new Map();
+  const buildPlugins = [
+    ...userOrBuiltInVitePluginReact(config.plugins),
+    ...filterOutVitePluginReact(config.plugins),
+  ];
   const buildConfig = {
     root: cwd,
     resolve: {
@@ -191,8 +198,7 @@ export default async function serverBuild(root, options) {
           ]
         : []),
       reactServerEval(options),
-      viteReact(),
-      ...(config.plugins ?? []),
+      ...buildPlugins,
     ],
     css: {
       ...config.css,
@@ -258,7 +264,7 @@ export default async function serverBuild(root, options) {
           ],
         },
       },
-      plugins: [viteReact(), ...(config.plugins ?? [])],
+      plugins: [...buildPlugins],
       ssr: {
         ...config.ssr,
       },

@@ -42,10 +42,21 @@
   ],
   "pnpm": {
     "overrides": {
-      "react-click-away-listener>react": "19.0.0-rc-cc1ec60d0d-20240607",
-      "react-click-away-listener>react-dom": "19.0.0-rc-cc1ec60d0d-20240607",
+      "react-click-away-listener>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "react-click-away-listener>react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+      "react-router-dom>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "react-router-dom>react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+      "react-router>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "@tanstack/react-router>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "@tanstack/react-router>react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+      "@tanstack/react-store>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "@tanstack/react-store>react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+      "use-sync-external-store>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "@tanstack/router-devtools>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "@tanstack/router-devtools>react-dom": "0.0.0-experimental-58af67a8f8-20240628",
       "vite-plugin-svgr>vite": "6.0.0-alpha.18",
       "@vitejs/plugin-react>vite": "6.0.0-alpha.18",
+      "@vitejs/plugin-react-swc>vite": "6.0.0-alpha.18",
       "supertest>superagent": "9.0.2"
     }
   }

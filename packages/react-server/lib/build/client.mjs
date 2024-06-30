@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
-import viteReact from "@vitejs/plugin-react";
 import colors from "picocolors";
 import { build as viteBuild } from "vite";
 
@@ -13,6 +12,10 @@ import merge from "../../lib/utils/merge.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
+import {
+  filterOutVitePluginReact,
+  userOrBuiltInVitePluginReact,
+} from "../utils/plugins.mjs";
 import banner from "./banner.mjs";
 import { chunks } from "./chunks.mjs";
 import customLogger from "./custom-logger.mjs";
@@ -118,7 +121,10 @@ export default async function clientBuild(_, options) {
         ],
       },
     },
-    plugins: [viteReact(), ...(config.plugins ?? [])],
+    plugins: [
+      ...userOrBuiltInVitePluginReact(config.plugins),
+      ...filterOutVitePluginReact(config.plugins),
+    ],
     css: {
       ...config.css,
       postcss: cwd,

@@ -8,7 +8,6 @@ import { compose } from "@hattip/compose";
 import { cookie } from "@hattip/cookie";
 import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
-import react from "@vitejs/plugin-react";
 import {
   DevEnvironment,
   RemoteEnvironmentTransport,
@@ -43,6 +42,10 @@ import useServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
+import {
+  filterOutVitePluginReact,
+  userOrBuiltInVitePluginReact,
+} from "../utils/plugins.mjs";
 import createLogger from "./create-logger.mjs";
 import ssrHandler from "./ssr-handler.mjs";
 
@@ -115,11 +118,11 @@ export default async function createServer(root, options) {
         : []),
       reactServerEval(options),
       reactServerRuntime(),
-      react(),
+      ...userOrBuiltInVitePluginReact(config.plugins),
       useClient(),
       useServer(),
       useServerInline(),
-      ...(config.plugins ?? []),
+      ...filterOutVitePluginReact(config.plugins),
     ],
     cacheDir: join(cwd, ".react-server/.cache/client"),
     resolve: {
@@ -169,6 +172,7 @@ export default async function createServer(root, options) {
           ],
           conditions: ["default"],
           externalConditions: ["default"],
+          dedupe: ["react", "react-dom", "picocolors"],
         },
         dev: {
           createEnvironment: (name, config) => {
@@ -217,7 +221,7 @@ export default async function createServer(root, options) {
           ],
           conditions: ["react-server"],
           externalConditions: ["react-server"],
-          dedupe: ["picocolors"],
+          dedupe: ["react", "react-dom", "picocolors"],
         },
         dev: {
           createEnvironment: (name, config) => {

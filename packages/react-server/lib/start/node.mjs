@@ -14,7 +14,7 @@ export function reactServer(root, options = {}) {
 
   return new Promise(async (resolve, reject) => {
     try {
-      const config = await loadConfig();
+      const config = await loadConfig({}, options);
 
       await runtime_init$(async () => {
         runtime$(CONFIG_CONTEXT, config);

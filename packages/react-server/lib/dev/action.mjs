@@ -20,7 +20,7 @@ import createServer from "./create-server.mjs";
 
 export default async function dev(root, options) {
   try {
-    const config = await loadConfig();
+    const config = await loadConfig({}, options);
     const configRoot = config[CONFIG_ROOT];
 
     await runtime_init$(async () => {

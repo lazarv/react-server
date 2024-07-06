@@ -29,6 +29,7 @@ function size(bytes) {
 }
 
 function log(
+  outDir,
   normalizedBasename,
   htmlStat,
   gzipStat,
@@ -37,7 +38,7 @@ function log(
   maxFilenameLength
 ) {
   console.log(
-    `${colors.dim(".react-server/dist/")}${colors.green(
+    `${colors.dim(`${outDir}/dist/`)}${colors.green(
       dirname(normalizedBasename).replace(".", "")
     )}${colors.cyan(
       (dirname(normalizedBasename) === "." ? "" : "/") +
@@ -57,8 +58,12 @@ export default async function staticSiteGenerator(root, options) {
   const config = getContext(CONFIG_CONTEXT);
 
   await runtime_init$(async () => {
+    const { exportPaths: _, ...baseOptions } = options;
     const worker = new Worker(
-      new URL("../start/render-stream.mjs", import.meta.url)
+      new URL("../start/render-stream.mjs", import.meta.url),
+      {
+        workerData: { root, options: baseOptions },
+      }
     );
     runtime$(WORKER_THREAD, worker);
     runtime$(CONFIG_CONTEXT, config);
@@ -121,7 +126,7 @@ export default async function staticSiteGenerator(root, options) {
               }:${config.port ?? 3000}${path}`
             );
             if (!out) {
-              await mkdir(join(cwd, ".react-server/dist", path), {
+              await mkdir(join(cwd, options.outDir, "dist", path), {
                 recursive: true,
               });
             }
@@ -133,7 +138,8 @@ export default async function staticSiteGenerator(root, options) {
             ).replace(/^\/+/g, "");
             const filename = join(
               cwd,
-              ".react-server/dist",
+              options.outDir,
+              "dist",
               normalizedBasename
             );
 
@@ -162,6 +168,7 @@ export default async function staticSiteGenerator(root, options) {
               const outStat = await stat(filename);
 
               log(
+                options.outDir,
                 normalizedBasename,
                 outStat,
                 { size: 0 },
@@ -202,6 +209,7 @@ export default async function staticSiteGenerator(root, options) {
                 ]);
 
               log(
+                options.outDir,
                 normalizedBasename,
                 htmlStat,
                 gzipStat,
@@ -236,7 +244,7 @@ export default async function staticSiteGenerator(root, options) {
                 },
               });
               const html = await stream.text();
-              await mkdir(join(cwd, ".react-server/dist", path), {
+              await mkdir(join(cwd, options.outDir, "dist", path), {
                 recursive: true,
               });
               const normalizedPath = path
@@ -246,7 +254,8 @@ export default async function staticSiteGenerator(root, options) {
                 `${normalizedPath}/x-component.rsc`.replace(/^\/+/g, "");
               const filename = join(
                 cwd,
-                ".react-server/dist",
+                options.outDir,
+                "dist",
                 normalizedBasename
               );
               const gzip = createGzip();
@@ -265,6 +274,7 @@ export default async function staticSiteGenerator(root, options) {
               ]);
 
               log(
+                options.outDir,
                 normalizedBasename,
                 htmlStat,
                 gzipStat,

@@ -107,7 +107,10 @@ export default function useServerInline(manifest) {
               useServerNode.name = useServerAction.name;
             }
 
-            if (useServerAction.parent?.type === "BlockStatement") {
+            if (
+              useServerAction.parent?.type === "BlockStatement" ||
+              useServerAction.parent?.type === "Program"
+            ) {
               useServerAction.parent.body = useServerAction.parent.body.map(
                 (n) =>
                   n === useServerAction.node

@@ -1,6 +1,7 @@
 import { createRequire, register } from "node:module";
-
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+
 import { forChild } from "../../config/index.mjs";
 import { init$ as memory_cache_init$ } from "../../memory-cache/index.mjs";
 import { ContextStorage, getContext } from "../../server/context.mjs";
@@ -42,14 +43,15 @@ globalThis.AsyncLocalStorage = ContextManager;
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
-const defaultRoot = `${cwd}/.react-server/server/index.mjs`;
-export default async function ssrHandler(root) {
+export default async function ssrHandler(root, options = {}) {
+  const outDir = options.outDir ?? ".react-server";
+  const defaultRoot = join(cwd, outDir, "server/index.mjs");
   const config = getRuntime(CONFIG_CONTEXT);
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 
-  await manifest_init$();
+  await manifest_init$("server", options);
 
-  const entryModule = __require.resolve("./.react-server/server/render.mjs", {
+  const entryModule = __require.resolve(`./${outDir}/server/render.mjs`, {
     paths: [cwd],
   });
   const rootModule = __require.resolve(

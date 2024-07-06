@@ -14,6 +14,9 @@ export default (cli) =>
     .option("--client", "[boolean] build client", { default: true })
     .option("--export", "[boolean] static export", { default: false })
     .option("--deploy", "[boolean] deploy using adapter", { default: false })
+    .option("--outDir <dir>", "[string] output directory", {
+      default: ".react-server",
+    })
     .action(async (...args) =>
       (await import("../../lib/build/action.mjs")).default(...args)
     );

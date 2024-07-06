@@ -21,10 +21,6 @@ import colors from "picocolors";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
-const reactServerDir = join(cwd, ".react-server");
-const distDir = join(reactServerDir, "dist");
-const clientDir = join(reactServerDir, "client");
-const assetsDir = join(reactServerDir, "assets");
 const vercelDir = join(cwd, ".vercel");
 const outDir = join(vercelDir, "output");
 const outStaticDir = join(outDir, "static");
@@ -71,6 +67,12 @@ function createProgress(message, total, start = 0) {
 }
 
 export async function adapter(adapterOptions, root, options) {
+  const reactServerOutDir = options.outDir ?? ".react-server";
+  const reactServerDir = join(cwd, reactServerOutDir);
+  const distDir = join(reactServerDir, "dist");
+  const clientDir = join(reactServerDir, "client");
+  const assetsDir = join(reactServerDir, "assets");
+
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
   const publicDir = join(
     cwd,
@@ -97,7 +99,7 @@ export async function adapter(adapterOptions, root, options) {
         const src = join(distDir, file);
         const dest = join(outStaticDir, file);
         console.log(
-          `copy ${colors.gray(`.react-server/dist/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/${colors.cyan(file)}`)}`
+          `copy ${colors.gray(`${reactServerOutDir}/dist/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/${colors.cyan(file)}`)}`
         );
         await cp(src, dest);
       })
@@ -116,7 +118,7 @@ export async function adapter(adapterOptions, root, options) {
         const src = join(assetsDir, file);
         const dest = join(outStaticDir, "assets", file);
         console.log(
-          `copy ${colors.gray(`.react-server/assets/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/assets/${colors.cyan(file)}`)}`
+          `copy ${colors.gray(`${reactServerOutDir}/assets/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/assets/${colors.cyan(file)}`)}`
         );
         await cp(src, dest);
       })
@@ -135,7 +137,7 @@ export async function adapter(adapterOptions, root, options) {
         const src = join(clientDir, file);
         const dest = join(outStaticDir, "client", file);
         console.log(
-          `copy ${colors.gray(`.react-server/client/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/client/${colors.cyan(file)}`)}`
+          `copy ${colors.gray(`${reactServerOutDir}/client/${colors.cyan(file)}`)} => ${colors.gray(`.vercel/output/static/client/${colors.cyan(file)}`)}`
         );
         await cp(src, dest);
       })

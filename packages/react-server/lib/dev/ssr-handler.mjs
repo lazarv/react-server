@@ -38,6 +38,9 @@ export default async function ssrHandler(root) {
   const ssrLoadModule = getRuntime(MODULE_LOADER);
   const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
+  const formDataParser = getRuntime(FORM_DATA_PARSER);
+  const memoryCacheContext = getRuntime(MEMORY_CACHE_CONTEXT);
+  const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const renderStream = createWorker();
   const moduleCacheStorage = new ContextManager();
 
@@ -59,10 +62,10 @@ export default async function ssrHandler(root) {
                   "/"
                 )
             ),
-            [FORM_DATA_PARSER]: getRuntime(FORM_DATA_PARSER),
-            [MEMORY_CACHE_CONTEXT]: getRuntime(MEMORY_CACHE_CONTEXT),
+            [FORM_DATA_PARSER]: formDataParser,
+            [MEMORY_CACHE_CONTEXT]: memoryCacheContext,
             [REDIRECT_CONTEXT]: {},
-            [COLLECT_STYLESHEETS]: getRuntime(COLLECT_STYLESHEETS),
+            [COLLECT_STYLESHEETS]: collectStylesheets,
             [ACTION_CONTEXT]: {},
             [RENDER_STREAM]: renderStream,
           },

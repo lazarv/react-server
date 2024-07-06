@@ -32,7 +32,14 @@ const remoteTransport = new RemoteRunnerTransport({
   timeout: 5000,
 });
 remoteTransport.fetchModule = (id, importer) => {
-  if (["react", "react/jsx-dev-runtime", "react-dom/client"].includes(id)) {
+  if (
+    [
+      "react",
+      "react/jsx-dev-runtime",
+      "react-dom/client",
+      "react-server-dom-webpack/client.edge",
+    ].includes(id)
+  ) {
     return { externalize: id };
   }
   return remoteTransport.resolve("fetchModule", id, importer);

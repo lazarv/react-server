@@ -76,7 +76,8 @@ const reactServerRouterDtsTemplate = await readFile(
   "utf8"
 );
 
-export default function viteReactServerRouter() {
+export default function viteReactServerRouter(options = {}) {
+  const outDir = options.outDir ?? ".react-server";
   const entry = {
     layouts: [],
     pages: [],
@@ -321,11 +322,11 @@ export default function viteReactServerRouter() {
     if (viteCommand !== "build") {
       const writeTypedRouter = async () => {
         await writeFile(
-          join(cwd, ".react-server", "react-server-router.d.ts"),
+          join(cwd, outDir, "react-server-router.d.ts"),
           reactServerRouterDts
         );
         logger.info(
-          `Types generated successfully at ${colors.cyan(".react-server/react-server-router.d.ts")}`
+          `Types generated successfully at ${colors.cyan(join(outDir, "react-server-router.d.ts"))}`
         );
         debounceTypesGeneration = null;
       };
@@ -361,7 +362,7 @@ export default function viteReactServerRouter() {
     if (viteCommand !== "build")
       logger.info("Initializing router configuration");
     try {
-      config = await loadConfig();
+      config = await loadConfig({}, options);
       configRoot = forRoot(config);
 
       root = configRoot.root;
@@ -609,7 +610,7 @@ export default function viteReactServerRouter() {
                 .update(await readFile(src, "utf8"))
                 .digest("hex");
               const exportEntry = pathToFileURL(
-                join(cwd, ".react-server", "static", `${hash}.mjs`)
+                join(cwd, outDir, "static", `${hash}.mjs`)
               );
               config.build.rollupOptions.input[join("static", hash)] =
                 staticSrc;

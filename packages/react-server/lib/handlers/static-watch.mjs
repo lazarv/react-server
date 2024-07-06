@@ -1,4 +1,4 @@
-import { open, readFile } from "node:fs/promises";
+import { open, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import { watch } from "chokidar";
@@ -8,6 +8,11 @@ import { normalizePath } from "../sys.mjs";
 export default async function staticHandler(dir, options = {}) {
   const files = new Map();
   const fileCache = new Map();
+
+  const dirExsists = await stat(dir).catch(() => false);
+  if (!dirExsists) {
+    return;
+  }
 
   const watcher = watch(`${dir}/**/*`, {
     cwd: options.cwd,

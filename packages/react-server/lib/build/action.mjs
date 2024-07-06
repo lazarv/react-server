@@ -20,7 +20,10 @@ import staticSiteGenerator from "./static.mjs";
 const cwd = sys.cwd();
 
 export default async function build(root, options) {
-  const config = await loadConfig();
+  if (!options.outDir) {
+    options.outDir = ".react-server";
+  }
+  const config = await loadConfig({}, options);
 
   await new Promise((resolve) => {
     ContextStorage.run(
@@ -36,11 +39,11 @@ export default async function build(root, options) {
           }
           // empty out dir
           if (options.server && options.client)
-            await rimraf(join(cwd, ".react-server"));
+            await rimraf(join(cwd, options.outDir));
           else if (options.server)
-            await rimraf(join(cwd, ".react-server/server"));
+            await rimraf(join(cwd, options.outDir, "server"));
           else if (options.client)
-            await rimraf(join(cwd, ".react-server/client"));
+            await rimraf(join(cwd, options.outDir, "client"));
           // build server
           let buildOutput = false;
           if (options.server) {
@@ -57,7 +60,7 @@ export default async function build(root, options) {
             options.export ||
             typeof config[CONFIG_ROOT]?.export !== "undefined"
           ) {
-            await rimraf(join(cwd, ".react-server/dist"));
+            await rimraf(join(cwd, options.outDir, "dist"));
             await staticSiteGenerator(root, options);
           }
           await adapter(root, options);

@@ -9,12 +9,12 @@ export function reactServer(root, options = {}) {
   return new Promise(async (resolve, reject) => {
     try {
       const { default: createServer } = await import("./create-server.mjs");
-      const config = await loadConfig();
+      const config = await loadConfig({}, options);
 
       await runtime_init$(async () => {
         runtime$(CONFIG_CONTEXT, config);
         const server = await createServer(root, options);
-        server.ws.listen();
+        if (config.server?.hmr !== false) server.ws.listen();
         resolve(server);
       });
     } catch (e) {

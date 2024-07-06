@@ -236,9 +236,13 @@ export const createRenderer = ({
                     (hasClientComponent || isDevelopment)
                   ) {
                     if (hasClientComponent) {
+                      if (contentLength === 0) {
+                        hydrationContainer = "document.body";
+                      }
+
                       // TODO: bootstrapScripts should be buffers instead of strings, fix script parts should be pre-encoded buffers then yield copy of those buffers
                       const script = encoder.encode(
-                        `<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
+                        `<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=()=>${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
                           ""
                         )}</script>${
                           importMap
@@ -246,16 +250,12 @@ export const createRenderer = ({
                                 importMap
                               )}</script>`
                             : ""
-                        }${
-                          contentLength > 0
-                            ? bootstrapModules
-                                .map(
-                                  (mod) =>
-                                    `<script type="module" src="${mod}" async></script>`
-                                )
-                                .join("")
-                            : ""
-                        }`
+                        }${bootstrapModules
+                          .map(
+                            (mod) =>
+                              `<script type="module" src="${mod}" async></script>`
+                          )
+                          .join("")}`
                       );
                       yield script;
                       hydrated = true;

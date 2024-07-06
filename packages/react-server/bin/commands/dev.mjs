@@ -18,6 +18,9 @@ export default (cli) =>
     })
     .option("--no-color", "disable color output", { default: false })
     .option("-e, --eval <code>", "evaluate code", { type: "string" })
+    .option("--outDir <dir>", "[string] output directory", {
+      default: ".react-server",
+    })
     .action(async (...args) => {
       setEnv("NODE_ENV", "development");
       return (await import("../../lib/dev/action.mjs")).default(...args);

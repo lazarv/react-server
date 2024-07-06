@@ -13,6 +13,9 @@ export default (cli) =>
     .option("--trust-proxy", "[boolean] trust proxy", { default: false })
     .option("--build <root>", "[string] build root", { default: "" })
     .option("--dev", "[boolean] development mode", { default: false })
+    .option("--outDir <dir>", "[string] output directory", {
+      default: ".react-server",
+    })
     .action(async (...args) => {
       setEnv("NODE_ENV", "production");
       return (await import("../../lib/start/action.mjs")).default(...args);

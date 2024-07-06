@@ -27,7 +27,12 @@ import ssrHandler from "./ssr-handler.mjs";
 const cwd = sys.cwd();
 
 export default async function createServer(root, options) {
-  const worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
+  if (!options.outDir) {
+    options.outDir = ".react-server";
+  }
+  const worker = new Worker(new URL("./render-stream.mjs", import.meta.url), {
+    workerData: { root, options },
+  });
   runtime$(WORKER_THREAD, worker);
 
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
@@ -50,12 +55,12 @@ export default async function createServer(root, options) {
     typeof config.public === "string" ? config.public : "public";
   const initialHandlers = [
     async () => PrerenderStorage.enterWith({}),
-    await staticHandler(join(cwd, ".react-server/dist"), {
-      cwd: ".react-server/dist",
+    await staticHandler(join(cwd, options.outDir, "dist"), {
+      cwd: join(options.outDir, "dist"),
     }),
-    await staticHandler("{client,assets}", { cwd: ".react-server" }),
-    await staticHandler(join(cwd, ".react-server"), {
-      cwd: ".react-server",
+    await staticHandler("{client,assets}", { cwd: options.outDir }),
+    await staticHandler(join(cwd, options.outDir), {
+      cwd: options.outDir,
     }),
     ...(config.public !== false
       ? [
@@ -67,7 +72,7 @@ export default async function createServer(root, options) {
     await trailingSlashHandler(),
     cookie(config.cookies),
     ...(config.handlers?.pre ?? []),
-    await ssrHandler(root),
+    await ssrHandler(root, options),
     ...(config.handlers?.post ?? []),
     await notFoundHandler(),
   ];

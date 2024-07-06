@@ -12,6 +12,7 @@ export default function createLogger(level = "info", options) {
   let repeatCount = 0;
 
   const repeatMessage = (msg) => {
+    if (!process.stdout.isTTY) return msg;
     if (msg === prevMessage) {
       repeatCount++;
       deleteLastXLines(msg.split("\n").length);

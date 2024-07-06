@@ -1,5 +1,5 @@
 import { register } from "node:module";
-import { parentPort } from "node:worker_threads";
+import { parentPort, workerData } from "node:worker_threads";
 
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { createRenderer } from "../../server/render-dom.mjs";
@@ -18,7 +18,7 @@ setEnv("NODE_ENV", "production");
 await runtime_init$(async () => {
   const moduleCacheStorage = new ContextManager();
   const linkQueueStorage = new ContextManager();
-  await manifest_init$("client");
+  await manifest_init$("client", workerData.options);
   const moduleLoader = getRuntime(MODULE_LOADER);
   await module_loader_init$(moduleLoader, moduleCacheStorage, linkQueueStorage);
 

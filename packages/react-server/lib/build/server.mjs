@@ -62,7 +62,7 @@ export default async function serverBuild(root, options) {
     build: {
       ...config.build,
       target: "esnext",
-      outDir: ".react-server",
+      outDir: options.outDir,
       emptyOutDir: false,
       minify: options.minify,
       manifest: "server/server-manifest.json",
@@ -73,7 +73,7 @@ export default async function serverBuild(root, options) {
         ...config.build?.rollupOptions,
         preserveEntrySignatures: "allow-extension",
         output: {
-          dir: ".react-server",
+          dir: options.outDir,
           format: "esm",
           entryFileNames: "[name].mjs",
           chunkFileNames: "server/[name].[hash].mjs",
@@ -194,7 +194,7 @@ export default async function serverBuild(root, options) {
                     })
                   )
                 )
-              ).default())(),
+              ).default())(options),
           ]
         : []),
       reactServerEval(options),
@@ -273,7 +273,7 @@ export default async function serverBuild(root, options) {
     await viteBuild(viteConfigClientComponents);
   } else {
     await writeFile(
-      join(cwd, ".react-server/server/client-manifest.json"),
+      join(cwd, options.outDir, "server/client-manifest.json"),
       "{}",
       "utf8"
     );

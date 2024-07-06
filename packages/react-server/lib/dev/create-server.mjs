@@ -56,6 +56,9 @@ const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
 export default async function createServer(root, options) {
+  if (!options.outDir) {
+    options.outDir = ".react-server";
+  }
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT];
   let reactServerRouterModule;
   try {
@@ -76,10 +79,13 @@ export default async function createServer(root, options) {
       ...config.server,
       middlewareMode: true,
       cors: options.cors ?? config.server?.cors,
-      hmr: {
-        port: 21678 + parseInt(options.port ?? config.server?.port ?? 0),
-        ...config.server?.hmr,
-      },
+      hmr:
+        config.server?.hmr === false
+          ? false
+          : {
+              port: 21678 + parseInt(options.port ?? config.server?.port ?? 0),
+              ...config.server?.hmr,
+            },
       https: options.https ?? config.server?.https,
       fs: {
         ...config.server?.fs,
@@ -94,7 +100,11 @@ export default async function createServer(root, options) {
     optimizeDeps: {
       ...config.optimizeDeps,
       force: options.force || config.optimizeDeps?.force,
-      include: ["react-dom/client", "react-server-dom-webpack/client.browser"],
+      include: [
+        "react-dom",
+        "react-dom/client",
+        "react-server-dom-webpack/client.browser",
+      ],
     },
     css: {
       ...config.css,
@@ -113,7 +123,7 @@ export default async function createServer(root, options) {
                     })
                   )
                 )
-              ).default())(),
+              ).default())(options),
           ]
         : []),
       reactServerEval(options),
@@ -124,7 +134,7 @@ export default async function createServer(root, options) {
       useServerInline(),
       ...filterOutVitePluginReact(config.plugins),
     ],
-    cacheDir: join(cwd, ".react-server/.cache/client"),
+    cacheDir: join(cwd, options.outDir, ".cache/client"),
     resolve: {
       ...config.resolve,
       preserveSymlinks: true,
@@ -181,7 +191,7 @@ export default async function createServer(root, options) {
               {
                 ...config,
                 root: sys.rootDir,
-                cacheDir: join(cwd, ".react-server/.cache/ssr"),
+                cacheDir: join(cwd, options.outDir, ".cache/ssr"),
                 resolve: {
                   ...config.resolve,
                   alias: [
@@ -230,7 +240,7 @@ export default async function createServer(root, options) {
               {
                 ...config,
                 root: sys.rootDir,
-                cacheDir: join(cwd, ".react-server/.cache/rsc"),
+                cacheDir: join(cwd, options.outDir, ".cache/rsc"),
               },
               {}
             );
@@ -255,7 +265,7 @@ export default async function createServer(root, options) {
         .normalizePath(
           sys.normalizePath(data.triggeredBy)?.replace(sys.rootDir, cwd + "/")
         )
-        .replace(/\/+/g, "/");
+        ?.replace(/\/+/g, "/");
       if (
         !viteDevServer.environments.client.moduleGraph.idToModuleMap.has(
           data.triggeredBy

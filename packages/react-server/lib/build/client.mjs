@@ -28,7 +28,7 @@ export default async function clientBuild(_, options) {
   let clientManifest;
   try {
     const { default: _clientManifest } = await import(
-      pathToFileURL(join(cwd, ".react-server/server/client-manifest.json")),
+      pathToFileURL(join(cwd, options.outDir, "server/client-manifest.json")),
       {
         with: { type: "json" },
       }
@@ -47,9 +47,9 @@ export default async function clientBuild(_, options) {
         colors.yellow("No client manifest found. Skipping client build.")
       );
     }
-    await mkdir(join(cwd, ".react-server/client"), { recursive: true });
+    await mkdir(join(cwd, options.outDir, "client"), { recursive: true });
     await writeFile(
-      join(cwd, ".react-server/client/browser-manifest.json"),
+      join(cwd, options.outDir, "client/browser-manifest.json"),
       "{}",
       "utf8"
     );
@@ -79,7 +79,7 @@ export default async function clientBuild(_, options) {
     customLogger,
     build: {
       target: "esnext",
-      outDir: ".react-server",
+      outDir: options.outDir,
       emptyOutDir: false,
       minify: options.minify,
       manifest: "client/browser-manifest.json",
@@ -87,7 +87,7 @@ export default async function clientBuild(_, options) {
       rollupOptions: {
         preserveEntrySignatures: "allow-extension",
         output: {
-          dir: ".react-server",
+          dir: options.outDir,
           format: "esm",
           entryFileNames: "[name].[hash].mjs",
           chunkFileNames: "client/[name].[hash].mjs",

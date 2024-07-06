@@ -1,5 +1,6 @@
 import * as acorn from "acorn";
 import * as escodegen from "escodegen";
+import * as estraverse from "estraverse";
 import { extname, relative } from "node:path";
 import * as sys from "../sys.mjs";
 
@@ -98,6 +99,23 @@ registerClientReference(${name}, "${sys.normalizePath(relative(cwd, id))}", "${n
           sourceFile: id,
           locations: true,
         });
+
+        if (mode === "build") {
+          estraverse.traverse(ast, {
+            enter(node) {
+              if (
+                node.type === "ImportDeclaration" ||
+                node.type === "ImportExpression"
+              ) {
+                clientReferenceAst.body.unshift({
+                  ...node,
+                  specifiers: [],
+                });
+              }
+            },
+          });
+        }
+
         const gen = escodegen.generate(clientReferenceAst, {
           sourceMap: true,
           sourceMapWithCode: true,

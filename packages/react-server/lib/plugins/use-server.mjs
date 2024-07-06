@@ -9,10 +9,8 @@ export default function useServer(type, manifest) {
   let viteCommand;
   return {
     name: "react-server:use-server",
-    config(_, { command }) {
-      viteCommand = command;
-    },
     async transform(code, id, options) {
+      const mode = this.environment.mode;
       if (!code.includes("use server")) return null;
 
       const ast = acorn.parse(code, {
@@ -32,23 +30,23 @@ export default function useServer(type, manifest) {
           "Cannot use both 'use client' and 'use server' in the same module."
         );
 
-      if (viteCommand === "build") {
-        ast.body = ast.body.filter(
-          (node) =>
-            node.type !== "ExpressionStatement" ||
-            node.directive !== "use server"
-        );
+      // if (mode === "build") {
+      //   ast.body = ast.body.filter(
+      //     (node) =>
+      //       node.type !== "ExpressionStatement" ||
+      //       node.directive !== "use server"
+      //   );
 
-        const gen = escodegen.generate(ast, {
-          sourceMap: true,
-          sourceMapWithCode: true,
-        });
+      //   const gen = escodegen.generate(ast, {
+      //     sourceMap: true,
+      //     sourceMapWithCode: true,
+      //   });
 
-        return {
-          code: gen.code,
-          map: gen.map.toString(),
-        };
-      }
+      //   return {
+      //     code: gen.code,
+      //     map: gen.map.toString(),
+      //   };
+      // }
 
       const exports = [
         ...(ast.body.some(
@@ -93,43 +91,67 @@ export default function useServer(type, manifest) {
       ];
 
       if (
-        (viteCommand === "serve" && this.environment?.name === "ssr") ||
+        (mode === "dev" && this.environment?.name === "ssr") ||
         type === "ssr"
       ) {
-        ast.body = exports.map(({ name }) => {
-          return {
-            type: "ExportNamedDeclaration",
-            declaration: {
-              type: "FunctionDeclaration",
-              id: {
-                type: "Identifier",
-                name,
+        ast.body = [
+          {
+            type: "ImportDeclaration",
+            specifiers: [
+              {
+                type: "ImportSpecifier",
+                imported: {
+                  type: "Identifier",
+                  name: "createServerReference",
+                },
+                local: {
+                  type: "Identifier",
+                  name: "createServerReference",
+                },
               },
-              params: [],
-              body: {
-                type: "BlockStatement",
-                body: [
+            ],
+            source: {
+              type: "Literal",
+              value: "react-server-dom-webpack/client.edge",
+            },
+            importKind: "value",
+          },
+          ...exports.map(({ name }) => {
+            return {
+              type: "ExportNamedDeclaration",
+              declaration: {
+                type: "VariableDeclaration",
+                kind: "const",
+                id: {
+                  type: "Identifier",
+                  name,
+                },
+                declarations: [
                   {
-                    type: "ThrowStatement",
-                    argument: {
-                      type: "NewExpression",
+                    type: "VariableDeclarator",
+                    id: {
+                      type: "Identifier",
+                      name,
+                    },
+                    init: {
+                      type: "CallExpression",
                       callee: {
                         type: "Identifier",
-                        name: "Error",
+                        name: "createServerReference",
                       },
                       arguments: [
                         {
                           type: "Literal",
-                          value: `Warning: you are trying to call the "${name}" server action during server-side rendering from a client component.`,
+                          value: `${id}#${name}`,
                         },
                       ],
                     },
                   },
                 ],
               },
-            },
-          };
-        });
+            };
+          }),
+        ];
       } else if (this.environment?.name === "client" || !options.ssr) {
         ast.body = [
           {
@@ -249,11 +271,14 @@ export default function useServer(type, manifest) {
         sourceMapWithCode: true,
       });
 
-      if (manifest) {
-        const specifier = relative(cwd, id);
-        const name = specifier.replace(extname(specifier), "");
-        manifest.set(name, id);
+      const specifier = relative(cwd, id);
+      const name = specifier.replace(extname(specifier), "");
 
+      if (manifest) {
+        manifest.set(name, id);
+      }
+
+      if (mode === "build") {
         this.emitFile({
           type: "chunk",
           id,

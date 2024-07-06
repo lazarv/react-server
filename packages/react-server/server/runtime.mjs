@@ -23,10 +23,14 @@ export function runtime$(type, context) {
 }
 
 export async function init$(callback) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     RuntimeContextStorage.run({}, async () => {
-      await callback();
-      resolve();
+      try {
+        await callback();
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
     });
   });
 }

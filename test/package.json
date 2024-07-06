@@ -1,0 +1,17 @@
+{
+  "name": "@lazarv/react-server-test",
+  "private": true,
+  "scripts": {
+    "test": "run-s test-dev test-build-start",
+    "test-dev": "vitest run -c ./vitest.config.mjs",
+    "test-build-start": "NODE_ENV=production vitest run -c ./vitest.config.mjs"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "workspace:*"
+  },
+  "devDependencies": {
+    "npm-run-all2": "^6.2.2",
+    "playwright-chromium": "^1.45.1",
+    "vitest": "^1.6.0"
+  }
+}

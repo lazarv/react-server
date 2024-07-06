@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
-
 import { pathToFileURL } from "node:url";
+
 import { getContext } from "../../server/context.mjs";
 import { runtime$ } from "../../server/runtime.mjs";
 import {
@@ -15,21 +15,22 @@ import * as sys from "../sys.mjs";
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
-export async function init$(type = "server") {
+export async function init$(type = "server", options = {}) {
+  const outDir = options.outDir ?? ".react-server";
   const serverManifest = __require.resolve(
-    "./.react-server/server/server-manifest.json",
+    `./${outDir}/server/server-manifest.json`,
     {
       paths: [cwd],
     }
   );
   const clientManifest = __require.resolve(
-    "./.react-server/server/client-manifest.json",
+    `./${outDir}/server/client-manifest.json`,
     {
       paths: [cwd],
     }
   );
   const browserManifest = __require.resolve(
-    "./.react-server/client/browser-manifest.json",
+    `./${outDir}/client/browser-manifest.json`,
     {
       paths: [cwd],
     }
@@ -100,7 +101,7 @@ export async function init$(type = "server") {
         : (entry) => entry.src && id.endsWith(entry.src)
     );
     const specifier = __require.resolve(
-      `./.react-server/${(type === "client" ? clientEntry : serverEntry).file}`,
+      `./${outDir}/${(type === "client" ? clientEntry : serverEntry).file}`,
       {
         paths: [cwd],
       }

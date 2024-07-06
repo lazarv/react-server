@@ -14,7 +14,8 @@ import merge from "../lib/utils/merge.mjs";
 const cwd = sys.cwd();
 const defaultConfig = {};
 
-export async function loadConfig(initialConfig) {
+export async function loadConfig(initialConfig, options = {}) {
+  const outDir = options.outDir ?? ".react-server";
   const config = {};
   const configFiles = (
     await glob(
@@ -37,9 +38,7 @@ export async function loadConfig(initialConfig) {
           .update(await readFile(src, "utf8"))
           .digest("hex");
         try {
-          await stat(
-            `${join(cwd, ".react-server", key, filename)}.${hash}.mjs`
-          );
+          await stat(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
         } catch (e) {
           const { build } = await import("esbuild");
           await build({
@@ -47,7 +46,7 @@ export async function loadConfig(initialConfig) {
               ? join(fileURLToPath(import.meta.url), "../..")
               : cwd,
             entryPoints: [src],
-            outfile: `${join(cwd, ".react-server", key, filename)}.${hash}.mjs`,
+            outfile: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
             bundle: true,
             platform: "node",
             format: "esm",
@@ -58,9 +57,7 @@ export async function loadConfig(initialConfig) {
         }
         configModule = (
           await import(
-            pathToFileURL(
-              `${join(cwd, ".react-server", key, filename)}.${hash}.mjs`
-            )
+            pathToFileURL(`${join(cwd, outDir, key, filename)}.${hash}.mjs`)
           )
         ).default;
       } else {

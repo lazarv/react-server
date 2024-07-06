@@ -38,7 +38,7 @@ function primary(numCPUs) {
 }
 
 async function worker(root, options) {
-  const config = await loadConfig();
+  const config = await loadConfig({}, options);
   const configRoot = config[CONFIG_ROOT];
 
   await runtime_init$(async () => {
@@ -81,7 +81,7 @@ export default async function start(root, options) {
   }
 
   try {
-    const config = await loadConfig();
+    const config = await loadConfig({}, options);
     const configRoot = config[CONFIG_ROOT];
 
     try {

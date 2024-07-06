@@ -68,6 +68,8 @@ This is useful for CI/CD environments.
 **version:** Display version number.  
 Output will also include your machine's architecture and node.js version.
 
+**outDir:** Output directory for the build. Default is `.react-server`.
+
 <Link name="build-options">
 ### Build options
 </Link>
@@ -93,6 +95,8 @@ You can export your app as static HTML pages. You can define the routes to expor
 **deploy:** Deploy using adapter. Default is `false`.
 If you use an adapter in your `react-server.config.mjs` file, the adapter will pre-build your app for deployment and when you use this argument, the adapter will also deploy your app at the end of the build process.
 
+**outDir:** Output directory for the build. Default is `.react-server`.
+
 <Link name="start-options">
 ### Start options
 </Link>
@@ -112,3 +116,5 @@ Runs the build command before starting the server using the provided entrypoint.
 
 **dev:**
 Start the server in development mode to use React development packages, like `react/jsx-dev-runtime`.
+
+**outDir:** Output directory for the build. Default is `.react-server`. You need to specify this option if you used a different output directory in the build command than the default.

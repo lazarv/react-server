@@ -22,7 +22,7 @@ export function useMatch(path, options = {}) {
             ? "^\\/(.*)$"
             : `^${path
                 .replace(/\[u\+([^\]]+)\]/g, (_, code) => `\\u${code}`)
-                .replace(/\/?\[(\[?[^\]]+\]?)\]/g, (_, name) => {
+                .replace(/\/?\[(\[?[^\]]+\]?)\]/g, (segment, name) => {
                   let optional = false;
                   if (name[0] === "[" && name[name.length - 1] === "]") {
                     name = name.slice(1, -1);
@@ -40,7 +40,7 @@ export function useMatch(path, options = {}) {
                     name = paramName;
                     paramMatch.add({ name, matcher });
                   }
-                  return `\\/?(?<${name}>[^/]+)${optional ? "?" : ""}`;
+                  return `\\/${segment.startsWith("/") ? "" : "?"}(?<${name}>[^/]+)${optional ? "?" : ""}`;
                 })}${options.exact ? "$" : "(\\/([^/]+)?)*$"}`
         );
 

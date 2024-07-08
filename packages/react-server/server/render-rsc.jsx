@@ -186,7 +186,7 @@ export async function render(Component) {
           }
 
           context$(ACTION_CONTEXT, {
-            formData,
+            formData: input[input.length - 1] ?? input,
             data,
             error,
             actionId,

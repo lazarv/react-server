@@ -29,7 +29,7 @@ export async function init$(
                 if (!action) {
                   redirect(useUrl().pathname);
                 }
-                return { result: await action(...args), actionId: action.$$id };
+                return { data: await action(...args), actionId: action.$$id };
               } catch (e) {
                 return { error: e, actionId: action?.$$id ?? null };
               }

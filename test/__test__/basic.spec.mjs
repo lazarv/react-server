@@ -43,11 +43,8 @@ test("html and counter", async () => {
 });
 
 async function testClientOnly() {
-  await page.goto(hostname);
-  const ssrButton = await page.evaluate(
-    () => !!document.querySelector("button")
-  );
-  expect(ssrButton).toBeFalsy();
+  const response = await page.goto(hostname);
+  expect(await response.text()).not.toContain("<button");
   const button = await page.getByRole("button");
   await button.isVisible();
   await waitForChange(

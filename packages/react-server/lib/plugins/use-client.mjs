@@ -123,7 +123,9 @@ registerClientReference(${name}, "${sys.normalizePath(relative(cwd, id))}", "${n
 
         if (manifest) {
           const specifier = relative(cwd, id);
-          const name = specifier.replace(extname(specifier), "");
+          const name = specifier
+            .replace(extname(specifier), "")
+            .replace(relative(cwd, sys.rootDir), "@lazarv/react-server");
           manifest.set(name, id);
         }
 

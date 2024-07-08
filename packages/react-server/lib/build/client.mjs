@@ -69,7 +69,7 @@ export default async function clientBuild(_, options) {
       ...config.resolve,
       alias: [
         {
-          find: /^@lazarv\/react-server$/,
+          find: /^@lazarv\/react-server/,
           replacement: sys.rootDir,
         },
         ...clientAlias(options.dev),
@@ -102,9 +102,9 @@ export default async function clientBuild(_, options) {
           "client/index": __require.resolve(
             "@lazarv/react-server/client/entry.client.jsx"
           ),
-          ...Object.entries(clientManifest).reduce((input, [key, value]) => {
+          ...Object.values(clientManifest).reduce((input, value) => {
             if (value.isEntry) {
-              input["client/" + key] = value.src;
+              input[value.name.replace(/^server\//, "")] = value.src;
             }
             return input;
           }, {}),

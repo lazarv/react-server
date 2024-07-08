@@ -49,7 +49,7 @@ export default async function serverBuild(root, options) {
       preserveSymlinks: true,
       alias: [
         {
-          find: /^@lazarv\/react-server$/,
+          find: /^@lazarv\/react-server/,
           replacement: sys.rootDir,
         },
         ...(config.resolve?.alias ?? []),

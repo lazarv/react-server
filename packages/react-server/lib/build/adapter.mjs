@@ -12,16 +12,20 @@ const cwd = sys.cwd();
 export default async function adapter(root, options) {
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
 
-  if (config.adapter) {
-    if (typeof config.adapter === "function") {
-      return await config.adapter({}, root, options);
+  const adapter =
+    options?.adapter?.[0] === "false"
+      ? null
+      : options.adapter || config.adapter;
+  if (adapter) {
+    if (typeof adapter === "function") {
+      return await adapter({}, root, options);
     }
     const [adapterModule, adapterOptions] =
-      typeof config.adapter === "string" ? [config.adapter] : config.adapter;
-    const { adapter } = await import(
+      typeof adapter === "string" ? [adapter] : adapter;
+    const { adapter: adapterFn } = await import(
       pathToFileURL(__require.resolve(adapterModule, { paths: [cwd] }))
     );
-    await adapter(adapterOptions, root, options);
+    await adapterFn(adapterOptions, root, options);
   } else if (options.deploy) {
     console.log(colors.yellow("No adapter configured. Skipping deployment."));
   }

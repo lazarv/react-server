@@ -13,6 +13,10 @@ export default (cli) =>
     .option("--server", "[boolean] build server", { default: true })
     .option("--client", "[boolean] build client", { default: true })
     .option("--export", "[boolean] static export", { default: false })
+    .option("--adapter <adapter>", "[boolean|string] adapter", {
+      default: "",
+      type: [String],
+    })
     .option("--deploy", "[boolean] deploy using adapter", { default: false })
     .option("--outDir <dir>", "[string] output directory", {
       default: ".react-server",

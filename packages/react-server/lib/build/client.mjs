@@ -69,8 +69,12 @@ export default async function clientBuild(_, options) {
       ...config.resolve,
       alias: [
         {
-          find: /^@lazarv\/react-server/,
+          find: /^@lazarv\/react-server$/,
           replacement: sys.rootDir,
+        },
+        {
+          find: /^@lazarv\/react-server\/client$/,
+          replacement: join(sys.rootDir, "client"),
         },
         ...clientAlias(options.dev),
         ...(config.resolve?.alias ?? []),

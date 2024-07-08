@@ -139,7 +139,11 @@ export default async function createServer(root, options) {
       ...config.resolve,
       preserveSymlinks: true,
       alias: [
-        { find: /^@lazarv\/react-server/, replacement: sys.rootDir },
+        { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
+        {
+          find: /^@lazarv\/react-server\/client$/,
+          replacement: join(sys.rootDir, "client"),
+        },
         ...(config.resolve?.alias ?? []),
       ],
     },

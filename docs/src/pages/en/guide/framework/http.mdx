@@ -19,7 +19,7 @@ With `useHttpContext()` you can get access to the full HTTP context.
 ```jsx
 import { useHttpContext } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   const context = useHttpContext();
 
   return (
@@ -42,7 +42,7 @@ With `useRequest()` you can get access to the full HTTP request.
 ```jsx
 import { useRequest } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   const request = useRequest();
 
   return (
@@ -65,7 +65,7 @@ With `useResponse()` you can get access to the full HTTP response.
 ```jsx
 import { useResponse } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   const response = useResponse();
 
   //TODO: ???
@@ -87,10 +87,44 @@ With `useUrl()` you can get access to the URL of the current request.
 ```jsx
 import { useUrl } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   const url = useUrl();
 
   return <p>URL: {url.href}</p>;
+};
+```
+
+<Link name="pathname">
+## Pathname
+</Link>
+
+With `usePathname()` you can get access to the pathname of the current request.
+
+```jsx
+import { usePathname } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const pathname = usePathname();
+
+  return <p>Pathname: {pathname}</p>;
+};
+```
+
+<Link name="search-params">
+## Search Params
+</Link>
+
+With `useSearchParams()` you can get access to the search params of the current request. This is an object with key-value pairs of the search params. In case of multiple values for the same key, the value will be an array.
+
+```jsx
+import { useSearchParams } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const searchParams = useSearchParams();
+
+  return (
+    <p>Search params: {JSON.stringify(searchParams)}</p>
+  );
 };
 ```
 
@@ -103,7 +137,7 @@ With `headers()` you can get access to the headers of the current request.
 ```jsx
 import { headers } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   const requestHeaders = headers();
 
   return <p>Headers: {JSON.stringify(requestHeaders)}</p>;
@@ -115,7 +149,7 @@ You can also modify the headers of the current response.
 ```jsx
 import { headers } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   headers({
     "X-My-Header": "My value",
   });
@@ -133,7 +167,7 @@ With `cookie()` you can get access to the cookies of the current request.
 ```jsx
 import { cookie } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   const requestCookies = cookie();
 
   return <p>Cookies: {JSON.stringify(requestCookies)}</p>;
@@ -145,7 +179,7 @@ You can also set or delete cookies in the context of the current response.
 ```jsx
 import { setCookie, deleteCookie } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   setCookie("my-cookie", "my-value");
   deleteCookie("other-cookie");
 
@@ -162,7 +196,7 @@ With `status()` you can set the status code and text of the current response.
 ```jsx
 import { status } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   status(404, "Not found");
 
   return <p>Not Found</p>;
@@ -178,7 +212,7 @@ With `useFormData()` you can get access to the form data of the current request.
 ```jsx
 import { useFormData } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   const formData = useFormData();
 
   return (
@@ -198,7 +232,7 @@ With `redirect()` you can redirect the current request to another URL.
 ```jsx
 import { redirect } from "@lazarv/react-server";
 
-const MyComponent = () => {
+export default function MyComponent() {
   redirect("https://example.com");
 };
 ```

@@ -120,7 +120,15 @@ const navigate = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
 const replace = (to, options) => {
   return navigate(to, { ...options, push: false });
 };
+let hashChanged = false;
+window.addEventListener("hashchange", () => {
+  hashChanged = true;
+});
 window.addEventListener("popstate", () => {
+  if (hashChanged) {
+    hashChanged = false;
+    return;
+  }
   const key = `${PAGE_ROOT}:${location.href}`;
   if (flightCache.has(key)) {
     cache.set(PAGE_ROOT, flightCache.get(key));

@@ -12,8 +12,9 @@ test("http context", async () => {
 
 test("http url", async () => {
   await server("fixtures/http-url.jsx");
-  await page.goto(hostname);
+  await page.goto(hostname + "?query=foobar");
   expect(await page.textContent("body")).toContain(hostname);
+  expect(await page.textContent("body")).toContain(`{"query":"foobar"}`);
 });
 
 test("http status", async () => {

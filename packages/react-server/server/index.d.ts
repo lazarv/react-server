@@ -69,6 +69,20 @@ export function useResponse(): Response;
 export function useUrl(): URL;
 
 /**
+ * This hook returns the current pathname.
+ *
+ * @returns The current pathname
+ */
+export function usePathname(): string;
+
+/**
+ * This hook returns the current search params.
+ *
+ * @returns The current search params as an object
+ */
+export function useSearchParams(): Record<string, string | string[]>;
+
+/**
  * This hook returns the current form data if request Content-Type is application/x-www-form-urlencoded or multipart/form-data.
  *
  * @returns The current form data

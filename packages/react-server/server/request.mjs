@@ -12,6 +12,27 @@ export function useUrl() {
   return getContext(HTTP_CONTEXT).url;
 }
 
+export function usePathname() {
+  return getContext(HTTP_CONTEXT).url.pathname;
+}
+
+export function useSearchParams() {
+  const searchParams = getContext(HTTP_CONTEXT).url.searchParams;
+  return searchParams
+    ? Array.from(searchParams.entries()).reduce((params, [key, value]) => {
+        if (key in params) {
+          if (!Array.isArray(params[key])) {
+            params[key] = [params[key]];
+          }
+          params[key].push(value);
+        } else {
+          params[key] = value;
+        }
+        return params;
+      }, {})
+    : null;
+}
+
 export function useRequest() {
   return getContext(HTTP_CONTEXT).request;
 }

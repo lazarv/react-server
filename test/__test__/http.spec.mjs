@@ -17,6 +17,19 @@ test("http url", async () => {
   expect(await page.textContent("body")).toContain(`{"query":"foobar"}`);
 });
 
+test("http pathname and searchparams", async () => {
+  await server("fixtures/http-pathname-searchparams.jsx");
+  await page.goto(hostname + "/pathname?query=foobar");
+  expect(await page.textContent("body")).toContain("/pathname");
+  expect(await page.textContent("body")).toContain(`{"query":"foobar"}`);
+
+  await page.goto(hostname + "/pathname?query=foobar&query=barfoo");
+  expect(await page.textContent("body")).toContain("/pathname");
+  expect(await page.textContent("body")).toContain(
+    `{"query":["foobar","barfoo"]}`
+  );
+});
+
 test("http status", async () => {
   await server("fixtures/http-status.jsx");
   const response = await page.goto(hostname);

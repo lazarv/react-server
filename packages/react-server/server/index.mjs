@@ -7,8 +7,10 @@ export {
   rewrite,
   useFormData,
   useHttpContext,
+  usePathname,
   useRequest,
   useResponse,
+  useSearchParams,
   useUrl,
 } from "./request.mjs";
 export { revalidate } from "./revalidate.mjs";

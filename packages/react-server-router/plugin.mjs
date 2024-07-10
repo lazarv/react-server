@@ -953,34 +953,35 @@ export default function viteReactServerRouter(options = {}) {
                 {}
               )
             )};
-            const matchOutlets = Object.fromEntries(Object.entries(outlets).map(([outlet, components]) => {
-              let match = null;
+            const matchOutlets = Object.fromEntries(Object.entries(outlets).map(([outlet, components], o) => {
+              const match = [];
               const pages = components.filter(([, , , type]) => type === "page");
               for (const [src, path, outlet, type] of pages){
-                match = useMatch(path, { exact: true });
-                if (match) {
-                  match = {
+                const params = useMatch(path, { exact: true });
+                if (params) {
+                  match.push({
                     src,
                     type,
-                    params: match,
-                  }
-                  break;
+                    path,
+                    params,
+                  });
                 }
               }
 
-              if (!match) {
+              if (match.length === 0) {
                 const outletDefault = components.find(([, , name, type]) => outlet === name && type === "default");
                 if (outletDefault) {
                   const [src, path, , type] = outletDefault;
-                  match = {
+                  match.push({
                     src,
                     type,
+                    path,
                     params: useMatch(path, { exact: false })
-                  }
+                  });
                 }
               }
 
-              return [outlet, match];
+              return [outlet, match.length > 0 ? match : null];
             }));
 
             ${layouts
@@ -992,8 +993,8 @@ export default function viteReactServerRouter(options = {}) {
                       dirname(outletSrc).includes(dirname(layoutSrc))
                   )
                   .map(
-                    ([, , outlet]) =>
-                      `const __react_server_router_layout_${i}_${outlet}__ = outletImports[matchOutlets["${outlet}"]?.src];`
+                    ([, path, outlet], o) =>
+                      `const __react_server_router_layout_${i}_${outlet}_${o}__ = outletImports[matchOutlets["${outlet}"]?.find(match => match.path === "${path}")?.src];`
                   )
                   .join("\n")
               )
@@ -1027,15 +1028,31 @@ export default function viteReactServerRouter(options = {}) {
                     ([, loadingPath]) => loadingPath === layoutPath
                   );
                   if (loading && !errorBoundary) loadingIndex.push(i);
-                  return `<__react_server_router_layout_cached_${i}__ ${outlets
-                    .filter(
-                      ([outletSrc, , , type]) =>
-                        type === "page" &&
-                        dirname(outletSrc).includes(dirname(layoutSrc))
-                    )
+                  return `<__react_server_router_layout_cached_${i}__ ${Object.entries(
+                    outlets
+                      .filter(
+                        ([outletSrc, , , type]) =>
+                          type === "page" &&
+                          dirname(outletSrc).includes(dirname(layoutSrc))
+                      )
+                      .reduce((props, [, path, outlet], o) => {
+                        if (props[outlet]) {
+                          if (!Array.isArray(props[outlet])) {
+                            props[outlet] = [props[outlet]];
+                          }
+                          props[outlet].push(
+                            `matchOutlets["${outlet}"]?.find(match => match.path === "${path}") && (<__react_server_router_layout_${i}_${outlet}_${o}__ key="${i}_${outlet}_${o}" {...matchOutlets["${outlet}"]?.find(match => match.path === "${path}")?.params ?? {}} />)`
+                          );
+                          return props;
+                        }
+                        props[outlet] =
+                          `matchOutlets["${outlet}"]?.find(match => match.path === "${path}") && (<__react_server_router_layout_${i}_${outlet}_${o}__ key="${i}_${outlet}_${o}" {...matchOutlets["${outlet}"]?.find(match => match.path === "${path}")?.params ?? {}} />)`;
+                        return props;
+                      }, {})
+                  )
                     .map(
-                      ([, , outlet]) =>
-                        `${outlet}={matchOutlets["${outlet}"] ? <__react_server_router_layout_${i}_${outlet}__ {...matchOutlets["${outlet}"]?.params} /> : null}`
+                      ([outlet, components]) =>
+                        `${outlet}={${Array.isArray(components) ? `[${components.join(", ")}]` : components}}`
                     )
                     .join(" ")}>${
                     loading && !errorBoundary

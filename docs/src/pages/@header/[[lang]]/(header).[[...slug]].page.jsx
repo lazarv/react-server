@@ -23,6 +23,7 @@ export default function Header({ lang }) {
         <a href={`${baseUrl}guide`} className="ml-auto">
           Guide
         </a>
+        <a href={`${baseUrl}tutorials/hello-world`}>Tutorials</a>
         <a href={`${baseUrl}team`} className="mr-auto">
           Team
         </a>

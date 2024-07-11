@@ -1,12 +1,12 @@
 import "highlight.js/styles/github-dark-dimmed.css";
 import "./global.css";
 
-import { cookie, useUrl } from "@lazarv/react-server";
+import { cookie, usePathname } from "@lazarv/react-server";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 export default function Layout({ header, sidebar, navigation, children }) {
-  const { pathname } = useUrl();
+  const pathname = usePathname();
   const { dark } = cookie();
 
   return (

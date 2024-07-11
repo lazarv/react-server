@@ -1,9 +1,10 @@
-import { useUrl } from "@lazarv/react-server";
+import { usePathname } from "@lazarv/react-server";
 
+import NavigationLinks from "../../../../components/NavigationLinks.jsx";
 import { getGuides } from "../../../../guides.mjs";
 
-export default function Navigation({ lang }) {
-  const { pathname } = useUrl();
+export default function GuideNavigation({ lang }) {
+  const pathname = usePathname();
   const guides = getGuides(pathname, lang);
 
   const activeSection = guides.find(({ guides }) =>
@@ -26,25 +27,5 @@ export default function Navigation({ lang }) {
     guides[categoryIndex + 1]?.guides[0] ??
     null;
 
-  return (
-    <div className="flex flex-wrap md:flex-row md:justify-between">
-      {prevGuide && (
-        <a
-          href={prevGuide.href}
-          className="text-sm font-semibold whitespace-nowrap hover:underline"
-        >
-          ← {prevGuide.category}: {prevGuide.frontmatter?.title}
-        </a>
-      )}
-
-      {nextGuide && (
-        <a
-          href={nextGuide.href}
-          className="text-sm font-semibold whitespace-nowrap ml-auto hover:underline"
-        >
-          {nextGuide.category}: {nextGuide.frontmatter?.title} →
-        </a>
-      )}
-    </div>
-  );
+  return <NavigationLinks prev={prevGuide} next={nextGuide} />;
 }

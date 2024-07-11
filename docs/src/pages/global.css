@@ -84,7 +84,7 @@ header {
     bottom: 100%;
     content: "";
     z-index: 0;
-    @apply bg-white dark:bg-slate-900;
+    @apply bg-white dark:bg-zinc-900;
   }
 
   @media screen(sm) {

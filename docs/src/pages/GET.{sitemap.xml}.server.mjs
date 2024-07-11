@@ -1,15 +1,20 @@
 import { getGuides } from "../guides.mjs";
+import { getTutorials } from "../tutorials.mjs";
 
 const guides = getGuides("/", "en").reduce((paths, { guides }) => {
-  guides.forEach(({ langHref }) => paths.push(langHref));
+  guides.forEach(({ langHref: path }) =>
+    paths.push({
+      path: path.replace(/^\/en/, ""),
+    })
+  );
   return paths;
 }, []);
 
-const pages = [
-  ...guides.map((path) => ({ path: path.replace(/^\/en/, "") })),
-  { path: "/" },
-  { path: "/team" },
-];
+const tutorials = getTutorials("/", "en").map(({ langHref: path }) => ({
+  path: path.replace(/^\/en/, ""),
+}));
+
+const pages = [...guides, ...tutorials, { path: "/" }, { path: "/team" }];
 
 const now = new Date().toISOString();
 

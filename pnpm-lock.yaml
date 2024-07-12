@@ -465,7 +465,7 @@ importers:
         version: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(terser@5.31.1)
     devDependencies:
       '@types/node':
-        specifier: ^20
+        specifier: ^20.10.0
         version: 20.14.9
 
   packages/react-server-adapter-vercel:

@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import glob from "fast-glob";
 
 import { createHash } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, rm, stat } from "node:fs/promises";
 import { CONFIG_PARENT, CONFIG_ROOT } from "../server/symbols.mjs";
 export * from "./context.mjs";
 
@@ -42,24 +42,27 @@ export async function loadConfig(initialConfig, options = {}) {
         } catch (e) {
           const { build } = await import("esbuild");
           await build({
-            absWorkingDir: filename.includes("vite.config")
-              ? join(fileURLToPath(import.meta.url), "../..")
-              : cwd,
+            absWorkingDir: join(fileURLToPath(import.meta.url), "../.."),
             entryPoints: [src],
             outfile: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
             bundle: true,
             platform: "node",
             format: "esm",
-            external: filename.includes("vite.config") ? ["*"] : [],
+            external: ["*"],
             minify: true,
             tsconfig: join(cwd, "tsconfig.json"),
           });
         }
-        configModule = (
-          await import(
-            pathToFileURL(`${join(cwd, outDir, key, filename)}.${hash}.mjs`)
-          )
-        ).default;
+        try {
+          configModule = (
+            await import(
+              pathToFileURL(`${join(cwd, outDir, key, filename)}.${hash}.mjs`)
+            )
+          ).default;
+        } catch (e) {
+          console.error("[react-server]", e);
+          await rm(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
+        }
       } else {
         configModule = (
           await import(

@@ -38,30 +38,53 @@ export default async function dev(root, options) {
         const host = options.host ?? configRoot.host;
         const listenerHost = host === true ? undefined : host;
 
+        const openServer = (https, host, port) => {
+          if (options.open ?? configRoot.server?.open) {
+            open(`http${https ? "s" : ""}://${host}:${port}`);
+          }
+        };
+
         const startServer = async () => {
           const listener = server.listen(port, listenerHost);
           runtime$(SERVER_CONTEXT, listener);
           listener
             .on("listening", () => {
-              getServerAddresses(listener).forEach((address) => {
+              if (listenerHost) {
                 logger.info(
                   colors.gray(
                     `${colors.green("listening")} on http${
                       options.https ?? configRoot.server?.https ? "s" : ""
-                    }://${address.address}:${listener.address().port}`
+                    }://${listenerHost}:${listener.address().port}`
                   )
                 );
-                if (options.open ?? configRoot.server?.open) {
-                  open(
-                    `http${
-                      options.https ?? configRoot.server?.https ? "s" : ""
-                    }://${host}:${port}`
-                  );
-                }
-                getRuntime(LOGGER_CONTEXT)?.info?.(
-                  `${colors.green("✔")} Ready in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
+                openServer(
+                  options.https ?? configRoot.server?.https,
+                  listenerHost,
+                  listener.address().port
                 );
-              });
+              } else {
+                let opening = false;
+                getServerAddresses(listener).forEach((address) => {
+                  logger.info(
+                    colors.gray(
+                      `${colors.green("listening")} on http${
+                        options.https ?? configRoot.server?.https ? "s" : ""
+                      }://${address.address}:${listener.address().port}`
+                    )
+                  );
+                  if (!opening) {
+                    opening = true;
+                    openServer(
+                      options.https ?? configRoot.server?.https,
+                      address.address,
+                      listener.address().port
+                    );
+                  }
+                });
+              }
+              getRuntime(LOGGER_CONTEXT)?.info?.(
+                `${colors.green("✔")} Ready in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
+              );
             })
             .on("error", (e) => {
               if (e.code === "EADDRINUSE") {

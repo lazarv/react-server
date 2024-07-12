@@ -64,13 +64,21 @@ async function worker(root, options) {
     runtime$(SERVER_CONTEXT, listener);
     await once(listener, "listening");
 
-    getServerAddresses(listener).forEach((address) =>
+    if (listenerHost) {
       logger.info(
         `worker #${process.pid} listening on ${
           config.server?.https || options.https ? "https" : "http"
-        }://${address.address}:${listener.address().port} in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
-      )
-    );
+        }://${listenerHost}:${listener.address().port} in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
+      );
+    } else {
+      getServerAddresses(listener).forEach((address) =>
+        logger.info(
+          `worker #${process.pid} listening on ${
+            config.server?.https || options.https ? "https" : "http"
+          }://${address.address}:${listener.address().port} in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
+        )
+      );
+    }
   });
 }
 

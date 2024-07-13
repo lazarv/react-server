@@ -4,11 +4,7 @@
     "jsx": "preserve",
     "strict": true,
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": [
-      "react/experimental",
-      "react-dom/experimental",
-      "@lazarv/react-server/types"
-    ],
+    "types": ["react/experimental", "react-dom/experimental"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "target": "ESNext"

@@ -8,6 +8,7 @@ import { compose } from "@hattip/compose";
 import { cookie } from "@hattip/cookie";
 import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
+import colors from "picocolors";
 import {
   DevEnvironment,
   RemoteEnvironmentTransport,
@@ -384,6 +385,15 @@ export default async function createServer(root, options) {
     )
   );
 
+  const localHostnames = new Set([
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "0000:0000:0000:0000:0000:0000:0000:0001",
+    "0.0.0.0",
+    "::",
+    "0000:0000:0000:0000:0000:0000:0000:0000",
+  ]);
   return {
     listen: (...args) => {
       return viteDevServer.middlewares.listen(...args).once("listening", () => {
@@ -396,5 +406,18 @@ export default async function createServer(root, options) {
     },
     ws: viteDevServer.environments.client.hot,
     middlewares: viteDevServer.middlewares,
+    printUrls: (urls) => {
+      const local = urls
+        .filter((url) => localHostnames.has(url.hostname))
+        .map((url) => url.origin);
+      const network = urls
+        .filter((url) => !localHostnames.has(url.hostname))
+        .map((url) => url.origin);
+      viteDevServer.resolvedUrls = { local, network };
+      viteDevServer.config.logger.info(
+        `Server ${colors.green("listening")} on`
+      );
+      viteDevServer.printUrls();
+    },
   };
 }

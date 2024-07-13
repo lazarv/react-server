@@ -2,7 +2,6 @@ import open from "open";
 import colors from "picocolors";
 
 import { loadConfig } from "../../config/index.mjs";
-import { logger } from "../../server/logger.mjs";
 import {
   getRuntime,
   runtime$,
@@ -49,12 +48,11 @@ export default async function dev(root, options) {
           runtime$(SERVER_CONTEXT, listener);
           listener
             .on("listening", () => {
+              const resolvedUrls = [];
               if (listenerHost) {
-                logger.info(
-                  colors.gray(
-                    `${colors.green("listening")} on http${
-                      options.https ?? configRoot.server?.https ? "s" : ""
-                    }://${listenerHost}:${listener.address().port}`
+                resolvedUrls.push(
+                  new URL(
+                    `http${options.https ?? configRoot.server?.https ? "s" : ""}://${listenerHost}:${listener.address().port}`
                   )
                 );
                 openServer(
@@ -65,11 +63,9 @@ export default async function dev(root, options) {
               } else {
                 let opening = false;
                 getServerAddresses(listener).forEach((address) => {
-                  logger.info(
-                    colors.gray(
-                      `${colors.green("listening")} on http${
-                        options.https ?? configRoot.server?.https ? "s" : ""
-                      }://${address.address}:${listener.address().port}`
+                  resolvedUrls.push(
+                    new URL(
+                      `http${options.https ?? configRoot.server?.https ? "s" : ""}://${address.address}:${listener.address().port}`
                     )
                   );
                   if (!opening) {
@@ -82,6 +78,7 @@ export default async function dev(root, options) {
                   }
                 });
               }
+              server.printUrls(resolvedUrls);
               getRuntime(LOGGER_CONTEXT)?.info?.(
                 `${colors.green("✔")} Ready in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
               );

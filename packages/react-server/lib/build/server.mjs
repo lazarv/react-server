@@ -44,6 +44,7 @@ export default async function serverBuild(root, options) {
   ];
   const buildConfig = {
     root: cwd,
+    configFile: false,
     resolve: {
       ...config.resolve,
       preserveSymlinks: true,

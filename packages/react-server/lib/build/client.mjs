@@ -65,6 +65,7 @@ export default async function clientBuild(_, options) {
 
   const buildConfig = {
     root: cwd,
+    configFile: false,
     resolve: {
       ...config.resolve,
       alias: [

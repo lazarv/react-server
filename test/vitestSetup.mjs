@@ -25,7 +25,7 @@ beforeAll(async ({ name, id }) => {
   page.on("console", (msg) => {
     logs.push(msg.text());
   });
-  server = (root) =>
+  server = (root, initialConfig) =>
     new Promise(async (resolve, reject) => {
       try {
         const hash = createHash("shake256", { outputLength: 2 })
@@ -37,7 +37,8 @@ beforeAll(async ({ name, id }) => {
             join(process.cwd(), dirname(name), "..", root),
             {
               outDir: `.react-server-dev-${id}`,
-            }
+            },
+            initialConfig
           );
           let port = 3000;
           httpServer = createServer(middlewares);
@@ -64,7 +65,10 @@ beforeAll(async ({ name, id }) => {
           };
           await build(join(process.cwd(), dirname(name), "..", root), options);
           const worker = new Worker(new URL("./server.mjs", import.meta.url), {
-            workerData: options,
+            workerData: {
+              options,
+              initialConfig,
+            },
           });
           worker.on("message", (msg) => {
             if (msg.port) {

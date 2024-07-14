@@ -107,3 +107,27 @@ test("useActionState hook using server action", async () => {
   expect(logs).toContain("hello react-server");
   expect(await page.textContent("pre")).toContain('"react-server"');
 });
+
+test("style assets", async () => {
+  await server("fixtures/styles.jsx");
+  await page.goto(hostname);
+  const h1 = await page.getByText("This text should be yellow");
+  const color = await h1.evaluate((el) => getComputedStyle(el).color);
+  expect(color).toBe("rgb(255, 255, 0)");
+  const background = await page.evaluate(
+    () => getComputedStyle(document.body).backgroundColor
+  );
+  expect(background).toBe("rgb(0, 0, 255)");
+});
+
+test("style assets with base url", async () => {
+  await server("fixtures/styles.jsx", { base: "/react-server/" });
+  await page.goto(hostname + "/react-server");
+  const h1 = await page.getByText("This text should be yellow");
+  const color = await h1.evaluate((el) => getComputedStyle(el).color);
+  expect(color).toBe("rgb(255, 255, 0)");
+  const background = await page.evaluate(
+    () => getComputedStyle(document.body).backgroundColor
+  );
+  expect(background).toBe("rgb(0, 0, 255)");
+});

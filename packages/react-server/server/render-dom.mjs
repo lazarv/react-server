@@ -84,11 +84,13 @@ export const createRenderer = ({
                   html = await renderToReadableStream(tree, {
                     formState,
                     onError(e) {
-                      parentPort.postMessage({
-                        id,
-                        error: e.message,
-                        stack: e.stack,
-                      });
+                      if (started) {
+                        parentPort.postMessage({
+                          id,
+                          error: e.message,
+                          stack: e.stack,
+                        });
+                      }
                     },
                   });
                 }
@@ -326,6 +328,7 @@ export const createRenderer = ({
               } catch (error) {
                 parentPort.postMessage({
                   id,
+                  done: true,
                   error: error.message,
                   stack: error.stack,
                 });
@@ -337,6 +340,7 @@ export const createRenderer = ({
         } catch (error) {
           parentPort.postMessage({
             id,
+            done: true,
             error: error.message,
             stack: error.stack,
           });

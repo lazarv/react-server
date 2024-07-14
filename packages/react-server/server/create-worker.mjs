@@ -19,14 +19,14 @@ export function createWorker() {
         const err = new Error(error);
         err.stack = stack;
         workerMap.get(id)?.onError?.(err);
-        workerMap.delete(id);
       } else if (stream) {
         workerMap.get(id).resolve(stream);
       } else if (start) {
         workerMap.get(id).start({ id });
       } else if (postponed) {
         workerMap.get(id).onPostponed?.(postponed);
-      } else if (done) {
+      }
+      if (done) {
         workerMap.delete(id);
       }
     }

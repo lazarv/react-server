@@ -59,7 +59,9 @@ if (import.meta.env.DEV) {
         };
       }
       error.plugin = "@lazarv/react-server";
-      const [, ...stacklines] = error.stack.split("\n");
+      const stacklines = error.stack
+        .split("\n")
+        .filter((it) => it.trim().startsWith("at "));
       error.stack = stacklines.map((it) => it.trim()).join("\n");
       const [, id, line, column] = (stacklines?.[0] ?? "").match(
         /\((.*):([0-9]+):([0-9]+)\)/
@@ -128,7 +130,17 @@ if (import.meta.env.DEV) {
 
   const originalConsoleError = console.error;
   console.error = (...args) => {
-    showErrorOverlay(format(...args));
+    const [ctrl, style, server] = args;
+    if (
+      // check and detect server error proxy message
+      !(
+        ctrl.startsWith("%c") &&
+        style.startsWith("background:") &&
+        server?.toLowerCase()?.trim() === "server"
+      )
+    ) {
+      showErrorOverlay(format(...args));
+    }
     originalConsoleError(...args);
   };
 

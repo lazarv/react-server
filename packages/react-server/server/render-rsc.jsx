@@ -7,7 +7,6 @@ import {
   context$,
   getContext,
 } from "@lazarv/react-server/server/context.mjs";
-import { status } from "@lazarv/react-server/server/http-status.mjs";
 import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs";
 import {
   ACTION_CONTEXT,
@@ -407,14 +406,6 @@ export async function render(Component) {
                 if (redirect?.response) {
                   return resolve(redirect.response);
                 }
-
-                status(
-                  e.status || 500,
-                  e.statusText || "Internal Server Error"
-                );
-
-                logger.error(e);
-                getContext(ERROR_CONTEXT)?.(e).then(resolve, reject);
                 return e.message;
               },
             }

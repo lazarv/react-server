@@ -223,10 +223,9 @@ export async function render(Component) {
           return (
             <>
               {styles.map((link) => {
-                const href = `/${config.base}/${link?.id || link}`.replace(
-                  /\/+/g,
-                  "/"
-                );
+                const href = config.base
+                  ? `/${config.base}/${link?.id || link}`.replace(/\/+/g, "/")
+                  : link?.id || link;
                 return (
                   <link
                     key={href}

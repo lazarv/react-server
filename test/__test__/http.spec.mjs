@@ -66,3 +66,43 @@ test("http rewrite", async () => {
   await page.goto(hostname);
   expect(await page.textContent("body")).toContain("/rewrite");
 });
+
+test("http response cache", async () => {
+  await server("fixtures/http-response-cache.jsx");
+  await page.goto(hostname);
+  const first = await page.textContent("body");
+  await page.waitForTimeout(500);
+  await page.goto(hostname);
+  const second = await page.textContent("body");
+  expect(first).toBe(second);
+  await page.waitForTimeout(500);
+  await page.goto(hostname);
+  const third = await page.textContent("body");
+  expect(first).not.toBe(third);
+});
+
+test("http response cache search params", async () => {
+  await server("fixtures/http-response-cache.jsx");
+  await page.goto(hostname);
+  const first = await page.textContent("body");
+  await page.goto(hostname + "?query=foobar");
+  const second = await page.textContent("body");
+  expect(first).not.toBe(second);
+});
+
+test("http revalidate", async () => {
+  await server("fixtures/http-response-cache.jsx");
+  await page.goto(hostname);
+  const first = await page.textContent("body");
+  await page.goto(hostname);
+  const second = await page.textContent("body");
+  expect(first).toBe(second);
+  await page.route(hostname, (route) => {
+    const headers = route.request().headers();
+    headers["x-revalidate"] = "true";
+    route.continue({ headers });
+  });
+  await page.goto(hostname);
+  const third = await page.textContent("body");
+  expect(first).not.toBe(third);
+});

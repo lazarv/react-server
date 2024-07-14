@@ -2,10 +2,49 @@ import type { RequestContextExtensions } from "@hattip/compose";
 import type { CookieSerializeOptions } from "@hattip/cookie";
 import type { AdapterRequestContext } from "@hattip/core";
 
+/**
+ * This function enables caching the response for the specified time-to-live (TTL).
+ * If the TTL is not specified, the cache will be stored indefinitely.
+ * This higher-order component (HOC) is just a wrapper to use the `useResponseCache` hook as a HOC.
+ *
+ * @param Component - The component to cache
+ * @param ttl - The time-to-live (TTL) in milliseconds
+ *
+ * @example
+ *
+ * ```tsx
+ * import { withCache } from '@lazarv/react-server';
+ *
+ * function App() {
+ *  return <>{Math.random()}</>;
+ * }
+ *
+ * export default withCache(App, 3000);
+ * ```
+ */
 export function withCache<T extends React.FC>(
   Component: T,
   ttl?: number | true
 ): T;
+
+/**
+ * This hook enables caching the response for the specified time-to-live (TTL).
+ * If the TTL is not specified, the cache will be stored indefinitely.
+ *
+ * @param ttl - The time-to-live (TTL) in milliseconds
+ *
+ * @example
+ *
+ * ```tsx
+ * import { useResponseCache } from '@lazarv/react-server';
+ *
+ * export default function App() {
+ *  useResponseCache(3000);
+ *  return <>{Math.random()}</>;
+ * }
+ * ```
+ */
+export function useResponseCache(ttl?: number): void;
 
 /**
  * Redirects the request to the specified URL.
@@ -99,7 +138,7 @@ export function rewrite(pathname: string): void;
 /**
  * Revalidates the current request cache.
  *
- * @param key - The cache key to revalidate
+ * @param key - The cache key to revalidate, if not specified, the key will be the current request URL
  */
 export function revalidate(key?: string): void;
 

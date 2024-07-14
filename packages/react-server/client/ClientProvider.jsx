@@ -73,6 +73,7 @@ const refresh = async (outlet = PAGE_ROOT) => {
     });
   });
 };
+let prevLocation = new URL(location);
 const navigate = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
   return new Promise((resolve, reject) => {
     if (outlet === PAGE_ROOT) {
@@ -101,6 +102,7 @@ const navigate = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
       } else {
         history.replaceState(null, "", to);
       }
+      prevLocation = new URL(location);
     }
     if (prefetching.get(outlet) === to) {
       prefetching.delete(outlet);
@@ -120,7 +122,6 @@ const navigate = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
 const replace = (to, options) => {
   return navigate(to, { ...options, push: false });
 };
-let prevLocation = new URL(location);
 window.addEventListener("popstate", () => {
   const newLocation = new URL(location);
   if (

@@ -20,7 +20,8 @@ export function reactServer(
     clearScreen?: boolean;
     noColor?: boolean;
     eval?: string;
-  }
+  },
+  initialConfig?: Record<string, any>
 ): Promise<{
   listen: () => http.Server;
   close: () => Promise<void>;

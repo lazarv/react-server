@@ -4,17 +4,18 @@ import { CONFIG_CONTEXT } from "../../server/symbols.mjs";
 import { experimentalWarningSilence } from "../sys.mjs";
 import createServer from "./create-server.mjs";
 
-export function reactServer(root, options = {}) {
+export function reactServer(root, options = {}, initialConfig = {}) {
   experimentalWarningSilence();
 
-  if (arguments.length === 1 && typeof root === "object") {
+  if (typeof root === "object") {
     options = root;
     root = undefined;
+    initialConfig = options;
   }
 
   return new Promise(async (resolve, reject) => {
     try {
-      const config = await loadConfig({}, options);
+      const config = await loadConfig(initialConfig, options);
 
       await runtime_init$(async () => {
         runtime$(CONFIG_CONTEXT, config);

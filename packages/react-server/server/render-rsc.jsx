@@ -79,7 +79,6 @@ export async function render(Component) {
             throw new Error("Server action not found");
           };
           let input = [];
-          let formData = null;
           if (isFormData) {
             const files = {};
             const multipartFormData = await getContext(FORM_DATA_PARSER)(
@@ -224,7 +223,10 @@ export async function render(Component) {
           return (
             <>
               {styles.map((link) => {
-                const href = link?.id || link;
+                const href = `/${config.base}/${link?.id || link}`.replace(
+                  /\/+/g,
+                  "/"
+                );
                 return (
                   <link
                     key={href}

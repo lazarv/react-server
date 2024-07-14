@@ -127,8 +127,7 @@ export default async function ssrHandler(root) {
                 return resolve();
               }
 
-              const styles =
-                getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
+              const styles = collectStylesheets?.(rootModule) ?? [];
               context$(STYLES_CONTEXT, styles);
 
               await module_loader_init$?.(ssrLoadModule, moduleCacheStorage);

@@ -8,6 +8,7 @@ import { compose } from "@hattip/compose";
 import { cookie } from "@hattip/cookie";
 import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
+import { format } from "node:util";
 import colors from "picocolors";
 import {
   DevEnvironment,
@@ -303,6 +304,13 @@ export default async function createServer(root, options) {
     new ESModulesEvaluator()
   );
 
+  worker.on("message", (payload) => {
+    if (payload.type === "logger") {
+      const { level, ...data } = payload;
+      const [msg, ...rest] = data.data;
+      viteDevServer.config.logger[payload.level](format(msg, ...rest));
+    }
+  });
   const initialRuntime = {
     [SERVER_CONTEXT]: viteDevServer,
     [LOGGER_CONTEXT]: viteDevServer.config.logger,

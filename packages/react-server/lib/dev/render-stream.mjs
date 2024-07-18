@@ -17,6 +17,13 @@ sys.experimentalWarningSilence();
 alias();
 register("../loader/node-loader.mjs", import.meta.url);
 
+console.log = (...args) =>
+  parentPort.postMessage({ type: "logger", level: "info", data: args });
+console.warn = (...args) =>
+  parentPort.postMessage({ type: "logger", level: "warn", data: args });
+console.error = (...args) =>
+  parentPort.postMessage({ type: "logger", level: "error", data: args });
+
 const cwd = sys.cwd();
 
 const remoteTransport = new RemoteRunnerTransport({

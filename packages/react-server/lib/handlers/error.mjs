@@ -80,7 +80,7 @@ export async function prepareError(err) {
       err.plugin = err.plugin || packageJson.name;
     }
   } catch (e) {
-    console.error("[react-server]", e);
+    console.error(colors.red(e.stack));
   }
   return {
     message: strip(err.message),

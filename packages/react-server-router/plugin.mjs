@@ -92,8 +92,10 @@ export default function viteReactServerRouter(options = {}) {
   let viteCommand;
   let viteServer;
   let mdxCounter = 0;
+  let mdxComponents;
   let mdx;
   let debounceTypesGeneration;
+  let reactServerRouterReadyResolve;
 
   let rootDir = cwd;
   let root = ".";
@@ -325,9 +327,6 @@ export default function viteReactServerRouter(options = {}) {
           join(cwd, outDir, "react-server-router.d.ts"),
           reactServerRouterDts
         );
-        logger.info(
-          `Types generated successfully at ${colors.cyan(join(outDir, "react-server-router.d.ts"))}`
-        );
         debounceTypesGeneration = null;
       };
 
@@ -352,6 +351,26 @@ export default function viteReactServerRouter(options = {}) {
         ],
         rehypePlugins: routerConfig.mdx?.rehypePlugins ?? [],
       });
+      try {
+        mdxComponents = __require.resolve(routerConfig.mdx?.components, {
+          paths: [cwd],
+        });
+      } catch {}
+      if (!mdxComponents) {
+        try {
+          mdxComponents = __require.resolve("./mdx-components.jsx", {
+            paths: [cwd],
+          });
+        } catch {}
+      }
+      if (!mdxComponents) {
+        try {
+          mdxComponents = __require.resolve("./mdx-components.tsx", {
+            paths: [cwd],
+          });
+        } catch {}
+      }
+      mdxComponents = sys.normalizePath(mdxComponents);
     } else if (mdxCounter === 0 && hasMdx) {
       hasMdx = false;
       mdx = null;
@@ -387,6 +406,7 @@ export default function viteReactServerRouter(options = {}) {
               `**/+{${HTTP_METHODS_PATTERN}}.*`,
               "**/*.server.*",
               "**/*.config.*",
+              routerConfig.mdx?.components ?? "mdx-components.{jsx,tsx}",
             ],
           },
           routerConfig.page
@@ -473,20 +493,63 @@ export default function viteReactServerRouter(options = {}) {
       } else {
         logger.info(`Router configuration ${colors.green("successful")}`);
 
+        const initialFiles = new Set(
+          await glob(
+            [
+              "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}",
+              "!**/node_modules/**",
+              routerConfig.mdx?.components ?? "mdx-components.{jsx,tsx}",
+            ],
+            {
+              cwd: join(cwd, root),
+              absolute: true,
+            }
+          )
+        );
         const sourceWatcher = watch(
-          ["**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}", "!**/node_modules/**"],
+          [
+            "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}",
+            "!**/node_modules/**",
+            routerConfig.mdx?.components ?? "mdx-components.{jsx,tsx}",
+          ],
           {
             cwd: join(cwd, root),
           }
         );
 
+        let watcherTimeout = null;
+        const debouncedWarning = () => {
+          if (watcherTimeout) {
+            clearTimeout(watcherTimeout);
+          }
+          watcherTimeout = setTimeout(() => {
+            watcherTimeout = null;
+            if (initialFiles.size > 0) {
+              logger.warn(
+                `Router configuration still waiting for source files watcher to finish...`
+              );
+            }
+          }, 500);
+        };
+
         sourceWatcher.on("add", async (rawSrc) => {
+          debouncedWarning();
+
           const src = sys.normalizePath(join(cwd, root, rawSrc));
           logger.info(
             `Adding source file ${colors.cyan(
               sys.normalizePath(relative(rootDir, src))
             )} to router`
           );
+
+          if (initialFiles.has(src)) {
+            initialFiles.delete(src);
+            if (initialFiles.size === 0) {
+              logger.info(`Router configuration ${colors.green("ready")}`);
+              reactServerRouterReadyResolve?.();
+              reactServerRouterReadyResolve = null;
+            }
+          }
 
           if (isLayout(src)) {
             entry.layouts.push(...source([src], rootDir, root));
@@ -641,6 +704,19 @@ export default function viteReactServerRouter(options = {}) {
           options.exportPaths = paths;
         }
       } else {
+        const reactServerRouterReadyPromise = new Promise((resolve) => {
+          reactServerRouterReadyResolve = () => {
+            globalThis.__react_server_ready__ =
+              globalThis.__react_server_ready__?.filter(
+                (promise) => promise !== reactServerRouterReadyPromise
+              );
+            resolve();
+          };
+        });
+        globalThis.__react_server_ready__ = [
+          ...(globalThis.__react_server_ready__ ?? []),
+          reactServerRouterReadyPromise,
+        ];
         return new Promise((resolve, reject) => {
           const configWatcher = watch(
             [
@@ -802,6 +878,11 @@ export default function viteReactServerRouter(options = {}) {
             import * as sys from "@lazarv/react-server/lib/sys.mjs";`
               : ""
           }
+          ${
+            mdxComponents && /\.(md|mdx)/.test(src)
+              ? `import MDXComponents from "${mdxComponents}";`
+              : ""
+          }
           import { withCache } from "@lazarv/react-server";
           import { withPrerender } from "@lazarv/react-server/prerender";
           import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
@@ -858,6 +939,7 @@ export default function viteReactServerRouter(options = {}) {
           const ttl = pageProps?.frontmatter?.ttl ?? pageProps?.frontmatter?.revalidate ?? pageProps?.ttl ?? pageProps?.revalidate;
           const CachedPage = typeof ttl === "number" ? withCache(Page, ttl) : Page;
           const PrerenderedPage = withPrerender(CachedPage);
+          ${mdxComponents && /\.(md|mdx)/.test(src) ? `pageProps.components = typeof MDXComponents === "function" ? MDXComponents() : MDXComponents;` : ""}
           ${layouts
             .map(
               ([src], i) =>
@@ -1103,9 +1185,9 @@ export default function viteReactServerRouter(options = {}) {
         return code;
       }
     },
-    transform(code, id) {
+    async transform(code, id) {
       if (mdx) {
-        const res = mdx.transform(code, id);
+        const res = await mdx.transform(code, id);
         if (res) {
           return res;
         }

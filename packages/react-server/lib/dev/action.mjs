@@ -47,7 +47,7 @@ export default async function dev(root, options) {
           const listener = server.listen(port, listenerHost);
           runtime$(SERVER_CONTEXT, listener);
           listener
-            .on("listening", () => {
+            .on("listening", async () => {
               const resolvedUrls = [];
               if (listenerHost) {
                 resolvedUrls.push(
@@ -78,6 +78,11 @@ export default async function dev(root, options) {
                   }
                 });
               }
+
+              while (globalThis.__react_server_ready__?.length > 0) {
+                await Promise.all(globalThis.__react_server_ready__ ?? []);
+              }
+
               server.printUrls(resolvedUrls);
               getRuntime(LOGGER_CONTEXT)?.info?.(
                 `${colors.green("✔")} Ready in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`

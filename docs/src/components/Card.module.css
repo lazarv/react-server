@@ -11,12 +11,16 @@
     @apply w-12 h-12 bg-white rounded-lg mb-2 border p-1;
   }
 
-  p {
-    @apply text-xs;
+  & > p {
+    @apply text-xs mb-4;
   }
 
   a {
-    @apply mt-2 self-end;
+    @apply mt-auto self-end;
+
+    & p {
+      @apply text-xs;
+    }
   }
 }
 

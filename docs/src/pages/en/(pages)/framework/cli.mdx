@@ -1,0 +1,121 @@
+---
+title: CLI
+order: -1
+category: Framework
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# CLI
+
+The `react-server` CLI is the main tool for developing and deploying your `@lazarv/react-server` applications. It provides a set of commands to help you build, run, and deploy your app.
+
+To check out the available commands, run:
+
+```sh
+pnpm exec react-server --help
+```
+
+<Link name="commands">
+## Commands
+</Link>
+
+You need to always define the entrypoint of your app as the first argument of the `react-server` command. Only exception is when you use the `@lazarv/react-server-router` package as it will define the entrypoint for you.
+
+- **[root]**: start development server for your app
+- **build [root]**: build your app for production
+- **start**: start your app in production
+
+The `[root]` of your app has to export default a React Server Component. This is the entrypoint of your app and this will be rendered on the server side for every request.
+
+You can also use a hash fragment in the entrypoint to specify a specific export. For example, if you have an entrypoint at `./index.jsx` and you want to use the `App` export, you can use `./index.jsx#App`.
+
+<Link name="development-server-options">
+## Development server options
+</Link>
+
+If your entrypoint is at `./App.jsx`, you can start the development server with:
+
+```sh
+pnpm exec react-server ./App.jsx
+```
+
+To start the development server, you can use the following options:
+
+**host:** The host to listen on. Default is `localhost`.
+
+**port:** The port to listen on. Default is `3000`.
+
+**https:** Use HTTPS protocol. Default is `false`.  
+When you want to use HTTPS for your development server. You need to specify your HTTPS configuration in your `react-server.config.mjs` or `vite.config.mjs` file. See details in the Vite documentation at [server.https](https://vitejs.dev/config/server-options.html#server-https).
+
+**open:** Open browser on server start. Default is `false`.  
+Opens your app in the default browser.
+
+**cors:** Enable CORS. Default is `false`.  
+This is useful when you want to allow cross-origin requests. If you need more detailed CORS configuration, you can define the CORS configuration in your `react-server.config.mjs` or `vite.config.mjs` file. See details in the Vite documentation at [server.cors](https://vitejs.dev/config/server-options.html#server-cors).
+
+**force:** Force optimize deps. Default is `false`.  
+This is equal to `vite --force`. It will force the optimization of dependencies and clears the Vite cache.
+
+**clear-screen:** Clear screen on server start. Default is `false`.  
+If you want to start with a clean terminal screen.
+
+**no-color:** Disable color output. Default is `false`.  
+This is useful for CI/CD environments.
+
+**eval:** Evaluate the server entrypoint from the argument, like `node -e`. You can also use _stdin_ as the entrypoint. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+
+**version:** Display version number.  
+Output will also include your machine's architecture and node.js version.
+
+**outDir:** Output directory for the build. Default is `.react-server`.
+
+<Link name="build-options">
+## Build options
+</Link>
+
+**minify:** Minify your build. Default is `true`.  
+You don't need to minify your app if you only use React Server Components and you are not using any client components, like in the [Todo](https://github.com/lazarv/react-server/tree/main/examples/todo) example. If you want to disable minification of client component code, use `--no-minify`.
+
+**sourcemap:** Generate source map. Default is `false`.
+See more details in the Vite documentation at [build.sourcemap](https://vitejs.dev/config/build-options.html#build-sourcemap).
+
+**no-color:** Disable color output. Default is `false`.  
+This is useful for CI/CD environments.
+
+**server:** Build server. Default is `true`.  
+You can disable server build if you only want to build the client part of your app. Use `--no-server` to disable server build.
+
+**client:** Build client. Default is `true`.  
+You can disable client build if you only want to build the server part of your app. Use `--no-client` to disable client build.
+
+**export:** Static export. Default is `false`.  
+You can export your app as static HTML pages. You can define the routes to export in your `react-server.config.mjs` file. See more details at [Static generation](/guide/router/static).
+
+**deploy:** Deploy using adapter. Default is `false`.
+If you use an adapter in your `react-server.config.mjs` file, the adapter will pre-build your app for deployment and when you use this argument, the adapter will also deploy your app at the end of the build process.
+
+**outDir:** Output directory for the build. Default is `.react-server`.
+
+<Link name="start-options">
+## Start options
+</Link>
+
+**host**, **port**, **https** and **cors** are the same as in the development server options.
+
+**origin:**  
+Specify the origin part of the URL to a constant value. Same as using the `ORIGIN` environment variable.
+
+**trust-proxy:**
+Trust `X-Forwarded-*` headers.
+
+See more details about `origin` and `trust-proxy` at the Hattip documentation at [@hattip/adapter-node](https://github.com/hattipjs/hattip/tree/main/packages/adapter/adapter-node#api).
+
+**build:**
+Runs the build command before starting the server using the provided entrypoint.
+
+**dev:**
+Start the server in development mode to use React development packages, like `react/jsx-dev-runtime`.
+
+**outDir:** Output directory for the build. Default is `.react-server`. You need to specify this option if you used a different output directory in the build command than the default.

@@ -1,0 +1,75 @@
+---
+title: Markdown
+category: Router
+order: 6
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Markdown
+
+`@lazarv/react-server-router` supports Markdown out of the box. Not just standard Markdown files, but also MDX and any plugin for both Remark and Rehype.
+
+<Link name="usage">
+## Usage
+</Link>
+
+To use Markdown or MDX, just create a page with the `.md` or `.mdx` extension. The content of the file will be rendered as a React Server Component.
+
+Create a page named `readme.mdx` with the following content in your root directory for pages:
+
+```md
+# Hello MDX!
+
+This is an MDX page.
+```
+
+This route will available at `/readme` instantly.
+
+Because your Markdown/MDX document will be rendered as a React Server Compoennt, it will also support all React features, like client components, loading fallbacks and error boundaries. Like on all standard `@lazarv/react-server-router` pages.
+
+Your parent layouts will also be applied to your Markdown/MDX pages.
+
+> **Fun fact:** This documentation website was also created by using MDX with `@lazarv/react-server-router`.
+
+<Link name="plugins">
+## Plugins
+</Link>
+
+You can use any Remark or Rehype plugin with `@lazarv/react-server-router`. Just install the plugin and add it to your `react-server.config.mjs` file. In the following example, we use `remark-gfm` and `rehype-highlight`.
+
+```mjs
+import rehypeHighlight from "rehype-highlight";
+import remarkGfm from "remark-gfm";
+
+export default {
+  mdx: {
+    remarkPlugins: [remarkGfm],
+    rehypePlugins: [rehypeHighlight, rehypeMdxCodeProps],
+  },
+};
+```
+
+<Link name="custom-mdx-components">
+## Custom MDX components
+</Link>
+
+To use custom components, you have to create an `mdx-components.jsx` or `mdx-components.tsx` file in your project root. This file should export a `useMDXComponents` function that returns an object with the custom components.
+
+```jsx
+export function useMDXComponents() {
+  return {
+    h1: (props) => <h1 style={{ color: "red" }} {...props} />,
+  };
+}
+```
+
+You can also specify where your file exporting the `useMDXComponents` function is located in your `react-server.config.mjs` file.
+
+```mjs
+export default {
+  mdx: {
+    components: "./src/mdx-components.jsx",
+  },
+};
+```

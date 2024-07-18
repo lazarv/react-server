@@ -1,7 +1,7 @@
 export default function Link({ name, children }) {
   return (
     <div className="flex items-baseline">
-      <span id={name} className="relative -top-20"></span>
+      <span id={name} className="relative -top-32 lg:-top-20"></span>
       {children}
       <a
         href={`#${name}`}

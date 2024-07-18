@@ -1,4 +1,5 @@
 import rehypeHighlight from "rehype-highlight";
+import rehypeMdxCodeProps from "rehype-mdx-code-props";
 import remarkGfm from "remark-gfm";
 
 export default {
@@ -12,7 +13,8 @@ export default {
   ],
   mdx: {
     remarkPlugins: [remarkGfm],
-    rehypePlugins: [rehypeHighlight],
+    rehypePlugins: [rehypeHighlight, rehypeMdxCodeProps],
+    components: "./src/mdx-components.jsx",
   },
   prerender: false,
   export(paths) {

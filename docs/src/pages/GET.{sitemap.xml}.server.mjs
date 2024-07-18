@@ -1,27 +1,27 @@
-import { getGuides } from "../guides.mjs";
-import { getTutorials } from "../tutorials.mjs";
+import { getPages } from "../pages.mjs";
 
-const guides = getGuides("/", "en").reduce((paths, { guides }) => {
-  guides.forEach(({ langHref: path }) =>
-    paths.push({
-      path: path.replace(/^\/en/, ""),
-    })
-  );
+const pages = getPages("/", "en").reduce((paths, { category, pages }) => {
+  paths.push({
+    path: `/${category.toLowerCase()}`,
+  });
+  pages.forEach(({ langHref: path }) => {
+    if (!paths.some((p) => p.path === path.replace(/^\/en/, ""))) {
+      paths.push({
+        path: path.replace(/^\/en/, ""),
+      });
+    }
+  });
   return paths;
 }, []);
 
-const tutorials = getTutorials("/", "en").map(({ langHref: path }) => ({
-  path: path.replace(/^\/en/, ""),
-}));
-
-const pages = [...guides, ...tutorials, { path: "/" }, { path: "/team" }];
+const site = [{ path: "/" }, ...pages];
 
 const now = new Date().toISOString();
 
 export default function Sitemap() {
   const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages
+${site
   .toSorted((a, b) => a.path.split("/").length - b.path.split("/").length)
   .map(({ path }) => {
     return `<url>

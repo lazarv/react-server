@@ -5,7 +5,15 @@ import { cookie, usePathname } from "@lazarv/react-server";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
-export default function Layout({ header, sidebar, navigation, children }) {
+export default function Layout({
+  breadcrumb,
+  header,
+  sidebar,
+  contents,
+  navigation,
+  footer,
+  children,
+}) {
   const pathname = usePathname();
   const { dark } = cookie();
 
@@ -61,21 +69,18 @@ export default function Layout({ header, sidebar, navigation, children }) {
           crossOrigin="anonymous"
         />
       </head>
-      <body>
+      <body data-path={pathname}>
         {header}
         <main>
           {sidebar}
-          <article data-path={pathname}>
+          <article>
+            {breadcrumb}
             {children}
             {navigation}
           </article>
+          {contents}
         </main>
-        <footer>
-          Released under the MIT License.
-          <br />
-          Copyright © 2023-{new Date().getFullYear()} Viktor Lázár &
-          Contributors
-        </footer>
+        {footer}
         <Analytics />
         <SpeedInsights />
       </body>

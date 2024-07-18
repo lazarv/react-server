@@ -1,6 +1,62 @@
+.root {
+  z-index: 1;
+  pointer-events: none;
+
+  &::before {
+    @apply absolute w-full h-[200%] -translate-y-full;
+    content: "";
+    z-index: -1;
+
+    @media screen(lg) {
+      @apply hidden;
+    }
+  }
+
+  & ~ .root {
+    @apply !bg-transparent !border-0;
+  }
+
+  &.right {
+    @apply flex-row-reverse;
+
+    .sidebar {
+      transform: translateX(100vw);
+      right: 0;
+      left: auto;
+
+      @media screen(lg) {
+        transform: none;
+      }
+    }
+  }
+}
+
+.root ~ article {
+  @apply mt-16;
+
+  @media screen(lg) {
+    @apply ml-16 mr-0 mt-0;
+  }
+
+  &:last-child {
+    @media screen(lg) {
+      @apply mr-16;
+    }
+  }
+}
+
+article ~ .root {
+  /* display: none; */
+
+  @media screen(lg) {
+    @apply ml-16;
+  }
+}
+
 .toggle {
   opacity: 0;
   height: 0;
+  pointer-events: auto;
 
   &:checked {
     position: fixed;
@@ -10,32 +66,36 @@
     width: 100vw;
     height: 100vh;
 
-    & ~ .sidebar {
+    & + .sidebar {
       transform: translateX(0);
 
       & + .backdrop {
         opacity: 1;
+
+        @media screen(lg) {
+          display: none;
+        }
       }
     }
   }
 
-  @media screen(sm) {
+  @media screen(lg) {
     display: none;
   }
 }
 
 .label {
-  @apply w-full mb-4 border-b cursor-pointer;
+  @apply absolute inline-flex cursor-pointer pointer-events-auto;
 
   & label {
-    @apply flex items-center p-4 text-xs cursor-pointer;
+    @apply inline-flex items-center p-4 text-xs cursor-pointer;
 
     & svg {
       @apply inline-block h-4 w-4 mr-1;
     }
   }
 
-  @media screen(sm) {
+  @media screen(lg) {
     display: none;
   }
 }
@@ -46,8 +106,9 @@
   justify-items: left;
   padding: 4rem 1rem 1rem 1rem;
   width: 100%;
-  z-index: 2;
+  z-index: 10;
   overflow: auto;
+  pointer-events: auto;
   /* view-transition-name: sidebar; */
 
   @media (prefers-reduced-motion) {
@@ -61,15 +122,18 @@
   min-height: 100%;
   box-shadow: 0 0 8px 8px rgba(0, 0, 0, 0.5);
 
-  @media screen(sm) {
+  @media screen(lg) {
     position: sticky;
-    top: 4rem;
+    top: 0;
     align-self: flex-start;
     min-height: min-content;
+    max-height: calc(100vh - 48px);
+    margin-top: -1rem;
     height: auto;
     box-shadow: none;
     transform: none;
-    padding-top: 0rem;
+    padding-top: 1rem;
+    padding-right: 2rem;
     @apply bg-transparent dark:bg-transparent;
   }
 
@@ -91,7 +155,6 @@
     background: transparent;
 
     & a {
-      display: inline-flex;
       white-space: nowrap;
       float: left;
       clear: left;

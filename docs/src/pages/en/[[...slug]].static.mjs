@@ -1,19 +1,11 @@
-import { getGuides } from "../../guides.mjs";
-import { getTutorials } from "../../tutorials.mjs";
+import { getPages } from "../../pages.mjs";
 
-const guides = getGuides("/", "en").reduce((paths, { guides }) => {
-  guides.forEach(({ langHref: path }) => paths.push({ path }));
+const pages = getPages("/", "en").reduce((paths, { category, pages }) => {
+  paths.push({
+    path: `/${category.toLowerCase()}`,
+  });
+  pages.forEach(({ langHref: path }) => paths.push({ path }));
   return paths;
 }, []);
 
-const tutorials = getTutorials("/", "en").map(({ langHref: path }) => ({
-  path,
-}));
-
-export default [
-  ...guides,
-  ...tutorials,
-  { path: "/" },
-  { path: "/team" },
-  { path: "/404" },
-];
+export default [...pages, { path: "/" }, { path: "/404" }];

@@ -10,8 +10,8 @@ export default function Header({ lang }) {
 
   return (
     <header>
-      <nav>
-        <a href={baseUrl} className="relative pl-7">
+      <nav className="relative">
+        <a href={baseUrl} className="pl-7 left-2 sm:absolute">
           <img
             src="/react-server.svg"
             className="size-6 absolute left-0 top-1/2 -translate-y-1/2 -mt-1"
@@ -20,16 +20,27 @@ export default function Header({ lang }) {
           <h4>@lazarv</h4>
           <h3>react-server</h3>
         </a>
-        <a href={`${baseUrl}guide`} className="ml-auto">
+        <a href={`${baseUrl}guide`} className="ml-auto hidden lg:inline">
           Guide
         </a>
-        <a href={`${baseUrl}tutorials/hello-world`}>Tutorials</a>
-        <a href={`${baseUrl}team`} className="mr-auto">
+        <a href={`${baseUrl}framework`} className="hidden lg:inline">
+          Framework
+        </a>
+        <a href={`${baseUrl}router`} className="hidden lg:inline">
+          Router
+        </a>
+        <a href={`${baseUrl}deploy`} className="hidden lg:inline">
+          Deploy
+        </a>
+        <a href={`${baseUrl}tutorials`} className="hidden lg:inline">
+          Tutorials
+        </a>
+        <a href={`${baseUrl}team`} className="mr-auto hidden lg:inline">
           Team
         </a>
         <ClientOnly>
           <AlgoliaSearch />
-          <DarkModeSwitch className="absolute right-8 sm:right-12" />
+          <DarkModeSwitch className="absolute right-12" />
         </ClientOnly>
         <a
           href="https://github.com/lazarv/react-server"

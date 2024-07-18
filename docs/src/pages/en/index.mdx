@@ -13,12 +13,41 @@ import Link from "../../components/Link";
   </h3>
 </div>
 
-<div className="whitespace-nowrap">
-  <Pill href="/guide">Get Started</Pill>
+<div className="whitespace-nowrap w-full flex flex-wrap gap-2">
+  <Pill href="/guide/get-started">Get Started</Pill>
+  <Pill href="/guide/why">Why @lazarv/react-server?</Pill>
   <Pill href="https://github.com/lazarv/react-server" target="_blank">
     View on GitHub
   </Pill>
 </div>
+
+<div className="my-8 md:my-16">
+
+# Quick Start
+
+Welcome to the `@lazarv/react-server` documentation! To start using this framework, just create a file exporting a React Server Component as default and run the `@lazarv/react-server` command using `npx` with the path to the file. You need nothing else to start your first server-side rendered React application! Painfully simple, right?
+
+<div className="my-4">
+
+```jsx filename="./App.jsx"
+export default function App() {
+  return (
+    <h1>Hello, World!</h1>
+  );
+}
+```
+
+```sh
+npx @lazarv/react-server ./App.jsx --open
+```
+
+</div>
+
+Continue your journey by exploring the [guide](/guide) and [tutorials](/tutorials) sections or learn more details about the [framework](/framework), the file-system based [router](/router) or how you can [deploy](/deploy) your app to a cloud provider. If you have any questions or need help, feel free to [open an issue](https://github.com/lazarv/react-server/issues) on GitHub. We are happy to help you!
+
+</div>
+
+# Features
 
 <div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
   <Card>
@@ -87,52 +116,5 @@ Easily embed Markdown content within your React components using MDX integration
 
   </Card>
 </div>
+import { jsx } from "react/jsx-runtime"
 
-<hr className="my-8 border-gray-800" />
-
-<Link name="tutorials">
-# Tutorials
-</Link>
-
-Learn how to build React applications with server-side rendering using React Server Components. Follow our step-by-step tutorials to create your first application, integrate server actions, and more.
-
-<div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-  <Card>
-
-#### Hello World!
-
-##### Your first application
-
-Create a new React application with server-side rendering in just a few steps. Start building your app with React Server Components and enjoy faster initial page loads.
-
-    <Pill href="/tutorials/hello-world">
-      Read tutorial
-    </Pill>
-  </Card>
-
-  <Card>
-
-#### Todo App
-
-##### Using server actions
-
-Build a simple Todo application with server actions. Learn how to interact with the server from your components and manage server-side operations efficiently.
-
-    <Pill href="/tutorials/todo-app">
-      Read tutorial
-    </Pill>
-  </Card>
-
-  <Card>
-
-#### Photos
-
-##### Using client components
-
-Learn how to use client components to create interactive elements in your application. Enhance your user experience with client-side rendering and dynamic content updates.
-
-    <Pill href="/tutorials/photos">
-      Read tutorial
-    </Pill>
-  </Card>
-</div>

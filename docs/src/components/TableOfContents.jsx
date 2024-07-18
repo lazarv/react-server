@@ -16,6 +16,13 @@ export default function TableOfContents() {
           : element.parentElement.textContent.replace("#", "").trim(),
       href: element.getAttribute("href") ?? "#",
       el: element.tagName === "H1" ? element : element.parentElement,
+      indent:
+        element.tagName === "H1"
+          ? 0
+          : (parseInt(
+              element.parentElement.querySelector("h2, h3, h4, h5, h6")
+                ?.tagName[1]
+            ) ?? 1) - 1,
     }));
 
     setTableOfContents(tableOfContents);
@@ -47,16 +54,21 @@ export default function TableOfContents() {
     );
 
     Array.from(document.querySelector("article").children).forEach((el) => {
+      if (el.getAttribute("data-no-content")) return;
       if (tableOfContents.some((item) => item.el === el)) {
         sections.push([]);
       }
-      sections[sections.length - 1].push(el);
+      sections[sections.length - 1]?.push(el);
       elementRatio.set(el, 0);
       observer.observe(el);
     });
 
     const handleHashChange = () => {
       setActive(window.location.hash);
+
+      document.querySelectorAll("input[type='checkbox']").forEach((el) => {
+        el.checked = false;
+      });
     };
 
     window.addEventListener("hashchange", handleHashChange);
@@ -67,14 +79,19 @@ export default function TableOfContents() {
     };
   }, []);
 
+  if (tableOfContents.length === 1) return null;
+
   return (
     <>
-      <ul>
+      <header className="text-md font-semibold mb-2 whitespace-nowrap">
+        On this page
+      </header>
+      <ul className="flex flex-col gap-2 w-40">
         {tableOfContents.map((item, i) => (
           <li key={item.href}>
             <a
               href={item.href}
-              className={`block mb-1 text-sm${
+              className={`block mb-1 max-w-full !whitespace-normal text-xs${
                 (
                   item.href === "#"
                     ? active === "#"
@@ -82,9 +99,11 @@ export default function TableOfContents() {
                 )
                   ? " text-indigo-500 dark:text-yellow-600 active"
                   : ""
-              }`}
+              } ${item.indent === 0 ? "font-semibold" : ""}`}
+              style={{ marginLeft: `${item.indent / 4}rem` }}
+              title={item.label}
             >
-              {i + 1}. {item.label}
+              {item.label}
             </a>
           </li>
         ))}

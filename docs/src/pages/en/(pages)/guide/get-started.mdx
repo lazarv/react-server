@@ -1,0 +1,81 @@
+---
+title: Get Started
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Get Started
+
+Nothing is easier to get started with React Server Components than `@lazarv/react-server`. You can use the `react-server` CLI as you would node.js. As soon as you have a file with a server component exported as default, you can run it with `react-server`. Your application can be a single file for micro-applications or even use `@lazarv/react-server-router` to create a full-fledged application with file-system based routing.
+
+<Link name="prerequisites">
+## Prerequisites
+</Link>
+
+You will only need node.js and a package manager to get started. We suggest the latest node.js runtime and pnpm as the package manager,but you can use any package manager you would like to.
+
+- [Node.js](https://nodejs.org)
+- [pnpm](https://pnpm.io)
+
+> Support for other JavaScript runtimes including Bun and Deno is planned. Support for multiple cloud platforms is also planned and contributions are welcome. If you would like to contribute, please open an issue on GitHub.
+
+<Link name="install">
+## Install
+</Link>
+
+Just add `@lazarv/react-server` to your project. You will not need anything else to get started with a micro-application.
+
+```sh
+pnpm add @lazarv/react-server
+```
+
+<Link name="our-first-application">
+## Our first application
+</Link>
+
+Just by creating an `App.jsx` file and exporting a React Server Component as default makes your application ready to run.
+
+```jsx
+export default function App() {
+  return <h1>Hello World</h1>;
+}
+```
+
+<Link name="development-mode">
+## Development mode
+</Link>
+
+To start your application in development mode, you can use the `react-server` CLI simply by passing the path to your application entry file. By using the `--open` flag, your application will be opened in your default browser on http://localhost:3000.
+
+```sh
+pnpm exec react-server ./App.jsx --open
+```
+
+<Link name="build">
+## Build
+</Link>
+
+After you have developed your application, you can build it for production. This will create a `.react-server` folder with all files needed to run your application in production mode.
+
+```sh
+pnpm exec react-server build ./App.jsx
+```
+
+<Link name="production-mode">
+## Production mode
+</Link>
+
+To start your application in production, just use the `start` command. This will start your application in production mode.
+
+```sh
+pnpm exec react-server start
+```
+
+> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx --open` to start your application in development mode.
+
+<Link name="next-steps">
+## Next steps
+</Link>
+
+Now that you have a basic understanding of how to get started with `@lazarv/react-server`, you can learn more about the advanced features in the following sections.

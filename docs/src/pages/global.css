@@ -23,32 +23,26 @@ html {
 }
 
 body {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
-
-  @apply from-white to-gray-200 bg-gradient-to-b dark:from-zinc-800 dark:to-zinc-900 dark:bg-gradient-to-b dark:text-gray-300;
+  @apply flex flex-col w-full overflow-x-hidden from-white to-gray-200 bg-gradient-to-b dark:from-zinc-800 dark:to-zinc-900 dark:bg-gradient-to-b dark:text-gray-300;
 }
 
 main {
-  @apply container max-w-screen-xl mx-auto;
+  @apply container max-w-screen-xl mx-auto flex flex-col flex-1 bg-transparent;
 
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  background: transparent;
-
-  @media screen(sm) {
-    flex-direction: row;
+  @media screen(md) {
+    @apply flex-row;
   }
 }
 
-header {
+body > header {
   @apply w-full border-b self-center sticky top-0 h-12 flex items-center justify-center bg-white dark:bg-zinc-900 dark:text-gray-300 dark:border-gray-800 z-10 drop-shadow-xl;
 
   & nav {
-    @apply container max-w-screen-xl px-4 pr-16 flex gap-4 sm:gap-8 self-center justify-center items-center relative;
+    @apply container max-w-screen-xl px-4 pr-16 flex gap-2 self-center justify-center items-center relative;
+
+    @media screen(sm) {
+      @apply gap-8;
+    }
 
     & label svg,
     & a svg {
@@ -68,7 +62,7 @@ header {
         @apply text-lg font-semibold m-0 -mt-0.5 leading-none;
       }
 
-      @media screen(sm) {
+      @media screen(md) {
         display: inline-block;
         position: absolute;
         left: 1rem;
@@ -87,7 +81,7 @@ header {
     @apply bg-white dark:bg-zinc-900;
   }
 
-  @media screen(sm) {
+  @media screen(md) {
     @apply mb-4;
   }
 }
@@ -110,7 +104,7 @@ nav {
         height: 2px;
         width: 100%;
         left: 50%;
-        bottom: 1px;
+        bottom: 0px;
         transform: translateX(-50%);
         animation: 200ms both indicator;
 
@@ -130,19 +124,21 @@ nav {
   }
 }
 
-article {
-  width: 100%;
-  justify-items: left;
-  overflow: auto;
-  view-transition-name: content;
-
-  &[data-path="/en"] {
+body[data-path="/en"] {
+  article {
     view-transition-name: index;
 
     @media (prefers-reduced-motion) {
       view-transition-name: none;
     }
   }
+}
+
+article {
+  width: 100%;
+  justify-items: left;
+  overflow: auto;
+  view-transition-name: content;
 
   @media (prefers-reduced-motion) {
     view-transition-name: none;
@@ -281,6 +277,12 @@ footer {
   @apply w-full py-8 mt-auto items-center justify-center text-center text-xs border-t bg-white dark:bg-zinc-900 dark:text-gray-300 dark:border-gray-800;
 }
 
+.getstarted-code {
+  & pre {
+    @apply w-full;
+  }
+}
+
 ::view-transition-old(sidebar):only-child {
   animation:
     0.5s both fade-out,
@@ -293,16 +295,12 @@ footer {
     0.5s both sidebar-in;
 }
 
-::view-transition-old(content) {
-  animation:
-    0.5s both fade-out,
-    0.5s both slide-to-down;
+::view-transition-old(content):only-child {
+  animation: 0.5s both fade-out;
 }
 
-::view-transition-new(content) {
-  animation:
-    0.5s both fade-in,
-    0.5s both slide-from-right;
+::view-transition-new(content):only-child {
+  animation: 0.5s both fade-in;
 }
 
 ::view-transition-old(index) {
@@ -326,38 +324,6 @@ footer {
 @keyframes fade-out {
   to {
     opacity: 0;
-  }
-}
-
-@keyframes slide-from-right {
-  from {
-    transform: translateX(100vw);
-  }
-}
-
-@keyframes slide-to-left {
-  to {
-    transform: translateX(-100vw);
-    opacity: 1;
-  }
-}
-
-@keyframes slide-to-down {
-  to {
-    transform: translateY(100vh);
-    opacity: 1;
-  }
-}
-
-@keyframes sidebar-in {
-  from {
-    transform: translateX(-100vw);
-  }
-}
-
-@keyframes sidebar-out {
-  to {
-    transform: translateX(-100vw);
   }
 }
 

@@ -61,14 +61,17 @@ if (import.meta.env.DEV) {
       error.plugin = "@lazarv/react-server";
       const stacklines = error.stack
         .split("\n")
-        .filter((it) => it.trim().startsWith("at "));
-      error.stack = stacklines.map((it) => it.trim()).join("\n");
-      const [, id, line, column] = (stacklines?.[0] ?? "").match(
-        /\((.*):([0-9]+):([0-9]+)\)/
-      );
-      error.id = id || source;
+        .filter((it) => it.trim().startsWith("at "))
+        .map((it) => it.trim());
+      error.stack = stacklines.join("\n");
+      const firstLine = stacklines?.[0] ?? "";
+      const [, id, line, column] =
+        firstLine.match(/\((.*):([0-9]+):([0-9]+)\)/) ??
+        firstLine.match(/(.*):([0-9]+):([0-9]+)/) ??
+        [];
+      error.id = (id || source)?.replace(/^at\s+/, "");
 
-      if (!force && error.id.startsWith("http")) {
+      if (!force) {
         return setTimeout(() => showErrorOverlay(error, source, true));
       }
       window.__react_server_error_overlay__ = true;

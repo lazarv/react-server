@@ -25,7 +25,7 @@ export default async function build(root, options) {
   }
   const config = await loadConfig({}, options);
 
-  await new Promise((resolve) => {
+  return new Promise((resolve) => {
     ContextStorage.run(
       {
         [CONFIG_CONTEXT]: config,
@@ -57,8 +57,9 @@ export default async function build(root, options) {
           }
           // static export
           if (
-            options.export ||
-            typeof config[CONFIG_ROOT]?.export !== "undefined"
+            options.export !== false &&
+            (options.export ||
+              typeof config[CONFIG_ROOT]?.export !== "undefined")
           ) {
             await rimraf(join(cwd, options.outDir, "dist"));
             await staticSiteGenerator(root, options);
@@ -69,13 +70,14 @@ export default async function build(root, options) {
               `\n${colors.green("✔")} Build completed successfully in ${formatDuration(Date.now() - globalThis.__react_server_start__)}!`
             );
           }
+          resolve();
         } catch (e) {
-          console.error(colors.red(e.stack || e.message));
+          console.error(colors.red(e.stack || e.message || e));
           console.log(
             `\n${colors.red("ⅹ")} Build failed in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
           );
+          resolve(1);
         }
-        resolve();
       }
     );
   });

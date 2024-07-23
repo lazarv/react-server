@@ -72,7 +72,10 @@ try {
   cli.parse(argv(), {
     run: false,
   });
-  await cli.runMatchedCommand();
+  const exitCode = await cli.runMatchedCommand();
+  if (exitCode) {
+    exit(exitCode);
+  }
 } catch (error) {
   console.error("[react-server]", error.stack ?? error.message);
   exit(1);

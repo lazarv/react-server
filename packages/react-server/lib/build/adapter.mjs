@@ -22,10 +22,18 @@ export default async function adapter(root, options) {
     }
     const [adapterModule, adapterOptions] =
       typeof adapter === "string" ? [adapter] : adapter;
-    const { adapter: adapterFn } = await import(
-      pathToFileURL(__require.resolve(adapterModule, { paths: [cwd] }))
-    );
-    await adapterFn(adapterOptions, root, options);
+    if (adapterModule) {
+      let adapterFn;
+      try {
+        const { adapter: _adapterFn } = await import(
+          pathToFileURL(__require.resolve(adapterModule, { paths: [cwd] }))
+        );
+        adapterFn = _adapterFn;
+      } catch {
+        throw `Adapter not found "${adapterModule}"`;
+      }
+      await adapterFn(adapterOptions, root, options);
+    }
   } else if (options.deploy) {
     console.log(colors.yellow("No adapter configured. Skipping deployment."));
   }

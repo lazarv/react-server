@@ -12,7 +12,7 @@ export default (cli) =>
     .option("--no-color", "disable color output", { default: false })
     .option("--server", "[boolean] build server", { default: true })
     .option("--client", "[boolean] build client", { default: true })
-    .option("--export", "[boolean] static export", { default: false })
+    .option("--export", "[boolean] static export")
     .option("--adapter <adapter>", "[boolean|string] adapter", {
       default: "",
       type: [String],

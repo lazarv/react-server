@@ -178,6 +178,13 @@ export function status(status?: number, statusText?: string): void;
  */
 export function headers(headers?: Record<string, string>): void;
 
+/**
+ * Get the active outlet when using client navigation.
+ *
+ * @returns The outlet name or page root outlet name ("PAGE_ROOT")
+ */
+export function useOutlet(): string;
+
 export type Cookies = RequestContextExtensions["cookie"];
 
 /**

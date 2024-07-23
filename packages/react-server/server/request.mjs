@@ -60,3 +60,10 @@ export async function useFormData(handleFile) {
 export function rewrite(pathname) {
   getContext(HTTP_CONTEXT).url.pathname = pathname;
 }
+
+export function useOutlet() {
+  return (
+    getContext(HTTP_CONTEXT)?.request?.headers?.get("react-server-outlet") ??
+    "PAGE_ROOT"
+  );
+}

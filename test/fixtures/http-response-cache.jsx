@@ -1,4 +1,4 @@
-import { useResponseCache, headers, revalidate } from "@lazarv/react-server";
+import { headers, revalidate, useResponseCache } from "@lazarv/react-server";
 
 export default function ResponseCache() {
   useResponseCache(1000);

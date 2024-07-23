@@ -4,6 +4,7 @@ declare namespace __react_server_routing__ {
   type __react_server_router_dynamic_route_infer_types__<T> = T;
   type __react_server_router_dynamic_route_definitions__ = any;
   type __react_server_routing_params_patterns__ = never;
+  type __react_server_routing_outlets__ = string;
   // end
 
   type SearchOrHash = `?${string}` | `#${string}`;
@@ -67,14 +68,20 @@ declare namespace __react_server_routing__ {
         >
       ? ExtractParams<T>
       : never;
+
+  type Outlet = __react_server_routing_outlets__;
 }
 
 declare module "@lazarv/react-server/navigation" {
-  import type { LinkProps as OriginalLinkProps } from "@lazarv/react-server/client/navigation.d.ts";
+  import type {
+    LinkProps as OriginalLinkProps,
+    RefreshProps as OriginalRefreshProps,
+  } from "@lazarv/react-server/client/navigation.d.ts";
   export * from "@lazarv/react-server/client/navigation.d.ts";
 
-  export type LinkProps<T> = Omit<OriginalLinkProps<T>, "to"> & {
+  export type LinkProps<T> = Omit<OriginalLinkProps<T>, "to" | "target"> & {
     to: __react_server_routing__.RouteImpl<T>;
+    target?: __react_server_routing__.Outlet;
   };
 
   /**
@@ -98,6 +105,35 @@ declare module "@lazarv/react-server/navigation" {
   export function Link<T>(
     props: LinkProps<__react_server_routing__.RouteImpl<T>>
   ): JSX.Element;
+
+  export type RefreshProps = Omit<OriginalRefreshProps, "target"> & {
+    target?: __react_server_routing__.Outlet;
+  };
+
+  /**
+   * A component that triggers a refresh of the current route.
+   *
+   * @param props - The props for the component
+   * @returns The anchor element
+   *
+   * @example
+   *
+   * ```tsx
+   * import { Refresh } from '@lazarv/react-server/navigation';
+   *
+   * export default function App() {
+   *  return (
+   *   <Refresh>Refresh</Refresh>
+   *  );
+   * }
+   */
+  export function Refresh(props: RefreshProps): JSX.Element;
+
+  export function ReactServerComponent(props: {
+    url?: string;
+    outlet: __react_server_routing__.Outlet;
+    children?: React.ReactNode;
+  }): JSX.Element;
 }
 
 declare module "@lazarv/react-server/client" {
@@ -118,15 +154,19 @@ declare module "@lazarv/react-server/client" {
   > & {
     navigate<T extends string>(
       url: __react_server_routing__.RouteImpl<T>,
-      options?: { outlet?: string; push?: boolean; rollback?: number }
+      options?: {
+        outlet?: __react_server_routing__.Outlet;
+        push?: boolean;
+        rollback?: number;
+      }
     ): Promise<void>;
     replace<T extends string>(
       url: __react_server_routing__.RouteImpl<T>,
-      options?: { outlet?: string; rollback?: number }
+      options?: { outlet?: __react_server_routing__.Outlet; rollback?: number }
     ): Promise<void>;
     prefetch<T extends string>(
       url: __react_server_routing__.RouteImpl<T>,
-      options?: { outlet?: string; ttl?: number }
+      options?: { outlet?: __react_server_routing__.Outlet; ttl?: number }
     ): Promise<void>;
   };
 

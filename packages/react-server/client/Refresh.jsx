@@ -1,12 +1,14 @@
 "use client";
 
-import { startTransition, useCallback } from "react";
+import { startTransition, useCallback, useContext } from "react";
 
-import { useClient } from "./context.mjs";
+import { FlightContext, useClient } from "./context.mjs";
 
 export default function Refresh({
   url,
-  outlet,
+  target,
+  local,
+  root,
   transition,
   prefetch: prefetchEnabled,
   ttl = Infinity,
@@ -16,15 +18,20 @@ export default function Refresh({
   ...props
 }) {
   const { refresh, prefetch } = useClient();
+  const { url: _url, outlet: _outlet } = useContext(FlightContext);
 
   const tryRefresh = useCallback(async () => {
     try {
-      await refresh(outlet || url);
+      await refresh(
+        target ||
+          url ||
+          (local ? _outlet || _url : root ? "PAGE_ROOT" : undefined)
+      );
       onRefresh?.();
     } catch (e) {
       onError?.(e);
     }
-  }, [refresh, outlet, url, onRefresh, onError]);
+  }, [refresh, target, local, root, url, _outlet, _url, onRefresh, onError]);
 
   const handleRefresh = async (e) => {
     e.preventDefault();
@@ -36,7 +43,11 @@ export default function Refresh({
   };
 
   const handlePrefetch = () =>
-    prefetchEnabled === true && prefetch(url, { outlet, ttl });
+    prefetchEnabled === true &&
+    prefetch(url || _url, {
+      outlet: target || (local ? _outlet : root ? "PAGE_ROOT" : undefined),
+      ttl,
+    });
 
   return (
     <a

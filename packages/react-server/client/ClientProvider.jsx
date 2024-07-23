@@ -4,11 +4,10 @@ import {
   encodeReply,
 } from "react-server-dom-webpack/client.browser";
 
-import { ClientContext } from "./context.mjs";
+import { ClientContext, PAGE_ROOT as _PAGE_ROOT_ } from "./context.mjs";
+export const PAGE_ROOT = _PAGE_ROOT_;
 
-export const PAGE_ROOT = "PAGE_ROOT";
-
-let activeChunk = null;
+const activeChunk = new Map();
 const cache = new Map();
 const listeners = new Map();
 const outlets = new Map();
@@ -31,7 +30,7 @@ const emit = (url, to = url, callback = () => {}) => {
   const urlListeners = listeners.get(url);
   for (const listener of urlListeners) listener(to, callback);
 };
-const prefetch = (to, { outlet = PAGE_ROOT, ttl = Infinity }) => {
+const prefetchOutlet = (to, { outlet = PAGE_ROOT, ttl = Infinity }) => {
   if (prefetching.get(outlet) !== to) {
     cache.delete(outlet);
     cache.delete(to);
@@ -55,6 +54,18 @@ const prefetch = (to, { outlet = PAGE_ROOT, ttl = Infinity }) => {
     }
   }
 };
+const prefetch = (to, options = {}) => {
+  if (outlets.size > 1) {
+    const activeOutlets = new Set(outlets.keys());
+    activeOutlets.delete(PAGE_ROOT);
+    return Promise.all(
+      Array.from(activeOutlets).map((outlet) =>
+        prefetchOutlet(to, { ...options, outlet: options.outlet || outlet })
+      )
+    );
+  }
+  return prefetchOutlet(to, options);
+};
 const refresh = async (outlet = PAGE_ROOT) => {
   return new Promise((resolve, reject) => {
     const url = outlets.get(outlet) || PAGE_ROOT;
@@ -67,45 +78,52 @@ const refresh = async (outlet = PAGE_ROOT) => {
     emit(outlet, url, (err) => {
       if (err) reject(err);
       else {
-        activeChunk = cache.get(outlet);
+        activeChunk.set(outlet, cache.get(outlet));
         resolve();
       }
     });
   });
 };
 let prevLocation = new URL(location);
-const navigate = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
+const navigateOutlet = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
   return new Promise((resolve, reject) => {
-    if (outlet === PAGE_ROOT) {
-      if (typeof rollback === "number" && rollback > 0) {
-        const key = `${outlet}:${location.href}`;
-        if (!flightCache.has(key)) {
-          const timeoutKey = `${key}:timeout`;
-          if (flightCache.has(timeoutKey)) {
-            clearTimeout(flightCache.get(timeoutKey));
-            flightCache.delete(timeoutKey);
-          }
-          flightCache.set(key, activeChunk);
-          flightCache.set(
-            timeoutKey,
-            setTimeout(() => {
-              if (flightCache.has(key)) {
-                flightCache.delete(key);
-              }
-            }, rollback)
-          );
+    if (typeof rollback === "number" && rollback > 0) {
+      const key = `${outlet}:${outlets.get(outlet) || location.href}`;
+      if (!flightCache.has(key)) {
+        const timeoutKey = `${key}:timeout`;
+        if (flightCache.has(timeoutKey)) {
+          clearTimeout(flightCache.get(timeoutKey));
+          flightCache.delete(timeoutKey);
         }
+        flightCache.set(key, activeChunk.get(outlet));
+        flightCache.set(
+          timeoutKey,
+          setTimeout(() => {
+            if (flightCache.has(key)) {
+              flightCache.delete(key);
+            }
+          }, rollback)
+        );
       }
-      outlets.set(outlet, to);
+    }
+    outlets.set(outlet, to);
+    if (outlet === PAGE_ROOT) {
       if (push !== false) {
-        history.pushState(null, "", to);
+        history.pushState(Object.fromEntries(outlets.entries()), "", to);
       } else {
-        history.replaceState(null, "", to);
+        history.replaceState(Object.fromEntries(outlets.entries()), "", to);
       }
       prevLocation = new URL(location);
     }
-    if (prefetching.get(outlet) === to) {
-      prefetching.delete(outlet);
+    const key = `${outlet}:${to}`;
+    if (flightCache.has(key)) {
+      cache.set(outlet, flightCache.get(key));
+      flightCache.delete(key);
+      const timeoutKey = `${key}:timeout`;
+      if (flightCache.has(timeoutKey)) {
+        clearTimeout(flightCache.get(timeoutKey));
+        flightCache.delete(timeoutKey);
+      }
     } else {
       cache.delete(to);
       cache.delete(outlet);
@@ -113,11 +131,32 @@ const navigate = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
     emit(outlet, to, (err) => {
       if (err) reject(err);
       else {
-        activeChunk = cache.get(outlet);
+        activeChunk.set(outlet, cache.get(outlet));
         resolve();
       }
     });
   });
+};
+const navigate = (to, options = {}) => {
+  const isRoot = options.outlet === PAGE_ROOT;
+  if (!isRoot && outlets.size > 1) {
+    const activeOutlets = new Set(outlets.keys());
+    activeOutlets.delete(PAGE_ROOT);
+    if (!options.external) {
+      if (options.push !== false) {
+        history.pushState(Object.fromEntries(outlets.entries()), "", to);
+      } else {
+        history.replaceState(Object.fromEntries(outlets.entries()), "", to);
+      }
+      prevLocation = new URL(location);
+    }
+    return Promise.all(
+      Array.from(activeOutlets).map((outlet) =>
+        navigateOutlet(to, { ...options, outlet: options.outlet || outlet })
+      )
+    );
+  }
+  return navigateOutlet(to, options);
 };
 const replace = (to, options) => {
   return navigate(to, { ...options, push: false });
@@ -133,25 +172,47 @@ window.addEventListener("popstate", () => {
     return;
   }
   prevLocation = newLocation;
-  const key = `${PAGE_ROOT}:${location.href}`;
-  if (flightCache.has(key)) {
-    cache.set(PAGE_ROOT, flightCache.get(key));
-    flightCache.delete(key);
-    const timeoutKey = `${key}:timeout`;
+
+  const rootKey = `${PAGE_ROOT}:${location.href}`;
+  if (flightCache.has(rootKey)) {
+    cache.set(PAGE_ROOT, flightCache.get(rootKey));
+    flightCache.delete(rootKey);
+    const timeoutKey = `${rootKey}:timeout`;
     if (flightCache.has(timeoutKey)) {
       clearTimeout(flightCache.get(timeoutKey));
       flightCache.delete(timeoutKey);
     }
+    outlets.set(PAGE_ROOT, location.href);
+    emit(PAGE_ROOT, location.href, (err) => {
+      if (!err) {
+        activeChunk.set(PAGE_ROOT, cache.get(PAGE_ROOT));
+      }
+    });
   } else {
-    cache.delete(PAGE_ROOT);
-    cache.delete(location.href);
-  }
-  outlets.set(PAGE_ROOT, location.href);
-  emit(PAGE_ROOT, location.href, (err) => {
-    if (!err) {
-      activeChunk = cache.get(PAGE_ROOT);
+    const activeOutlets = new Set(outlets.keys());
+    activeOutlets.delete(PAGE_ROOT);
+    for (const outlet of activeOutlets) {
+      const key = `${outlet}:${location.href}`;
+      if (flightCache.has(key)) {
+        cache.set(outlet, flightCache.get(key));
+        flightCache.delete(key);
+        const timeoutKey = `${key}:timeout`;
+        if (flightCache.has(timeoutKey)) {
+          clearTimeout(flightCache.get(timeoutKey));
+          flightCache.delete(timeoutKey);
+        }
+      } else {
+        cache.delete(outlet);
+        cache.delete(location.href);
+      }
+      outlets.set(outlet, location.href);
+      emit(outlet, location.href, (err) => {
+        if (!err) {
+          activeChunk.set(outlet, cache.get(outlet));
+        }
+      });
     }
-  });
+  }
 });
 export const streamOptions = (outlet) => ({
   async callServer(id, args) {
@@ -224,7 +285,7 @@ function getFlightResponse(url, options = {}) {
         )
       );
       self[`__flightHydration__${options.outlet || PAGE_ROOT}__`] = true;
-      activeChunk = cache.get(options.outlet || url);
+      activeChunk.set(options.outlet || url, cache.get(options.outlet || url));
     } else {
       cache.set(
         options.outlet || url,

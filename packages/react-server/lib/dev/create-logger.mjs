@@ -75,7 +75,7 @@ export default function createLogger(level = "info", options) {
             msg = e.message || e;
           }
         }
-        logger.error(repeatMessage(colors.red(msg)), {
+        logger.error(colors.red(msg), {
           timestamp: true,
           ...options,
         });

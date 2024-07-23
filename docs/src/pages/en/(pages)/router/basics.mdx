@@ -129,7 +129,7 @@ You can escape route segments by wrapping the segment in curly braces. For examp
 ## Typed routes
 </Link>
 
-The router supports typed routes out of the box. If you use TypeScript, you can include the generated types in your project and all of your routes will be type checked. Typed routes work for `Link` components, `useMatch` hooks and `navigate`, `replace` and `prefetch` functions from the `useClient` hook.
+The router supports typed routes out of the box. If you use TypeScript, you can include the generated types in your project and all of your routes will be type checked. Typed routes work for `Link` components, `useMatch` hooks, `navigate`, `replace` and `prefetch` functions from the `useClient` hook and also the possible outlets available to use in a `ReactServerComponent`.
 
 To include the generated types in your project you only need to include `.ts` files from the `.react-server` directory in your TypeScript configuration. To do so, add `.react-server/**/*.ts` to the `include` array in your `tsconfig.json` file:
 

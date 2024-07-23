@@ -96,6 +96,7 @@ export default function viteReactServerRouter(options = {}) {
   let mdx;
   let debounceTypesGeneration;
   let reactServerRouterReadyResolve;
+  const config_destroy = [];
 
   let rootDir = cwd;
   let root = ".";
@@ -270,6 +271,17 @@ export default function viteReactServerRouter(options = {}) {
           .map((_, i) => `T${i} extends string`)
           .join(", ") || "_"
       )
+      .replace(
+        "__react_server_routing_outlets__",
+        manifest.pages
+          .reduce((outlets, [, , outlet]) => {
+            if (outlet && !outlets.includes(outlet)) {
+              outlets.push(`\`${outlet}\``);
+            }
+            return outlets;
+          }, [])
+          .join(" | ") || "never"
+      )
       .replaceAll(
         "__react_server_router_dynamic_route_infer_types__<T>",
         dynamicRouteGenericTypes
@@ -381,6 +393,16 @@ export default function viteReactServerRouter(options = {}) {
     if (viteCommand !== "build")
       logger.info("Initializing router configuration");
     try {
+      while (config_destroy.length > 0) {
+        await config_destroy.pop()();
+      }
+
+      entry.layouts = [];
+      entry.pages = [];
+      entry.middlewares = [];
+      entry.api = [];
+      manifest.pages = [];
+
       config = await loadConfig({}, options);
       configRoot = forRoot(config);
 
@@ -388,49 +410,61 @@ export default function viteReactServerRouter(options = {}) {
       routerConfig = forChild(root, config);
       entryConfig = {
         layout: mergeOrApply(
-          {
-            root: ".",
-            includes: ["**/*.layout.*"],
-            excludes: [],
-          },
-          routerConfig.layout
+          mergeOrApply(
+            {
+              root: ".",
+              includes: ["**/*.layout.*"],
+              excludes: [],
+            },
+            routerConfig.layout
+          ),
+          routerConfig.router
         ),
         page: mergeOrApply(
-          {
-            root: ".",
-            includes: ["**/*"],
-            excludes: [
-              "**/*.layout.*",
-              "**/*.middleware.*",
-              `**/{${HTTP_METHODS_PATTERN}}.*`,
-              `**/+{${HTTP_METHODS_PATTERN}}.*`,
-              "**/*.server.*",
-              "**/*.config.*",
-              routerConfig.mdx?.components ?? "mdx-components.{jsx,tsx}",
-            ],
-          },
-          routerConfig.page
+          mergeOrApply(
+            {
+              root: ".",
+              includes: ["**/*"],
+              excludes: [
+                "**/*.layout.*",
+                "**/*.middleware.*",
+                `**/{${HTTP_METHODS_PATTERN}}.*`,
+                `**/+{${HTTP_METHODS_PATTERN}}.*`,
+                "**/*.server.*",
+                "**/*.config.*",
+                routerConfig.mdx?.components ?? "mdx-components.{jsx,tsx}",
+              ],
+            },
+            routerConfig.page
+          ),
+          routerConfig.router
         ),
         middleware: mergeOrApply(
-          {
-            root: ".",
-            includes: ["**/*.middleware.*"],
-            excludes: [],
-          },
-          routerConfig.middleware
+          mergeOrApply(
+            {
+              root: ".",
+              includes: ["**/*.middleware.*"],
+              excludes: [],
+            },
+            routerConfig.middleware
+          ),
+          routerConfig.router
         ),
         api: mergeOrApply(
-          {
-            root: ".",
-            includes: [
-              `**/{${HTTP_METHODS_PATTERN}}.*`,
-              `**/+{${HTTP_METHODS_PATTERN}}.*`,
-              "**/*.server.*",
-              "**/+server.*",
-            ],
-            excludes: [],
-          },
-          routerConfig.api
+          mergeOrApply(
+            {
+              root: ".",
+              includes: [
+                `**/{${HTTP_METHODS_PATTERN}}.*`,
+                `**/+{${HTTP_METHODS_PATTERN}}.*`,
+                "**/*.server.*",
+                "**/+server.*",
+              ],
+              excludes: [],
+            },
+            routerConfig.api
+          ),
+          routerConfig.router
         ),
       };
 
@@ -517,6 +551,10 @@ export default function viteReactServerRouter(options = {}) {
           }
         );
 
+        config_destroy.push(() => {
+          sourceWatcher.close();
+        });
+
         let watcherTimeout = null;
         const debouncedWarning = () => {
           if (watcherTimeout) {
@@ -536,42 +574,41 @@ export default function viteReactServerRouter(options = {}) {
           debouncedWarning();
 
           const src = sys.normalizePath(join(cwd, root, rawSrc));
-          logger.info(
-            `Adding source file ${colors.cyan(
-              sys.normalizePath(relative(rootDir, src))
-            )} to router`
-          );
-
-          if (initialFiles.has(src)) {
-            initialFiles.delete(src);
-            if (initialFiles.size === 0) {
-              logger.info(`Router configuration ${colors.green("ready")}`);
-              reactServerRouterReadyResolve?.();
-              reactServerRouterReadyResolve = null;
-            }
-          }
+          let includeInRouter = false;
 
           if (isLayout(src)) {
+            includeInRouter = true;
             entry.layouts.push(...source([src], rootDir, root));
             createManifest();
           }
 
           if (isPage(src)) {
+            includeInRouter = true;
             entry.pages.push(...source([src], rootDir, root));
             createManifest();
           }
 
           if (isMiddleware(src)) {
+            includeInRouter = true;
             entry.middlewares.push(...source([src], rootDir, root));
           }
 
           if (isApi(src)) {
+            includeInRouter = true;
             entry.api.push(...source([src], rootDir, root));
           }
 
           if (src.endsWith(".md") || src.endsWith(".mdx")) {
             mdxCounter++;
             await setupMdx();
+          }
+
+          if (includeInRouter) {
+            logger.info(
+              `Adding source file ${colors.cyan(
+                sys.normalizePath(relative(rootDir, src))
+              )} to router`
+            );
           }
 
           const manifestModule =
@@ -583,16 +620,23 @@ export default function viteReactServerRouter(options = {}) {
               manifestModule
             );
           }
+
+          if (initialFiles.has(src)) {
+            initialFiles.delete(src);
+            if (initialFiles.size === 0) {
+              logger.info(`Router configuration ${colors.green("ready")}`);
+              reactServerRouterReadyResolve?.();
+              reactServerRouterReadyResolve = null;
+            }
+          }
         });
         sourceWatcher.on("unlink", async (rawSrc) => {
           const src = sys.normalizePath(join(rootDir, rawSrc));
-          logger.info(
-            `Removing source file ${colors.red(
-              relative(rootDir, src)
-            )} from router`
-          );
+
+          let includeInRouter = false;
 
           if (isLayout(src)) {
+            includeInRouter = true;
             entry.layouts = entry.layouts.filter(
               (layout) => layout.src !== src
             );
@@ -600,23 +644,34 @@ export default function viteReactServerRouter(options = {}) {
           }
 
           if (isPage(src)) {
+            includeInRouter = true;
             entry.pages = entry.pages.filter((page) => page.src !== src);
             createManifest();
           }
 
           if (isMiddleware(src)) {
+            includeInRouter = true;
             entry.middlewares = entry.middlewares.filter(
               (middleware) => middleware.src !== src
             );
           }
 
           if (isApi(src)) {
+            includeInRouter = true;
             entry.api = entry.api.filter((api) => api.src !== src);
           }
 
           if (src.endsWith(".md") || src.endsWith(".mdx")) {
             mdxCounter--;
             await setupMdx();
+          }
+
+          if (includeInRouter) {
+            logger.info(
+              `Removing source file ${colors.red(
+                relative(rootDir, src)
+              )} from router`
+            );
           }
 
           Array.from(
@@ -655,53 +710,55 @@ export default function viteReactServerRouter(options = {}) {
         await config_init$();
         const options = getContext(BUILD_OPTIONS);
 
-        let paths = [];
-        for (const [, path] of manifest.pages.filter(
-          ([, , outlet, type]) => !outlet && type === "page"
-        )) {
-          if (/\[[^/]+\]/.test(path)) {
-            try {
-              const staticSrc = manifest.pages.find(
-                ([, staticPath, , staticType]) =>
-                  staticType === "static" && staticPath === path
-              )?.[0];
+        if (options.export !== false) {
+          let paths = [];
+          for (const [, path] of manifest.pages.filter(
+            ([, , outlet, type]) => !outlet && type === "page"
+          )) {
+            if (/\[[^/]+\]/.test(path)) {
+              try {
+                const staticSrc = manifest.pages.find(
+                  ([, staticPath, , staticType]) =>
+                    staticType === "static" && staticPath === path
+                )?.[0];
 
-              const key = relative(cwd, dirname(staticSrc));
-              const filename = basename(staticSrc);
-              const src = join(cwd, key, filename);
-              const hash = createHash("shake256", { outputLength: 4 })
-                .update(await readFile(src, "utf8"))
-                .digest("hex");
-              const exportEntry = pathToFileURL(
-                join(cwd, outDir, "static", `${hash}.mjs`)
-              );
-              config.build.rollupOptions.input[join("static", hash)] =
-                staticSrc;
-              paths.push(async () => {
-                const staticPaths = (await import(exportEntry)).default;
-                if (typeof staticPaths === "boolean" && staticPaths) {
-                  if (/\[[^\]]+\]/.test(path)) {
-                    throw new Error(
-                      `Static path ${colors.green(
-                        path
-                      )} contains dynamic segments`
-                    );
+                const key = relative(cwd, dirname(staticSrc));
+                const filename = basename(staticSrc);
+                const src = join(cwd, key, filename);
+                const hash = createHash("shake256", { outputLength: 4 })
+                  .update(await readFile(src, "utf8"))
+                  .digest("hex");
+                const exportEntry = pathToFileURL(
+                  join(cwd, outDir, "static", `${hash}.mjs`)
+                );
+                config.build.rollupOptions.input[join("static", hash)] =
+                  staticSrc;
+                paths.push(async () => {
+                  const staticPaths = (await import(exportEntry)).default;
+                  if (typeof staticPaths === "boolean" && staticPaths) {
+                    if (/\[[^\]]+\]/.test(path)) {
+                      throw new Error(
+                        `Static path ${colors.green(
+                          path
+                        )} contains dynamic segments`
+                      );
+                    }
+                    return path;
                   }
-                  return path;
-                }
-                if (typeof staticPaths === "function") {
-                  return await staticPaths();
-                }
-                return staticPaths;
-              });
-            } catch (e) {
-              console.error(e);
+                  if (typeof staticPaths === "function") {
+                    return await staticPaths();
+                  }
+                  return staticPaths;
+                });
+              } catch (e) {
+                console.error(e);
+              }
             }
           }
-        }
-        if (paths.length > 0) {
-          options.export = true;
-          options.exportPaths = paths;
+          if (paths.length > 0) {
+            options.export = true;
+            options.exportPaths = paths;
+          }
         }
       } else {
         const reactServerRouterReadyPromise = new Promise((resolve) => {
@@ -827,7 +884,7 @@ export default function viteReactServerRouter(options = {}) {
                     (type === "default" && outlet)
                       ? `__react_server_router_page__${path}::${src}::.jsx`
                       : src
-                  }"), "${src}"]`
+                  }"), "${src}", async () => import("${src}")]`
               )
               .join(",\n")}
           ];
@@ -920,6 +977,7 @@ export default function viteReactServerRouter(options = {}) {
                 `import __react_server_router_loading_${i}__ from "${src}";`
             )
             .join("\n")}
+          import * as __react_server_page__ from "${src}";
 
           const outletImports = {
             ${outlets
@@ -935,7 +993,7 @@ export default function viteReactServerRouter(options = {}) {
           const __require = createRequire(import.meta.url);`
               : ""
           }
-          const { default: Page, ...pageProps } = await import("${src}");
+          const { default: Page, ...pageProps } = __react_server_page__;
           const ttl = pageProps?.frontmatter?.ttl ?? pageProps?.frontmatter?.revalidate ?? pageProps?.ttl ?? pageProps?.revalidate;
           const CachedPage = typeof ttl === "number" ? withCache(Page, ttl) : Page;
           const PrerenderedPage = withPrerender(CachedPage);
@@ -970,7 +1028,10 @@ export default function viteReactServerRouter(options = {}) {
                 const pageModule = Object.values(manifest.server).find((entry) => entry.src?.endsWith("${
                   entry.pages.find(({ src: entrySrc }) => entrySrc === src)
                     .module
-                }"))?.file;
+                }") || (entry.src?.startsWith("virtual:") && entry.src?.includes("${
+                  entry.pages.find(({ src: entrySrc }) => entrySrc === src)
+                    .module
+                }")))?.file;
                 pageStyles.push(...collectStylesheets?.(pageModule));
 
                 ${layouts
@@ -982,7 +1043,10 @@ export default function viteReactServerRouter(options = {}) {
                       entry.layouts.find(
                         ({ src: entrySrc }) => entrySrc === layoutSrc
                       ).module
-                    }"))?.file;
+                    }") || (entry.src?.startsWith("virtual:") && entry.src?.includes("${
+                      entry.pages.find(({ src: entrySrc }) => entrySrc === src)
+                        .module
+                    }")))?.file;
                 pageStyles.push(...collectStylesheets?.(__react_server_router_layout_css_${i}__));`
                   )
                   .join("\n")}

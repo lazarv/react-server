@@ -1,6 +1,6 @@
 import { dirname } from "node:path";
 
-import { status } from "@lazarv/react-server";
+import { status, useOutlet } from "@lazarv/react-server";
 import {
   middlewares,
   pages,
@@ -53,12 +53,28 @@ export default async function App() {
     return null;
   };
 
+  const reactServerOutlet = useOutlet();
+  if (reactServerOutlet && reactServerOutlet !== "PAGE_ROOT") {
+    const outlets = pages.filter(
+      ([, type, outlet]) => type === "page" && outlet === reactServerOutlet
+    );
+    for (const [path, type, outlet, , , lazy] of outlets) {
+      const match = useMatch(path, { exact: true });
+      if (match) {
+        const { default: Component, init$: page_init$ } = await lazy();
+        await page_init$?.();
+        return <Component {...match} />;
+      }
+    }
+    return null;
+  }
+
   for (const [path, type, outlet, lazy, src] of pages) {
     match = type === "page" && !outlet ? useMatch(path, { exact: true }) : null;
     if (match) {
       const { default: Component, init$: page_init$ } = await lazy();
       Page = Component;
-      page_init$();
+      await page_init$?.();
       break;
     }
 
@@ -74,7 +90,7 @@ export default async function App() {
       if (lazy) {
         const { default: Component, init$: page_init$ } = await lazy();
         Page = Component;
-        page_init$();
+        await page_init$?.();
         break;
       }
     }

@@ -345,6 +345,45 @@ export default function Layout({
 
 Layouts using the file-system based router will receive all subsequent outlets as props. The `modal` prop will contain the component rendered by the modal outlet when the route matches. We can use this prop to render the modal view in our layout component over the gallery view.
 
+<Link name="outlet">
+## Optimizing the navigation
+</Link>
+
+We can also optimize the navigation by using the `ReactServerComponent` component to enable client-side navigation for the modal view. We can use the outlet prop for initial content on a page refresh. Using `ReactServerComponent` together with the `Link` component will result in using a smaller network payload as the link will update the modal outlet just by rendering the outlet only on the server-side as RSC payload. The payload will be 0.1x only of the size of re-rendering the whole page as RSC, getting from ~15k to only ~1.5k in size. Imagine how much impact this can have on a much more complex application. Update the `src/app/(root).layout.tsx` file with the following content:
+
+```tsx filename="src/app/(root).layout.tsx"
+import { ReactServerComponent } from "@lazarv/react-server/navigation";
+
+import "./global.css";
+
+export default function Layout({
+  modal,
+  children,
+}: React.PropsWithChildren<{
+  modal: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <title>Photos</title>
+        <meta
+          name="description"
+          content="A sample app showing dynamic routing with modals as a route."
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body>
+        {children}
+        <ReactServerComponent outlet="modal">
+          {modal}
+        </ReactServerComponent>
+      </body>
+    </html>
+  );
+}
+```
+
 <Link name="running-the-application">
 ## Running the application
 </Link>

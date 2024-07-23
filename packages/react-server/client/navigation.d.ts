@@ -3,6 +3,8 @@
  *
  * @property to - The route to link to
  * @property target - The target for the link
+ * @property local - If true, the link will update the parent outlet
+ * @property root - If true, the link will update the root page
  * @property transition - If true, the link will use React useTransition
  * @property push - If true, the link will push the route to the history stack
  * @property replace - If true, the link will replace the current route in the history stack
@@ -15,6 +17,8 @@
 export type LinkProps<T> = React.PropsWithChildren<{
   to: T;
   target?: string;
+  local?: boolean;
+  root?: boolean;
   transition?: boolean;
   push?: boolean;
   replace?: boolean;
@@ -53,7 +57,9 @@ export function Link<T extends string>(props: LinkProps<T>): JSX.Element;
  * The props for the `Refresh` component.
  *
  * @property url - The URL to refresh
- * @property outlet - The outlet to refresh
+ * @property target - The outlet to refresh
+ * @property local - If true, the component will refresh the parent outlet
+ * @property root - If true, the component will refresh the root page
  * @property transition - If true, the refresh will use React useTransition
  * @property prefetch - If true, the refresh will be prefetched on mouse or touch events
  * @property ttl - The time-to-live for the prefetch
@@ -62,7 +68,9 @@ export function Link<T extends string>(props: LinkProps<T>): JSX.Element;
  */
 export type RefreshProps = React.PropsWithChildren<{
   url?: string;
-  outlet?: string;
+  target?: string;
+  local?: boolean;
+  root?: boolean;
   transition?: boolean;
   prefetch?: boolean;
   ttl?: number;
@@ -92,6 +100,12 @@ export type RefreshProps = React.PropsWithChildren<{
  * }
  */
 export function Refresh(props: RefreshProps): JSX.Element;
+
+export function ReactServerComponent(props: {
+  url?: string;
+  outlet: string;
+  children?: React.ReactNode;
+}): JSX.Element;
 
 /**
  * A hook that returns the current location.

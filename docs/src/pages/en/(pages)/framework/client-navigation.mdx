@@ -123,6 +123,45 @@ export default function Home() {
 }
 ```
 
+<Link name="outlet">
+### Outlet
+</Link>
+
+You can use the `ReactServerComponent` to create an outlet which you can use for sub-page navigation. It's a modern React Server Component driven version of the `<iframe>` element. When using a `Link` or `Refresh` component or programmatically navigating with the `navigate` or `replace` functions, the client-side router will automatically update the content of the outlet by rendering the result of server-side rendering the outlet. You need to handle the server-side rendering of the outlet yourself using server-side routing and using the [useOutlet](/framework/http#outlet) helper function.
+
+```jsx
+"use client";
+
+import { Link, ReactServerComponent } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/photos/1" target="modal">My photo</Link>
+      <ReactServerComponent outlet="modal" />
+    </div>
+  );
+}
+```
+
+There's four types of `Link` or `Refresh` navigation inside a `ReactServerComponent`. Unspecified, `target`, `local` and `root`. When using `target` on the `Link` or `Refresh` component, the navigation will only update the content of the outlet with the same name. When using `local`, the navigation will update the content of the parent outlet while URL of the current page is not updated this way. When using `root`, the navigation will update the content of the page. When using an unspecified behavior, the navigation will update the content of the page for each outlet if there are any outlets on the page.
+
+```jsx
+"use client";
+
+import { Link, ReactServerComponent } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <ReactServerComponent outlet="modal">
+        <Link to="/photos/2" local>My photo</Link>
+      </ReactServerComponent>
+    </div>
+  );
+}
+```
+
 <Link name="refresh">
 ## Refresh
 </Link>

@@ -203,6 +203,7 @@ export async function render(Component) {
           const hasCache = await getContext(CACHE_CONTEXT)?.get([
             context.url,
             accept,
+            outlet,
             cacheType,
             ifModifiedSince,
           ]);
@@ -251,6 +252,7 @@ export async function render(Component) {
             const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
               context.url,
               accept,
+              outlet,
               FLIGHT_CACHE,
             ]);
             if (responseFromCache) {
@@ -354,7 +356,7 @@ export async function render(Component) {
               controller.close();
 
               getContext(CACHE_CONTEXT)?.set(
-                [context.url, accept, FLIGHT_CACHE, lastModified],
+                [context.url, accept, outlet, FLIGHT_CACHE, lastModified],
                 {
                   ...httpStatus,
                   buffer: concat(payload),
@@ -368,6 +370,7 @@ export async function render(Component) {
             const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
               context.url,
               accept,
+              outlet,
               HTML_CACHE,
             ]);
             if (responseFromCache) {
@@ -465,7 +468,7 @@ export async function render(Component) {
                     payload.push(copyBytesFrom(chunk));
                   }
                   await getContext(CACHE_CONTEXT)?.set(
-                    [context.url, accept, HTML_CACHE, lastModified],
+                    [context.url, accept, outlet, HTML_CACHE, lastModified],
                     {
                       ...httpStatus,
                       buffer: concat(payload),

@@ -54,9 +54,10 @@ export async function loadConfig(initialConfig, options = {}) {
           });
         }
         try {
+          const src = `${join(cwd, outDir, key, filename)}.${hash}.mjs`;
           configModule = (
             await import(
-              pathToFileURL(`${join(cwd, outDir, key, filename)}.${hash}.mjs`)
+              `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`
             )
           ).default;
         } catch (e) {
@@ -66,7 +67,7 @@ export async function loadConfig(initialConfig, options = {}) {
       } else {
         configModule = (
           await import(
-            pathToFileURL(src),
+            `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`,
             filename.endsWith(".json") ? { with: { type: "json" } } : undefined
           )
         ).default;
@@ -81,7 +82,8 @@ export async function loadConfig(initialConfig, options = {}) {
   const configKeys = Object.keys(config);
   const root = configKeys.includes(".")
     ? "."
-    : configKeys.find((key) => configKeys.every((it) => it.startsWith(key)));
+    : configKeys.find((key) => configKeys.every((it) => it.startsWith(key))) ??
+      ".";
   config[CONFIG_ROOT] = config[root] = merge(
     {},
     defaultConfig,

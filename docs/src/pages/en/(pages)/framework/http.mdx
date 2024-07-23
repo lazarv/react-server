@@ -261,3 +261,19 @@ export default function MyComponent() {
   return <p>Current pathname: {pathname}</p>;
 }
 ```
+
+<Link name="outlet">
+## Outlet
+</Link>
+
+With `useOutlet()` you can get access to the outlet of the current request. This is useful to get the name of the outlet where the current request is rendered.
+
+```jsx
+import { useOutlet } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const outlet = useOutlet();
+
+  return <p>Outlet: {outlet}</p>;
+}
+```

@@ -36,13 +36,30 @@ export default function RootLayout({ sidebar, children }) {
 }
 ```
 
-```jsx
-// @sidebar/(sidebar).page.jsx
-
+```jsx filename="@sidebar/(sidebar).page.jsx"
 export default function Sidebar() {
   return <aside>...</aside>;
 }
 ```
+
+To make outlets available for [client-side navigation](/framework/client-navigation), you can use the `ReactServerComponent` component from the `@lazarv/react-server/navigation` module. But using the file-system based router, the server-side rendering is handled automatically for each outlet. You can fine-tune the navigation of your app by using the [Link](/framework/client-navigation#navigation) and [Refresh](/framework/client-navigation#refresh) components from the same module when using outlets. Combining an initial content using the outlet available as the prop in your layout component and client-side navigation with the `ReactServerComponent` component, you can create a powerful navigation system for your app.
+
+```jsx filename="(main).layout.jsx"
+import { ReactServerComponent } from "@lazarv/react-server/navigation";
+
+export default function RootLayout({ sidebar, children }) {
+  return (
+    <main>
+      <ReactServerComponent outlet="sidebar">
+        {sidebar}
+      </ReactServerComponent>
+      {children}
+    </main>
+  );
+}
+```
+
+To check out an example using outlets, see the [Photos tutorial](/tutorials/photos#outlet).
 
 <Link name="error-handling">
 ## Error handling

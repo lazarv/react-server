@@ -2,14 +2,22 @@
 
 import { startTransition, useContext, useEffect, useState } from "react";
 
-import { ClientContext, FlightContext, useClient } from "./context.mjs";
+import {
+  ClientContext,
+  FlightContext,
+  PAGE_ROOT,
+  useClient,
+} from "./context.mjs";
 
 function FlightComponent({ standalone = false, children }) {
   const { url, outlet } = useContext(FlightContext);
   const client = useClient();
   const { registerOutlet, subscribe, getFlightResponse } = client;
   const [Component, setComponent] = useState(
-    children || getFlightResponse(url, { outlet, standalone })
+    children ||
+      (outlet === PAGE_ROOT
+        ? getFlightResponse?.(url, { outlet, standalone })
+        : null)
   );
   const [error, setError] = useState(null);
 
@@ -31,6 +39,12 @@ function FlightComponent({ standalone = false, children }) {
       unsubscribe();
     };
   }, [url, outlet, standalone, subscribe, getFlightResponse]);
+
+  useEffect(() => {
+    if (children || (outlet !== PAGE_ROOT && Component)) {
+      setComponent(children);
+    }
+  }, [children]);
 
   return (
     <ClientContext.Provider value={{ ...client, error }}>

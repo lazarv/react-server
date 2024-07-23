@@ -1,0 +1,95 @@
+---
+title: Configuration
+category: Router
+order: 7
+---
+
+# Configuration
+
+The router can be configured by creating a `react-server.config.mjs` or `react-server.config.json` file in the root of your project. The configuration file should export a configuration object and it should include the `root` path for your routes. You can also specify a `public` path for your static files. The `@lazarv/react-server-router` package will automatically scaffold the files in the root directory for routing and prepares and builds the routing based on your files in the root directory.
+
+```js filename="react-server.config.mjs"
+export default {
+  root: "src/pages",
+  public: "public",
+};
+```
+
+## Private files and directories
+
+You can configure the router to exclude files and directories from the routing by using the `router(config)` function in the configuration. The function should return a configuration object with the `excludes` property containing an array of file and directory names to exclude from the routing. You can use glob patterns to exclude multiple files and directories.
+
+```js filename="react-server.config.mjs"
+export default {
+  root: "src/pages",
+  public: "public",
+  router(config) {
+    return {
+      ...config,
+      excludes: ["_*"],
+    };
+  },
+};
+```
+
+You can also use the same functionality on different types of routes by defining type specific configurator functions. The `router` function will be called for all types of routes, but you can define `layout`, `page`, `middleware` and `api` functions to configure the routing for different types of routes.
+
+```js filename="react-server.config.mjs"
+export default {
+  root: "src/pages",
+  public: "public",
+  router(config) {
+    return {
+      ...config,
+      // Exclude all files and directories starting with an underscore
+      excludes: ["_*"],
+    };
+  },
+  layout(config) {
+    return {
+      ...config,
+      // Exclude all layout files including the word "private"
+      excludes: ["*private*"],
+    };
+  },
+  page(config) {
+    return {
+      ...config,
+      // Exclude all page files starting with "hidden-"
+      excludes: ["hidden-*"],
+    };
+  },
+  middleware(config) {
+    return {
+      ...config,
+      // Exclude all middleware files starting with "disabled-"
+      excludes: ["disabled-*"],
+    };
+  },
+  api(config) {
+    return {
+      ...config,
+      // Exclude all API files containing the word "PATCH"
+      excludes: ["*PATCH*"],
+    };
+  },
+};
+```
+
+## Include files and directories
+
+You can configure the router to include only specific files and directories from the routing by using the `router(config)` function in the configuration. The function should return a configuration object with the `includes` property containing an array of file and directory names to include from the routing. You can use glob patterns to include multiple files and directories.
+
+```js filename="react-server.config.mjs"
+export default {
+  root: "src/pages",
+  public: "public",
+  router(config) {
+    return {
+      ...config,
+      // Include only the about page
+      includes: ["about.page.jsx"],
+    };
+  },
+};
+```

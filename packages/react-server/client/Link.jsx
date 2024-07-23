@@ -1,12 +1,14 @@
 "use client";
 
-import { startTransition, useCallback } from "react";
+import { startTransition, useCallback, useContext } from "react";
 
-import { useClient } from "./context.mjs";
+import { FlightContext, useClient } from "./context.mjs";
 
 export default function Link({
   to,
   target,
+  root,
+  local,
   transition,
   push,
   replace,
@@ -19,11 +21,13 @@ export default function Link({
   ...props
 }) {
   const { prefetch, navigate } = useClient();
+  const { outlet } = useContext(FlightContext);
 
   const tryNavigate = useCallback(async () => {
     try {
       await navigate(to, {
-        outlet: target,
+        outlet: target || (local ? outlet : root ? "PAGE_ROOT" : undefined),
+        external: target && target !== outlet,
         push: replace ? false : push,
         rollback,
       });
@@ -43,7 +47,11 @@ export default function Link({
   };
 
   const handlePrefetch = () =>
-    prefetchEnabled === true && prefetch(to, { outlet: target, ttl });
+    prefetchEnabled === true &&
+    prefetch(to, {
+      outlet: target || (local ? outlet : root ? "PAGE_ROOT" : undefined),
+      ttl,
+    });
 
   return (
     <a

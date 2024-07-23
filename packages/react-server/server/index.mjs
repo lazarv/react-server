@@ -7,6 +7,7 @@ export {
   rewrite,
   useFormData,
   useHttpContext,
+  useOutlet,
   usePathname,
   useRequest,
   useResponse,

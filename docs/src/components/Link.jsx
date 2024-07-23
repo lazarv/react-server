@@ -1,3 +1,7 @@
+"use client";
+
+import { scrollHashIntoView } from "./utils.mjs";
+
 export default function Link({ name, children }) {
   return (
     <div className="flex items-baseline">
@@ -6,6 +10,10 @@ export default function Link({ name, children }) {
       <a
         href={`#${name}`}
         className="text-2xl ml-2 [h4+&]:text-lg [h4+&]:ml-1 [h3+&]:text-lg [h3+&]:ml-1"
+        onClick={(e) => {
+          e.preventDefault();
+          scrollHashIntoView(`#${name}`);
+        }}
       >
         #
       </a>

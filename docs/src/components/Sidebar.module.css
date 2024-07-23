@@ -134,7 +134,7 @@ article ~ .root {
     transform: none;
     padding-top: 1rem;
     padding-right: 2rem;
-    @apply bg-transparent dark:bg-transparent;
+    @apply !bg-transparent dark:!bg-transparent;
   }
 
   & + .backdrop {

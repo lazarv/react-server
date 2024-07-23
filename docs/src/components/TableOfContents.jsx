@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { scrollHashIntoView } from "./utils.mjs";
 
 export default function TableOfContents() {
   const [tableOfContents, setTableOfContents] = useState([]);
@@ -102,6 +103,10 @@ export default function TableOfContents() {
               } ${item.indent === 0 ? "font-semibold" : ""}`}
               style={{ marginLeft: `${item.indent / 4}rem` }}
               title={item.label}
+              onClick={(e) => {
+                e.preventDefault();
+                scrollHashIntoView(item.href);
+              }}
             >
               {item.label}
             </a>

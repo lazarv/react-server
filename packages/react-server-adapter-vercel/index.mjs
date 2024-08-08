@@ -219,7 +219,26 @@ export async function adapter(adapterOptions, root, options) {
 
     banner("copying server dependencies");
 
-    const rootDir = join(cwd, "../..");
+    let rootDir = cwd;
+    let lockFile = [];
+    while (lockFile.length === 0) {
+      lockFile = await glob(
+        ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb"],
+        {
+          onlyFiles: true,
+          cwd: rootDir,
+        }
+      );
+      if (lockFile.length > 0) {
+        break;
+      }
+      rootDir = join(rootDir, "..");
+      if (rootDir === "/") {
+        rootDir = cwd;
+        break;
+      }
+    }
+
     const sourceFiles = await glob("server/**/*.mjs", {
       onlyFiles: true,
       absolute: true,

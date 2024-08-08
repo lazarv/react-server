@@ -17,7 +17,8 @@ To deploy to Vercel, use the `@lazarv/react-server-adapter-vercel` package. This
 First you need to initialize your project with Vercel. You can do this by running the following command:
 
 ```sh
-vercel init
+vercel project add <project-name>
+vercel link --yes --project <project-name>
 ```
 
 At this point you will have a `.vercel` directory with a `project.json` file in it. This file will be used to store the project and organization configuration for your Vercel project.

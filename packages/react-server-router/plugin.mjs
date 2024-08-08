@@ -101,10 +101,10 @@ export default function viteReactServerRouter(options = {}) {
   let rootDir = cwd;
   let root = ".";
   let routerConfig = {};
-  let entryConfig = {
+  const defaultEntryConfig = {
     layout: {
       root: ".",
-      includes: ["**/*.layout.*"],
+      includes: ["**/*.layout.*", "**/layout.{jsx,tsx,js,ts,mjs,mts,ts.mjs}"],
       excludes: [],
     },
     page: {
@@ -112,6 +112,7 @@ export default function viteReactServerRouter(options = {}) {
       includes: ["**/*"],
       excludes: [
         "**/*.layout.*",
+        "**/layout.{jsx,tsx,js,ts,mjs,mts,ts.mjs,mts.mjs}",
         "**/*.middleware.*",
         `**/{${HTTP_METHODS_PATTERN}}.*`,
         `**/+{${HTTP_METHODS_PATTERN}}.*`,
@@ -121,7 +122,10 @@ export default function viteReactServerRouter(options = {}) {
     },
     middleware: {
       root: ".",
-      includes: ["**/*.middleware.*"],
+      includes: [
+        "**/*.middleware.*",
+        "**/middleware.{jsx,tsx,js,ts,mjs,mts,ts.mjs,mts.mjs}",
+      ],
       excludes: [],
     },
     api: {
@@ -134,6 +138,12 @@ export default function viteReactServerRouter(options = {}) {
       ],
       excludes: [],
     },
+  };
+  let entryConfig = {
+    layout: { ...defaultEntryConfig.layout },
+    page: { ...defaultEntryConfig.page },
+    middleware: { ...defaultEntryConfig.middleware },
+    api: { ...defaultEntryConfig.api },
   };
 
   function isTypeOf(type, src) {
@@ -410,28 +420,15 @@ export default function viteReactServerRouter(options = {}) {
       routerConfig = forChild(root, config);
       entryConfig = {
         layout: mergeOrApply(
-          mergeOrApply(
-            {
-              root: ".",
-              includes: ["**/*.layout.*"],
-              excludes: [],
-            },
-            routerConfig.layout
-          ),
+          mergeOrApply({ ...defaultEntryConfig.layout }, routerConfig.layout),
           routerConfig.router
         ),
         page: mergeOrApply(
           mergeOrApply(
             {
-              root: ".",
-              includes: ["**/*"],
+              ...defaultEntryConfig.page,
               excludes: [
-                "**/*.layout.*",
-                "**/*.middleware.*",
-                `**/{${HTTP_METHODS_PATTERN}}.*`,
-                `**/+{${HTTP_METHODS_PATTERN}}.*`,
-                "**/*.server.*",
-                "**/*.config.*",
+                ...defaultEntryConfig.page.excludes,
                 routerConfig.mdx?.components ?? "mdx-components.{jsx,tsx}",
               ],
             },
@@ -441,29 +438,13 @@ export default function viteReactServerRouter(options = {}) {
         ),
         middleware: mergeOrApply(
           mergeOrApply(
-            {
-              root: ".",
-              includes: ["**/*.middleware.*"],
-              excludes: [],
-            },
+            { ...defaultEntryConfig.middleware },
             routerConfig.middleware
           ),
           routerConfig.router
         ),
         api: mergeOrApply(
-          mergeOrApply(
-            {
-              root: ".",
-              includes: [
-                `**/{${HTTP_METHODS_PATTERN}}.*`,
-                `**/+{${HTTP_METHODS_PATTERN}}.*`,
-                "**/*.server.*",
-                "**/+server.*",
-              ],
-              excludes: [],
-            },
-            routerConfig.api
-          ),
+          mergeOrApply({ ...defaultEntryConfig.api }, routerConfig.api),
           routerConfig.router
         ),
       };

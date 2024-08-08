@@ -15,7 +15,7 @@ import { spawn } from "node:child_process";
 import { lstatSync, readlinkSync } from "node:fs";
 import { cp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { basename, dirname, join, relative } from "node:path";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import colors from "picocolors";
 
@@ -313,7 +313,10 @@ export async function adapter(adapterOptions, root, options) {
       const src = join(rootDir, file);
       const stat = lstatSync(src);
       if (stat.isSymbolicLink()) {
-        const link = join(dirname(src), readlinkSync(src));
+        const srcLink = readlinkSync(src);
+        const link = isAbsolute(srcLink)
+          ? srcLink
+          : join(dirname(src), srcLink);
         const linkStat = lstatSync(link);
         if (linkStat.isDirectory()) {
           return deps;
@@ -336,15 +339,17 @@ export async function adapter(adapterOptions, root, options) {
       dependencyFiles.length
     );
     for (const src of dependencyFiles) {
-      const path = relative(rootDir, src);
+      const path = sys.normalizePath(relative(rootDir, src));
       const dest = join(
         outDir,
         "functions/index.func",
         path.startsWith("node_modules/.pnpm")
           ? path.split("/").slice(3).join("/")
-          : path.startsWith(relative(rootDir, reactServerPkgDir))
+          : path.startsWith(
+                sys.normalizePath(relative(rootDir, reactServerPkgDir))
+              )
             ? path.replace(
-                relative(rootDir, reactServerPkgDir),
+                sys.normalizePath(relative(rootDir, reactServerPkgDir)),
                 "node_modules/@lazarv/react-server"
               )
             : path

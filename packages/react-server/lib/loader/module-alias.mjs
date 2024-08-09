@@ -46,6 +46,9 @@ export function moduleAliases(condition) {
     "react-server-dom-webpack/server.edge"
   );
   const picocolors = __require.resolve("picocolors");
+  const vite = __require
+    .resolve("vite")
+    .replace(/index\.cjs$/, "dist/node/index.js");
 
   const moduleAliases = {
     react,
@@ -55,7 +58,8 @@ export function moduleAliases(condition) {
     "react-dom/server.edge": reactDomServerEdge,
     "react-server-dom-webpack/client.edge": reactServerDomWebpackClientEdge,
     "react-server-dom-webpack/server.edge": reactServerDomWebpackServerEdge,
-    picocolors: picocolors,
+    picocolors,
+    vite,
   };
 
   return moduleAliases;

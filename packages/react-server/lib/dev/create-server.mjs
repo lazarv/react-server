@@ -75,6 +75,8 @@ export default async function createServer(root, options) {
   const worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
   runtime$(WORKER_THREAD, worker);
 
+  const publicDir =
+    typeof config.public === "string" ? config.public : "public";
   const devServerConfig = {
     ...config,
     server: {
@@ -94,7 +96,7 @@ export default async function createServer(root, options) {
         allow: [cwd, sys.rootDir, ...(config.server?.fs?.allow ?? [])],
       },
     },
-    publicDir: false,
+    publicDir: join(cwd, publicDir),
     root: cwd,
     appType: "custom",
     clearScreen: options.clearScreen,
@@ -135,6 +137,18 @@ export default async function createServer(root, options) {
       useServer(),
       useServerInline(),
       ...filterOutVitePluginReact(config.plugins),
+      {
+        name: "react-server:asset",
+        transform(code) {
+          if (code.startsWith(`export default "/@fs${cwd}`)) {
+            return code.replace(
+              `export default "/@fs${cwd}`,
+              `export default "`
+            );
+          }
+          return null;
+        },
+      },
     ],
     cacheDir: join(cwd, options.outDir, ".cache/client"),
     resolve: {
@@ -362,8 +376,6 @@ export default async function createServer(root, options) {
         }
   );
 
-  const publicDir =
-    typeof config.public === "string" ? config.public : "public";
   const initialHandlers = [
     ...(config.public !== false
       ? [

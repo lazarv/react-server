@@ -1,6 +1,7 @@
 import open from "open";
 import colors from "picocolors";
 
+import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
 import {
   getRuntime,
@@ -13,12 +14,15 @@ import {
   LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import banner from "../utils/banner.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
 import createServer from "./create-server.mjs";
 
 export default async function dev(root, options) {
   try {
+    await logo();
+    banner("starting development server");
     const config = await loadConfig({}, options);
     const configRoot = config[CONFIG_ROOT];
 

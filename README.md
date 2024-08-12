@@ -45,22 +45,6 @@ Use a package manager to add `@lazarv/react-server` to your project. pnpm is a g
 pnpm add @lazarv/react-server
 ```
 
-#### Peer dependencies
-
-`@lazarv/react-server` uses react, react-dom and react-server-dom-webpack as peer dependencies. Until all React dependencies are not released as latest the framework uses a pinned version of React. To install this version specifically the best way is to let `pnpm` install these for you.
-
-If your project is not set up to auto-install peer dependencies, add this to your `.npmrc`:
-
-```sh
-auto-install-peers=true
-```
-
-or alternatively run:
-
-```sh
-pnpm config set auto-install-peers true --location project
-```
-
 #### Create your app
 
 Create an entrypoint for your app and export your root component as default.
@@ -68,15 +52,9 @@ Create an entrypoint for your app and export your root component as default.
 ```tsx
 export default function App() {
   return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <title>@lazarv/react-server</title>
-      </head>
-      <body>
-        Hello World!
-      </body>
-    </html>
+    <h1>
+      Hello World!
+    </h1>
   );
 }
 ```
@@ -166,6 +144,9 @@ pnpm --filter ./examples/todo dev --open
 pnpm --filter ./examples/photos dev --open
 pnpm --filter ./examples/express dev
 pnpm --filter ./examples/nestjs start:dev
+pnpm --filter ./examples/spa --open
+pnpm --filter ./examples/react-router --open
+pnpm --filter ./examples/tanstack-router --open
 ```
 
 You will need to have `pnpm` installed. Follow instructions at https://pnpm.io/installation.

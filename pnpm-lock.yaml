@@ -17,6 +17,11 @@ overrides:
   use-sync-external-store>react: 0.0.0-experimental-58af67a8f8-20240628
   '@tanstack/router-devtools>react': 0.0.0-experimental-58af67a8f8-20240628
   '@tanstack/router-devtools>react-dom': 0.0.0-experimental-58af67a8f8-20240628
+  '@docsearch/react>react': 0.0.0-experimental-58af67a8f8-20240628
+  '@uidotdev/usehooks>react': 0.0.0-experimental-58af67a8f8-20240628
+  '@uidotdev/usehooks>react-dom': 0.0.0-experimental-58af67a8f8-20240628
+  '@vercel/analytics>react': 0.0.0-experimental-58af67a8f8-20240628
+  '@vercel/speed-insights>react': 0.0.0-experimental-58af67a8f8-20240628
   vite-plugin-svgr>vite: 6.0.0-alpha.18
   '@vitejs/plugin-react>vite': 6.0.0-alpha.18
   '@vitejs/plugin-react-swc>vite': 6.0.0-alpha.18
@@ -77,7 +82,7 @@ importers:
     dependencies:
       '@docsearch/react':
         specifier: '3'
-        version: 3.6.0(@algolia/client-search@4.24.0)(@types/react@18.3.3)(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)(search-insights@2.14.0)
+        version: 3.6.0(@algolia/client-search@4.24.0)(@types/react@18.3.3)(search-insights@2.14.0)
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../packages/react-server
@@ -89,13 +94,13 @@ importers:
         version: link:../packages/react-server-router
       '@uidotdev/usehooks':
         specifier: ^2.4.1
-        version: 2.4.1(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)
+        version: 2.4.1
       '@vercel/analytics':
         specifier: ^1.3.1
-        version: 1.3.1(react@0.0.0-experimental-58af67a8f8-20240628)
+        version: 1.3.1
       '@vercel/speed-insights':
         specifier: ^1.0.12
-        version: 1.0.12(react@0.0.0-experimental-58af67a8f8-20240628)
+        version: 1.0.12
       '@vitejs/plugin-react-swc':
         specifier: ^3.7.0
         version: 3.7.0(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(terser@5.31.1))
@@ -104,7 +109,7 @@ importers:
         version: 11.9.0
       lucide-react:
         specifier: ^0.408.0
-        version: 0.408.0(react@0.0.0-experimental-58af67a8f8-20240628)
+        version: 0.408.0
       rehype-highlight:
         specifier: ^7.0.0
         version: 7.0.0
@@ -257,7 +262,7 @@ importers:
         version: link:../../packages/react-server-router
       react-click-away-listener:
         specifier: ^2.2.3
-        version: 2.2.3(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)
+        version: 2.2.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
     devDependencies:
       '@types/react':
         specifier: ^18.3.2
@@ -288,7 +293,7 @@ importers:
         version: 6.3.4
       react-router-dom:
         specifier: ^6.23.1
-        version: 6.24.0(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)
+        version: 6.24.0(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
       sort-by:
         specifier: ^1.2.0
         version: 1.2.0
@@ -316,11 +321,11 @@ importers:
         version: link:../../packages/react-server
       '@tanstack/react-router':
         specifier: ^1.40.0
-        version: 1.43.3(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)
+        version: 1.43.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
     devDependencies:
       '@tanstack/router-devtools':
         specifier: ^1.40.0
-        version: 1.43.3(@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628))(csstype@3.1.3)(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)
+        version: 1.43.3(@tanstack/react-router@1.43.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731))(csstype@3.1.3)(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
       '@tanstack/router-plugin':
         specifier: ^1.39.13
         version: 1.43.1(vite@5.3.3(@types/node@20.14.9))
@@ -415,6 +420,9 @@ importers:
       acorn-loose:
         specifier: ^8.4.0
         version: 8.4.0
+      ansi-regex:
+        specifier: ^6.0.1
+        version: 6.0.1
       cac:
         specifier: ^6.7.14
         version: 6.7.14
@@ -466,6 +474,9 @@ importers:
       sass:
         specifier: ^1.63.6
         version: 1.77.6
+      semver:
+        specifier: ^7.6.3
+        version: 7.6.3
       strip-ansi:
         specifier: ^7.1.0
         version: 7.1.0
@@ -893,7 +904,7 @@ packages:
     resolution: {integrity: sha512-HUFut4ztcVNmqy9gp/wxNbC7pTOHhgVVkHVGCACTuLhUKUhKAF9KYHJtMiLUJxEqiFLQiuri1fWF8zqwM/cu1w==}
     peerDependencies:
       '@types/react': '>= 16.8.0 < 19.0.0'
-      react: '>= 16.8.0 < 19.0.0'
+      react: 0.0.0-experimental-58af67a8f8-20240628
       react-dom: '>= 16.8.0 < 19.0.0'
       search-insights: '>= 1 < 3'
     peerDependenciesMeta:
@@ -2036,8 +2047,8 @@ packages:
     resolution: {integrity: sha512-1I+RwWyS+kdv3Mv0Vmc+p0dPYH0DTRAo04HLyXReYBL9AeseDWUJyi4THuksBJcu9F0Pih69Ak150VDnqbVnXg==}
     engines: {node: '>=16'}
     peerDependencies:
-      react: '>=18.0.0'
-      react-dom: '>=18.0.0'
+      react: 0.0.0-experimental-58af67a8f8-20240628
+      react-dom: 0.0.0-experimental-58af67a8f8-20240628
 
   '@ungap/structured-clone@1.2.0':
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
@@ -2046,7 +2057,7 @@ packages:
     resolution: {integrity: sha512-xhSlYgAuJ6Q4WQGkzYTLmXwhYl39sWjoMA3nHxfkvG+WdBT25c563a7QhwwKivEOZtPJXifYHR1m2ihoisbWyA==}
     peerDependencies:
       next: '>= 13'
-      react: ^18 || ^19
+      react: 0.0.0-experimental-58af67a8f8-20240628
     peerDependenciesMeta:
       next:
         optional: true
@@ -2063,7 +2074,7 @@ packages:
     peerDependencies:
       '@sveltejs/kit': ^1 || ^2
       next: '>= 13'
-      react: ^18 || ^19
+      react: 0.0.0-experimental-58af67a8f8-20240628
       svelte: ^4
       vue: ^3
       vue-router: ^4
@@ -4957,6 +4968,11 @@ packages:
     peerDependencies:
       react: 0.0.0-experimental-58af67a8f8-20240628
 
+  react-dom@19.0.0-rc-3208e73e-20240730:
+    resolution: {integrity: sha512-jspKji5vQTTlFY7zFGh0VB+rZV+5FweCQkYxtLoPZvc5ZH6vEf1n8d+4h9YqNqF8nnhFkcHO8XLtKTtTyVGSXA==}
+    peerDependencies:
+      react: 19.0.0-rc-3208e73e-20240730
+
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
 
@@ -4990,6 +5006,10 @@ packages:
 
   react@0.0.0-experimental-58af67a8f8-20240628:
     resolution: {integrity: sha512-T8x5Am201j0TqY6yuGWIttlKYqPw/on7NXE8URJPQbSc7quYaokunawAYfL3y/Dvmqqb3l2kuK1+JRDd718DYg==}
+    engines: {node: '>=0.10.0'}
+
+  react@19.0.0-rc-a7d1240c-20240731:
+    resolution: {integrity: sha512-z1O4z4q9hy4DPUOO2E2VOjJwFOKH/hqZOIKldPGY8DLzxW4pH2JiTm5ma51zRqj7WxVt/5yjDIbY3L9kYTAVcg==}
     engines: {node: '>=0.10.0'}
 
   read-cache@1.0.0:
@@ -5190,6 +5210,9 @@ packages:
   scheduler@0.0.0-experimental-58af67a8f8-20240628:
     resolution: {integrity: sha512-348hpideTG2rOcXDP9TH7YjD4aS3ZNdZSVjfywcDRveO1qjmqSQYIWw1ow6IS15QZlpX723wVdgiyfi4inFYpQ==}
 
+  scheduler@0.25.0-rc-3208e73e-20240730:
+    resolution: {integrity: sha512-eCGy6Bm6PX2JB7dLumQuEYwmXku9HweMfdXCQQ2ZaRG3kwxK76RWFr7CsW/LHju8fiDSiJajl0Iq62uoaH9VLQ==}
+
   schema-utils@3.3.0:
     resolution: {integrity: sha512-pN/yOAvcC+5rQ5nERGuwrjLlYvLTbCibnZ1I7B1LaiAz9BRBlE9GMgE/eqV30P7aJQUf7Ddimy/RsbYO/GrVGg==}
     engines: {node: '>= 10.13.0'}
@@ -5207,6 +5230,11 @@ packages:
 
   semver@7.6.2:
     resolution: {integrity: sha512-FNAIBWCx9qcRhoHcgcJ0gvU7SN1lYU2ZXuSfl04bSC5OpvDHFyJCjdNHomPXxjQlCBU67YW64PzY7/VIEH7F2w==}
+    engines: {node: '>=10'}
+    hasBin: true
+
+  semver@7.6.3:
+    resolution: {integrity: sha512-oVekP1cKtI+CTDvHWYFUcMtsK/00wmAEfyqKfNdARm8u1wNVhSgaX7A8d4UuIlUI5e84iEwOhs7ZPYRmzU9U6A==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -6481,7 +6509,7 @@ snapshots:
 
   '@docsearch/css@3.6.0': {}
 
-  '@docsearch/react@3.6.0(@algolia/client-search@4.24.0)(@types/react@18.3.3)(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)(search-insights@2.14.0)':
+  '@docsearch/react@3.6.0(@algolia/client-search@4.24.0)(@types/react@18.3.3)(search-insights@2.14.0)':
     dependencies:
       '@algolia/autocomplete-core': 1.9.3(@algolia/client-search@4.24.0)(algoliasearch@4.24.0)(search-insights@2.14.0)
       '@algolia/autocomplete-preset-algolia': 1.9.3(@algolia/client-search@4.24.0)(algoliasearch@4.24.0)
@@ -6489,8 +6517,6 @@ snapshots:
       algoliasearch: 4.24.0
     optionalDependencies:
       '@types/react': 18.3.3
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
       search-insights: 2.14.0
     transitivePeerDependencies:
       - '@algolia/client-search'
@@ -6931,7 +6957,7 @@ snapshots:
       nopt: 5.0.0
       npmlog: 5.0.1
       rimraf: 3.0.2
-      semver: 7.6.2
+      semver: 7.6.3
       tar: 6.2.1
     transitivePeerDependencies:
       - encoding
@@ -7305,30 +7331,30 @@ snapshots:
 
   '@tanstack/history@1.41.0': {}
 
-  '@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)':
+  '@tanstack/react-router@1.43.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)':
     dependencies:
       '@tanstack/history': 1.41.0
-      '@tanstack/react-store': 0.2.1(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
+      '@tanstack/react-store': 0.2.1(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
+      react: 19.0.0-rc-a7d1240c-20240731
+      react-dom: 19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731)
       tiny-invariant: 1.3.3
       tiny-warning: 1.0.3
 
-  '@tanstack/react-store@0.2.1(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)':
+  '@tanstack/react-store@0.2.1(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)':
     dependencies:
       '@tanstack/store': 0.1.3
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
-      use-sync-external-store: 1.2.2(react@0.0.0-experimental-58af67a8f8-20240628)
+      react: 19.0.0-rc-a7d1240c-20240731
+      react-dom: 19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731)
+      use-sync-external-store: 1.2.2(react@19.0.0-rc-a7d1240c-20240731)
 
-  '@tanstack/router-devtools@1.43.3(@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628))(csstype@3.1.3)(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)':
+  '@tanstack/router-devtools@1.43.3(@tanstack/react-router@1.43.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731))(csstype@3.1.3)(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)':
     dependencies:
-      '@tanstack/react-router': 1.43.3(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)
+      '@tanstack/react-router': 1.43.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
       clsx: 2.1.1
       date-fns: 2.30.0
       goober: 2.1.14(csstype@3.1.3)
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
+      react: 19.0.0-rc-a7d1240c-20240731
+      react-dom: 19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731)
     transitivePeerDependencies:
       - csstype
 
@@ -7658,7 +7684,7 @@ snapshots:
       globby: 11.1.0
       is-glob: 4.0.3
       minimatch: 9.0.3
-      semver: 7.6.2
+      semver: 7.6.3
       ts-api-utils: 1.3.0(typescript@5.5.2)
     optionalDependencies:
       typescript: 5.5.2
@@ -7673,7 +7699,7 @@ snapshots:
       globby: 11.1.0
       is-glob: 4.0.3
       minimatch: 9.0.5
-      semver: 7.6.2
+      semver: 7.6.3
       ts-api-utils: 1.3.0(typescript@5.5.2)
     optionalDependencies:
       typescript: 5.5.2
@@ -7689,7 +7715,7 @@ snapshots:
       '@typescript-eslint/types': 6.21.0
       '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.5.2)
       eslint: 8.57.0
-      semver: 7.6.2
+      semver: 7.6.3
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -7715,18 +7741,13 @@ snapshots:
       '@typescript-eslint/types': 7.14.1
       eslint-visitor-keys: 3.4.3
 
-  '@uidotdev/usehooks@2.4.1(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)':
-    dependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
+  '@uidotdev/usehooks@2.4.1': {}
 
   '@ungap/structured-clone@1.2.0': {}
 
-  '@vercel/analytics@1.3.1(react@0.0.0-experimental-58af67a8f8-20240628)':
+  '@vercel/analytics@1.3.1':
     dependencies:
       server-only: 0.0.1
-    optionalDependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
 
   '@vercel/nft@0.27.2':
     dependencies:
@@ -7746,9 +7767,7 @@ snapshots:
       - encoding
       - supports-color
 
-  '@vercel/speed-insights@1.0.12(react@0.0.0-experimental-58af67a8f8-20240628)':
-    optionalDependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
+  '@vercel/speed-insights@1.0.12': {}
 
   '@vitejs/plugin-react-swc@3.7.0(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(terser@5.31.1))':
     dependencies:
@@ -9270,7 +9289,7 @@ snapshots:
       minimatch: 3.1.2
       node-abort-controller: 3.1.1
       schema-utils: 3.3.0
-      semver: 7.6.2
+      semver: 7.6.3
       tapable: 2.2.1
       typescript: 5.3.3
       webpack: 5.90.1(@swc/core@1.6.6)
@@ -9835,7 +9854,7 @@ snapshots:
       '@babel/parser': 7.24.7
       '@istanbuljs/schema': 0.1.3
       istanbul-lib-coverage: 3.2.2
-      semver: 7.6.2
+      semver: 7.6.3
     transitivePeerDependencies:
       - supports-color
 
@@ -10137,7 +10156,7 @@ snapshots:
       jest-util: 29.7.0
       natural-compare: 1.4.0
       pretty-format: 29.7.0
-      semver: 7.6.2
+      semver: 7.6.3
     transitivePeerDependencies:
       - supports-color
 
@@ -10352,9 +10371,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.408.0(react@0.0.0-experimental-58af67a8f8-20240628):
-    dependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
+  lucide-react@0.408.0: {}
 
   magic-string@0.30.10:
     dependencies:
@@ -10376,7 +10393,7 @@ snapshots:
 
   make-dir@4.0.0:
     dependencies:
-      semver: 7.6.2
+      semver: 7.6.3
 
   make-error@1.3.6: {}
 
@@ -10976,7 +10993,7 @@ snapshots:
 
   node-abi@3.65.0:
     dependencies:
-      semver: 7.6.2
+      semver: 7.6.3
 
   node-abort-controller@3.1.1: {}
 
@@ -11422,15 +11439,20 @@ snapshots:
       minimist: 1.2.8
       strip-json-comments: 2.0.1
 
-  react-click-away-listener@2.2.3(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628):
+  react-click-away-listener@2.2.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731):
     dependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
+      react: 19.0.0-rc-a7d1240c-20240731
+      react-dom: 19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731)
 
   react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628):
     dependencies:
       react: 0.0.0-experimental-58af67a8f8-20240628
       scheduler: 0.0.0-experimental-58af67a8f8-20240628
+
+  react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731):
+    dependencies:
+      react: 19.0.0-rc-a7d1240c-20240731
+      scheduler: 0.25.0-rc-3208e73e-20240730
 
   react-is@16.13.1: {}
 
@@ -11438,17 +11460,17 @@ snapshots:
 
   react-refresh@0.14.2: {}
 
-  react-router-dom@6.24.0(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628):
+  react-router-dom@6.24.0(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731):
     dependencies:
       '@remix-run/router': 1.17.0
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
-      react-router: 6.24.0(react@0.0.0-experimental-58af67a8f8-20240628)
+      react: 19.0.0-rc-a7d1240c-20240731
+      react-dom: 19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731)
+      react-router: 6.24.0(react@19.0.0-rc-a7d1240c-20240731)
 
-  react-router@6.24.0(react@0.0.0-experimental-58af67a8f8-20240628):
+  react-router@6.24.0(react@19.0.0-rc-a7d1240c-20240731):
     dependencies:
       '@remix-run/router': 1.17.0
-      react: 0.0.0-experimental-58af67a8f8-20240628
+      react: 19.0.0-rc-a7d1240c-20240731
 
   react-server-dom-webpack@0.0.0-experimental-58af67a8f8-20240628(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)(webpack@5.90.1(esbuild@0.19.12)):
     dependencies:
@@ -11459,6 +11481,8 @@ snapshots:
       webpack: 5.90.1(esbuild@0.19.12)
 
   react@0.0.0-experimental-58af67a8f8-20240628: {}
+
+  react@19.0.0-rc-a7d1240c-20240731: {}
 
   read-cache@1.0.0:
     dependencies:
@@ -11731,6 +11755,8 @@ snapshots:
 
   scheduler@0.0.0-experimental-58af67a8f8-20240628: {}
 
+  scheduler@0.25.0-rc-3208e73e-20240730: {}
+
   schema-utils@3.3.0:
     dependencies:
       '@types/json-schema': 7.0.15
@@ -11745,6 +11771,8 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.6.2: {}
+
+  semver@7.6.3: {}
 
   send@0.18.0:
     dependencies:
@@ -12446,9 +12474,9 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  use-sync-external-store@1.2.2(react@0.0.0-experimental-58af67a8f8-20240628):
+  use-sync-external-store@1.2.2(react@19.0.0-rc-a7d1240c-20240731):
     dependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
+      react: 19.0.0-rc-a7d1240c-20240731
 
   util-deprecate@1.0.2: {}
 

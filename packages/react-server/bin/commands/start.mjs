@@ -1,7 +1,7 @@
 import { setEnv } from "../../lib/sys.mjs";
 
-export default (cli) =>
-  cli
+export default (cli) => {
+  const command = cli
     .command("start [root]", "start server in production mode")
     .option("--host [host]", "[string] host to listen on", {
       default: "localhost",
@@ -20,3 +20,7 @@ export default (cli) =>
       setEnv("NODE_ENV", "production");
       return (await import("../../lib/start/action.mjs")).default(...args);
     });
+  command.__react_server_check_node_version__ = false;
+  command.__react_server_check_deps__ = false;
+  return command;
+};

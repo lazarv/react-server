@@ -3,6 +3,7 @@ import { join } from "node:path";
 import colors from "picocolors";
 import { rimraf } from "rimraf";
 
+import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
 import { ContextStorage } from "../../server/context.mjs";
 import {
@@ -20,6 +21,8 @@ import staticSiteGenerator from "./static.mjs";
 const cwd = sys.cwd();
 
 export default async function build(root, options) {
+  await logo();
+
   if (!options.outDir) {
     options.outDir = ".react-server";
   }

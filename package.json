@@ -38,10 +38,6 @@
     "typescript": "^5.4.5",
     "typescript-plugin-css-modules": "^5.1.0"
   },
-  "workspaces": [
-    "packages/*",
-    "examples/*"
-  ],
   "pnpm": {
     "overrides": {
       "react-click-away-listener>react": "0.0.0-experimental-58af67a8f8-20240628",
@@ -56,11 +52,16 @@
       "use-sync-external-store>react": "0.0.0-experimental-58af67a8f8-20240628",
       "@tanstack/router-devtools>react": "0.0.0-experimental-58af67a8f8-20240628",
       "@tanstack/router-devtools>react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+      "@docsearch/react>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "@uidotdev/usehooks>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "@uidotdev/usehooks>react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+      "@vercel/analytics>react": "0.0.0-experimental-58af67a8f8-20240628",
+      "@vercel/speed-insights>react": "0.0.0-experimental-58af67a8f8-20240628",
       "vite-plugin-svgr>vite": "6.0.0-alpha.18",
       "@vitejs/plugin-react>vite": "6.0.0-alpha.18",
       "@vitejs/plugin-react-swc>vite": "6.0.0-alpha.18",
       "supertest>superagent": "9.0.2"
     }
   },
-  "packageManager": "pnpm@9.4.0+sha512.f549b8a52c9d2b8536762f99c0722205efc5af913e77835dbccc3b0b0b2ca9e7dc8022b78062c17291c48e88749c70ce88eb5a74f1fa8c4bf5e18bb46c8bd83a"
+  "packageManager": "pnpm@9.7.0+sha512.dc09430156b427f5ecfc79888899e1c39d2d690f004be70e05230b72cb173d96839587545d09429b55ac3c429c801b4dc3c0e002f653830a420fa2dd4e3cf9cf"
 }

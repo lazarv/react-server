@@ -61,24 +61,37 @@ const moduleRunner = new ModuleRunner(
 
 const moduleCacheStorage = new ContextManager();
 globalThis.__webpack_require__ = function (id) {
-  const moduleCache = moduleCacheStorage.getStore() ?? new Map();
-  id = join(cwd, id);
-  if (!moduleCache.has(id)) {
-    const mod = moduleRunner.import(
-      /\:\//.test(id) ? pathToFileURL(id).href : id
-    );
-    moduleCache.set(id, mod);
-    return mod;
+  try {
+    const moduleCache = moduleCacheStorage.getStore() ?? new Map();
+    if (!moduleCache.has(id)) {
+      if (/http(s?)\:/.test(id)) {
+        const url = new URL(id);
+        const moduleUrl = join(cwd, url.pathname);
+        const mod = moduleRunner.import(moduleUrl);
+        moduleCache.set(id, mod);
+        return mod;
+      }
+      const moduleUrl = join(cwd, id);
+      const mod = moduleRunner.import(
+        /\:\//.test(moduleUrl) ? pathToFileURL(moduleUrl).href : moduleUrl
+      );
+      moduleCache.set(id, mod);
+      return mod;
+    }
+    return moduleCache.get(id);
+  } catch (e) {
+    console.error(e);
   }
-  return moduleCache.get(id);
 };
 
 const linkQueueStorage = new ContextManager();
-parentPort.on(
-  "message",
-  createRenderer({
-    moduleCacheStorage,
-    linkQueueStorage,
-    parentPort,
-  })
-);
+const handleRenderMessage = createRenderer({
+  moduleCacheStorage,
+  linkQueueStorage,
+  parentPort,
+});
+parentPort.on("message", (payload) => {
+  if (payload.type === "render") {
+    handleRenderMessage(payload);
+  }
+});

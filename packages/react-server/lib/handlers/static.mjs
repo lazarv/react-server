@@ -50,9 +50,10 @@ export default async function staticHandler(dir, options = {}) {
     }
 
     const accept = context.request.headers.get("accept");
+    const isRemote = accept?.includes("text/html;remote");
     const isRSC = accept?.includes("text/x-component");
     const isHTML =
-      accept?.includes("text/html") ||
+      (accept?.includes("text/html") && !isRemote) ||
       accept?.includes("*/*") ||
       (!isRSC && !accept);
     let contentEncoding = undefined;
@@ -91,6 +92,23 @@ export default async function staticHandler(dir, options = {}) {
       const isGzip = acceptEncoding?.includes("gzip");
 
       const basename = `${pathname}/x-component.rsc`.replace(/^\/+/g, "");
+      if (isBrotli && files.has(`${basename}.br`)) {
+        pathname = `${basename}.br`;
+        contentEncoding = "br";
+      } else if (isGzip && files.has(`${basename}.gz`)) {
+        pathname = `${basename}.gz`;
+        contentEncoding = "gzip";
+      } else if (files.has(basename)) {
+        pathname = basename;
+      }
+    }
+
+    if (isRemote) {
+      const acceptEncoding = context.request.headers.get("accept-encoding");
+      const isBrotli = acceptEncoding?.includes("br");
+      const isGzip = acceptEncoding?.includes("gzip");
+
+      const basename = `${pathname}/remote.rsc`.replace(/^\/+/g, "");
       if (isBrotli && files.has(`${basename}.br`)) {
         pathname = `${basename}.br`;
         contentEncoding = "br";

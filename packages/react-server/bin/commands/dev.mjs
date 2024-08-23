@@ -18,8 +18,11 @@ export default (cli) =>
     })
     .option("--no-color", "disable color output", { default: false })
     .option("-e, --eval <code>", "evaluate code", { type: "string" })
-    .option("--outDir <dir>", "[string] output directory", {
+    .option("-o, --outDir <dir>", "[string] output directory", {
       default: ".react-server",
+    })
+    .option("-n, --name <name>", "[string] server name", {
+      default: "react-server",
     })
     .action(async (...args) => {
       setEnv("NODE_ENV", "development");

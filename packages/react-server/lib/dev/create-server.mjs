@@ -1,5 +1,5 @@
 import { createRequire, register } from "node:module";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 
@@ -25,6 +25,7 @@ import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   FORM_DATA_PARSER,
+  IMPORT_MAP,
   LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
@@ -77,6 +78,7 @@ export default async function createServer(root, options) {
 
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
+  const resolvedClientAlias = clientAlias(true);
   const devServerConfig = {
     ...config,
     server: {
@@ -166,7 +168,8 @@ export default async function createServer(root, options) {
     customLogger:
       config.customLogger ??
       createLogger("info", {
-        prefix: `[react-server]`,
+        prefix: `[${options.name ?? config.name ?? "react-server"}]`,
+        ...config.logger,
       }),
     environments: {
       client: {
@@ -330,9 +333,36 @@ export default async function createServer(root, options) {
     [LOGGER_CONTEXT]: viteDevServer.config.logger,
     [MODULE_LOADER]: ($$id) => {
       const [id] = $$id.split("#");
-      moduleRunner.moduleCache.invalidateUrl(id);
       return moduleRunner.import(id);
     },
+    [IMPORT_MAP]: config.importMap
+      ? {
+          ...config.importMap,
+          imports: await new Promise(async (resolve, reject) => {
+            try {
+              const entries = Object.entries(config.importMap.imports);
+              for await (const [key, value] of entries) {
+                const alias = resolvedClientAlias.find((alias) =>
+                  alias.find.test(key)
+                );
+                if (alias) {
+                  const [, resolved] =
+                    await viteDevServer.environments.client.moduleGraph.resolveUrl(
+                      key
+                    );
+                  delete config.importMap.imports[key];
+                  config.importMap.imports[
+                    `/${sys.normalizePath(relative(cwd, resolved))}`
+                  ] = value;
+                }
+              }
+              resolve(config.importMap.imports);
+            } catch (e) {
+              reject(e);
+            }
+          }),
+        }
+      : null,
     [FORM_DATA_PARSER]: parseMultipartFormData,
     [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
     [COLLECT_STYLESHEETS]: function collectCss(rootModule) {

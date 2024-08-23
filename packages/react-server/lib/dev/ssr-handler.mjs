@@ -13,6 +13,7 @@ import {
   ERROR_CONTEXT,
   FORM_DATA_PARSER,
   HTTP_CONTEXT,
+  IMPORT_MAP,
   LOGGER_CONTEXT,
   MAIN_MODULE,
   MEMORY_CACHE_CONTEXT,
@@ -36,6 +37,7 @@ export default async function ssrHandler(root) {
     getModules(root);
   const viteDevServer = getRuntime(SERVER_CONTEXT);
   const ssrLoadModule = getRuntime(MODULE_LOADER);
+  const importMap = getRuntime(IMPORT_MAP);
   const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
   const formDataParser = getRuntime(FORM_DATA_PARSER);
@@ -54,6 +56,7 @@ export default async function ssrHandler(root) {
             [CONFIG_CONTEXT]: config,
             [ERROR_CONTEXT]: errorHandler,
             [MODULE_LOADER]: ssrLoadModule,
+            [IMPORT_MAP]: importMap,
             [LOGGER_CONTEXT]: logger,
             [MAIN_MODULE]: ["@vite/client", `@hmr`, `@__webpack_require__`].map(
               (mod) =>

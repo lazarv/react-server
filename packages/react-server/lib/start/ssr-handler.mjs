@@ -1,5 +1,5 @@
 import { createRequire, register } from "node:module";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { forChild } from "../../config/index.mjs";
@@ -9,7 +9,7 @@ import { createWorker } from "../../server/create-worker.mjs";
 import { logger } from "../../server/logger.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getPrerender } from "../../server/prerender-storage.mjs";
-import { getRuntime } from "../../server/runtime.mjs";
+import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
@@ -19,6 +19,7 @@ import {
   HTTP_CONTEXT,
   HTTP_HEADERS,
   HTTP_STATUS,
+  IMPORT_MAP,
   LOGGER_CONTEXT,
   MAIN_MODULE,
   MANIFEST,
@@ -75,6 +76,47 @@ export default async function ssrHandler(root, options = {}) {
   const manifest = getRuntime(MANIFEST);
   const moduleCacheStorage = new ContextManager();
   await module_loader_init$(moduleLoader, moduleCacheStorage);
+
+  const importMap =
+    configRoot.importMap || configRoot.resolve?.shared
+      ? {
+          ...configRoot.importMap,
+          imports: await new Promise(async (resolve, reject) => {
+            try {
+              if (!configRoot.importMap?.imports) {
+                return resolve({});
+              }
+              const entries = Object.entries(configRoot.importMap.imports);
+              for await (const [key, value] of entries) {
+                const entry = Object.values(manifest.browser).find(
+                  (entry) => entry.name === key
+                );
+                if (entry) {
+                  delete configRoot.importMap.imports[key];
+                  configRoot.importMap.imports[
+                    `/${sys.normalizePath(relative(cwd, entry.file))}`
+                  ] = value;
+                }
+              }
+              resolve(configRoot.importMap.imports);
+            } catch (e) {
+              reject(e);
+            }
+          }),
+        }
+      : null;
+  for (const mod of configRoot.resolve?.shared ?? []) {
+    if (!importMap.imports[mod]) {
+      const entry = Object.values(manifest.browser).find(
+        (entry) => entry.name === mod
+      )?.file;
+      if (entry) {
+        importMap.imports[mod] = `/${entry}`;
+      }
+    }
+  }
+  runtime$(IMPORT_MAP, importMap);
+
   const renderStream = createWorker();
   const errorHandler = async (e) => {
     const httpStatus = getContext(HTTP_STATUS) ?? {
@@ -103,6 +145,7 @@ export default async function ssrHandler(root, options = {}) {
             [MAIN_MODULE]: mainModule,
             [FORM_DATA_PARSER]: formDataParser,
             [MODULE_LOADER]: moduleLoader,
+            [IMPORT_MAP]: importMap,
             [MEMORY_CACHE_CONTEXT]: memoryCache,
             [MANIFEST]: manifest,
             [REDIRECT_CONTEXT]: {},

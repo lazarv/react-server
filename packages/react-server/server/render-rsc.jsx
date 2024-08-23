@@ -20,6 +20,7 @@ import {
   HTTP_CONTEXT,
   HTTP_HEADERS,
   HTTP_STATUS,
+  IMPORT_MAP,
   LOGGER_CONTEXT,
   MAIN_MODULE,
   POSTPONE_STATE,
@@ -58,8 +59,12 @@ export async function render(Component) {
       try {
         revalidate$();
 
+        const origin = context.request.headers.get("origin");
+        const protocol = origin && new URL(origin).protocol;
+        const host = context.request.headers.get("host");
         const accept = context.request.headers.get("accept");
-        const standalone = accept.includes(";standalone");
+        const remote = accept.includes(";remote");
+        const standalone = accept.includes(";standalone") || remote;
         const outlet = (
           context.request.headers.get("react-server-outlet") ?? "PAGE_ROOT"
         ).replace(/[^a-zA-Z0-9_]/g, "_");
@@ -107,7 +112,7 @@ export async function render(Component) {
                 const { info, file } = files[value];
                 formData.append(key, file, info.filename);
               } else {
-                formData.append(key, value);
+                formData.append(key.replace(/^remote:/, ""), value);
               }
             }
             try {
@@ -218,20 +223,25 @@ export async function render(Component) {
           }
         }
 
-        const Styles = async () => {
+        const precedence = remote ? undefined : "default";
+        const configBaseHref = config.base
+          ? (link) => `/${config.base}/${link?.id || link}`.replace(/\/+/g, "/")
+          : (link) => link?.id || link;
+        const linkHref = remote
+          ? (link) => `${protocol}//${host}${configBaseHref(link)}`
+          : configBaseHref;
+        const Styles = () => {
           const styles = getContext(STYLES_CONTEXT);
           return (
             <>
               {styles.map((link) => {
-                const href = config.base
-                  ? `/${config.base}/${link?.id || link}`.replace(/\/+/g, "/")
-                  : link?.id || link;
+                const href = linkHref(link);
                 return (
                   <link
                     key={href}
                     rel="stylesheet"
                     href={href}
-                    precedence="default"
+                    precedence={precedence}
                   />
                 );
               })}
@@ -280,7 +290,7 @@ export async function render(Component) {
             async start(controller) {
               const flight = server.renderToReadableStream(
                 app,
-                clientReferenceMap
+                clientReferenceMap({ remote, origin })
               );
 
               const reader = flight.getReader();
@@ -402,14 +412,14 @@ export async function render(Component) {
 
           const flight = server.renderToReadableStream(
             app,
-            clientReferenceMap,
+            clientReferenceMap({ remote, origin }),
             {
               onError(e) {
                 const redirect = getContext(REDIRECT_CONTEXT);
                 if (redirect?.response) {
                   return resolve(redirect.response);
                 }
-                return e.message;
+                return e?.message;
               },
             }
           );
@@ -418,6 +428,7 @@ export async function render(Component) {
           const { onPostponed } = context;
           const prelude = getContext(PRELUDE_HTML);
           const postponed = getContext(POSTPONE_STATE);
+          const importMap = getContext(IMPORT_MAP);
           const stream = await renderStream({
             stream: flight,
             bootstrapModules: standalone ? [] : getContext(MAIN_MODULE),
@@ -505,6 +516,9 @@ export async function render(Component) {
             onPostponed,
             prelude,
             postponed,
+            remote,
+            origin,
+            importMap,
           });
         } else {
           return resolve(

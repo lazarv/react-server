@@ -45,12 +45,12 @@ export function createWorker() {
       workerMap.set(id, { resolve, reject, start, onError, onPostponed })
     );
     if (prelude) {
-      worker.postMessage({ id, stream, prelude, ...options }, [
+      worker.postMessage({ type: "render", id, stream, prelude, ...options }, [
         stream,
         prelude,
       ]);
     } else {
-      worker.postMessage({ id, stream, ...options }, [stream]);
+      worker.postMessage({ type: "render", id, stream, ...options }, [stream]);
     }
     return promise;
   };

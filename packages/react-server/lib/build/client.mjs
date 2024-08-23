@@ -91,6 +91,7 @@ export default async function clientBuild(_, options) {
       sourcemap: options.sourcemap,
       rollupOptions: {
         preserveEntrySignatures: "allow-extension",
+        external: config.resolve?.shared ?? [],
         output: {
           dir: options.outDir,
           format: "esm",
@@ -107,6 +108,15 @@ export default async function clientBuild(_, options) {
           "client/index": __require.resolve(
             "@lazarv/react-server/client/entry.client.jsx"
           ),
+          ...Object.entries(chunks).reduce((input, [src, mod]) => {
+            if (
+              config.resolve?.shared?.includes(mod) &&
+              !config.importMap?.imports?.[mod]
+            ) {
+              input[`client/${mod}`] = src;
+            }
+            return input;
+          }, {}),
           ...Object.values(clientManifest).reduce((input, value) => {
             if (value.isEntry) {
               input[value.name.replace(/^server\//, "")] = value.src;

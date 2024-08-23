@@ -93,15 +93,18 @@
     "mime": "^3.0.0",
     "module-alias": "^2.2.3",
     "open": "^9.1.0",
+    "parse5": "^7.1.2",
     "picocolors": "^1.0.1",
     "pino": "^8.14.1",
     "react": "0.0.0-experimental-58af67a8f8-20240628",
     "react-dom": "0.0.0-experimental-58af67a8f8-20240628",
+    "react-property": "^2.0.2",
     "react-server-dom-webpack": "0.0.0-experimental-58af67a8f8-20240628",
     "rimraf": "^5.0.1",
     "sass": "^1.63.6",
     "semver": "^7.6.3",
     "strip-ansi": "^7.1.0",
+    "style-to-js": "^1.1.12",
     "vite": "6.0.0-alpha.18"
   },
   "engines": {

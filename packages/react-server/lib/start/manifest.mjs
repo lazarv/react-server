@@ -59,7 +59,7 @@ export async function init$(type = "server", options = {}) {
   function ssrLoadModule($$id, linkQueueStorage) {
     const linkQueue = linkQueueStorage?.getStore() ?? new Set();
     const httpContext = getContext(HTTP_CONTEXT);
-    const [id] = (
+    let [id] = (
       httpContext
         ? $$id.replace(
             `${
@@ -75,7 +75,14 @@ export async function init$(type = "server", options = {}) {
     try {
       const moduleUri = new URL(id);
       if (moduleUri.protocol === "http:" || moduleUri.protocol === "https:") {
-        return import(pathToFileURL(id));
+        const entry = Object.values(manifest.browser).find(
+          (entry) => entry.file && moduleUri.pathname.endsWith(entry.file)
+        );
+        if (entry) {
+          id = entry.file;
+        } else {
+          return import(pathToFileURL(id));
+        }
       }
     } catch (e) {
       // noop
@@ -101,7 +108,7 @@ export async function init$(type = "server", options = {}) {
         : (entry) => entry.src && id.endsWith(entry.src)
     );
     const specifier = __require.resolve(
-      `./${outDir}/${(type === "client" ? clientEntry : serverEntry).file}`,
+      `./${outDir}/${(type === "client" ? clientEntry : serverEntry)?.file}`,
       {
         paths: [cwd],
       }

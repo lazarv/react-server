@@ -214,7 +214,7 @@ window.addEventListener("popstate", () => {
     }
   }
 });
-export const streamOptions = (outlet) => ({
+export const streamOptions = (outlet, remote) => ({
   async callServer(id, args) {
     return new Promise(async (resolve, reject) => {
       try {
@@ -233,6 +233,7 @@ export const streamOptions = (outlet) => ({
             method: "POST",
             body: formData,
             outlet: target,
+            remote,
             standalone: target !== PAGE_ROOT,
             headers: Array.from(formData.keys()).find((key) =>
               key.includes("ACTION_ID")
@@ -274,6 +275,7 @@ export const streamOptions = (outlet) => ({
 function getFlightResponse(url, options = {}) {
   if (!cache.has(options.outlet || url)) {
     if (
+      !options.defer &&
       self[`__flightStream__${options.outlet || PAGE_ROOT}__`] &&
       !self[`__flightHydration__${options.outlet || PAGE_ROOT}__`]
     ) {
@@ -281,27 +283,29 @@ function getFlightResponse(url, options = {}) {
         options.outlet || url,
         createFromReadableStream(
           self[`__flightStream__${options.outlet || PAGE_ROOT}__`].readable,
-          streamOptions(options.outlet || url)
+          streamOptions(options.outlet || url, options.remote)
         )
       );
       self[`__flightHydration__${options.outlet || PAGE_ROOT}__`] = true;
       activeChunk.set(options.outlet || url, cache.get(options.outlet || url));
-    } else {
+    } else if (!options.fromScript) {
       cache.set(
         options.outlet || url,
         createFromFetch(
           fetch(url === PAGE_ROOT ? location.href : url, {
+            ...options.request,
             method: options.method,
             body: options.body,
             headers: {
+              ...options.request?.headers,
               accept: `text/x-component${
                 options.standalone && url !== PAGE_ROOT ? ";standalone" : ""
-              }`,
+              }${options.remote && url !== PAGE_ROOT ? ";remote" : ""}`,
               "React-Server-Outlet": options.outlet || PAGE_ROOT,
               ...options.headers,
             },
           }),
-          streamOptions(options.outlet || url)
+          streamOptions(options.outlet || url, options.remote)
         )
       );
     }

@@ -101,11 +101,40 @@ export type RefreshProps = React.PropsWithChildren<{
  */
 export function Refresh(props: RefreshProps): JSX.Element;
 
-export function ReactServerComponent(props: {
+/**
+ * The props for the `ReactServerComponent` component.
+ *
+ * @property url - The URL to fetch the component from
+ * @property outlet - Outlet name to use for the component
+ * @property defer - If true, the component is re-fetched after the initial render on the client side
+ * @property children - The children to render
+ */
+export type ReactServerComponentProps = React.PropsWithChildren<{
   url?: string;
   outlet: string;
-  children?: React.ReactNode;
-}): JSX.Element;
+  defer?: boolean;
+}>;
+
+/**
+ * A component that renders a server component. The component will be rendered on the server and hydrated on the client.
+ *
+ * @param props - The props for the component
+ * @returns The server component
+ *
+ * @example
+ *
+ * ```tsx
+ * import { ReactServerComponent } from '@lazarv/react-server/navigation';
+ *
+ * export default function App() {
+ *   return (
+ *     <ReactServerComponent url="/todos" outlet="todos" defer />
+ *   );
+ * }
+ */
+export function ReactServerComponent(
+  props: ReactServerComponentProps
+): JSX.Element;
 
 /**
  * A hook that returns the current location.

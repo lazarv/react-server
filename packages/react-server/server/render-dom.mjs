@@ -1,14 +1,15 @@
 import { getEnv, immediate } from "@lazarv/react-server/lib/sys.mjs";
 import { ssrManifest } from "@lazarv/react-server/server/ssr-manifest.mjs";
+import { Parser } from "parse5";
 import { renderToReadableStream, resume } from "react-dom/server.edge";
 import { prerender } from "react-dom/static.edge";
 import { createFromReadableStream } from "react-server-dom-webpack/client.edge";
+import dom2flight from "./dom-flight.mjs";
 
 export const createRenderer = ({
   moduleCacheStorage,
   linkQueueStorage,
   parentPort,
-  importMap,
 }) => {
   const isDevelopment = getEnv("NODE_ENV") !== "production";
   return async ({
@@ -21,7 +22,13 @@ export const createRenderer = ({
     isPrerender,
     prelude,
     postponed,
+    remote,
+    origin,
+    importMap,
   }) => {
+    if (!flight) {
+      throw new Error("No flight stream provided.");
+    }
     let started = false;
     moduleCacheStorage.run(new Map(), async () => {
       const linkQueue = new Set();
@@ -155,7 +162,7 @@ export const createRenderer = ({
                       const chunk = `self.__flightWriter__${outlet}__.write(self.__flightEncoder__${outlet}__.encode(${JSON.stringify(
                         decoder.decode(value)
                       )}));`;
-                      if (hydrated) {
+                      if (hydrated && !remote) {
                         const script = encoder.encode(
                           `<script>document.currentScript.parentNode.removeChild(document.currentScript);${chunk}</script>`
                         );
@@ -235,7 +242,8 @@ export const createRenderer = ({
                     !isPrerender &&
                     !hydrated &&
                     bootstrapped &&
-                    (hasClientComponent || isDevelopment)
+                    (hasClientComponent || isDevelopment) &&
+                    !remote
                   ) {
                     if (hasClientComponent) {
                       if (contentLength === 0) {
@@ -315,13 +323,79 @@ export const createRenderer = ({
                   }
                 };
 
-                const render = async () => {
-                  for await (const value of worker()) {
-                    controller.enqueue(value);
-                  }
+                const remoteWorker = async function* () {
+                  while (!(forwardDone && htmlDone)) {
+                    for await (const value of forwardWorker()) {
+                      if (hydrated) {
+                        yield encoder.encode(
+                          `<script>document.currentScript.parentNode.removeChild(document.currentScript);${decoder.decode(
+                            value
+                          )}</script>`
+                        );
+                      }
+                    }
 
-                  controller.close();
-                  parentPort.postMessage({ id, done: true });
+                    const parser = Parser.getFragmentParser();
+                    for await (const value of htmlWorker()) {
+                      const html = decoder.decode(value);
+                      parser.tokenizer.write(html);
+                    }
+
+                    if (linkQueue.size > 0) {
+                      const links = Array.from(linkQueue);
+                      linkQueue.clear();
+                      for (const link of links) {
+                        if (!linkSent.has(link)) {
+                          linkSent.add(link);
+                          parser.tokenizer.write(
+                            `<link rel="stylesheet" href="${link}" />`
+                          );
+                        }
+                      }
+                    }
+
+                    parser.tokenizer.write(
+                      hydrated || !hasClientComponent
+                        ? ""
+                        : `${bootstrapScripts
+                            .map(
+                              (textContent) => `<script>${textContent}</script>`
+                            )
+                            .join("")}`,
+                      true
+                    );
+                    hydrated = true;
+
+                    const fragment = parser.getFragment();
+                    if (fragment.childNodes.length > 0) {
+                      const tree = dom2flight(fragment, { origin });
+                      yield encoder.encode(`0:${JSON.stringify(tree)}\n`);
+                    }
+
+                    if (!started) {
+                      started = true;
+                      parentPort.postMessage({ id, start: true });
+                    }
+                  }
+                };
+
+                const render = async () => {
+                  try {
+                    const iterator = remote ? remoteWorker() : worker();
+                    for await (const value of iterator) {
+                      controller.enqueue(value);
+                    }
+
+                    controller.close();
+                    parentPort.postMessage({ id, done: true });
+                  } catch (e) {
+                    parentPort.postMessage({
+                      id,
+                      done: true,
+                      error: e.message,
+                      stack: e.stack,
+                    });
+                  }
                 };
 
                 render();

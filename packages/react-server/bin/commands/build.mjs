@@ -1,3 +1,5 @@
+import { setEnv } from "../../lib/sys.mjs";
+
 export default (cli) =>
   cli
     .command("build [root]", "build for production")
@@ -21,6 +23,7 @@ export default (cli) =>
     .option("--outDir <dir>", "[string] output directory", {
       default: ".react-server",
     })
-    .action(async (...args) =>
-      (await import("../../lib/build/action.mjs")).default(...args)
-    );
+    .action(async (...args) => {
+      setEnv("NODE_ENV", "production");
+      return (await import("../../lib/build/action.mjs")).default(...args);
+    });

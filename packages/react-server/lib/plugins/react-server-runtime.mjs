@@ -42,6 +42,17 @@ export default function viteReactServerRuntime() {
           const moduleCache = new Map();
           self.__webpack_require__ = function (id) {
           if (!moduleCache.has(id)) {
+            if (/^https?\\:/.test(id)) {
+              const url = new URL(id);
+              url.pathname = "${
+                config.base
+                  ? `${config.base}/@fs/${cwd()}`.replace(/\/+/g, "/")
+                  : `/@fs/${cwd()}`.replace(/\/+/g, "/")
+              }" + url.pathname;
+              const mod = import(/* @vite-ignore */ url.href);
+              moduleCache.set(id, mod);
+              return mod;
+            }
           ${
             config.base
               ? `const mod = import(/* @vite-ignore */ new URL("${`${config.base}/@fs/${cwd()}/`.replace(/\/+/g, "/")}" + id, location.origin).href);`

@@ -4,33 +4,34 @@ import { MANIFEST } from "@lazarv/react-server/server/symbols.mjs";
 export const clientCache = (globalThis.__react_server_client_components__ =
   globalThis.__react_server_client_components__ || new Map());
 
-export const clientReferenceMap = new Proxy(
-  {},
-  {
-    get(_, $$id) {
-      let def = clientCache.get($$id);
-      const [id, name = "default"] = $$id.split("#");
-      if (!clientCache.has($$id)) {
-        const manifest = getContext(MANIFEST);
-        if (!manifest) {
-          def = {
-            id,
-            chunks: [],
-            name,
-            async: true,
-          };
-        } else {
-          def = {
-            id: `/${manifest.browser[id].file}`,
-            chunks: [],
-            name,
-            async: true,
-          };
+export const clientReferenceMap = ({ remote, origin }) =>
+  new Proxy(
+    {},
+    {
+      get(_, $$id) {
+        let def = clientCache.get($$id);
+        const [id, name = "default"] = $$id.split("#");
+        if (!clientCache.has($$id)) {
+          const manifest = getContext(MANIFEST);
+          if (!manifest) {
+            def = {
+              id: remote ? `${origin}/${id}` : id,
+              chunks: [],
+              name,
+              async: true,
+            };
+          } else {
+            def = {
+              id: `${remote ? origin : ""}/${manifest.browser[id].file}`,
+              chunks: [],
+              name,
+              async: true,
+            };
+          }
+          clientCache.set($$id, def);
         }
-        clientCache.set($$id, def);
-      }
 
-      return def;
-    },
-  }
-);
+        return def;
+      },
+    }
+  );

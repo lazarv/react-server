@@ -116,7 +116,7 @@ export default async function staticSiteGenerator(root, options) {
         ...filenames.map((filename) => filename.length)
       );
 
-      const render = await ssrHandler();
+      const render = await ssrHandler(null, options);
       await Promise.all(
         paths.map(async ({ path, filename: out, method, headers }) => {
           try {
@@ -252,6 +252,73 @@ export default async function staticSiteGenerator(root, options) {
                 .replace(/\/+$/g, "");
               const normalizedBasename =
                 `${normalizedPath}/x-component.rsc`.replace(/^\/+/g, "");
+              const filename = join(
+                cwd,
+                options.outDir,
+                "dist",
+                normalizedBasename
+              );
+              const gzip = createGzip();
+              const brotli = createBrotliCompress();
+              const gzipWriteStream = createWriteStream(`${filename}.gz`);
+              const brotliWriteStream = createWriteStream(`${filename}.br`);
+              await Promise.all([
+                pipeline(Readable.from(html), gzip, gzipWriteStream),
+                pipeline(Readable.from(html), brotli, brotliWriteStream),
+                writeFile(filename, html, "utf8"),
+              ]);
+              const [htmlStat, gzipStat, brotliStat] = await Promise.all([
+                stat(filename),
+                stat(`${filename}.gz`),
+                stat(`${filename}.br`),
+              ]);
+
+              log(
+                options.outDir,
+                normalizedBasename,
+                htmlStat,
+                gzipStat,
+                brotliStat,
+                { size: 0 },
+                maxFilenameLength
+              );
+            } catch (e) {
+              console.log(e);
+            }
+          })
+      );
+
+      await Promise.all(
+        paths
+          .filter(({ filename, remote }) => !filename && remote)
+          .map(async ({ path }) => {
+            try {
+              const url = new URL(
+                `http${config.server?.https ? "s" : ""}://${
+                  config.host ?? "localhost"
+                }:${config.port ?? 3000}${path}`
+              );
+              const stream = await render({
+                url,
+                request: {
+                  url,
+                  headers: new Headers({
+                    accept: "text/html;remote",
+                    "React-Server-Outlet": "REACT_SERVER_BUILD_OUTLET",
+                  }),
+                },
+              });
+              const html = await stream.text();
+              await mkdir(join(cwd, options.outDir, "dist", path), {
+                recursive: true,
+              });
+              const normalizedPath = path
+                .replace(/^\/+/g, "")
+                .replace(/\/+$/g, "");
+              const normalizedBasename = `${normalizedPath}/remote.rsc`.replace(
+                /^\/+/g,
+                ""
+              );
               const filename = join(
                 cwd,
                 options.outDir,

@@ -62,16 +62,31 @@ export default function useServerInline(manifest) {
           }
 
           if (useServerNode && node.type === "Identifier") {
-            if (locals.includes(node.name)) {
+            if (
+              locals.includes(node.name) &&
+              !useServerAction.params.includes(node.name)
+            ) {
               useServerAction.params.push(node.name);
             }
           }
 
           if (node.type === "VariableDeclarator") {
-            if (useServerNode) {
-              useServerAction.locals.push(node.id.name);
-            } else {
-              locals.push(node.id.name);
+            let parent = node.parent;
+            while (parent) {
+              if (
+                parent.type === "FunctionDeclaration" ||
+                parent.type === "FunctionExpression" ||
+                parent.type === "ArrowFunctionExpression"
+              )
+                break;
+              parent = parent.parent;
+            }
+            if (parent) {
+              if (useServerNode) {
+                useServerAction.locals.push(node.id.name);
+              } else {
+                locals.push(node.id.name);
+              }
             }
           }
 

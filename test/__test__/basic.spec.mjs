@@ -92,6 +92,27 @@ for (const id of [
   });
 }
 
+test(`server action state`, async () => {
+  await server("fixtures/server-action-state.jsx");
+  await page.goto(hostname);
+
+  const input = await page.getByRole("textbox");
+  const button = await page.getByRole("button");
+
+  input.type("react-server");
+
+  await waitForChange(
+    () => button.click(),
+    () => logs.includes("update name to react-server")
+  );
+  expect(logs).toContain("update name to react-server");
+
+  await page.reload();
+  const h1 = await page.getByText("Welcome, react-server!");
+
+  expect(await h1.isVisible()).toBe(true);
+});
+
 test("useActionState hook using server action", async () => {
   await server("fixtures/use-action-state.jsx");
   await page.goto(hostname);

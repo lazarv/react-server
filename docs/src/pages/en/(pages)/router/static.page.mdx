@@ -117,3 +117,22 @@ export default {
   },
 }
 ```
+
+<Link name="remote">
+## Static export micro-frontend routes
+</Link>
+
+You can also export micro-frontend routes as static. To do this, you can define your static path as an object with the `path` and `remote` properties, where `path` is the route path and `remote` is a flag to indicate that the route is a micro-frontend route and the remote response payload needs to be generated at build time. By using static export for micro-frontends, you can improve the performance of your application by pre-rendering the micro-frontend content at build time.
+
+```js
+export default {
+  export() {
+    return [
+      {
+        path: "/",
+        remote: true,
+      }
+    ];
+  },
+};
+```

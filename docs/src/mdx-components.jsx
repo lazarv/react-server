@@ -12,7 +12,7 @@ export default function useMDXComponents() {
             </div>
           )}
           {children}
-          <CopyToClipboard />
+          <CopyToClipboard filename={filename} />
         </pre>
       );
     },

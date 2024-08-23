@@ -162,6 +162,12 @@ export default function Home() {
 }
 ```
 
+When using the `ReactServerComponent` with the `defer` prop, the content of the outlet will be rendered only when the user navigates to the page that contains the `ReactServerComponent` with the `defer` prop. This can be useful when you want to defer the rendering of the content of the outlet until the user navigates to the page that contains the `ReactServerComponent` with the `defer` prop. The content of the outlet will be fetched from the server.
+
+You can also specify the `url` prop on the `ReactServerComponent` to specify the URL of the content of the outlet. This can be useful when you want to render the content of the outlet from a different URL than the current page.
+
+Using both `defer` and `url` props on the `ReactServerComponent` you can achieve a similar behavior to the `iframe` element.
+
 <Link name="refresh">
 ## Refresh
 </Link>

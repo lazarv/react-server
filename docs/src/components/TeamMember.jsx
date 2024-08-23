@@ -5,7 +5,7 @@ import classes from "./TeamMember.module.css";
 export default function TeamMember({ github, twitter, children }) {
   return (
     <div
-      className={`${classes.root} flex-1 min-w-full max-w-md md:min-w-[calc(50%-4rem)] lg:min-w-[calc(33%-4rem)] flex flex-col items-center justify-center p-4 py-8 rounded-xl bg-gray-50 dark:bg-gray-800 text-center drop-shadow`}
+      className={`${classes.root} flex-1 min-w-full max-w-md md:min-w-[calc(50%-4rem)] lg:min-w-[calc(33%-4rem)] flex flex-col items-center justify-center p-4 py-8 rounded-xl bg-gray-50 dark:bg-gray-800 text-center shadow-lg dark:shadow-[rgba(255,255,255,0.1)] border border-gray-500`}
     >
       {children}
       <div className="flex items-center justify-center gap-4">

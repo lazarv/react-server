@@ -183,7 +183,7 @@ article {
   }
 
   & pre code {
-    @apply rounded-lg mb-4;
+    @apply rounded-lg my-8 border border-gray-500 shadow-xl shadow-gray-500 dark:shadow-[rgba(255,255,255,0.1)] dark:shadow-lg;
   }
 
   & > code {
@@ -220,7 +220,7 @@ article {
   }
 
   & blockquote {
-    @apply border-l-8 border-blue-300 p-4 mb-4 bg-blue-100 dark:bg-yellow-500 dark:border-yellow-600 dark:text-gray-800;
+    @apply border-l-8 border-blue-300 p-4 mb-4 bg-blue-100 dark:bg-yellow-500 dark:border-yellow-600 dark:text-gray-800 shadow-xl dark:shadow-[rgba(255,255,255,0.1)];
 
     & code {
       @apply bg-gray-100 dark:bg-gray-100 dark:text-gray-800 text-sm p-1;

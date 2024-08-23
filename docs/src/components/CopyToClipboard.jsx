@@ -1,10 +1,11 @@
 "use client";
 
 import { useCopyToClipboard } from "@uidotdev/usehooks";
+import { track } from "@vercel/analytics";
 import { Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-export default function CopyToClipboard() {
+export default function CopyToClipboard({ filename }) {
   const ref = useRef();
   const [, copyToClipboard] = useCopyToClipboard();
   const [copiedText, setCopiedText] = useState("");
@@ -38,6 +39,9 @@ export default function CopyToClipboard() {
             : code.textContent;
         setCopiedText(text);
         copyToClipboard(text);
+        track("CopyToClipboard", {
+          filename,
+        });
       }}
       className="absolute right-2 bottom-2"
       aria-label="Copy to clipboard"

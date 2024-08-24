@@ -53,6 +53,7 @@ export const createRenderer = ({
                 let hydrated = false;
                 let hmr = false;
                 let hasClientComponent = false;
+                let hasServerAction = false;
                 let bootstrapped = false;
                 const linkSent = new Set();
 
@@ -147,7 +148,13 @@ export const createRenderer = ({
                     if (_done) break;
 
                     if (value) {
-                      const lines = decoder.decode(value).split("\n");
+                      const payload = decoder.decode(value);
+                      const lines = payload.split("\n");
+                      if (remote && !hasServerAction) {
+                        hasServerAction ||= lines.some((r) =>
+                          /^(.+)\:\{\"id\"\:\"/.test(r)
+                        );
+                      }
                       force = value[value.length - 1] !== 0x0a;
 
                       if (lines.some((l) => l.startsWith("0:"))) {
@@ -160,7 +167,7 @@ export const createRenderer = ({
                       }
 
                       const chunk = `self.__flightWriter__${outlet}__.write(self.__flightEncoder__${outlet}__.encode(${JSON.stringify(
-                        decoder.decode(value)
+                        payload
                       )}));`;
                       if (hydrated && !remote) {
                         const script = encoder.encode(
@@ -355,7 +362,7 @@ export const createRenderer = ({
                     }
 
                     parser.tokenizer.write(
-                      hydrated || !hasClientComponent
+                      hydrated || (!hasClientComponent && !hasServerAction)
                         ? ""
                         : `${bootstrapScripts
                             .map(

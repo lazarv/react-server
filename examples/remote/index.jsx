@@ -22,7 +22,7 @@ export default function Remote() {
         }}
       >
         <h2>Remote</h2>
-        <RemoteComponent src="http://localhost:3001" />
+        <RemoteComponent src="http://localhost:3001" ttl={0} />
       </div>
       <div
         style={{

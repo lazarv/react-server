@@ -205,7 +205,12 @@ export default async function createServer(root, options) {
           ],
           conditions: ["default"],
           externalConditions: ["default"],
-          dedupe: ["react", "react-dom", "picocolors"],
+          dedupe: [
+            "react",
+            "react-dom",
+            "react-server-dom-webpack",
+            "picocolors",
+          ],
         },
         dev: {
           createEnvironment: (name, config) => {
@@ -254,7 +259,12 @@ export default async function createServer(root, options) {
           ],
           conditions: ["react-server"],
           externalConditions: ["react-server"],
-          dedupe: ["react", "react-dom", "picocolors"],
+          dedupe: [
+            "react",
+            "react-dom",
+            "react-server-dom-webpack",
+            "picocolors",
+          ],
         },
         dev: {
           createEnvironment: (name, config) => {

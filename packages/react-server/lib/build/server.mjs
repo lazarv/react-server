@@ -61,7 +61,7 @@ export default async function serverBuild(root, options) {
       ],
       conditions: ["react-server"],
       externalConditions: ["react-server"],
-      dedupe: ["picocolors"],
+      dedupe: ["react-server-dom-webpack", "picocolors"],
     },
     customLogger,
     build: {

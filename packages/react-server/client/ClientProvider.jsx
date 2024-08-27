@@ -26,7 +26,7 @@ const subscribe = (url, listener) => {
   return () => urlListeners.delete(listener);
 };
 const emit = (url, to = url, callback = () => {}) => {
-  if (!listeners.has(url)) return;
+  if (!listeners.has(url)) return callback();
   const urlListeners = listeners.get(url);
   for (const listener of urlListeners) listener(to, callback);
 };

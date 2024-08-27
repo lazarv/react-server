@@ -5,6 +5,7 @@
  * @property prefetch - Prefetches a route
  * @property navigate - Navigates to a route
  * @property replace - Replaces the current route
+ * @property getFlightResponse - Returns the flight response for a route
  */
 export type ReactServerClientContext = {
   registerOutlet(outlet: string, url: string): void;
@@ -28,7 +29,10 @@ export type ReactServerClientContext = {
       done?: (err: unknown | null, result: unknown) => void
     ) => void
   ): () => void;
-  getFlightResponse(): Promise<Response | null>;
+  getFlightResponse(
+    url: string,
+    options?: { outlet?: string }
+  ): Promise<React.ReactNode | null>;
 };
 
 /**

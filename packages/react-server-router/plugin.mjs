@@ -236,7 +236,7 @@ export default function viteReactServerRouter(options = {}) {
           (bType === "page") - (aType === "page")
       );
 
-    if (viteCommand === "serve") {
+    if (viteCommand === "serve" && viteServer) {
       const manifestModule = viteServer.moduleGraph.getModuleById(
         `virtual:@lazarv/react-server-router/manifest`
       );
@@ -592,14 +592,16 @@ export default function viteReactServerRouter(options = {}) {
             );
           }
 
-          const manifestModule =
-            viteServer.environments.rsc.moduleGraph.getModuleById(
-              "virtual:@lazarv/react-server-router/manifest"
-            );
-          if (manifestModule) {
-            viteServer.environments.rsc.moduleGraph.invalidateModule(
-              manifestModule
-            );
+          if (viteServer) {
+            const manifestModule =
+              viteServer.environments.rsc.moduleGraph.getModuleById(
+                "virtual:@lazarv/react-server-router/manifest"
+              );
+            if (manifestModule) {
+              viteServer.environments.rsc.moduleGraph.invalidateModule(
+                manifestModule
+              );
+            }
           }
 
           if (initialFiles.has(src)) {
@@ -703,34 +705,36 @@ export default function viteReactServerRouter(options = {}) {
                     staticType === "static" && staticPath === path
                 )?.[0];
 
-                const key = relative(cwd, dirname(staticSrc));
-                const filename = basename(staticSrc);
-                const src = join(cwd, key, filename);
-                const hash = createHash("shake256", { outputLength: 4 })
-                  .update(await readFile(src, "utf8"))
-                  .digest("hex");
-                const exportEntry = pathToFileURL(
-                  join(cwd, outDir, "static", `${hash}.mjs`)
-                );
-                config.build.rollupOptions.input[join("static", hash)] =
-                  staticSrc;
-                paths.push(async () => {
-                  const staticPaths = (await import(exportEntry)).default;
-                  if (typeof staticPaths === "boolean" && staticPaths) {
-                    if (/\[[^\]]+\]/.test(path)) {
-                      throw new Error(
-                        `Static path ${colors.green(
-                          path
-                        )} contains dynamic segments`
-                      );
+                if (staticSrc) {
+                  const key = relative(cwd, dirname(staticSrc));
+                  const filename = basename(staticSrc);
+                  const src = join(cwd, key, filename);
+                  const hash = createHash("shake256", { outputLength: 4 })
+                    .update(await readFile(src, "utf8"))
+                    .digest("hex");
+                  const exportEntry = pathToFileURL(
+                    join(cwd, outDir, "static", `${hash}.mjs`)
+                  );
+                  config.build.rollupOptions.input[join("static", hash)] =
+                    staticSrc;
+                  paths.push(async () => {
+                    const staticPaths = (await import(exportEntry)).default;
+                    if (typeof staticPaths === "boolean" && staticPaths) {
+                      if (/\[[^\]]+\]/.test(path)) {
+                        throw new Error(
+                          `Static path ${colors.green(
+                            path
+                          )} contains dynamic segments`
+                        );
+                      }
+                      return path;
                     }
-                    return path;
-                  }
-                  if (typeof staticPaths === "function") {
-                    return await staticPaths();
-                  }
-                  return staticPaths;
-                });
+                    if (typeof staticPaths === "function") {
+                      return await staticPaths();
+                    }
+                    return staticPaths;
+                  });
+                }
               } catch (e) {
                 console.error(e);
               }

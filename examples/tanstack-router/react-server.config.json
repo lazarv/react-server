@@ -1,4 +1,5 @@
 {
+  "root": "src/app",
   "export": [
     {
       "path": "/"

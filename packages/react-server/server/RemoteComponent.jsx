@@ -1,9 +1,11 @@
 import { useCache } from "@lazarv/react-server/memory-cache";
 import { ReactServerComponent } from "@lazarv/react-server/navigation";
 import { createFromFetch } from "react-server-dom-webpack/client.edge";
+import { getContext } from "./context.mjs";
 import { useUrl } from "./request.mjs";
+import { LOGGER_CONTEXT } from "./symbols.mjs";
 
-async function RemoteComponentLoader({ url, ttl, request = {}, children }) {
+async function RemoteComponentLoader({ url, ttl, request = {}, onError }) {
   const Component = await useCache(
     [url],
     async () => {
@@ -16,6 +18,9 @@ async function RemoteComponentLoader({ url, ttl, request = {}, children }) {
             Accept: "text/html;remote",
             "React-Server-Outlet": url.toString(),
           },
+        }).catch((e) => {
+          (onError ?? getContext(LOGGER_CONTEXT)?.error)?.(e);
+          throw e;
         }),
         {
           ssrManifest: {
@@ -60,7 +65,7 @@ export default async function RemoteComponent({
   ttl,
   defer,
   request,
-  children,
+  onError,
 }) {
   const url = useUrl();
   const remoteUrl = new URL(src, url);
@@ -74,9 +79,12 @@ export default async function RemoteComponent({
       outlet={remoteUrlString.replace(/[^a-zA-Z0-9_]/g, "_")}
       request={request}
     >
-      <RemoteComponentLoader url={remoteUrl} ttl={ttl} request={request}>
-        {children}
-      </RemoteComponentLoader>
+      <RemoteComponentLoader
+        url={remoteUrl}
+        ttl={ttl}
+        request={request}
+        onError={onError}
+      />
     </ReactServerComponent>
   );
 }

@@ -138,6 +138,7 @@ export function useMatch<T = RouteParams>(
  * @param ttl The time-to-live for the component, the remote component is cached for the given time
  * @param defer If true, the component is re-fetched after the initial render on the client side
  * @param request The request options for the fetch request
+ * @param onError The error handler for the fetch request
  *
  * @example
  *
@@ -158,4 +159,5 @@ export const RemoteComponent: React.FC<{
   ttl?: number;
   defer?: boolean;
   request?: RequestInit;
+  onError?: (error: Error) => void;
 }>;

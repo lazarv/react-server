@@ -63,7 +63,7 @@ export default function createLogger(level = "info", options) {
           ...options,
         });
       } else {
-        let msg = e?.stack;
+        let msg = e?.message;
         if (!msg) {
           try {
             if (typeof e !== "string") {
@@ -75,9 +75,22 @@ export default function createLogger(level = "info", options) {
             msg = e.message || e;
           }
         }
-        logger.error(colors.red(msg), {
-          timestamp: true,
-          ...options,
+        try {
+          msg += Reflect.ownKeys(e).reduce((acc, key) => {
+            acc += `\n${colors.bold(`[${key}]:`)} ${e[key]?.stack || e[key]}`;
+            return acc;
+          }, "");
+        } catch {
+          // noop
+        }
+        msg.split("\n").forEach((line, row) => {
+          logger.error(
+            row === 0 ? colors.bold(colors.red(line)) : colors.red(line),
+            {
+              timestamp: true,
+              ...options,
+            }
+          );
         });
       }
     },

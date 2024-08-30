@@ -172,14 +172,58 @@ export default function viteReactServerRouter(options = {}) {
     return isTypeOf(entryConfig.api, src);
   }
 
+  function getParamCount(path) {
+    let paramCount = 0;
+    let context = "";
+    for (const char of path) {
+      if (!context && char === "{") {
+        context = "{";
+      } else if (context === "{" && char === "}") {
+        context = "";
+      } else if (!context && char === "[") {
+        paramCount++;
+      }
+    }
+    return paramCount;
+  }
+
   function createManifest() {
     manifest.pages = [...entry.pages, ...entry.layouts]
       .map(({ directory, filename, src }) => {
-        const normalized = filename
-          .replace(/\.\.\./g, "_dot_dot_dot_")
-          .replace(/(\{)[^}]*(\})/g, (match) => match.replace(/\./g, "_dot_"))
-          .replace(/^\+*/g, "")
-          .split(".");
+        const normalized = [];
+        let current = "";
+        let context = "";
+        const normalizedFilename = filename.replace(/^\+*/g, "");
+        for (const char of normalizedFilename) {
+          if (!context && char === "(") {
+            context = "(";
+          } else if (context === "(" && char === ")") {
+            context = "";
+          } else if (!context && char === "{") {
+            current += char;
+            context = char;
+          } else if (context === "{" && char === "}") {
+            current += char;
+            context = "";
+          } else if (!context && char === "[") {
+            current += char;
+            context = "[";
+          } else if (context === "[" && char === "]") {
+            current += char;
+            context = "";
+          } else if (!context && char === ".") {
+            if (current) {
+              normalized.push(current);
+            }
+            current = "";
+          } else if (context !== "(") {
+            current += char;
+          }
+        }
+        if (current) {
+          normalized.push(current);
+        }
+
         const path =
           `/${directory}${
             normalized[Math.max(0, normalized.length - 3)] === "index" ||
@@ -198,14 +242,12 @@ export default function viteReactServerRouter(options = {}) {
                       ? Math.max(1, normalized.length - 2)
                       : 1
                   )
-                  .join("/")
-                  .replace(/_dot_dot_dot_/g, "...")
-                  .replace(/_dot_/g, ".")
-                  .replace(/(\{)([^\}]*)(\})/g, "$2")}`
+                  .join("/")}`
           }`
             .replace(/\/\([^)]+\)/g, "")
             .replace(/\/@[^/]*/g, "")
             .replace(/@[^/\]]*$/g, "") || "/";
+
         const outlet =
           (normalized[0][0] === "@"
             ? normalized[0]
@@ -226,9 +268,11 @@ export default function viteReactServerRouter(options = {}) {
         const ext = normalized[normalized.length - 1];
         return [src, path, outlet, type, ext];
       })
-      .sort(
+      .toSorted(
         ([, aPath, , aType], [, bPath, , bType]) =>
           aPath.includes("...") - bPath.includes("...") ||
+          (getParamCount(aPath) > 0) - (getParamCount(bPath) > 0) ||
+          getParamCount(bPath) - getParamCount(aPath) ||
           (aPath.includes("...") || bPath.includes("...")
             ? bPath.split("/").length - aPath.split("/").length
             : aPath.split("/").length - bPath.split("/").length) ||
@@ -821,7 +865,7 @@ export default function viteReactServerRouter(options = {}) {
               .fill(0)
               .map((_, i) => `__react_server_router_middleware_${i}__`)
               .join(",\n")}
-          ].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0)).map(({ default: middleware }) => middleware);
+          ].toSorted((a, b) => (b.priority ?? 0) - (a.priority ?? 0)).map(({ default: middleware }) => middleware);
           const routes = [
               ${entry.api
                 .map(({ directory, filename, src }) => {
@@ -852,7 +896,7 @@ export default function viteReactServerRouter(options = {}) {
               }]`;
                 })
                 .join(",\n")}
-          ].sort(
+          ].toSorted(
             ([aMethod, aPath], [bMethod, bPath]) =>
               (aMethod === "*") - (bMethod === "*") ||
               aPath.split("/").length - bPath.split("/").length ||
@@ -887,7 +931,7 @@ export default function viteReactServerRouter(options = {}) {
               path.includes(layoutPath) &&
               dirname(src).includes(dirname(layoutSrc))
           )
-          .sort(
+          .toSorted(
             ([a], [b]) =>
               a.split("/").length - b.split("/").length || a.localeCompare(b)
           );

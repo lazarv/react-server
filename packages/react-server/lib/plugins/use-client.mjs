@@ -62,7 +62,7 @@ export default function useClient(type, manifest) {
                 ({ exported }) => exported?.name === "default"
               ))
         )
-          ? `export default function _default() { throw new Error("Attempted to call the default export of ${relative(cwd, id)} from the server but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); };
+          ? `export default function _default() { throw new Error("Attempted to call the default export of ${sys.normalizePath(relative(cwd, id))} from the server but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); };
 registerClientReference(_default, "${sys.normalizePath(relative(cwd, id))}", "default");`
           : "";
         const namedExports = ast.body

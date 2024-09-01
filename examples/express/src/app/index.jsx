@@ -2,7 +2,7 @@ import Counter from "./Counter";
 
 export default function App() {
   return (
-    <html>
+    <html lang="en">
       <body>
         <h1>Hello World!</h1>
         <p>My random number for today is {Math.random()}</p>

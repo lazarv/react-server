@@ -108,11 +108,7 @@ if (import.meta.env.DEV) {
               `${indent}${curr} | ${l}`,
               ...(i === 2
                 ? [
-                    `${indent}${curr
-                      .toString()
-                      .replaceAll(/./g, " ")} |${" ".repeat(
-                      error.loc.column
-                    )}^`,
+                    `${indent}${curr.toString().replaceAll(/./g, " ")} |${" ".repeat(error.loc.column)}^`,
                   ]
                 : []),
             ];
@@ -154,7 +150,7 @@ if (import.meta.env.DEV) {
 
 startTransition(() => {
   hydrateRoot(
-    __react_server_hydration_container__?.() ?? document,
+    self.__react_server_hydration_container__?.() ?? document,
     <StrictMode>
       <ReactServer />
     </StrictMode>

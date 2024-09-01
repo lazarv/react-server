@@ -10,7 +10,7 @@ export function usePrerender(reason) {
 }
 
 export function withPrerender(Component) {
-  return function (props) {
+  return function WithPrerender(props) {
     usePrerender();
     return <Component {...props} />;
   };

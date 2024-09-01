@@ -1,5 +1,6 @@
 import ErrorBoundary from "@lazarv/react-server/error-boundary";
 import { Route } from "@lazarv/react-server/router";
+
 import ErrorMessage from "./error-message";
 
 async function ThrowError() {
@@ -8,7 +9,7 @@ async function ThrowError() {
 
 export default function ErrorBoundaryFixture() {
   return (
-    <html>
+    <html lang="en">
       <body>
         <Route path="/error-boundary" exact>
           <ErrorBoundary

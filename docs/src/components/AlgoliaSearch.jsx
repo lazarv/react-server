@@ -1,7 +1,8 @@
 "use client";
 
-import { DocSearch } from "@docsearch/react";
 import "./AlgoliaSearch.css";
+
+import { DocSearch } from "@docsearch/react";
 
 export default function AlgoliaSearch() {
   return (

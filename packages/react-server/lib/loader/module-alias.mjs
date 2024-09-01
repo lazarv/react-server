@@ -1,5 +1,6 @@
-import moduleAlias from "module-alias";
 import { createRequire } from "node:module";
+
+import moduleAlias from "module-alias";
 
 const __require = createRequire(import.meta.url);
 

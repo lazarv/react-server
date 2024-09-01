@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+
 import Menu from "../../public/menu.svg?react";
 import classes from "./Sidebar.module.css";
 

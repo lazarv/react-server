@@ -6,3 +6,4 @@ node_modules
 *.pem
 *.sqlite
 *.log
+.eslintcache

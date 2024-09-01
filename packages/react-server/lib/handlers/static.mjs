@@ -1,5 +1,6 @@
 import { open, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import glob from "fast-glob";
 import mime from "mime";

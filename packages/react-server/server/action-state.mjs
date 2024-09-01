@@ -9,7 +9,12 @@ export function useActionState(action) {
     actionId: null,
   };
   if (actionId !== action.$$id) {
-    return { formData: null, data: null, error: null, actionId: action.$$id };
+    return {
+      formData: null,
+      data: null,
+      error: null,
+      actionId: action.$$id,
+    };
   }
   return { formData, data, error, actionId };
 }

@@ -1,12 +1,13 @@
+import { extname, relative } from "node:path";
+
 import * as acorn from "acorn";
 import * as escodegen from "escodegen";
-import { extname, relative } from "node:path";
+
 import * as sys from "../sys.mjs";
 
 const cwd = sys.cwd();
 
 export default function useServer(type, manifest) {
-  let viteCommand;
   return {
     name: "react-server:use-server",
     async transform(code, id, options) {

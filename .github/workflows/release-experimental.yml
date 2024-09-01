@@ -1,0 +1,115 @@
+name: Release (experimental) 📦
+
+on:
+  workflow_run:
+    workflows: ["CI 🧪"]
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  actions: write # Necessary to cancel workflow executions
+  checks: write # Necessary to write reports
+  pull-requests: write # Necessary to comment on PRs
+  contents: write # Necessary to create a release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  changed:
+    name: Get changed files 📂
+    if: ${{ github.repository == 'lazarv/react-server-testing' }}
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.changed-files.outputs.any_changed != 'true' }}
+      all_changed_files: ${{ steps.changed-files.outputs.all_changed_files }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Assume PRs are less than 50 commits
+          fetch-depth: 50
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            packages/**
+
+  release:
+    name: Release 📦
+    needs: changed
+    if: github.repository == 'lazarv/react-server-testing' && needs.changed.outputs.should_skip != 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - run: corepack enable
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Generate version
+        run: |
+          VERSION="0.0.0-experimental-$(git rev-parse --short HEAD)-$(date +'%Y%m%d')-$(openssl rand -hex 4)"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Prepare @lazarv/react-server
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server')
+        working-directory: ./packages/react-server
+        run: |
+          jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
+          rm ./README.md
+          cp ../../README.md ./README.md
+
+      - name: Publish @lazarv/react-server
+        id: publish-react-server
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server')
+        working-directory: ./packages/react-server
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+        run: pnpm publish --access=public --no-git-checks
+
+      - name: Create release
+        if: steps.publish-react-server.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ env.VERSION }}" --generate-notes
+
+      - name: Prepare @lazarv/react-server-router
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-router')
+        working-directory: ./packages/react-server-router
+        run: |
+          jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
+
+      - name: Publish @lazarv/react-server-router
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-router')
+        working-directory: ./packages/react-server-router
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+        run: pnpm publish --access=public --no-git-checks
+
+      - name: Prepare @lazarv/react-server-adapter-vercel
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-vercel')
+        working-directory: ./packages/react-server-adapter-vercel
+        run: |
+          jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
+
+      - name: Publish @lazarv/react-server-adapter-vercel
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-vercel')
+        working-directory: ./packages/react-server-adapter-vercel
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+        run: pnpm publish --access=public --no-git-checks

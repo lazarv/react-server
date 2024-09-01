@@ -2,21 +2,20 @@ import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-
+import reactServerEval from "../plugins/react-server-eval.mjs";
+import rollupUseClient from "../plugins/use-client.mjs";
+import rollupUseServerInline from "../plugins/use-server-inline.mjs";
+import rollupUseServer from "../plugins/use-server.mjs";
+import {
+  filterOutVitePluginReact,
+  userOrBuiltInVitePluginReact,
+} from "../utils/plugins.mjs";
 import replace from "@rollup/plugin-replace";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
-import reactServerEval from "../plugins/react-server-eval.mjs";
-import rollupUseClient from "../plugins/use-client.mjs";
-import rollupUseServerInline from "../plugins/use-server-inline.mjs";
-import rollupUseServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
-import {
-  filterOutVitePluginReact,
-  userOrBuiltInVitePluginReact,
-} from "../utils/plugins.mjs";
 import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
 
@@ -95,7 +94,9 @@ export default async function serverBuild(root, options) {
           ),
           "server/index":
             !root &&
-            (!reactServerRouterModule || options.eval || !process.stdin.isTTY)
+            (!reactServerRouterModule ||
+              options.eval ||
+              (!process.env.CI && !process.stdin.isTTY))
               ? "virtual:react-server-eval.jsx"
               : root?.startsWith("virtual:")
                 ? root

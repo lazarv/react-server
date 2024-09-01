@@ -5,6 +5,7 @@ import {
 } from "react-server-dom-webpack/client.browser";
 
 import { ClientContext, PAGE_ROOT as _PAGE_ROOT_ } from "./context.mjs";
+
 export const PAGE_ROOT = _PAGE_ROOT_;
 
 const activeChunk = new Map();

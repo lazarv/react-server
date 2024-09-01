@@ -1,4 +1,6 @@
 import { readFile } from "node:fs/promises";
+
+import colors from "picocolors";
 import strip from "strip-ansi";
 
 import packageJson from "../../package.json" with { type: "json" };
@@ -65,9 +67,10 @@ export async function prepareError(err) {
                   ? [
                       `${indent}${curr
                         .toString()
-                        .replaceAll(/./g, " ")} |${" ".repeat(
-                        err.loc.column
-                      )}^`,
+                        .replaceAll(
+                          /./g,
+                          " "
+                        )} |${" ".repeat(err.loc.column)}^`,
                     ]
                   : []),
               ];
@@ -134,10 +137,7 @@ export default async function errorHandler(err) {
         <meta charset="UTF-8" />
         <title>Error</title>
         <script type="module">
-          import { ErrorOverlay } from "${`${server.config.base || "/"}/@vite/client`.replace(
-            /\/+/g,
-            "/"
-          )}";
+          import { ErrorOverlay } from "${`${server.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}";
           document.body.appendChild(new ErrorOverlay(${JSON.stringify(
             await prepareError(err)
           ).replace(/</g, "\\u003c")}))

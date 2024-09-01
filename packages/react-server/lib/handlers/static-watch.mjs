@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { watch } from "chokidar";
 import mime from "mime";
+
 import { normalizePath } from "../sys.mjs";
 
 export default async function staticHandler(dir, options = {}) {

@@ -1,10 +1,12 @@
 import { ReadableStream } from "node:stream/web";
 
+import server from "react-server-dom-webpack/server.edge";
+
 import { concat, copyBytesFrom } from "@lazarv/react-server/lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/server/client-reference-map.mjs";
 import {
-  ContextStorage,
   context$,
+  ContextStorage,
   getContext,
 } from "@lazarv/react-server/server/context.mjs";
 import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs";
@@ -29,7 +31,6 @@ import {
   RENDER_STREAM,
   STYLES_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
-import server from "react-server-dom-webpack/server.edge";
 
 const serverReferenceMap = new Proxy(
   {},
@@ -53,7 +54,6 @@ export async function render(Component) {
   const renderStream = getContext(RENDER_STREAM);
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
   try {
-    // eslint-disable-next-line no-async-promise-executor
     const streaming = new Promise(async (resolve, reject) => {
       const context = getContext(HTTP_CONTEXT);
       try {
@@ -135,9 +135,17 @@ export async function render(Component) {
                 const data = await (
                   await globalThis.__webpack_require__(serverReferenceModule)
                 )[serverReferenceName].bind(null, ...input)();
-                return { data, actionId: serverActionHeader, error: null };
+                return {
+                  data,
+                  actionId: serverActionHeader,
+                  error: null,
+                };
               } catch (error) {
-                return { data: null, actionId: serverActionHeader, error };
+                return {
+                  data: null,
+                  actionId: serverActionHeader,
+                  error,
+                };
               }
             };
           } else {
@@ -241,6 +249,7 @@ export async function render(Component) {
                     key={href}
                     rel="stylesheet"
                     href={href}
+                    // eslint-disable-next-line react/no-unknown-property
                     precedence={precedence}
                   />
                 );

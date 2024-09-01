@@ -37,9 +37,15 @@ export async function init$(type = "server", options = {}) {
   );
   const [{ default: server }, { default: client }, { default: browser }] =
     await Promise.all([
-      import(pathToFileURL(serverManifest), { with: { type: "json" } }),
-      import(pathToFileURL(clientManifest), { with: { type: "json" } }),
-      import(pathToFileURL(browserManifest), { with: { type: "json" } }),
+      import(pathToFileURL(serverManifest), {
+        with: { type: "json" },
+      }),
+      import(pathToFileURL(clientManifest), {
+        with: { type: "json" },
+      }),
+      import(pathToFileURL(browserManifest), {
+        with: { type: "json" },
+      }),
     ]);
   const manifest = {
     server,
@@ -48,11 +54,7 @@ export async function init$(type = "server", options = {}) {
   };
   runtime$(MANIFEST, manifest);
 
-  const mainModule = `/${
-    Object.values(manifest.browser).find(
-      (entry) => entry.name === "client/index"
-    )?.file
-  }`;
+  const mainModule = `/${Object.values(manifest.browser).find((entry) => entry.name === "client/index")?.file}`;
   runtime$(MAIN_MODULE, [mainModule]);
 
   const entryCache = new Map();
@@ -62,10 +64,7 @@ export async function init$(type = "server", options = {}) {
     let [id] = (
       httpContext
         ? $$id.replace(
-            `${
-              httpContext?.request?.headers?.get("x-forwarded-for") ||
-              new URL(httpContext?.url).origin
-            }/`,
+            `${httpContext?.request?.headers?.get("x-forwarded-for") || new URL(httpContext?.url).origin}/`,
             ""
           )
         : $$id

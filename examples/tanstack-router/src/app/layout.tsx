@@ -1,5 +1,6 @@
-import App from "../components/App";
 import "./index.css";
+
+import App from "../components/App";
 
 export default async function Layout({
   children,

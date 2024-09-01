@@ -12,7 +12,7 @@ async function formAction(formData) {
 }
 
 export default function ActionState() {
-  const { formData, data, error, actionId } = useActionState(formAction);
+  const { formData, data, error } = useActionState(formAction);
 
   return (
     <>

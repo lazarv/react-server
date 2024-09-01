@@ -1,4 +1,5 @@
 import { isCustomAttribute, possibleStandardNames } from "react-property";
+
 import styleToJs from "style-to-js";
 
 export default function visit(node, context) {
@@ -9,7 +10,7 @@ export default function visit(node, context) {
       return node.value;
     case "#comment":
       return null;
-    default:
+    default: {
       const childNodes =
         node.childNodes?.map((node) => visit(node, context)) ?? [];
       const children = childNodes.length > 1 ? childNodes : childNodes[0];
@@ -54,5 +55,6 @@ export default function visit(node, context) {
         props.children = children;
       }
       return ["$", node.nodeName, null, props, "", "", 1];
+    }
   }
 }

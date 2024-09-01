@@ -1,5 +1,6 @@
 import { hostname, logs, page, server, waitForChange } from "playground/utils";
 import { expect, test } from "vitest";
+
 import { waitForConsole } from "../utils.mjs";
 
 test("hello world", async () => {
@@ -99,7 +100,7 @@ test(`server action state`, async () => {
   const input = await page.getByRole("textbox");
   const button = await page.getByRole("button");
 
-  input.type("react-server");
+  await input.type("react-server");
 
   await waitForChange(
     () => button.click(),

@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -17,6 +18,10 @@ export default defineConfig({
       if (type === "stderr" && log.match(/error: (redirect|test)/i))
         return false;
     },
+    testTimeout: 30000,
+    reporters: process.env.GITHUB_ACTIONS
+      ? ["dot", "github-actions"]
+      : ["default"],
   },
   publicDir: false,
 });

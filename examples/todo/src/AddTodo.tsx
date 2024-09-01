@@ -17,6 +17,7 @@ export default function AddTodo() {
           type="text"
           className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5"
           defaultValue={formData?.get?.("title") as string}
+          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
         />
       </div>

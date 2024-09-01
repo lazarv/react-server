@@ -1,5 +1,6 @@
 import colors from "picocolors";
 import { createLogger as createViteLogger } from "vite";
+
 import { deleteLastXLines, replaceError } from "../utils/error.mjs";
 
 export default function createLogger(level = "info", options) {

@@ -1,5 +1,6 @@
-import { Refresh } from "@lazarv/react-server/navigation";
 import { Suspense } from "react";
+
+import { Refresh } from "@lazarv/react-server/navigation";
 
 async function AsyncComponent() {
   await new Promise((resolve) => setTimeout(resolve, 500));

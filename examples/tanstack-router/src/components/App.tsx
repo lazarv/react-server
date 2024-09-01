@@ -1,9 +1,9 @@
 "use client";
 
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { useClient } from "@lazarv/react-server/client";
+import { createRouter, RouterProvider } from "@tanstack/react-router";
 
 // Import the generated route tree
-import { useClient } from "@lazarv/react-server/client";
 import { routeTree } from "../routeTree.gen";
 
 // Create a new router instance

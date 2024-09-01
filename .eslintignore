@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.react-server
+.vercel
+packages/react-server-router/react-server-router.d.ts
+*.mdx
+*.md
+*.json
+*-lock.*

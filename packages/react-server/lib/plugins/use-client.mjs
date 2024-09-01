@@ -1,7 +1,9 @@
+import { extname, relative } from "node:path";
+
 import * as acorn from "acorn";
 import * as escodegen from "escodegen";
 import * as estraverse from "estraverse";
-import { extname, relative } from "node:path";
+
 import * as sys from "../sys.mjs";
 
 const cwd = sys.cwd();

@@ -1,5 +1,6 @@
 import async_hooks from "node:async_hooks";
 import { parentPort } from "node:worker_threads";
+
 import colors from "picocolors";
 
 class CustomAsyncLocalStorage {

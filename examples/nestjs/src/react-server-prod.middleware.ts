@@ -1,6 +1,6 @@
-import { reactServer } from '@lazarv/react-server/node';
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import { NextFunction, Request, Response } from 'express';
+import { reactServer } from "@lazarv/react-server/node";
+import { Injectable, NestMiddleware } from "@nestjs/common";
+import { NextFunction, Request, Response } from "express";
 
 @Injectable()
 export class ReactServerProdMiddleware implements NestMiddleware {
@@ -8,7 +8,7 @@ export class ReactServerProdMiddleware implements NestMiddleware {
 
   constructor() {
     this.server = reactServer({
-      origin: 'http://localhost:3000',
+      origin: "http://localhost:3000",
     });
   }
 

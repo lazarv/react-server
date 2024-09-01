@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { track } from "@vercel/analytics";
 import { Copy } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 
 export default function CopyToClipboard({ filename }) {
   const ref = useRef();

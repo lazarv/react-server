@@ -1,6 +1,7 @@
 import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import { format } from "node:util";
 import { Worker } from "node:worker_threads";
 
 import { createMiddleware } from "@hattip/adapter-node";
@@ -8,13 +9,12 @@ import { compose } from "@hattip/compose";
 import { cookie } from "@hattip/cookie";
 import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
-import { format } from "node:util";
 import colors from "picocolors";
 import {
-  DevEnvironment,
-  RemoteEnvironmentTransport,
   createNodeDevEnvironment,
   createServer as createViteDevServer,
+  DevEnvironment,
+  RemoteEnvironmentTransport,
 } from "vite";
 import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
 
@@ -40,8 +40,8 @@ import { alias } from "../loader/module-alias.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import useClient from "../plugins/use-client.mjs";
-import useServerInline from "../plugins/use-server-inline.mjs";
 import useServer from "../plugins/use-server.mjs";
+import useServerInline from "../plugins/use-server-inline.mjs";
 import * as sys from "../sys.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
@@ -333,6 +333,7 @@ export default async function createServer(root, options) {
 
   worker.on("message", (payload) => {
     if (payload.type === "logger") {
+      // eslint-disable-next-line no-unused-vars
       const { level, ...data } = payload;
       const [msg, ...rest] = data.data;
       viteDevServer.config.logger[payload.level](format(msg, ...rest));

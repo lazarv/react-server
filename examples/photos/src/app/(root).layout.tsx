@@ -1,6 +1,7 @@
 import "./global.css";
 
 import { ReactServerComponent } from "@lazarv/react-server/navigation";
+
 import GithubCorner from "../components/github-corner/GithubCorner";
 
 export default function Layout({

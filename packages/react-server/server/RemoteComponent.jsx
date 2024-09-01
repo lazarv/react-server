@@ -1,6 +1,8 @@
+import { createFromFetch } from "react-server-dom-webpack/client.edge";
+
 import { useCache } from "@lazarv/react-server/memory-cache";
 import { ReactServerComponent } from "@lazarv/react-server/navigation";
-import { createFromFetch } from "react-server-dom-webpack/client.edge";
+
 import { getContext } from "./context.mjs";
 import { useUrl } from "./request.mjs";
 import { LOGGER_CONTEXT } from "./symbols.mjs";

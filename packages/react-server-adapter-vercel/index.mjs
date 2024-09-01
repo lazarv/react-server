@@ -1,3 +1,10 @@
+import { spawn } from "node:child_process";
+import { lstatSync, readlinkSync } from "node:fs";
+import { cp, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { moduleAliases } from "@lazarv/react-server/lib/loader/module-alias.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import packageJson from "@lazarv/react-server/package.json" with { type: "json" };
@@ -11,12 +18,6 @@ import cliProgress from "cli-progress";
 import spinners from "cli-spinners";
 import glob from "fast-glob";
 import logUpdate from "log-update";
-import { spawn } from "node:child_process";
-import { lstatSync, readlinkSync } from "node:fs";
-import { cp, rm, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { basename, dirname, isAbsolute, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
 import colors from "picocolors";
 
 const __require = createRequire(import.meta.url);

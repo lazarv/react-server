@@ -10,7 +10,7 @@ export default function reactServerEval(options) {
       if (id === "virtual:react-server-eval.jsx") {
         if (options.eval) {
           return options.eval;
-        } else if (!process.stdin.isTTY) {
+        } else if (!process.env.CI && !process.stdin.isTTY) {
           let code = "";
           process.stdin.setEncoding("utf8");
           for await (const chunk of process.stdin) {

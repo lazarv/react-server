@@ -2,11 +2,11 @@ import cluster from "node:cluster";
 import { once } from "node:events";
 import { createRequire } from "node:module";
 import { availableParallelism } from "node:os";
-
 import { pathToFileURL } from "node:url";
+
 import { loadConfig } from "../../config/index.mjs";
 import { logger } from "../../server/logger.mjs";
-import { runtime$, init$ as runtime_init$ } from "../../server/runtime.mjs";
+import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,

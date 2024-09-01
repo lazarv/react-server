@@ -1,7 +1,7 @@
 {
   "typescript.tsdk": "node_modules/typescript/lib",
   "editor.codeActionsOnSave": {
-    "source.organizeImports": "always"
+    "source.fixAll.eslint": "always"
   },
   "[mdx]": {
     "editor.codeActionsOnSave": {

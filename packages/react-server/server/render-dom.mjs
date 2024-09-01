@@ -1,9 +1,11 @@
-import { getEnv, immediate } from "@lazarv/react-server/lib/sys.mjs";
-import { ssrManifest } from "@lazarv/react-server/server/ssr-manifest.mjs";
-import { Parser } from "parse5";
 import { renderToReadableStream, resume } from "react-dom/server.edge";
 import { prerender } from "react-dom/static.edge";
 import { createFromReadableStream } from "react-server-dom-webpack/client.edge";
+
+import { getEnv, immediate } from "@lazarv/react-server/lib/sys.mjs";
+import { ssrManifest } from "@lazarv/react-server/server/ssr-manifest.mjs";
+import { Parser } from "parse5";
+
 import dom2flight from "./dom-flight.mjs";
 
 export const createRenderer = ({
@@ -152,7 +154,7 @@ export const createRenderer = ({
                       const lines = payload.split("\n");
                       if (remote && !hasServerAction) {
                         hasServerAction ||= lines.some((r) =>
-                          /^(.+)\:\{\"id\"\:\"/.test(r)
+                          /^(.+):\{"id":"/.test(r)
                         );
                       }
                       force = value[value.length - 1] !== 0x0a;
@@ -207,7 +209,6 @@ export const createRenderer = ({
                   });
 
                   let force = false;
-                  let hasNewLine = true;
                   while (!done || force) {
                     const read = htmlNext ? htmlNext : htmlReader.read();
                     const res = await Promise.race([read, interrupt]);
@@ -227,7 +228,6 @@ export const createRenderer = ({
 
                     if (value) {
                       contentLength += value.length;
-                      hasNewLine = value[value.length - 1] === 0x0a;
                       force = value[value.length - 1] !== 0x3e;
                       const chunk = decoder.decode(value);
                       if (firstChunk) {

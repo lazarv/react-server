@@ -1,0 +1,150 @@
+# This workflow is based on https://github.com/vitejs/vite/tree/main/.github/workflows
+name: CI 🧪
+
+env:
+  # 7 GiB by default on GitHub, setting to 6 GiB
+  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources
+  NODE_OPTIONS: --max-old-space-size=6144
+  # install playwright binary manually (because pnpm only runs install script once)
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+  # Vitest auto retry on flaky segfault
+  VITEST_SEGFAULT_RETRY: 3
+
+# Remove default permissions of GITHUB_TOKEN for security
+# https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+permissions: {}
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  changed:
+    name: Get changed files 📂
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.changed-files.outputs.any_changed != 'true' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Assume PRs are less than 50 commits
+          fetch-depth: 50
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            packages/**
+            test/**
+            .github/workflows/ci.yml
+
+  test:
+    needs: changed
+    if: needs.changed.outputs.should_skip != 'true'
+    timeout-minutes: 20
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node_version: [20, 22]
+        include:
+          # Active LTS + other OS
+          - os: macos-latest
+            node_version: 20
+          - os: windows-latest
+            node_version: 20
+      fail-fast: false
+
+    name: "Test 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Set node version to ${{ matrix.node_version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node_version }}
+          cache: "pnpm"
+
+      - name: Install deps
+        run: pnpm install
+
+      # Install playwright's binary under custom directory to cache
+      - name: (non-windows) Set Playwright path and Get playwright version
+        if: runner.os != 'Windows'
+        run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/playwright-bin" >> $GITHUB_ENV
+          PLAYWRIGHT_VERSION="$(pnpm ls --depth 0 --json -w playwright-chromium | jq --raw-output '.[0].devDependencies["playwright-chromium"].version')"
+          echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
+      - name: (windows) Set Playwright path and Get playwright version
+        if: runner.os == 'Windows'
+        run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME\.cache\playwright-bin" >> $env:GITHUB_ENV
+          $env:PLAYWRIGHT_VERSION="$(pnpm ls --depth 0 --json -w playwright-chromium | jq --raw-output '.[0].devDependencies["playwright-chromium"].version')"
+          echo "PLAYWRIGHT_VERSION=$env:PLAYWRIGHT_VERSION" >> $env:GITHUB_ENV
+
+      - name: Cache Playwright's binary
+        uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-playwright-bin-v1-${{ env.PLAYWRIGHT_VERSION }}
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-bin-v1-
+
+      - name: Install Playwright
+        working-directory: ./test
+        # does not need to explicitly set chromium after https://github.com/microsoft/playwright/issues/14862 is solved
+        run: pnpm playwright install chromium
+
+      - name: Test development
+        working-directory: ./test
+        run: pnpm test-dev
+
+      - name: Test build and production mode
+        working-directory: ./test
+        run: pnpm test-build-start
+
+  lint:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    name: Lint 🧹
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: corepack enable
+      - name: Set node version to 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Check formatting
+        run: pnpm prettier --check .
+
+      # From https://github.com/rhysd/actionlint/blob/main/docs/usage.md#use-actionlint-on-github-actions
+      - name: Check workflow files
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color -shellcheck=""

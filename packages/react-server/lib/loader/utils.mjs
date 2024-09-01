@@ -4,7 +4,7 @@ import { normalizePath } from "../sys.mjs";
 
 export function toFileURL(specifier) {
   if (
-    /\:\//.test(specifier) &&
+    /:\//.test(specifier) &&
     !specifier.startsWith("file:") &&
     !specifier.startsWith("data:") &&
     !specifier.startsWith("http:") &&

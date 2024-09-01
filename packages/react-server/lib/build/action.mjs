@@ -1,5 +1,4 @@
 import { join } from "node:path";
-
 import colors from "picocolors";
 import { rimraf } from "rimraf";
 

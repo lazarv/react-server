@@ -1,0 +1,20 @@
+# This workflow is based on https://github.com/vitejs/vite/tree/main/.github/workflows
+name: Issue Close Require 🔒
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  close-issues:
+    name: Close issues 🔒
+    if: github.repository == 'lazarv/react-server-testing'
+    runs-on: ubuntu-latest
+    steps:
+      - name: needs reproduction
+        uses: actions-cool/issues-helper@v3
+        with:
+          actions: "close-issues"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          labels: "needs reproduction"
+          inactive-day: 30

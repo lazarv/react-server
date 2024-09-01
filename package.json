@@ -2,7 +2,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "pnpm --filter ./test test"
+    "test": "pnpm --filter ./test test",
+    "format": "prettier --write --cache .",
+    "lint": "eslint --cache --ext .js,.jsx,.mjs,.ts,.tsx .",
+    "docs": "pnpm --filter ./docs dev --open",
+    "docs-build": "pnpm --filter ./docs build",
+    "preinstall": "npx only-allow pnpm",
+    "postinstall": "simple-git-hooks"
   },
   "keywords": [
     "react",
@@ -19,6 +25,18 @@
   "bugs": {
     "url": "https://github.com/lazarv/react-server/issues"
   },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm exec lint-staged --concurrent false",
+    "commit-msg": "pnpm exec commitlint --edit $1"
+  },
+  "lint-staged": {
+    "*": [
+      "prettier --write --cache --ignore-unknown"
+    ],
+    "*.{js,jsx,mjs,ts,tsx}": [
+      "eslint --cache --fix"
+    ]
+  },
   "dependencies": {
     "@lazarv/react-server": "link:packages/react-server"
   },
@@ -26,15 +44,21 @@
     "@babel/eslint-parser": "^7.24.5",
     "@babel/plugin-syntax-import-assertions": "^7.24.1",
     "@babel/preset-react": "^7.24.1",
+    "@commitlint/cli": "^19.4.1",
+    "@commitlint/config-conventional": "^19.4.1",
     "@types/node": "^20.12.12",
     "@typescript-eslint/eslint-plugin": "^7.10.0",
     "@typescript-eslint/parser": "^7.10.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-prettier": "^5.0.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-simple-import-sort": "^12.1.0",
+    "lint-staged": "^15.2.9",
+    "pkg-pr-new": "^0.0.20",
     "prettier": "^3.2.5",
+    "simple-git-hooks": "^2.11.1",
     "typescript": "^5.4.5",
     "typescript-plugin-css-modules": "^5.1.0"
   },
@@ -63,5 +87,5 @@
       "supertest>superagent": "9.0.2"
     }
   },
-  "packageManager": "pnpm@9.8.0+sha512.8e4c3550fb500e808dbc30bb0ce4dd1eb614e30b1c55245f211591ec2cdf9c611cabd34e1364b42f564bd54b3945ed0f49d61d1bbf2ec9bd74b866fcdc723276"
+  "packageManager": "pnpm@9.9.0+sha512.60c18acd138bff695d339be6ad13f7e936eea6745660d4cc4a776d5247c540d0edee1a563695c183a66eb917ef88f2b4feb1fc25f32a7adcadc7aaf3438e99c1"
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { format } from "node:util";
+
 import { experimentalWarningSilence } from "../lib/sys.mjs";
 
 experimentalWarningSilence();

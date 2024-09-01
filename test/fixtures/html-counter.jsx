@@ -2,7 +2,7 @@ import Counter from "./counter";
 
 export default function CounterLayout() {
   return (
-    <html>
+    <html lang="en">
       <body>
         <Counter />
       </body>

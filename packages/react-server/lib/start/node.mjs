@@ -1,5 +1,5 @@
 import { loadConfig } from "../../config/index.mjs";
-import { runtime$, init$ as runtime_init$ } from "../../server/runtime.mjs";
+import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
 import { CONFIG_CONTEXT } from "../../server/symbols.mjs";
 import { experimentalWarningSilence } from "../sys.mjs";
 import createServer from "./create-server.mjs";

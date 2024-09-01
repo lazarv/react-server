@@ -1,3 +1,9 @@
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { basename, dirname, join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
+
 import { loadConfig } from "@lazarv/react-server/config";
 import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
@@ -8,11 +14,6 @@ import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
 import micromatch from "micromatch";
-import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { basename, dirname, join, relative } from "node:path";
-import { pathToFileURL } from "node:url";
 import colors from "picocolors";
 
 const cwd = sys.cwd();
@@ -343,7 +344,7 @@ export default function viteReactServerRouter(options = {}) {
           .join(", ") || "infer _"
       )
       .replace(
-        /P extends __react_server_routing_params_patterns__[\s\S]*?\? never[\s\S]*?\:\s*/,
+        /P extends __react_server_routing_params_patterns__[\s\S]*?\? never[\s\S]*?:\s*/,
         manifest.pages.reduce(
           (acc, [, path, , type]) => {
             if (type === "page") {
@@ -378,7 +379,7 @@ export default function viteReactServerRouter(options = {}) {
                   `${param.startsWith("/") ? "/" : ""}\${${param.includes("[...") ? "CatchAllSlug" : "SafeSlug"}<T${paramIndex++}>}`
               )}\``;
               if (params[params.length - 1].includes("[[...")) {
-                dynamicRouteDefinition += `${acc ? `\n    ` : ""}| ${dynamicRouteDefinition.replace(/(\/\$\{CatchAllSlug\<T[0-9]+\>\})/, "")}`;
+                dynamicRouteDefinition += `${acc ? `\n    ` : ""}| ${dynamicRouteDefinition.replace(/(\/\$\{CatchAllSlug<T[0-9]+>\})/, "")}`;
               }
               return `${acc ? `${acc}\n    ` : ""}| ${dynamicRouteDefinition}`;
             }
@@ -421,20 +422,26 @@ export default function viteReactServerRouter(options = {}) {
         mdxComponents = __require.resolve(routerConfig.mdx?.components, {
           paths: [cwd],
         });
-      } catch {}
+      } catch {
+        // noop
+      }
       if (!mdxComponents) {
         try {
           mdxComponents = __require.resolve("./mdx-components.jsx", {
             paths: [cwd],
           });
-        } catch {}
+        } catch {
+          // noop
+        }
       }
       if (!mdxComponents) {
         try {
           mdxComponents = __require.resolve("./mdx-components.tsx", {
             paths: [cwd],
           });
-        } catch {}
+        } catch {
+          // noop
+        }
       }
       mdxComponents = sys.normalizePath(mdxComponents);
     } else if (mdxCounter === 0 && hasMdx) {
@@ -630,9 +637,7 @@ export default function viteReactServerRouter(options = {}) {
 
           if (includeInRouter) {
             logger.info(
-              `Adding source file ${colors.cyan(
-                sys.normalizePath(relative(rootDir, src))
-              )} to router`
+              `Adding source file ${colors.cyan(sys.normalizePath(relative(rootDir, src)))} to router`
             );
           }
 
@@ -695,9 +700,7 @@ export default function viteReactServerRouter(options = {}) {
 
           if (includeInRouter) {
             logger.info(
-              `Removing source file ${colors.red(
-                relative(rootDir, src)
-              )} from router`
+              `Removing source file ${colors.red(relative(rootDir, src))} from router`
             );
           }
 
@@ -753,7 +756,9 @@ export default function viteReactServerRouter(options = {}) {
                   const key = relative(cwd, dirname(staticSrc));
                   const filename = basename(staticSrc);
                   const src = join(cwd, key, filename);
-                  const hash = createHash("shake256", { outputLength: 4 })
+                  const hash = createHash("shake256", {
+                    outputLength: 4,
+                  })
                     .update(await readFile(src, "utf8"))
                     .digest("hex");
                   const exportEntry = pathToFileURL(
@@ -766,9 +771,7 @@ export default function viteReactServerRouter(options = {}) {
                     if (typeof staticPaths === "boolean" && staticPaths) {
                       if (/\[[^\]]+\]/.test(path)) {
                         throw new Error(
-                          `Static path ${colors.green(
-                            path
-                          )} contains dynamic segments`
+                          `Static path ${colors.green(path)} contains dynamic segments`
                         );
                       }
                       return path;
@@ -889,7 +892,7 @@ export default function viteReactServerRouter(options = {}) {
                     .replace(/\/+$/g, "")
                     .replace(/_dot_dot_dot_/g, "...")
                     .replace(/_dot_/g, ".")
-                    .replace(/(\{)([^\}]*)(\})/g, "$2")
+                    .replace(/(\{)([^}]*)(\})/g, "$2")
                     .replace(/^\/+/, "/");
                   return `["${method}", "${path}", async () => {
                 return import("${src}");
@@ -906,9 +909,7 @@ export default function viteReactServerRouter(options = {}) {
             ${manifest.pages
               .map(
                 ([src, path, outlet, type]) =>
-                  `["${path}", "${type}", ${
-                    outlet ? `"${outlet}"` : "null"
-                  }, async () => import("${
+                  `["${path}", "${type}", ${outlet ? `"${outlet}"` : "null"}, async () => import("${
                     (type === "page" && !outlet) ||
                     (type === "default" && outlet)
                       ? `__react_server_router_page__${path}::${src}::.jsx`
@@ -964,11 +965,7 @@ export default function viteReactServerRouter(options = {}) {
             import * as sys from "@lazarv/react-server/lib/sys.mjs";`
               : ""
           }
-          ${
-            mdxComponents && /\.(md|mdx)/.test(src)
-              ? `import MDXComponents from "${mdxComponents}";`
-              : ""
-          }
+          ${mdxComponents && /\.(md|mdx)/.test(src) ? `import MDXComponents from "${mdxComponents}";` : ""}
           import { withCache } from "@lazarv/react-server";
           import { withPrerender } from "@lazarv/react-server/prerender";
           import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
@@ -976,44 +973,16 @@ export default function viteReactServerRouter(options = {}) {
             viteCommand === "build" ? "MANIFEST, " : ""
           }COLLECT_STYLESHEETS, STYLES_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
           import { useMatch } from "@lazarv/react-server/router";
-          ${
-            errorBoundaries.length > 0
-              ? `import ErrorBoundary from "@lazarv/react-server/error-boundary";`
-              : ""
-          }
+          ${errorBoundaries.length > 0 ? `import ErrorBoundary from "@lazarv/react-server/error-boundary";` : ""}
           ${loadings.length > 0 ? `import { Suspense } from "react";` : ""}
-          ${outlets
-            .map(
-              ([src], i) =>
-                `import __react_server_router_outlet_${i}__ from "${src}";`
-            )
-            .join("\n")}
-          ${errorBoundaries
-            .map(
-              ([src], i) =>
-                `import __react_server_router_error_${i}__ from "${src}";`
-            )
-            .join("\n")}
-          ${fallbacks
-            .map(
-              ([src], i) =>
-                `import __react_server_router_fallback_${i}__ from "${src}";`
-            )
-            .join("\n")}
-          ${loadings
-            .map(
-              ([src], i) =>
-                `import __react_server_router_loading_${i}__ from "${src}";`
-            )
-            .join("\n")}
+          ${outlets.map(([src], i) => `import __react_server_router_outlet_${i}__ from "${src}";`).join("\n")}
+          ${errorBoundaries.map(([src], i) => `import __react_server_router_error_${i}__ from "${src}";`).join("\n")}
+          ${fallbacks.map(([src], i) => `import __react_server_router_fallback_${i}__ from "${src}";`).join("\n")}
+          ${loadings.map(([src], i) => `import __react_server_router_loading_${i}__ from "${src}";`).join("\n")}
           import * as __react_server_page__ from "${src}";
 
           const outletImports = {
-            ${outlets
-              .map(
-                ([src], i) => `"${src}": __react_server_router_outlet_${i}__`
-              )
-              .join(",\n")}
+            ${outlets.map(([src], i) => `"${src}": __react_server_router_outlet_${i}__`).join(",\n")}
           };
 
           ${
@@ -1231,9 +1200,7 @@ export default function viteReactServerRouter(options = {}) {
                     )
                     .join(" ")}>${
                     loading && !errorBoundary
-                      ? `<Suspense fallback={<__react_server_router_loading_${loadings.indexOf(
-                          loading
-                        )}__/>}>`
+                      ? `<Suspense fallback={<__react_server_router_loading_${loadings.indexOf(loading)}__/>}>`
                       : ""
                   }${
                     errorBoundary
@@ -1241,13 +1208,9 @@ export default function viteReactServerRouter(options = {}) {
                           errorBoundary
                         )}__} fallback={${
                           fallback
-                            ? `<__react_server_router_fallback_${fallbacks.indexOf(
-                                fallback
-                              )}__/>`
+                            ? `<__react_server_router_fallback_${fallbacks.indexOf(fallback)}__/>`
                             : loading
-                              ? `<__react_server_router_loading_${loadings.indexOf(
-                                  loading
-                                )}__/>`
+                              ? `<__react_server_router_loading_${loadings.indexOf(loading)}__/>`
                               : "null"
                         }}>`
                       : ""
@@ -1258,17 +1221,11 @@ export default function viteReactServerRouter(options = {}) {
               ${layouts
                 .map(
                   (_, i) =>
-                    `${
-                      errorBoundaryIndex.includes(layouts.length - 1 - i)
-                        ? "</ErrorBoundary>"
-                        : ""
-                    }${
+                    `${errorBoundaryIndex.includes(layouts.length - 1 - i) ? "</ErrorBoundary>" : ""}${
                       loadingIndex.includes(layouts.length - 1 - i)
                         ? "</Suspense>"
                         : ""
-                    }</__react_server_router_layout_cached_${
-                      layouts.length - 1 - i
-                    }__>`
+                    }</__react_server_router_layout_cached_${layouts.length - 1 - i}__>`
                 )
                 .join("\n")}
                 </>

@@ -129,7 +129,7 @@ export type MatchOptions = {
 export function useMatch<T = RouteParams>(
   path: string,
   options?: MatchOptions
-): RouteParams | null;
+): T | null;
 
 /**
  * Loads a remote component from the given URL. The component is fetched and rendered on the server side and if contains any client components, they are hydrated on the client side. For client components to work properly, you might need to use an import map. If the component is streamed, use the `defer` option to re-fetch the component after the initial render on the client side.

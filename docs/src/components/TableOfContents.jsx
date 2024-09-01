@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { scrollHashIntoView } from "./utils.mjs";
 
 export default function TableOfContents() {
@@ -88,7 +89,7 @@ export default function TableOfContents() {
         On this page
       </header>
       <ul className="flex flex-col gap-2 w-40">
-        {tableOfContents.map((item, i) => (
+        {tableOfContents.map((item) => (
           <li key={item.href}>
             <a
               href={item.href}

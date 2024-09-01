@@ -5,8 +5,8 @@ import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
 import {
   getRuntime,
-  runtime$,
   init$ as runtime_init$,
+  runtime$,
 } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,

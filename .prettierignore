@@ -1,0 +1,4 @@
+*.mdx
+*.md
+*.gen.ts
+*-lock.*

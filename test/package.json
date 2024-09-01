@@ -4,7 +4,7 @@
   "scripts": {
     "test": "run-s test-dev test-build-start",
     "test-dev": "vitest run -c ./vitest.config.mjs",
-    "test-build-start": "NODE_ENV=production vitest run -c ./vitest.config.mjs"
+    "test-build-start": "vitest run -c ./vitest.config.build.mjs"
   },
   "dependencies": {
     "@lazarv/react-server": "workspace:*"

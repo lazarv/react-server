@@ -1,12 +1,17 @@
-import RemoteButton from "./RemoteButton";
 import "./remote.css";
 
+import RemoteButton from "./RemoteButton";
+
 const state = { name: "" };
-export default () => {
+export default function Remote() {
   return (
     <>
       <h3>Hello, {state.name || "Anonymous"}!</h3>
-      {state.name ? <p>It's nice to meet you!</p> : <p>What is your name?</p>}
+      {state.name ? (
+        <p>It&apos;s nice to meet you!</p>
+      ) : (
+        <p>What is your name?</p>
+      )}
       <form
         action={async (data) => {
           "use server";
@@ -19,4 +24,4 @@ export default () => {
       <RemoteButton />
     </>
   );
-};
+}

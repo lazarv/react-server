@@ -9,7 +9,7 @@ test("memory cache", async () => {
   await page.goto(hostname);
   const second = await page.textContent("body");
   expect(first).toBe(second);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
   await page.goto(hostname);
   const third = await page.textContent("body");
   expect(first).not.toBe(third);

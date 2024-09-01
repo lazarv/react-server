@@ -1,5 +1,6 @@
-import ErrorBoundary from "@lazarv/react-server/client/ErrorBoundary.jsx";
 import { Suspense } from "react";
+
+import ErrorBoundary from "@lazarv/react-server/client/ErrorBoundary.jsx";
 
 export default async function ReactServerErrorBoundary({
   fallback = null,

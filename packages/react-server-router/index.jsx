@@ -1,14 +1,14 @@
 import { dirname } from "node:path";
 
 import { status, useOutlet } from "@lazarv/react-server";
+import { useMatch } from "@lazarv/react-server/router";
+import { context$ } from "@lazarv/react-server/server/context.mjs";
+import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";
 import {
   middlewares,
   pages,
   routes,
 } from "@lazarv/react-server-router/manifest";
-import { useMatch } from "@lazarv/react-server/router";
-import { context$ } from "@lazarv/react-server/server/context.mjs";
-import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";
 
 export async function init$() {
   return async (context) => {
@@ -58,7 +58,7 @@ export default async function App() {
     const outlets = pages.filter(
       ([, type, outlet]) => type === "page" && outlet === reactServerOutlet
     );
-    for (const [path, type, outlet, , , lazy] of outlets) {
+    for (const [path, , , , , lazy] of outlets) {
       const match = useMatch(path, { exact: true });
       if (match) {
         const { default: Component, init$: page_init$ } = await lazy();

@@ -5,7 +5,6 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { Worker } from "node:worker_threads";
 import { createBrotliCompress, createGzip } from "node:zlib";
-
 import { filesize } from "filesize";
 import colors from "picocolors";
 
@@ -13,8 +12,8 @@ import { forRoot } from "../../config/index.mjs";
 import { getContext } from "../../server/context.mjs";
 import {
   getRuntime,
-  runtime$,
   init$ as runtime_init$,
+  runtime$,
 } from "../../server/runtime.mjs";
 import { CONFIG_CONTEXT, WORKER_THREAD } from "../../server/symbols.mjs";
 import ssrHandler from "../start/ssr-handler.mjs";
@@ -38,9 +37,7 @@ function log(
   maxFilenameLength
 ) {
   console.log(
-    `${colors.dim(`${outDir}/dist/`)}${colors.green(
-      dirname(normalizedBasename).replace(".", "")
-    )}${colors.cyan(
+    `${colors.dim(`${outDir}/dist/`)}${colors.green(dirname(normalizedBasename).replace(".", ""))}${colors.cyan(
       (dirname(normalizedBasename) === "." ? "" : "/") +
         basename(normalizedBasename)
     )} ${`${" ".repeat(
@@ -121,9 +118,7 @@ export default async function staticSiteGenerator(root, options) {
         paths.map(async ({ path, filename: out, method, headers }) => {
           try {
             const url = new URL(
-              `http${config.server?.https ? "s" : ""}://${
-                config.host ?? "localhost"
-              }:${config.port ?? 3000}${path}`
+              `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}`
             );
             if (!out) {
               await mkdir(join(cwd, options.outDir, "dist", path), {
@@ -230,9 +225,7 @@ export default async function staticSiteGenerator(root, options) {
           .map(async ({ path }) => {
             try {
               const url = new URL(
-                `http${config.server?.https ? "s" : ""}://${
-                  config.host ?? "localhost"
-                }:${config.port ?? 3000}${path}`
+                `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}`
               );
               const stream = await render({
                 url,
@@ -294,9 +287,7 @@ export default async function staticSiteGenerator(root, options) {
           .map(async ({ path }) => {
             try {
               const url = new URL(
-                `http${config.server?.https ? "s" : ""}://${
-                  config.host ?? "localhost"
-                }:${config.port ?? 3000}${path}`
+                `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}`
               );
               const stream = await render({
                 url,

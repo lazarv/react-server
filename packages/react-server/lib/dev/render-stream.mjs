@@ -1,8 +1,9 @@
-import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
 import { register } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parentPort } from "node:worker_threads";
+
+import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
 import {
   ESModulesEvaluator,
   ModuleRunner,
@@ -57,7 +58,7 @@ globalThis.__webpack_require__ = function (id) {
   try {
     const moduleCache = moduleCacheStorage.getStore() ?? new Map();
     if (!moduleCache.has(id)) {
-      if (/http(s?)\:/.test(id)) {
+      if (/http(s?):/.test(id)) {
         const url = new URL(id);
         const moduleUrl = join(cwd, url.pathname);
         const mod = moduleRunner.import(moduleUrl);
@@ -66,7 +67,7 @@ globalThis.__webpack_require__ = function (id) {
       }
       const moduleUrl = join(cwd, id);
       const mod = moduleRunner.import(
-        /\:\//.test(moduleUrl) ? pathToFileURL(moduleUrl).href : moduleUrl
+        /:\//.test(moduleUrl) ? pathToFileURL(moduleUrl).href : moduleUrl
       );
       moduleCache.set(id, mod);
       return mod;

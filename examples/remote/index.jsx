@@ -1,4 +1,5 @@
 import { RemoteComponent } from "@lazarv/react-server/router";
+
 import HostButton from "./HostButton.jsx";
 
 export default function Remote() {

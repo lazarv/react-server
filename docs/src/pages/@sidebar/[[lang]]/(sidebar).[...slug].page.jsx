@@ -35,9 +35,7 @@ export default function PageSidebar({ lang }) {
         .map(([category, pages], i) => (
           <div key={category} className="mb-4">
             <div
-              className={`text-md font-semibold mb-2${
-                i > 0 ? " border-t pt-4 dark:border-gray-800" : ""
-              }`}
+              className={`text-md font-semibold mb-2${i > 0 ? " border-t pt-4 dark:border-gray-800" : ""}`}
             >
               {!pages.some(
                 ([, { frontmatter }]) =>
@@ -75,11 +73,7 @@ export default function PageSidebar({ lang }) {
                   <a
                     key={mod}
                     href={href}
-                    className={`block mb-1 text-sm${
-                      isActive
-                        ? " text-indigo-500 dark:text-yellow-600 active"
-                        : ""
-                    }`}
+                    className={`block mb-1 text-sm${isActive ? " text-indigo-500 dark:text-yellow-600 active" : ""}`}
                   >
                     {frontmatter?.title ?? basename(mod).replace(/\.mdx?$/, "")}
                   </a>

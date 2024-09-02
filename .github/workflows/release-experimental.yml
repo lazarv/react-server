@@ -20,7 +20,7 @@ concurrency:
 jobs:
   changed:
     name: Get changed files 📂
-    if: ${{ github.repository == 'lazarv/react-server-testing' }}
+    if: ${{ github.repository == 'lazarv/react-server' }}
     runs-on: ubuntu-latest
     outputs:
       should_skip: ${{ steps.changed-files.outputs.any_changed != 'true' }}
@@ -43,7 +43,7 @@ jobs:
   release:
     name: Release 📦
     needs: changed
-    if: github.repository == 'lazarv/react-server-testing' && needs.changed.outputs.should_skip != 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push'
+    if: github.repository == 'lazarv/react-server' && needs.changed.outputs.should_skip != 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

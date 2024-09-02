@@ -8,7 +8,7 @@ on:
 jobs:
   close-issues:
     name: Close issues 🔒
-    if: github.repository == 'lazarv/react-server-testing'
+    if: github.repository == 'lazarv/react-server'
     runs-on: ubuntu-latest
     steps:
       - name: needs reproduction

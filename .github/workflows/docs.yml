@@ -16,7 +16,7 @@ on:
 jobs:
   deploy:
     name: Deploy 🚀
-    if: github.repository == 'lazarv/react-server-testing'
+    if: github.repository == 'lazarv/react-server'
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

@@ -39,7 +39,7 @@ jobs:
   build:
     name: Build 🚀
     needs: changed
-    if: github.repository == 'lazarv/react-server-testing' && needs.changed.outputs.should_skip != 'true' && (github.event_name == 'push' || github.event.issue.pull_request && startsWith(github.event.comment.body, '/pkg-pr-new'))
+    if: github.repository == 'lazarv/react-server' && needs.changed.outputs.should_skip != 'true' && (github.event_name == 'push' || github.event.issue.pull_request && startsWith(github.event.comment.body, '/pkg-pr-new'))
     runs-on: ubuntu-latest
 
     steps:

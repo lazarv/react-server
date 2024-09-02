@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   main:
-    if: github.repository == 'lazarv/react-server-testing'
+    if: github.repository == 'lazarv/react-server'
     runs-on: ubuntu-latest
     name: Semantic Pull Request 🔍
     steps:

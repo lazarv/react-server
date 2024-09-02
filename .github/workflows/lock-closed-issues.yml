@@ -11,7 +11,7 @@ permissions:
 jobs:
   action:
     name: Lock closed issues 🔒
-    if: github.repository == 'lazarv/react-server-testing'
+    if: github.repository == 'lazarv/react-server'
     runs-on: ubuntu-latest
     steps:
       - uses: dessant/lock-threads@v5

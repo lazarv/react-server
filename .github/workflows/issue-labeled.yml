@@ -8,7 +8,7 @@ on:
 jobs:
   reply-labeled:
     name: Reply to labeled issue 💬
-    if: github.repository == 'lazarv/react-server-testing'
+    if: github.repository == 'lazarv/react-server'
     runs-on: ubuntu-latest
     steps:
       - name: contribution welcome

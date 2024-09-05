@@ -78,11 +78,14 @@ export default function createLogger(level = "info", options) {
         }
         try {
           msg += Reflect.ownKeys(e).reduce((acc, key) => {
-            acc += `\n${colors.bold(`[${key}]:`)} ${e[key]?.stack || e[key]}`;
+            acc += `\n  ${colors.bold(`[${key}]:`)} ${e[key]?.stack || e[key]}`;
             return acc;
           }, "");
         } catch {
           // noop
+        }
+        if (options.error) {
+          msg += `\n  ${colors.bold(colors.red("[error]:"))} ${options.error?.stack || options.error}`;
         }
         msg.split("\n").forEach((line, row) => {
           logger.error(

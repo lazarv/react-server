@@ -3,7 +3,4 @@ import svgr from "vite-plugin-svgr";
 
 export default {
   plugins: [react(), svgr()],
-  resolve: {
-    noExternal: ["@vercel/analytics", "@vercel/speed-insights"],
-  },
 };

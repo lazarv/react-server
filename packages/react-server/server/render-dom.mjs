@@ -94,13 +94,12 @@ export const createRenderer = ({
                   html = await renderToReadableStream(tree, {
                     formState,
                     onError(e) {
-                      if (started) {
-                        parentPort.postMessage({
-                          id,
-                          error: e.message,
-                          stack: e.stack,
-                        });
-                      }
+                      parentPort.postMessage({
+                        id,
+                        error: e.message,
+                        stack: e.stack,
+                        digest: e.digest,
+                      });
                     },
                   });
                 }

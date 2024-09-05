@@ -514,9 +514,9 @@ export async function render(Component) {
                 );
               });
             },
-            onError(e) {
+            onError(e, digest) {
               ContextStorage.run(contextStore, async () => {
-                logger.error(e);
+                logger.error(e, digest);
                 getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
               });
             },

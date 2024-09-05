@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 
 import replace from "@rollup/plugin-replace";
 import colors from "picocolors";
@@ -11,6 +12,7 @@ import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
+import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import * as sys from "../sys.mjs";
 import {
   filterOutVitePluginReact,
@@ -90,18 +92,27 @@ export default async function clientBuild(_, options) {
       manifest: "client/browser-manifest.json",
       sourcemap: options.sourcemap,
       rollupOptions: {
-        preserveEntrySignatures: "allow-extension",
+        preserveEntrySignatures: "strict",
+        treeshake: {
+          moduleSideEffects: false,
+        },
         external: config.resolve?.shared ?? [],
         output: {
           dir: options.outDir,
           format: "esm",
           entryFileNames: "[name].[hash].mjs",
           chunkFileNames: "client/[name].[hash].mjs",
-          manualChunks: (id) => {
+          manualChunks: (id, ...rest) => {
             if (id in chunks) return chunks[id];
             if (id.includes("react-server/client/context")) {
               return "react-server/client/context";
             }
+            return (
+              config.build?.rollupOptions?.output?.manualChunks?.(
+                id,
+                ...rest
+              ) ?? undefined
+            );
           },
         },
         input: {
@@ -125,12 +136,14 @@ export default async function clientBuild(_, options) {
           }, {}),
         },
         plugins: [
+          resolveWorkspace(),
           replace({
             preventAssignment: true,
             "process.env.NODE_ENV": JSON.stringify(
               options.dev ? "development" : "production"
             ),
           }),
+          rollupUseClient("client", undefined, "pre"),
           rollupUseClient("client"),
           rollupUseServer("client"),
         ],

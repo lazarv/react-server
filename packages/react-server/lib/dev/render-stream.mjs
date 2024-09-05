@@ -1,5 +1,6 @@
+import { realpathSync } from "node:fs";
 import { register } from "node:module";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parentPort } from "node:worker_threads";
 
@@ -13,6 +14,7 @@ import {
 import { ContextManager } from "../async-local-storage.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
+import { findPackageRoot } from "../utils/module.mjs";
 
 sys.experimentalWarningSilence();
 alias();
@@ -32,7 +34,7 @@ const remoteTransport = new RemoteRunnerTransport({
     }),
   timeout: 5000,
 });
-remoteTransport.fetchModule = (id, importer) => {
+remoteTransport.fetchModule = async (id, importer) => {
   if (
     [
       "react",
@@ -43,7 +45,17 @@ remoteTransport.fetchModule = (id, importer) => {
   ) {
     return { externalize: id };
   }
-  return remoteTransport.resolve("fetchModule", id, importer);
+  try {
+    return await remoteTransport.resolve("fetchModule", id, importer);
+  } catch (e) {
+    const packageRoot = realpathSync(findPackageRoot(importer));
+    let parentPath = join(packageRoot, "..");
+    while (basename(parentPath) !== "node_modules") {
+      parentPath = join(parentPath, "..");
+    }
+    parentPath = join(parentPath, "..");
+    return await remoteTransport.resolve("fetchModule", id, parentPath);
+  }
 };
 const moduleRunner = new ModuleRunner(
   {

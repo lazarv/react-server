@@ -12,13 +12,15 @@ export default (cli) => {
     .option("--origin <origin>", "[string] origin", { default: "" })
     .option("--trust-proxy", "[boolean] trust proxy", { default: false })
     .option("--build <root>", "[string] build root", { default: "" })
-    .option("--dev", "[boolean] development mode", { default: false })
     .option("--outDir <dir>", "[string] output directory", {
       default: ".react-server",
     })
-    .action(async (...args) => {
+    .action(async (root, options) => {
       setEnv("NODE_ENV", "production");
-      return (await import("../../lib/start/action.mjs")).default(...args);
+      return (await import("../../lib/start/action.mjs")).default(
+        root,
+        options
+      );
     });
   command.__react_server_check_node_version__ = false;
   command.__react_server_check_deps__ = false;

@@ -14,12 +14,13 @@ export function createWorker() {
 
   const workerMap = new Map();
   worker.on("message", (payload) => {
-    const { id, stream, postponed, start, done, error, stack } = payload;
+    const { id, stream, postponed, start, done, error, stack, digest } =
+      payload;
     if (id) {
       if (error) {
         const err = new Error(error);
         err.stack = stack;
-        workerMap.get(id)?.onError?.(err);
+        workerMap.get(id)?.onError?.(err, digest);
       } else if (stream) {
         workerMap.get(id).resolve(stream);
       } else if (start) {

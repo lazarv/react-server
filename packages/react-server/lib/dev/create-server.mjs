@@ -36,15 +36,23 @@ import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import staticWatchHandler from "../handlers/static-watch.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
-import { alias } from "../loader/module-alias.mjs";
+import { alias, moduleAliases } from "../loader/module-alias.mjs";
+import { applyAlias } from "../loader/utils.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
+import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import useClient from "../plugins/use-client.mjs";
 import useServer from "../plugins/use-server.mjs";
 import useServerInline from "../plugins/use-server-inline.mjs";
 import * as sys from "../sys.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
+import {
+  bareImportRE,
+  findPackageRoot,
+  isModule,
+  tryStat,
+} from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
@@ -57,6 +65,7 @@ register("../loader/node-loader.react-server.mjs", import.meta.url);
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
+const workspaceRoot = findPackageRoot(join(cwd, "..")) ?? cwd;
 
 export default async function createServer(root, options) {
   if (!options.outDir) {
@@ -95,7 +104,12 @@ export default async function createServer(root, options) {
       https: options.https ?? config.server?.https,
       fs: {
         ...config.server?.fs,
-        allow: [cwd, sys.rootDir, ...(config.server?.fs?.allow ?? [])],
+        allow: [
+          cwd,
+          sys.rootDir,
+          workspaceRoot,
+          ...(config.server?.fs?.allow ?? []),
+        ],
       },
     },
     publicDir: join(cwd, publicDir),
@@ -110,6 +124,7 @@ export default async function createServer(root, options) {
         "react-dom",
         "react-dom/client",
         "react-server-dom-webpack/client.browser",
+        ...(config.optimizeDeps?.include ?? []),
       ],
     },
     css: {
@@ -132,9 +147,11 @@ export default async function createServer(root, options) {
               ).default())(options),
           ]
         : []),
+      resolveWorkspace(),
       reactServerEval(options),
       reactServerRuntime(),
       ...userOrBuiltInVitePluginReact(config.plugins),
+      useClient(null, null, "pre"),
       useClient(),
       useServer(),
       useServerInline(),
@@ -162,8 +179,29 @@ export default async function createServer(root, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
+        // compatibility entries
+        {
+          find: "use-sync-external-store/shim/with-selector.js",
+          replacement: join(
+            sys.rootDir,
+            "use-sync-external-store/shim/with-selector.mjs"
+          ),
+        },
+        {
+          find: "hoist-non-react-statics",
+          replacement: "hoist-non-react-statics/src/index.js",
+        },
+        {
+          find: "prop-types",
+          replacement: "prop-types",
+        },
+        {
+          find: "react-is",
+          replacement: "react-is",
+        },
         ...(config.resolve?.alias ?? []),
       ],
+      noExternal: [bareImportRE],
     },
     customLogger:
       config.customLogger ??
@@ -210,6 +248,7 @@ export default async function createServer(root, options) {
             "react-dom",
             "react-server-dom-webpack",
             "picocolors",
+            "@lazarv/react-server",
           ],
         },
         dev: {
@@ -264,6 +303,7 @@ export default async function createServer(root, options) {
             "react-dom",
             "react-server-dom-webpack",
             "picocolors",
+            "@lazarv/react-server",
           ],
         },
         dev: {
@@ -288,6 +328,25 @@ export default async function createServer(root, options) {
     typeof config.vite === "function"
       ? config.vite(devServerConfig) ?? devServerConfig
       : merge(devServerConfig, config.vite);
+
+  const tryToOptimize = (dep) => {
+    try {
+      __require.resolve(dep, { paths: [cwd] });
+      viteConfig.optimizeDeps.include = [
+        ...(viteConfig.optimizeDeps.include ?? []),
+        dep,
+      ];
+      viteConfig.resolve.external = [
+        ...(viteConfig.resolve.external ?? []),
+        dep,
+      ];
+    } catch (e) {
+      // no prop-types
+    }
+  };
+
+  tryToOptimize("prop-types");
+  tryToOptimize("react-is");
 
   const viteDevServer = await createViteDevServer(viteConfig);
   viteDevServer.environments.client.hot = viteDevServer.ws;
@@ -330,6 +389,67 @@ export default async function createServer(root, options) {
     },
     new ESModulesEvaluator()
   );
+
+  const reactServerAlias = moduleAliases("react-server");
+
+  const originalDirectRequest = moduleRunner.directRequest;
+  moduleRunner.directRequest = async (id, mod, callstack) => {
+    try {
+      return await originalDirectRequest.call(moduleRunner, id, mod, callstack);
+    } catch (e) {
+      return {
+        externalize: id,
+      };
+    }
+  };
+
+  const originalFetchModule = moduleRunner.transport.fetchModule;
+  moduleRunner.transport.fetchModule = async (specifier, parentId, meta) => {
+    const alias = applyAlias(reactServerAlias, specifier);
+    const id = tryStat(alias) ? alias : specifier;
+    try {
+      const resolved = await originalFetchModule.call(
+        moduleRunner.transport,
+        id,
+        parentId,
+        meta
+      );
+      if (!resolved.file || !/\.[mc]?js$/.test(resolved.file)) {
+        return resolved;
+      }
+      if (
+        resolved.file &&
+        /node_modules/.test(resolved.file) &&
+        !isModule(resolved.file)
+      ) {
+        const externalized = {
+          externalize: resolved.file,
+          type: "commonjs",
+        };
+        return externalized;
+      }
+      return resolved;
+    } catch (e) {
+      try {
+        const resolved = import.meta.resolve(id);
+        const resolvedIsModule = isModule(resolved);
+        if (resolvedIsModule) {
+          return {
+            externalize: resolved,
+            type: "module",
+          };
+        }
+        return {
+          externalize: id,
+          type: "commonjs",
+        };
+      } catch (e) {
+        return {
+          externalize: id,
+        };
+      }
+    }
+  };
 
   worker.on("message", (payload) => {
     if (payload.type === "logger") {

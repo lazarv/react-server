@@ -6,7 +6,7 @@ import mime from "mime";
 
 import { normalizePath } from "../sys.mjs";
 
-export default async function staticHandler(dir, options = {}) {
+export default async function staticWatchHandler(dir, options = {}) {
   const files = new Map();
   const fileCache = new Map();
 

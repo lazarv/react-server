@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 
 import replace from "@rollup/plugin-replace";
 import colors from "picocolors";
@@ -11,6 +12,7 @@ import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
+import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import * as sys from "../sys.mjs";
 import {
   filterOutVitePluginReact,
@@ -77,12 +79,20 @@ export default async function clientBuild(_, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
+        {
+          find: "use-sync-external-store/shim/with-selector.js",
+          replacement: join(
+            sys.rootDir,
+            "use-sync-external-store/shim/with-selector.mjs"
+          ),
+        },
         ...clientAlias(options.dev),
         ...(config.resolve?.alias ?? []),
       ],
     },
     customLogger,
     build: {
+      ...config.build,
       target: "esnext",
       outDir: options.outDir,
       emptyOutDir: false,
@@ -90,18 +100,32 @@ export default async function clientBuild(_, options) {
       manifest: "client/browser-manifest.json",
       sourcemap: options.sourcemap,
       rollupOptions: {
-        preserveEntrySignatures: "allow-extension",
-        external: config.resolve?.shared ?? [],
+        ...config.build?.rollupOptions,
+        preserveEntrySignatures: "strict",
+        treeshake: {
+          moduleSideEffects: false,
+        },
+        external: [
+          ...(config.resolve?.shared ?? []),
+          ...(config.build?.rollupOptions?.external ?? []),
+        ],
         output: {
+          ...config.build?.rollupOptions?.output,
           dir: options.outDir,
           format: "esm",
           entryFileNames: "[name].[hash].mjs",
           chunkFileNames: "client/[name].[hash].mjs",
-          manualChunks: (id) => {
+          manualChunks: (id, ...rest) => {
             if (id in chunks) return chunks[id];
             if (id.includes("react-server/client/context")) {
               return "react-server/client/context";
             }
+            return (
+              config.build?.rollupOptions?.output?.manualChunks?.(
+                id,
+                ...rest
+              ) ?? undefined
+            );
           },
         },
         input: {
@@ -123,16 +147,20 @@ export default async function clientBuild(_, options) {
             }
             return input;
           }, {}),
+          ...config.build?.rollupOptions?.input,
         },
         plugins: [
+          resolveWorkspace(),
           replace({
             preventAssignment: true,
             "process.env.NODE_ENV": JSON.stringify(
               options.dev ? "development" : "production"
             ),
           }),
+          rollupUseClient("client", undefined, "pre"),
           rollupUseClient("client"),
           rollupUseServer("client"),
+          ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },
     },

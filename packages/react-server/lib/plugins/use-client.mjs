@@ -5,36 +5,37 @@ import * as escodegen from "escodegen";
 import * as estraverse from "estraverse";
 
 import * as sys from "../sys.mjs";
+import { hasClientComponents, isModule } from "../utils/module.mjs";
 
 const cwd = sys.cwd();
 
-export default function useClient(type, manifest) {
+export default function useClient(type, manifest, enforce) {
+  let config;
   return {
     name: "react-server:use-client",
+    enforce,
+    configResolved(_config) {
+      config = _config;
+    },
     async transform(code, id) {
       const viteEnv = this.environment.name;
       const mode = this.environment.mode;
-      if (!/\.m?[jt]sx?$/.test(id)) return;
-      if (!code.includes("use client")) return;
 
+      if (!/\.m?[jt]sx?$/.test(id)) return;
+
+      let ast;
       try {
-        const ast = acorn.parse(code, {
+        ast = acorn.parse(code, {
           sourceType: "module",
           ecmaVersion: 2021,
           sourceFile: id,
           locations: true,
         });
+      } catch (e) {
+        return null;
+      }
 
-        const directives = ast.body
-          .filter((node) => node.type === "ExpressionStatement")
-          .map(({ directive }) => directive);
-
-        if (!directives.includes("use client")) return;
-        if (directives.includes("use server"))
-          throw new Error(
-            "Cannot use both 'use client' and 'use server' in the same module."
-          );
-
+      try {
         if (
           type === "client" ||
           (mode !== "build" && (viteEnv === "client" || viteEnv === "ssr"))
@@ -44,6 +45,39 @@ export default function useClient(type, manifest) {
               node.type !== "ExpressionStatement" ||
               node.directive !== "use client"
           );
+
+          const depsOptimizer = this.environment?.depsOptimizer;
+          if (depsOptimizer) {
+            estraverse.traverse(ast, {
+              enter(node) {
+                if (
+                  node.type === "ImportDeclaration" ||
+                  node.type === "ImportExpression"
+                ) {
+                  const optimized =
+                    depsOptimizer.metadata.optimized[node.source.value];
+                  if (
+                    optimized &&
+                    !config.optimizeDeps?.include?.includes(
+                      node.source.value
+                    ) &&
+                    ![
+                      "react",
+                      "react/jsx-dev-runtime",
+                      "react/jsx-runtime",
+                      "react-dom",
+                      "react-dom/client",
+                      "react-server-dom-webpack/client.browser",
+                    ].includes(node.source.value) &&
+                    hasClientComponents(optimized.src) &&
+                    isModule(optimized.src)
+                  ) {
+                    node.source.value = optimized.src;
+                  }
+                }
+              },
+            });
+          }
 
           const gen = escodegen.generate(ast, {
             sourceMap: true,
@@ -55,6 +89,18 @@ export default function useClient(type, manifest) {
             map: gen.map.toString(),
           };
         }
+
+        if (!code.includes("use client")) return;
+
+        const directives = ast.body
+          .filter((node) => node.type === "ExpressionStatement")
+          .map(({ directive }) => directive);
+
+        if (!directives.includes("use client")) return;
+        if (directives.includes("use server"))
+          throw new Error(
+            "Cannot use both 'use client' and 'use server' in the same module."
+          );
 
         const defaultExport = ast.body.some(
           (node) =>
@@ -136,7 +182,7 @@ registerClientReference(${name}, "${sys.normalizePath(relative(cwd, id))}", "${n
           map: gen.map.toString(),
         };
       } catch (e) {
-        // noop
+        config?.logger?.error(e);
       }
     },
   };

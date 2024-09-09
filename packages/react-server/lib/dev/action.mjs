@@ -31,7 +31,7 @@ export default async function dev(root, options) {
         runtime$(CONFIG_CONTEXT, config);
 
         const server = await createServer(
-          options.eval || !process.stdin.isTTY
+          options.eval || (!process.stdin.isTTY && !process.env.CI)
             ? "virtual:react-server-eval.jsx"
             : root,
           options

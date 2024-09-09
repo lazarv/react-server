@@ -23,7 +23,10 @@ export default (cli) =>
     .option("--outDir <dir>", "[string] output directory", {
       default: ".react-server",
     })
-    .action(async (...args) => {
+    .action(async (root, options) => {
       setEnv("NODE_ENV", "production");
-      return (await import("../../lib/build/action.mjs")).default(...args);
+      return (await import("../../lib/build/action.mjs")).default(
+        root,
+        options
+      );
     });

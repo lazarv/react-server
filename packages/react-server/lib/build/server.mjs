@@ -2,22 +2,25 @@ import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import reactServerEval from "../plugins/react-server-eval.mjs";
-import rollupUseClient from "../plugins/use-client.mjs";
-import rollupUseServerInline from "../plugins/use-server-inline.mjs";
-import rollupUseServer from "../plugins/use-server.mjs";
-import {
-  filterOutVitePluginReact,
-  userOrBuiltInVitePluginReact,
-} from "../utils/plugins.mjs";
+
 import replace from "@rollup/plugin-replace";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
+import reactServerEval from "../plugins/react-server-eval.mjs";
+import resolveWorkspace from "../plugins/resolve-workspace.mjs";
+import rollupUseClient from "../plugins/use-client.mjs";
+import rollupUseServerInline from "../plugins/use-server-inline.mjs";
+import rollupUseServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
+import {
+  filterOutVitePluginReact,
+  userOrBuiltInVitePluginReact,
+} from "../utils/plugins.mjs";
 import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
+import { bareImportRE } from "../utils/module.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -56,11 +59,24 @@ export default async function serverBuild(root, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
+        {
+          find: "use-sync-external-store/shim/with-selector.js",
+          replacement: join(
+            sys.rootDir,
+            "use-sync-external-store/shim/with-selector.mjs"
+          ),
+        },
         ...(config.resolve?.alias ?? []),
       ],
       conditions: ["react-server"],
       externalConditions: ["react-server"],
-      dedupe: ["react-server-dom-webpack", "picocolors"],
+      dedupe: [
+        "react-server-dom-webpack",
+        "picocolors",
+        "@lazarv/react-server",
+        ...(config.resolve?.dedupe ?? []),
+      ],
+      noExternal: [bareImportRE, ...(config.resolve?.noExternal ?? [])],
     },
     customLogger,
     build: {
@@ -75,16 +91,25 @@ export default async function serverBuild(root, options) {
       sourcemap: options.sourcemap,
       rollupOptions: {
         ...config.build?.rollupOptions,
-        preserveEntrySignatures: "allow-extension",
+        preserveEntrySignatures: "strict",
+        treeshake: {
+          moduleSideEffects: false,
+        },
         output: {
           dir: options.outDir,
           format: "esm",
           entryFileNames: "[name].mjs",
           chunkFileNames: "server/[name].[hash].mjs",
-          manualChunks: (id) => {
+          manualChunks: (id, ...rest) => {
             if (id.includes("@lazarv/react-server") && id.endsWith(".mjs")) {
               return "@lazarv/react-server";
             }
+            return (
+              config.build?.rollupOptions?.output?.manualChunks?.(
+                id,
+                ...rest
+              ) ?? undefined
+            );
           },
         },
         input: {
@@ -96,7 +121,7 @@ export default async function serverBuild(root, options) {
             !root &&
             (!reactServerRouterModule ||
               options.eval ||
-              (!process.env.CI && !process.stdin.isTTY))
+              (!process.stdin.isTTY && !process.env.CI))
               ? "virtual:react-server-eval.jsx"
               : root?.startsWith("virtual:")
                 ? root
@@ -107,28 +132,51 @@ export default async function serverBuild(root, options) {
                     }
                   ),
         },
-        external: [
-          /manifest\.json/,
-          /^bun:/,
-          "react",
-          "react/jsx-runtime",
-          "react-dom",
-          "react-dom/client",
-          "react-dom/server.edge",
-          "react-server-dom-webpack/client.browser",
-          "react-server-dom-webpack/client.edge",
-          "react-server-dom-webpack/server.edge",
-          "picocolors",
-          ...(config.build?.rollupOptions?.external ?? []),
-          ...(config.external ?? []),
-        ],
+        external(id) {
+          const noExternal = [/^use-sync-external-store\/shim\/with-selector/];
+          const external = [
+            /manifest\.json/,
+            /^bun:/,
+            /^node:/,
+            "react",
+            "react/jsx-runtime",
+            "react-dom",
+            "react-dom/client",
+            "react-dom/server.edge",
+            "react-server-dom-webpack/client.browser",
+            "react-server-dom-webpack/client.edge",
+            "react-server-dom-webpack/server.edge",
+            "picocolors",
+            ...(config.build?.rollupOptions?.external ?? []),
+            ...(config.external ?? []),
+          ];
+          for (const mod of external) {
+            if (
+              (typeof mod === "string" && id === mod) ||
+              (mod instanceof RegExp && mod.test(id))
+            ) {
+              return true;
+            }
+          }
+          for (const mod of noExternal) {
+            if (
+              (typeof mod === "string" && id === mod) ||
+              (mod instanceof RegExp && mod.test(id))
+            ) {
+              return false;
+            }
+          }
+          return false;
+        },
         plugins: [
+          resolveWorkspace(),
           replace({
             preventAssignment: true,
             "process.env.NODE_ENV": JSON.stringify(
               options.dev ? "development" : "production"
             ),
           }),
+          rollupUseClient("server", clientManifest, "pre"),
           rollupUseClient("server", clientManifest),
           rollupUseServer("rsc", serverManifest),
           rollupUseServerInline(serverManifest),
@@ -258,12 +306,14 @@ export default async function serverBuild(root, options) {
             {}
           ),
           plugins: [
+            resolveWorkspace(),
             replace({
               preventAssignment: true,
               "process.env.NODE_ENV": JSON.stringify(
                 options.dev ? "development" : "production"
               ),
             }),
+            rollupUseClient("client", undefined, "pre"),
             rollupUseClient("client"),
             rollupUseServer("ssr"),
             ...(config.build?.rollupOptions?.plugins ?? []),

@@ -1,0 +1,43 @@
+.comments-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.comment-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.comment-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.comment-email {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.comment-body {
+  font-size: 1rem;
+  color: #333;
+}
+
+.comment-card:hover {
+  border: 1px solid #000;
+}
+
+.comment-card:hover .comment-name {
+  color: #000;
+}
+
+.comment-card:hover .comment-email {
+  color: #000;
+}
+
+.comment-card:hover .comment-body {
+  color: #000;
+}

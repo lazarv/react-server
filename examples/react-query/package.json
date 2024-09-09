@@ -1,0 +1,18 @@
+{
+  "name": "@lazarv/react-server-example-react-query",
+  "private": true,
+  "description": "@lazarv/react-server TanStack React Query example application",
+  "scripts": {
+    "dev": "react-server",
+    "build": "react-server build",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-router": "workspace:^",
+    "@tanstack/react-query": "^5.52.2"
+  }
+}

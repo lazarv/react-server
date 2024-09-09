@@ -13,6 +13,9 @@ on:
       - "docs/**"
   workflow_dispatch:
 
+permissions:
+  pull-requests: write
+
 jobs:
   deploy:
     name: Deploy 🚀
@@ -45,7 +48,7 @@ jobs:
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build docs
-        run: pnpm run docs:build
+        run: pnpm run docs-build
 
       - name: Deploy Project Artifacts to Vercel
         if: ${{ github.event_name == 'pull_request' }}

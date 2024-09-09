@@ -1,0 +1,5 @@
+{
+  "resolve": {
+    "external": ["better-sqlite3"]
+  }
+}

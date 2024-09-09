@@ -119,7 +119,9 @@ export default async function serverBuild(root, options) {
           ),
           "server/index":
             !root &&
-            (!reactServerRouterModule || options.eval || !process.stdin.isTTY)
+            (!reactServerRouterModule ||
+              options.eval ||
+              (!process.stdin.isTTY && !process.env.CI))
               ? "virtual:react-server-eval.jsx"
               : root?.startsWith("virtual:")
                 ? root

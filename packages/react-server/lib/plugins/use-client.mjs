@@ -23,19 +23,6 @@ export default function useClient(type, manifest, enforce) {
 
       if (!/\.m?[jt]sx?$/.test(id)) return;
 
-      // let importsRE = null;
-      // const depsOptimizer = this.environment?.depsOptimizer;
-      // if (depsOptimizer) {
-      //   const optimizedImports = Object.keys(depsOptimizer.metadata.optimized);
-      //   importsRE = new RegExp(
-      //     `(from|import)\\s*['"](${optimizedImports.join("|")})['"]`,
-      //     "g"
-      //   );
-      // }
-      // if (!code.includes("use client") && !importsRE?.test(code)) {
-      //   return;
-      // }
-
       let ast;
       try {
         ast = acorn.parse(code, {

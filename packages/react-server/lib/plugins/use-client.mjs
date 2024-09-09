@@ -5,7 +5,7 @@ import * as escodegen from "escodegen";
 import * as estraverse from "estraverse";
 
 import * as sys from "../sys.mjs";
-import { hasClientComponents } from "../utils/module.mjs";
+import { hasClientComponents, isModule } from "../utils/module.mjs";
 
 const cwd = sys.cwd();
 
@@ -22,7 +22,19 @@ export default function useClient(type, manifest, enforce) {
       const mode = this.environment.mode;
 
       if (!/\.m?[jt]sx?$/.test(id)) return;
-      if (!code.includes("use client")) return;
+
+      // let importsRE = null;
+      // const depsOptimizer = this.environment?.depsOptimizer;
+      // if (depsOptimizer) {
+      //   const optimizedImports = Object.keys(depsOptimizer.metadata.optimized);
+      //   importsRE = new RegExp(
+      //     `(from|import)\\s*['"](${optimizedImports.join("|")})['"]`,
+      //     "g"
+      //   );
+      // }
+      // if (!code.includes("use client") && !importsRE?.test(code)) {
+      //   return;
+      // }
 
       let ast;
       try {
@@ -48,7 +60,6 @@ export default function useClient(type, manifest, enforce) {
           );
 
           const depsOptimizer = this.environment?.depsOptimizer;
-          // const config = this.environment.config.optimizeDeps;
           if (depsOptimizer) {
             estraverse.traverse(ast, {
               enter(node) {
@@ -58,7 +69,22 @@ export default function useClient(type, manifest, enforce) {
                 ) {
                   const optimized =
                     depsOptimizer.metadata.optimized[node.source.value];
-                  if (optimized && hasClientComponents(optimized.src)) {
+                  if (
+                    optimized &&
+                    !config.optimizeDeps?.include?.includes(
+                      node.source.value
+                    ) &&
+                    ![
+                      "react",
+                      "react/jsx-dev-runtime",
+                      "react/jsx-runtime",
+                      "react-dom",
+                      "react-dom/client",
+                      "react-server-dom-webpack/client.browser",
+                    ].includes(node.source.value) &&
+                    hasClientComponents(optimized.src) &&
+                    isModule(optimized.src)
+                  ) {
                     node.source.value = optimized.src;
                   }
                 }

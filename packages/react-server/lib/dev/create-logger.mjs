@@ -30,6 +30,18 @@ export default function createLogger(level = "info", options) {
     ...["info", "warn", "warnOnce"].reduce((newLogger, command) => {
       newLogger[command] = (...args) => {
         const [msg, ...rest] = args;
+        const lowerCaseMsg = msg.toLowerCase();
+        // omit vite warnings on prop-types and react-is
+        if (
+          lowerCaseMsg.includes("warning: rewrote prop-types") ||
+          lowerCaseMsg.includes("warning: rewrote react-is") ||
+          (lowerCaseMsg.includes("cannot optimize dependency:") &&
+            lowerCaseMsg.includes("prop-types")) ||
+          (lowerCaseMsg.includes("cannot optimize dependency:") &&
+            lowerCaseMsg.includes("react-is"))
+        ) {
+          return;
+        }
         const options = rest?.[rest?.length - 1];
         logger[command](
           repeatMessage(

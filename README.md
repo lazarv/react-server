@@ -144,9 +144,12 @@ pnpm --filter ./examples/todo dev --open
 pnpm --filter ./examples/photos dev --open
 pnpm --filter ./examples/express dev
 pnpm --filter ./examples/nestjs start:dev
-pnpm --filter ./examples/spa --open
-pnpm --filter ./examples/react-router --open
-pnpm --filter ./examples/tanstack-router --open
+pnpm --filter ./examples/spa dev --open
+pnpm --filter ./examples/react-router dev --open
+pnpm --filter ./examples/tanstack-router dev --open
+pnpm --filter ./examples/react-query dev --open
+pnpm --filter ./examples/mui dev --open
+pnpm --filter ./examples/mantine dev --open
 ```
 
 You will need to have `pnpm` installed. Follow instructions at https://pnpm.io/installation.

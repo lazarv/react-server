@@ -40,6 +40,7 @@ import { alias, moduleAliases } from "../loader/module-alias.mjs";
 import { applyAlias } from "../loader/utils.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
+import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import useClient from "../plugins/use-client.mjs";
 import useServer from "../plugins/use-server.mjs";
 import useServerInline from "../plugins/use-server-inline.mjs";
@@ -50,7 +51,7 @@ import {
   bareImportRE,
   findPackageRoot,
   isModule,
-  tryStatSync,
+  tryStat,
 } from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
@@ -125,7 +126,6 @@ export default async function createServer(root, options) {
         "react-server-dom-webpack/client.browser",
         ...(config.optimizeDeps?.include ?? []),
       ],
-      exclude: ["/^[@a-z_]+/", ...(config.optimizeDeps?.exclude ?? [])],
     },
     css: {
       ...config.css,
@@ -147,6 +147,7 @@ export default async function createServer(root, options) {
               ).default())(options),
           ]
         : []),
+      resolveWorkspace(),
       reactServerEval(options),
       reactServerRuntime(),
       ...userOrBuiltInVitePluginReact(config.plugins),
@@ -177,6 +178,26 @@ export default async function createServer(root, options) {
         {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
+        },
+        // compatibility entries
+        {
+          find: "use-sync-external-store/shim/with-selector.js",
+          replacement: join(
+            sys.rootDir,
+            "use-sync-external-store/shim/with-selector.mjs"
+          ),
+        },
+        {
+          find: "hoist-non-react-statics",
+          replacement: "hoist-non-react-statics/src/index.js",
+        },
+        {
+          find: "prop-types",
+          replacement: "prop-types",
+        },
+        {
+          find: "react-is",
+          replacement: "react-is",
         },
         ...(config.resolve?.alias ?? []),
       ],
@@ -308,6 +329,25 @@ export default async function createServer(root, options) {
       ? config.vite(devServerConfig) ?? devServerConfig
       : merge(devServerConfig, config.vite);
 
+  const tryToOptimize = (dep) => {
+    try {
+      __require.resolve(dep, { paths: [cwd] });
+      viteConfig.optimizeDeps.include = [
+        ...(viteConfig.optimizeDeps.include ?? []),
+        dep,
+      ];
+      viteConfig.resolve.external = [
+        ...(viteConfig.resolve.external ?? []),
+        dep,
+      ];
+    } catch (e) {
+      // no prop-types
+    }
+  };
+
+  tryToOptimize("prop-types");
+  tryToOptimize("react-is");
+
   const viteDevServer = await createViteDevServer(viteConfig);
   viteDevServer.environments.client.hot = viteDevServer.ws;
   viteDevServer.environments.rsc.watcher = viteDevServer.watcher;
@@ -351,22 +391,30 @@ export default async function createServer(root, options) {
   );
 
   const reactServerAlias = moduleAliases("react-server");
-  const originalFetchModule = moduleRunner.transport.fetchModule;
-  const fetchCache = new Map();
-  moduleRunner.transport.fetchModule = async (specifier, ...rest) => {
-    if (fetchCache.has(specifier)) {
-      return fetchCache.get(specifier);
+
+  const originalDirectRequest = moduleRunner.directRequest;
+  moduleRunner.directRequest = async (id, mod, callstack) => {
+    try {
+      return await originalDirectRequest.call(moduleRunner, id, mod, callstack);
+    } catch (e) {
+      return {
+        externalize: id,
+      };
     }
+  };
+
+  const originalFetchModule = moduleRunner.transport.fetchModule;
+  moduleRunner.transport.fetchModule = async (specifier, parentId, meta) => {
     const alias = applyAlias(reactServerAlias, specifier);
-    const id = tryStatSync(alias)?.isFile() ? alias : specifier;
+    const id = tryStat(alias) ? alias : specifier;
     try {
       const resolved = await originalFetchModule.call(
         moduleRunner.transport,
         id,
-        ...rest
+        parentId,
+        meta
       );
-      if (!resolved.file || !/\.[mc]?[jt]sx?$/.test(resolved.file)) {
-        fetchCache.set(specifier, resolved);
+      if (!resolved.file || !/\.[mc]?js$/.test(resolved.file)) {
         return resolved;
       }
       if (
@@ -374,23 +422,26 @@ export default async function createServer(root, options) {
         /node_modules/.test(resolved.file) &&
         !isModule(resolved.file)
       ) {
-        fetchCache.set(specifier, {
+        const externalized = {
           externalize: resolved.file,
           type: "commonjs",
-        });
-        return { externalize: resolved.file, type: "commonjs" };
+        };
+        return externalized;
       }
       return resolved;
     } catch (e) {
       try {
         const resolved = import.meta.resolve(id);
-        fetchCache.set(specifier, {
-          externalize: resolved,
-          type: isModule(resolved) ? "module" : "commonjs",
-        });
+        const resolvedIsModule = isModule(resolved);
+        if (resolvedIsModule) {
+          return {
+            externalize: resolved,
+            type: "module",
+          };
+        }
         return {
-          file: resolved,
-          type: isModule(resolved) ? "module" : "commonjs",
+          externalize: id,
+          type: "commonjs",
         };
       } catch (e) {
         return {

@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import * as sys from "../sys.mjs";
 
@@ -7,7 +8,7 @@ const cwd = sys.cwd();
 
 export const bareImportRE = /^(?![a-zA-Z]:)[\w@](?!.*:\/\/)/;
 
-export function tryStatSync(path) {
+export function tryStat(path) {
   try {
     return statSync(path);
   } catch {
@@ -16,8 +17,7 @@ export function tryStatSync(path) {
 }
 
 export function loadPackageData(pkgPath) {
-  const pkgData = JSON.parse(readFileSync(pkgPath, "utf-8"));
-  return pkgData;
+  return JSON.parse(readFileSync(pkgPath, "utf-8"));
 }
 
 const packagePathCache = new Map();
@@ -28,7 +28,7 @@ export function findPackageRoot(basedir) {
       return packagePathCache.get(basedir);
     }
     const pkgPath = join(basedir, "package.json");
-    if (tryStatSync(pkgPath)?.isFile()) {
+    if (tryStat(pkgPath)) {
       try {
         const pkgRoot = dirname(pkgPath);
         while (directoryStack.length > 0) {
@@ -43,6 +43,7 @@ export function findPackageRoot(basedir) {
     const nextBasedir = dirname(basedir);
     if (nextBasedir === basedir || nextBasedir === cwd) break;
     basedir = nextBasedir;
+    directoryStack.push(basedir);
   }
   return null;
 }
@@ -55,7 +56,7 @@ export function findNearestPackageData(basedir) {
       return packageCache.get(basedir);
     }
     const pkgPath = join(basedir, "package.json");
-    if (tryStatSync(pkgPath)?.isFile()) {
+    if (tryStat(pkgPath)) {
       try {
         const pkgData = loadPackageData(pkgPath);
         const pkgRoot = dirname(pkgPath);
@@ -72,6 +73,7 @@ export function findNearestPackageData(basedir) {
     const nextBasedir = dirname(basedir);
     if (nextBasedir === basedir || nextBasedir === cwd) break;
     basedir = nextBasedir;
+    directoryStack.push(basedir);
   }
   return null;
 }
@@ -87,8 +89,14 @@ export function isModule(filePath) {
   } else {
     // check package.json for type: "module"
     try {
-      const pkg = findNearestPackageData(dirname(filePath));
-      const isModule = pkg?.type === "module" || pkg?.module;
+      const dir = dirname(
+        filePath.startsWith("file://") ? fileURLToPath(filePath) : filePath
+      );
+      const root = findPackageRoot(dir);
+      const pkg = findNearestPackageData(dir);
+      const isModule =
+        pkg?.type === "module" ||
+        (pkg?.module && join(root, pkg?.module) === filePath);
       packageTypeCache.set(filePath, isModule);
       return isModule;
     } catch (e) {
@@ -99,7 +107,12 @@ export function isModule(filePath) {
 
 const clientComponentsCache = new Map();
 export function hasClientComponents(filePath) {
+  if (!filePath) return false;
+
   const root = findPackageRoot(filePath);
+
+  if (!root) return false;
+
   if (clientComponentsCache.has(root)) {
     return clientComponentsCache.get(root);
   }
@@ -108,8 +121,8 @@ export function hasClientComponents(filePath) {
     const files = readdirSync(dir);
     for (const file of files) {
       const filePath = join(dir, file);
-      const stat = statSync(filePath);
-      if (stat.isDirectory()) {
+      const fileStat = statSync(filePath);
+      if (fileStat.isDirectory()) {
         if (searchForUseClient(filePath)) {
           return true;
         }
@@ -129,4 +142,27 @@ export function hasClientComponents(filePath) {
   const result = searchForUseClient(root);
   clientComponentsCache.set(root, result);
   return result;
+}
+
+const serverActionCache = new Map();
+export function hasServerAction(filePath) {
+  if (!filePath) return false;
+
+  if (serverActionCache.has(filePath)) {
+    return serverActionCache.get(filePath);
+  }
+
+  try {
+    if (!tryStat(filePath)) {
+      return false;
+    }
+    const content = readFileSync(filePath, "utf8");
+    if (content.includes(`"use server"`) || content.includes(`'use server'`)) {
+      serverActionCache.set(filePath, true);
+      return true;
+    }
+  } catch {
+    // no use server
+  }
+  return false;
 }

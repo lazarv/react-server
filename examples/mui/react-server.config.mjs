@@ -8,12 +8,14 @@ export default {
     include: ["**/layout.jsx"],
   },
   build: {
-    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("@mantine/core")) {
-            return "@mantine/core";
+          if (id.includes("@emotion/react")) {
+            return "@emotion/react";
+          }
+          if (id.includes("@mui/")) {
+            return "@mui/material";
           }
         },
       },

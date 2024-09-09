@@ -79,12 +79,20 @@ export default async function clientBuild(_, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
+        {
+          find: "use-sync-external-store/shim/with-selector.js",
+          replacement: join(
+            sys.rootDir,
+            "use-sync-external-store/shim/with-selector.mjs"
+          ),
+        },
         ...clientAlias(options.dev),
         ...(config.resolve?.alias ?? []),
       ],
     },
     customLogger,
     build: {
+      ...config.build,
       target: "esnext",
       outDir: options.outDir,
       emptyOutDir: false,
@@ -92,12 +100,17 @@ export default async function clientBuild(_, options) {
       manifest: "client/browser-manifest.json",
       sourcemap: options.sourcemap,
       rollupOptions: {
+        ...config.build?.rollupOptions,
         preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: false,
         },
-        external: config.resolve?.shared ?? [],
+        external: [
+          ...(config.resolve?.shared ?? []),
+          ...(config.build?.rollupOptions?.external ?? []),
+        ],
         output: {
+          ...config.build?.rollupOptions?.output,
           dir: options.outDir,
           format: "esm",
           entryFileNames: "[name].[hash].mjs",
@@ -134,6 +147,7 @@ export default async function clientBuild(_, options) {
             }
             return input;
           }, {}),
+          ...config.build?.rollupOptions?.input,
         },
         plugins: [
           resolveWorkspace(),
@@ -146,6 +160,7 @@ export default async function clientBuild(_, options) {
           rollupUseClient("client", undefined, "pre"),
           rollupUseClient("client"),
           rollupUseServer("client"),
+          ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },
     },

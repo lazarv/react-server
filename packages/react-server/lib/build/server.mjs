@@ -60,13 +60,6 @@ export default async function serverBuild(root, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
-        {
-          find: "use-sync-external-store/shim/with-selector.js",
-          replacement: join(
-            sys.rootDir,
-            "use-sync-external-store/shim/with-selector.mjs"
-          ),
-        },
         ...(config.resolve?.alias ?? []),
       ],
       conditions: ["react-server"],
@@ -134,7 +127,6 @@ export default async function serverBuild(root, options) {
                   ),
         },
         external(id) {
-          const noExternal = [/^use-sync-external-store\/shim\/with-selector/];
           const external = [
             /manifest\.json/,
             /^bun:/,
@@ -157,14 +149,6 @@ export default async function serverBuild(root, options) {
               (mod instanceof RegExp && mod.test(id))
             ) {
               return true;
-            }
-          }
-          for (const mod of noExternal) {
-            if (
-              (typeof mod === "string" && id === mod) ||
-              (mod instanceof RegExp && mod.test(id))
-            ) {
-              return false;
             }
           }
           return false;

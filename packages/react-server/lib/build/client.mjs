@@ -78,13 +78,6 @@ export default async function clientBuild(_, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
-        {
-          find: "use-sync-external-store/shim/with-selector.js",
-          replacement: join(
-            sys.rootDir,
-            "use-sync-external-store/shim/with-selector.mjs"
-          ),
-        },
         ...clientAlias(options.dev),
         ...(config.resolve?.alias ?? []),
       ],

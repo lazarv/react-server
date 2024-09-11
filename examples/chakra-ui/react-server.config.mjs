@@ -8,11 +8,12 @@ export default {
     include: ["**/layout.jsx"],
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("@mui/")) {
-            return "@mui/material";
+          if (id.includes("@chakra-ui/react")) {
+            return "@chakra-ui/react";
           }
         },
       },

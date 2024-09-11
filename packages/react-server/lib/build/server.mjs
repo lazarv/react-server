@@ -13,6 +13,7 @@ import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
+import rootModule from "../plugins/root-module.mjs";
 import * as sys from "../sys.mjs";
 import {
   filterOutVitePluginReact,
@@ -180,57 +181,7 @@ export default async function serverBuild(root, options) {
           rollupUseClient("server", clientManifest),
           rollupUseServer("rsc", serverManifest),
           rollupUseServerInline(serverManifest),
-          {
-            name: "react-server:root-module",
-            transform(code, id) {
-              if (!root || root?.startsWith("virtual:")) return null;
-              const [module, name] = root.split("#");
-              const rootModule = __require.resolve(module, { paths: [cwd] });
-
-              if (id === rootModule) {
-                const ast = this.parse(code, { sourceType: "module" });
-
-                const defaultExport = ast.body.find(
-                  (node) => node.type === "ExportDefaultDeclaration"
-                );
-                const namedExports = ast.body
-                  .filter(
-                    (node) =>
-                      node.type === "ExportNamedDeclaration" && node.declaration
-                  )
-                  .map((node) => node.declaration.id.name);
-                const allExports = ast.body
-                  .filter(
-                    (node) =>
-                      node.type === "ExportNamedDeclaration" &&
-                      node.specifiers.length > 0
-                  )
-                  .flatMap((node) => node.specifiers)
-                  .map((node) => node.exported.name);
-
-                const rootName = name ?? "default";
-                if (
-                  (rootName === "default" &&
-                    !defaultExport &&
-                    !allExports?.find((name) => name === "default")) ||
-                  (rootName !== "default" &&
-                    !namedExports.find((name) => name === rootName) &&
-                    !allExports?.find((name) => name === rootName))
-                ) {
-                  throw new Error(
-                    `Module "${rootModule}" does not export "${rootName}"`
-                  );
-                }
-
-                if (name && name !== "default") {
-                  return {
-                    code: `${code}\nexport { ${name} as default };`,
-                    map: null,
-                  };
-                }
-              }
-            },
-          },
+          rootModule(root),
           ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },

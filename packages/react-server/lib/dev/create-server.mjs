@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -38,6 +39,8 @@ import staticWatchHandler from "../handlers/static-watch.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import { alias, moduleAliases } from "../loader/module-alias.mjs";
 import { applyAlias } from "../loader/utils.mjs";
+import asset from "../plugins/asset.mjs";
+import optimizeDeps from "../plugins/optimize-deps.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
@@ -47,12 +50,7 @@ import useServerInline from "../plugins/use-server-inline.mjs";
 import * as sys from "../sys.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
-import {
-  bareImportRE,
-  findPackageRoot,
-  isModule,
-  tryStat,
-} from "../utils/module.mjs";
+import { bareImportRE, findPackageRoot, tryStat } from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
@@ -156,18 +154,8 @@ export default async function createServer(root, options) {
       useServer(),
       useServerInline(),
       ...filterOutVitePluginReact(config.plugins),
-      {
-        name: "react-server:asset",
-        transform(code) {
-          if (code.startsWith(`export default "/@fs${cwd}`)) {
-            return code.replace(
-              `export default "/@fs${cwd}`,
-              `export default "`
-            );
-          }
-          return null;
-        },
-      },
+      asset(),
+      optimizeDeps(),
     ],
     cacheDir: join(cwd, options.outDir, ".cache/client"),
     resolve: {
@@ -178,26 +166,6 @@ export default async function createServer(root, options) {
         {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
-        },
-        // compatibility entries
-        {
-          find: "use-sync-external-store/shim/with-selector.js",
-          replacement: join(
-            sys.rootDir,
-            "use-sync-external-store/shim/with-selector.mjs"
-          ),
-        },
-        {
-          find: "hoist-non-react-statics",
-          replacement: "hoist-non-react-statics/src/index.js",
-        },
-        {
-          find: "prop-types",
-          replacement: "prop-types",
-        },
-        {
-          find: "react-is",
-          replacement: "react-is",
         },
         ...(config.resolve?.alias ?? []),
       ],
@@ -329,24 +297,13 @@ export default async function createServer(root, options) {
       ? config.vite(devServerConfig) ?? devServerConfig
       : merge(devServerConfig, config.vite);
 
-  const tryToOptimize = (dep) => {
+  if (options.force) {
     try {
-      __require.resolve(dep, { paths: [cwd] });
-      viteConfig.optimizeDeps.include = [
-        ...(viteConfig.optimizeDeps.include ?? []),
-        dep,
-      ];
-      viteConfig.resolve.external = [
-        ...(viteConfig.resolve.external ?? []),
-        dep,
-      ];
-    } catch (e) {
-      // no prop-types
+      await rm(viteConfig.cacheDir, { recursive: true });
+    } catch {
+      // ignore
     }
-  };
-
-  tryToOptimize("prop-types");
-  tryToOptimize("react-is");
+  }
 
   const viteDevServer = await createViteDevServer(viteConfig);
   viteDevServer.environments.client.hot = viteDevServer.ws;
@@ -391,63 +348,27 @@ export default async function createServer(root, options) {
   );
 
   const reactServerAlias = moduleAliases("react-server");
-
-  const originalDirectRequest = moduleRunner.directRequest;
-  moduleRunner.directRequest = async (id, mod, callstack) => {
-    try {
-      return await originalDirectRequest.call(moduleRunner, id, mod, callstack);
-    } catch (e) {
-      return {
-        externalize: id,
-      };
-    }
-  };
-
   const originalFetchModule = moduleRunner.transport.fetchModule;
   moduleRunner.transport.fetchModule = async (specifier, parentId, meta) => {
     const alias = applyAlias(reactServerAlias, specifier);
-    const id = tryStat(alias) ? alias : specifier;
+    if (alias !== specifier && tryStat(alias)) {
+      return {
+        externalize: specifier,
+        type: "commonjs",
+      };
+    }
     try {
-      const resolved = await originalFetchModule.call(
+      return await originalFetchModule.call(
         moduleRunner.transport,
-        id,
+        specifier,
         parentId,
         meta
       );
-      if (!resolved.file || !/\.[mc]?js$/.test(resolved.file)) {
-        return resolved;
-      }
-      if (
-        resolved.file &&
-        /node_modules/.test(resolved.file) &&
-        !isModule(resolved.file)
-      ) {
-        const externalized = {
-          externalize: resolved.file,
-          type: "commonjs",
-        };
-        return externalized;
-      }
-      return resolved;
-    } catch (e) {
-      try {
-        const resolved = import.meta.resolve(id);
-        const resolvedIsModule = isModule(resolved);
-        if (resolvedIsModule) {
-          return {
-            externalize: resolved,
-            type: "module",
-          };
-        }
-        return {
-          externalize: id,
-          type: "commonjs",
-        };
-      } catch (e) {
-        return {
-          externalize: id,
-        };
-      }
+    } catch {
+      return {
+        externalize: specifier,
+        type: "module",
+      };
     }
   };
 

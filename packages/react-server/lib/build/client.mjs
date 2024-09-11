@@ -2,7 +2,6 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { createHash } from "node:crypto";
 
 import replace from "@rollup/plugin-replace";
 import colors from "picocolors";

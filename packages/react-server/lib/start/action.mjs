@@ -1,6 +1,7 @@
 import cluster from "node:cluster";
 import { once } from "node:events";
 import { createRequire } from "node:module";
+import { isIPv6 } from "node:net";
 import { availableParallelism } from "node:os";
 import { pathToFileURL } from "node:url";
 
@@ -68,7 +69,7 @@ async function worker(root, options) {
       logger.info(
         `worker #${process.pid} listening on ${
           config.server?.https || options.https ? "https" : "http"
-        }://${listenerHost}:${listener.address().port} in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
+        }://${isIPv6(listenerHost) ? `[${listenerHost}]` : listenerHost}:${listener.address().port} in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
       );
     } else {
       getServerAddresses(listener).forEach((address) =>

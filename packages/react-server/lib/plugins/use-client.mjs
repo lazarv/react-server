@@ -102,6 +102,17 @@ export default function useClient(type, manifest, enforce) {
             "Cannot use both 'use client' and 'use server' in the same module."
           );
 
+        const workspacePath = manifest
+          ? (id) => {
+              return sys
+                .normalizePath(relative(cwd, id))
+                .replace(/^(?:\.\.\/)+/, (match) =>
+                  match.replace(/\.\.\//g, "__/")
+                )
+                .replace(/\/\./g, "/_");
+            }
+          : (id) => sys.normalizePath(relative(cwd, id));
+
         const defaultExport = ast.body.some(
           (node) =>
             node.type === "ExportDefaultDeclaration" ||
@@ -111,7 +122,7 @@ export default function useClient(type, manifest, enforce) {
               ))
         )
           ? `export default function _default() { throw new Error("Attempted to call the default export of ${sys.normalizePath(relative(cwd, id))} from the server but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); };
-registerClientReference(_default, "${sys.normalizePath(relative(cwd, id))}", "default");`
+registerClientReference(_default, "${workspacePath(id)}", "default");`
           : "";
         const namedExports = ast.body
           .filter((node) => node.type === "ExportNamedDeclaration")
@@ -125,7 +136,7 @@ registerClientReference(_default, "${sys.normalizePath(relative(cwd, id))}", "de
               name === "default"
                 ? ""
                 : `export function ${name}() { throw new Error("Attempted to call ${name}() from the server but ${name} is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); };
-registerClientReference(${name}, "${sys.normalizePath(relative(cwd, id))}", "${name}");`
+registerClientReference(${name}, "${workspacePath(id)}", "${name}");`
             );
           })
           .concat(
@@ -171,7 +182,7 @@ registerClientReference(${name}, "${sys.normalizePath(relative(cwd, id))}", "${n
 
         if (manifest) {
           const specifier = relative(cwd, id);
-          const name = specifier
+          const name = workspacePath(specifier)
             .replace(extname(specifier), "")
             .replace(relative(cwd, sys.rootDir), "@lazarv/react-server");
           manifest.set(name, id);

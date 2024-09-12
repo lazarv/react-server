@@ -191,7 +191,9 @@ window.addEventListener("popstate", () => {
     });
   } else {
     const activeOutlets = new Set(outlets.keys());
-    activeOutlets.delete(PAGE_ROOT);
+    if (activeOutlets.has(PAGE_ROOT) && activeOutlets.size > 1) {
+      activeOutlets.delete(PAGE_ROOT);
+    }
     for (const outlet of activeOutlets) {
       const key = `${outlet}:${location.href}`;
       if (flightCache.has(key)) {

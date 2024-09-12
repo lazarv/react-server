@@ -48,13 +48,17 @@ remoteTransport.fetchModule = async (id, importer) => {
   try {
     return await remoteTransport.resolve("fetchModule", id, importer);
   } catch (e) {
-    const packageRoot = realpathSync(findPackageRoot(importer));
-    let parentPath = join(packageRoot, "..");
-    while (basename(parentPath) !== "node_modules") {
+    try {
+      const packageRoot = realpathSync(findPackageRoot(importer));
+      let parentPath = join(packageRoot, "..");
+      while (basename(parentPath) !== "node_modules") {
+        parentPath = join(parentPath, "..");
+      }
       parentPath = join(parentPath, "..");
+      return await remoteTransport.resolve("fetchModule", id, parentPath);
+    } catch (e) {
+      return { externalize: id };
     }
-    parentPath = join(parentPath, "..");
-    return await remoteTransport.resolve("fetchModule", id, parentPath);
   }
 };
 const moduleRunner = new ModuleRunner(

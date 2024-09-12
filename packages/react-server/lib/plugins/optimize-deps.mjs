@@ -10,18 +10,19 @@ export default function optimizeDeps() {
     enforce: "pre",
     async resolveId(specifier, importer, resolveOptions) {
       try {
-        const resolved = await this.resolve(specifier, importer, {
-          ...resolveOptions,
-          skipSelf: true,
-          custom: { ...resolveOptions.custom, "vite:pre-alias": true },
-        });
+        const resolved = await this.resolve(
+          specifier,
+          importer,
+          resolveOptions
+        );
         const path = resolved?.id?.split("?")[0];
         if (
           this.environment.name === "client" &&
-          !this.environment.depsOptimizer.isOptimizedDepFile(specifier) &&
+          !this.environment.depsOptimizer?.isOptimizedDepFile(specifier) &&
           path &&
-          /[cm]?js$/.test(path) &&
-          bareImportRE.test(specifier) &&
+          /\.[cm]?js$/.test(path) &&
+          (bareImportRE.test(specifier) ||
+            (specifier[0] !== "." && specifier[0] !== "/")) &&
           applyAlias(alias, specifier) === specifier &&
           !isModule(path) &&
           tryStat(path)?.isFile()
@@ -41,8 +42,9 @@ export default function optimizeDeps() {
             // ignore
           }
         }
-        return resolved;
+        return resolved || { externalize: specifier };
       } catch {
+        return { externalize: specifier };
         // ignore
       }
     },

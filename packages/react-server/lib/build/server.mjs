@@ -88,6 +88,7 @@ export default async function serverBuild(root, options) {
         preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: false,
+          ...config.build?.rollupOptions?.treeshake,
         },
         output: {
           dir: options.outDir,

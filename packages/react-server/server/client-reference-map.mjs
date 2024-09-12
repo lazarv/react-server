@@ -22,7 +22,13 @@ export const clientReferenceMap = ({ remote, origin }) =>
             };
           } else {
             def = {
-              id: `${remote ? origin : ""}/${manifest.browser[id].file}`,
+              id: `${remote ? origin : ""}/${
+                manifest.browser[
+                  id.replace(/^(?:__\/)+/, (match) =>
+                    match.replace(/__\//g, "../")
+                  )
+                ]?.file
+              }`,
               chunks: [],
               name,
               async: true,

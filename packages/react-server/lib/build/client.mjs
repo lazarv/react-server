@@ -96,6 +96,7 @@ export default async function clientBuild(_, options) {
         preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: false,
+          ...config.build?.rollupOptions?.treeshake,
         },
         external: [
           ...(config.resolve?.shared ?? []),

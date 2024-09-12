@@ -157,7 +157,7 @@ export default async function createServer(root, options) {
       asset(),
       optimizeDeps(),
     ],
-    cacheDir: join(cwd, options.outDir, ".cache/client"),
+    cacheDir: join(cwd, "node_modules", options.outDir, ".cache/client"),
     resolve: {
       ...config.resolve,
       preserveSymlinks: true,
@@ -226,7 +226,12 @@ export default async function createServer(root, options) {
               {
                 ...config,
                 root: sys.rootDir,
-                cacheDir: join(cwd, options.outDir, ".cache/ssr"),
+                cacheDir: join(
+                  cwd,
+                  "node_modules",
+                  options.outDir,
+                  ".cache/ssr"
+                ),
                 resolve: {
                   ...config.resolve,
                   alias: [
@@ -281,7 +286,12 @@ export default async function createServer(root, options) {
               {
                 ...config,
                 root: sys.rootDir,
-                cacheDir: join(cwd, options.outDir, ".cache/rsc"),
+                cacheDir: join(
+                  cwd,
+                  "node_modules",
+                  options.outDir,
+                  ".cache/rsc"
+                ),
               },
               {}
             );

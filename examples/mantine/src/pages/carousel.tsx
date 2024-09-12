@@ -1,21 +1,21 @@
-import MyRichTextEditor from "../components/MyRichTextEditor";
+import MyCarousel from "../components/MyCarousel";
 
-export default async function RtePage() {
+export default async function CarouselsPage() {
   const data = await getData();
 
   return (
     <div>
       <title>{data.title}</title>
       <h1>{data.headline}</h1>
-      <MyRichTextEditor />
+      <MyCarousel />
     </div>
   );
 }
 
 const getData = async () => {
   const data = {
-    title: "Ext / Rich text editor",
-    headline: "Extentions / Rich text editor",
+    title: "Ext / Carousels",
+    headline: "Extentions / Carousels",
   };
 
   return data;

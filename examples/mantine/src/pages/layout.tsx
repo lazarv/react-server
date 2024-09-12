@@ -9,6 +9,7 @@ import "@mantine/tiptap/styles.css";
 
 import { ColorSchemeScript, createTheme, MantineProvider } from "@mantine/core";
 
+import { AppLayout } from "../components/AppLayout";
 import ModalsProvider from "../components/ModalsProvider";
 import Notifications from "../components/Notifications";
 
@@ -25,9 +26,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <body>
         <MantineProvider theme={theme}>
           <ModalsProvider>
-            <h1>Layout</h1>
-            {children}
             <Notifications />
+            <AppLayout>{children}</AppLayout>
           </ModalsProvider>
         </MantineProvider>
       </body>

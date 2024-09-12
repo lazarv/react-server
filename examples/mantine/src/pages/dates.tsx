@@ -1,18 +1,13 @@
-import { Link } from "@lazarv/react-server/navigation";
+import MyDates from "../components/MyDates";
 
-import MyCarousel from "../components/MyCarousel";
-
-export default async function CarouselsPage() {
+export default async function DatesPage() {
   const data = await getData();
 
   return (
     <div>
       <title>{data.title}</title>
       <h1>{data.headline}</h1>
-      <MyCarousel />
-      <Link to="/" className="mt-4 inline-block underline">
-        Return home
-      </Link>
+      <MyDates />
     </div>
   );
 }

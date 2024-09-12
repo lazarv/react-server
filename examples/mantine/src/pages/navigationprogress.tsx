@@ -1,5 +1,3 @@
-import { Link } from "@lazarv/react-server/navigation";
-
 import MyNavigationProgress from "../components/MyNavigationProgress";
 
 export default async function NavigationProgressesPage() {
@@ -10,9 +8,6 @@ export default async function NavigationProgressesPage() {
       <title>{data.title}</title>
       <h1>{data.headline}</h1>
       <MyNavigationProgress />
-      <Link to="/" className="mt-4 inline-block underline">
-        Return home
-      </Link>
     </div>
   );
 }

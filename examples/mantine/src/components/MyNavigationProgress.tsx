@@ -5,7 +5,7 @@ import { NavigationProgress, nprogress } from "@mantine/nprogress";
 export default function MyNavigationProgress() {
   return (
     <>
-      <NavigationProgress />
+      <NavigationProgress size={10} withinPortal={true} />
       <Group justify="center">
         <Button onClick={() => nprogress.start()}>Start</Button>
         <Button onClick={() => nprogress.stop()}>Stop</Button>

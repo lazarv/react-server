@@ -14,6 +14,7 @@ import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
 import rootModule from "../plugins/root-module.mjs";
+import fileRouter from "../plugins/file-router/plugin.mjs";
 import * as sys from "../sys.mjs";
 import {
   filterOutVitePluginReact,
@@ -27,15 +28,7 @@ const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
 export default async function serverBuild(root, options) {
-  let reactServerRouterModule;
-  try {
-    reactServerRouterModule = __require.resolve("@lazarv/react-server-router", {
-      paths: [cwd],
-    });
-  } catch {
-    // ignore
-    root ||= "virtual:react-server-eval.jsx";
-  }
+  root ||= "@lazarv/react-server/file-router";
 
   banner("server", options.dev);
   const config = forRoot();
@@ -121,7 +114,7 @@ export default async function serverBuild(root, options) {
               : root?.startsWith("virtual:")
                 ? root
                 : __require.resolve(
-                    root?.split("#")?.[0] ?? "@lazarv/react-server-router",
+                    root?.split("#")?.[0] ?? "@lazarv/react-server/file-router",
                     {
                       paths: [cwd],
                     }
@@ -172,21 +165,9 @@ export default async function serverBuild(root, options) {
       },
     },
     plugins: [
-      ...(reactServerRouterModule &&
-      (!root || root === "@lazarv/react-server-router")
-        ? [
-            (async () =>
-              (
-                await import(
-                  pathToFileURL(
-                    __require.resolve("@lazarv/react-server-router/plugin", {
-                      paths: [cwd],
-                    })
-                  )
-                )
-              ).default())(options),
-          ]
-        : []),
+      !root || root === "@lazarv/react-server/file-router"
+        ? fileRouter(options)
+        : [],
       reactServerEval(options),
       ...buildPlugins,
     ],

@@ -15,7 +15,6 @@
     "@emotion/styled": "^11.13.0",
     "@fontsource/roboto": "^5.0.14",
     "@lazarv/react-server": "workspace:^",
-    "@lazarv/react-server-router": "workspace:^",
     "@mui/icons-material": "^6.0.2",
     "@mui/material": "^6.0.2",
     "@mui/styled-engine": "^6.0.2",

@@ -22,6 +22,7 @@ export async function loadConfig(initialConfig, options = {}) {
       [
         "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
         "!**/node_modules",
+        "!*/**/vite.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
       ],
       {
         cwd,

@@ -12,7 +12,6 @@
     "@docsearch/react": "3",
     "@lazarv/react-server": "workspace:^",
     "@lazarv/react-server-adapter-vercel": "workspace:^",
-    "@lazarv/react-server-router": "workspace:^",
     "@uidotdev/usehooks": "^2.4.1",
     "@vercel/analytics": "^1.3.1",
     "@vercel/speed-insights": "^1.0.12",

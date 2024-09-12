@@ -107,9 +107,6 @@ importers:
       '@lazarv/react-server-adapter-vercel':
         specifier: workspace:^
         version: link:../packages/react-server-adapter-vercel
-      '@lazarv/react-server-router':
-        specifier: workspace:^
-        version: link:../packages/react-server-router
       '@uidotdev/usehooks':
         specifier: ^2.4.1
         version: 2.4.1(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
@@ -121,7 +118,7 @@ importers:
         version: 1.0.12(next@14.2.8(@babel/core@7.24.7)(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)(sass@1.77.6))(react@19.0.0-rc-a7d1240c-20240731)
       '@vitejs/plugin-react-swc':
         specifier: ^3.7.0
-        version: 3.7.0(@swc/helpers@0.5.5)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1))
+        version: 3.7.0(@swc/helpers@0.5.5)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1))
       highlight.js:
         specifier: ^11.9.0
         version: 11.9.0
@@ -139,14 +136,14 @@ importers:
         version: 4.0.0
       vite-plugin-svgr:
         specifier: ^4.2.0
-        version: 4.2.0(rollup@4.18.0)(typescript@5.5.2)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1))
+        version: 4.2.0(rollup@4.18.0)(typescript@5.5.2)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1))
     devDependencies:
       '@types/react':
         specifier: ^18.3.2
         version: 18.3.3
       autoprefixer:
         specifier: ^10.4.19
-        version: 10.4.19(postcss@8.4.45)
+        version: 10.4.19(postcss@8.4.39)
       concurrently:
         specifier: ^8.2.2
         version: 8.2.2
@@ -171,9 +168,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../../packages/react-server
-      '@lazarv/react-server-router':
-        specifier: workspace:^
-        version: link:../../packages/react-server-router
       framer-motion:
         specifier: ^11.5.4
         version: 11.5.4(@emotion/is-prop-valid@1.3.0)(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
@@ -202,9 +196,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../../packages/react-server
-      '@lazarv/react-server-router':
-        specifier: workspace:^
-        version: link:../../packages/react-server-router
       '@mantine/carousel':
         specifier: ^7.12.2
         version: 7.12.2(@mantine/core@7.12.2(@mantine/hooks@7.12.2)(@types/react@18.3.5)(react-dom@19.0.0-rc-3208e73e-20240730))(@mantine/hooks@7.12.2)(embla-carousel-react@8.2.1)(react-dom@19.0.0-rc-3208e73e-20240730)
@@ -314,9 +305,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../../packages/react-server
-      '@lazarv/react-server-router':
-        specifier: workspace:^
-        version: link:../../packages/react-server-router
       '@mui/icons-material':
         specifier: ^6.0.2
         version: 6.0.2(@mui/material@6.0.2(@emotion/react@11.13.3(@types/react@18.3.5)(react@19.0.0-rc-a7d1240c-20240731))(@emotion/styled@11.13.0(@emotion/react@11.13.3(@types/react@18.3.5)(react@19.0.0-rc-a7d1240c-20240731))(@types/react@18.3.5)(react@19.0.0-rc-a7d1240c-20240731))(@types/react@18.3.5)(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731))(@types/react@18.3.5)(react@19.0.0-rc-a7d1240c-20240731)
@@ -432,9 +420,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../../packages/react-server
-      '@lazarv/react-server-router':
-        specifier: workspace:^
-        version: link:../../packages/react-server-router
       react-click-away-listener:
         specifier: ^2.2.3
         version: 2.2.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
@@ -460,9 +445,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../../packages/react-server
-      '@lazarv/react-server-router':
-        specifier: workspace:^
-        version: link:../../packages/react-server-router
       '@tanstack/react-query':
         specifier: ^5.52.2
         version: 5.54.1(react@19.0.0-rc-a7d1240c-20240731)
@@ -516,9 +498,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../../packages/react-server
-      '@lazarv/react-server-router':
-        specifier: workspace:^
-        version: link:../../packages/react-server-router
       '@tanstack/react-router':
         specifier: ^1.40.0
         version: 1.43.3(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)
@@ -550,9 +529,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../../packages/react-server
-      '@lazarv/react-server-router':
-        specifier: workspace:^
-        version: link:../../packages/react-server-router
       better-sqlite3:
         specifier: ^10.0.0
         version: 10.1.0
@@ -602,6 +578,9 @@ importers:
       '@hattip/multipart':
         specifier: ^0.0.34
         version: 0.0.34
+      '@mdx-js/rollup':
+        specifier: ^3.0.1
+        version: 3.0.1(rollup@4.18.0)
       '@rollup/plugin-replace':
         specifier: ^5.0.2
         version: 5.0.7(rollup@4.18.0)
@@ -644,6 +623,9 @@ importers:
       filesize:
         specifier: ^10.0.12
         version: 10.1.2
+      micromatch:
+        specifier: ^4.0.5
+        version: 4.0.7
       mime:
         specifier: ^3.0.0
         version: 3.0.0
@@ -674,6 +656,12 @@ importers:
       react-server-dom-webpack:
         specifier: 0.0.0-experimental-58af67a8f8-20240628
         version: 0.0.0-experimental-58af67a8f8-20240628(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)(webpack@5.90.1(@swc/core@1.6.6(@swc/helpers@0.5.5))(esbuild@0.19.12))
+      remark-frontmatter:
+        specifier: ^5.0.0
+        version: 5.0.0
+      remark-mdx-frontmatter:
+        specifier: ^4.0.0
+        version: 4.0.0
       rimraf:
         specifier: ^5.0.1
         version: 5.0.7
@@ -717,40 +705,6 @@ importers:
       picocolors:
         specifier: ^1.0.0
         version: 1.0.1
-    devDependencies:
-      '@lazarv/react-server':
-        specifier: workspace:^
-        version: link:../react-server
-
-  packages/react-server-router:
-    dependencies:
-      '@mdx-js/rollup':
-        specifier: ^3.0.1
-        version: 3.0.1(rollup@4.18.0)
-      '@types/react':
-        specifier: ^18.2.14
-        version: 18.3.3
-      '@types/react-dom':
-        specifier: ^18.2.6
-        version: 18.3.0
-      chokidar:
-        specifier: ^3.5.3
-        version: 3.6.0
-      fast-glob:
-        specifier: ^3.2.12
-        version: 3.3.2
-      micromatch:
-        specifier: ^4.0.5
-        version: 4.0.7
-      picocolors:
-        specifier: ^1.0.0
-        version: 1.0.1
-      remark-frontmatter:
-        specifier: ^5.0.0
-        version: 5.0.0
-      remark-mdx-frontmatter:
-        specifier: ^4.0.0
-        version: 4.0.0
     devDependencies:
       '@lazarv/react-server':
         specifier: workspace:^
@@ -11450,10 +11404,10 @@ snapshots:
       next: 14.2.8(@babel/core@7.24.7)(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)(sass@1.77.6)
       react: 19.0.0-rc-a7d1240c-20240731
 
-  '@vitejs/plugin-react-swc@3.7.0(@swc/helpers@0.5.5)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1))':
+  '@vitejs/plugin-react-swc@3.7.0(@swc/helpers@0.5.5)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1))':
     dependencies:
       '@swc/core': 1.6.6(@swc/helpers@0.5.5)
-      vite: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1)
+      vite: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1)
     transitivePeerDependencies:
       - '@swc/helpers'
 
@@ -11824,16 +11778,6 @@ snapshots:
       normalize-range: 0.1.2
       picocolors: 1.0.1
       postcss: 8.4.39
-      postcss-value-parser: 4.2.0
-
-  autoprefixer@10.4.19(postcss@8.4.45):
-    dependencies:
-      browserslist: 4.23.1
-      caniuse-lite: 1.0.30001638
-      fraction.js: 4.3.7
-      normalize-range: 0.1.2
-      picocolors: 1.0.1
-      postcss: 8.4.45
       postcss-value-parser: 4.2.0
 
   available-typed-arrays@1.0.7:
@@ -16002,7 +15946,7 @@ snapshots:
       estree-util-value-to-estree: 3.1.2
       toml: 3.0.0
       unified: 11.0.5
-      yaml: 2.4.5
+      yaml: 2.5.0
 
   remark-mdx@3.0.1:
     dependencies:
@@ -17072,12 +17016,12 @@ snapshots:
       - supports-color
       - terser
 
-  vite-plugin-svgr@4.2.0(rollup@4.18.0)(typescript@5.5.2)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1)):
+  vite-plugin-svgr@4.2.0(rollup@4.18.0)(typescript@5.5.2)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1)):
     dependencies:
       '@rollup/pluginutils': 5.1.0(rollup@4.18.0)
       '@svgr/core': 8.1.0(typescript@5.5.2)
       '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@5.5.2))
-      vite: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1)
+      vite: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1)
     transitivePeerDependencies:
       - rollup
       - supports-color
@@ -17110,6 +17054,20 @@ snapshots:
       sass: 1.77.6
       stylus: 0.62.0
       sugarss: 4.0.1(postcss@8.4.45)
+      terser: 5.31.1
+
+  vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1):
+    dependencies:
+      esbuild: 0.21.5
+      postcss: 8.4.45
+      rollup: 4.18.0
+    optionalDependencies:
+      '@types/node': 20.14.9
+      fsevents: 2.3.3
+      less: 4.2.0
+      sass: 1.77.6
+      stylus: 0.62.0
+      sugarss: 4.0.1(postcss@8.4.39)
       terser: 5.31.1
 
   vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1):

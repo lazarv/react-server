@@ -6,15 +6,6 @@ import { cwd, rootDir } from "../sys.mjs";
 const __require = createRequire(import.meta.url);
 
 export default function getModules(root) {
-  let reactServerRouterModule;
-  try {
-    reactServerRouterModule = __require.resolve("@lazarv/react-server-router", {
-      paths: [cwd()],
-    });
-  } catch (e) {
-    // ignore
-  }
-
   const entryModule = `${rootDir}/server/render-rsc.jsx`;
   let rootModule;
   const [module, name] = root?.split("#") ?? [];
@@ -23,9 +14,7 @@ export default function getModules(root) {
       ? __require.resolve(module, {
           paths: [cwd()],
         })
-      : reactServerRouterModule
-        ? "@lazarv/react-server-router"
-        : "virtual:react-server-eval.jsx";
+      : "@lazarv/react-server/file-router";
   } catch {
     rootModule = "virtual:react-server-eval.jsx";
   }

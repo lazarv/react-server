@@ -32,8 +32,13 @@ export default async function dev(root, options) {
       try {
         runtime$(CONFIG_CONTEXT, config);
 
+        const isNonInteractiveEnvironment =
+          !process.stdin.isTTY ||
+          process.env.CI === "true" ||
+          process.env.DOCKER_CONTAINER === "true";
+
         const server = await createServer(
-          options.eval || (!process.stdin.isTTY && !process.env.CI)
+          options.eval || isNonInteractiveEnvironment
             ? "virtual:react-server-eval.jsx"
             : root,
           options

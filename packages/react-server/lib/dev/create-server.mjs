@@ -1,7 +1,6 @@
 import { rm } from "node:fs/promises";
-import { createRequire, register } from "node:module";
+import { register } from "node:module";
 import { join, relative } from "node:path";
-import { pathToFileURL } from "node:url";
 import { format } from "node:util";
 import { Worker } from "node:worker_threads";
 
@@ -40,6 +39,7 @@ import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import { alias, moduleAliases } from "../loader/module-alias.mjs";
 import { applyAlias } from "../loader/utils.mjs";
 import asset from "../plugins/asset.mjs";
+import fileRouter from "../plugins/file-router/plugin.mjs";
 import optimizeDeps from "../plugins/optimize-deps.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
@@ -61,7 +61,6 @@ import ssrHandler from "./ssr-handler.mjs";
 alias("react-server");
 register("../loader/node-loader.react-server.mjs", import.meta.url);
 
-const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 const workspaceRoot = findPackageRoot(join(cwd, "..")) ?? cwd;
 
@@ -70,16 +69,6 @@ export default async function createServer(root, options) {
     options.outDir = ".react-server";
   }
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT];
-  let reactServerRouterModule;
-  try {
-    reactServerRouterModule = __require.resolve("@lazarv/react-server-router", {
-      paths: [cwd],
-    });
-  } catch {
-    // ignore
-    root ||= "virtual:react-server-eval.jsx";
-  }
-
   const worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
   runtime$(WORKER_THREAD, worker);
 
@@ -130,21 +119,9 @@ export default async function createServer(root, options) {
       postcss: cwd,
     },
     plugins: [
-      ...(reactServerRouterModule &&
-      (!root || root === "@lazarv/react-server-router")
-        ? [
-            (async () =>
-              (
-                await import(
-                  pathToFileURL(
-                    __require.resolve("@lazarv/react-server-router/plugin", {
-                      paths: [cwd],
-                    })
-                  )
-                )
-              ).default())(options),
-          ]
-        : []),
+      !root || root === "@lazarv/react-server/file-router"
+        ? fileRouter(options)
+        : [],
       resolveWorkspace(),
       reactServerEval(options),
       reactServerRuntime(),

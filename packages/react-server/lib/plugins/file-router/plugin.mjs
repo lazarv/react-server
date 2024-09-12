@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, dirname, join, relative } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadConfig } from "@lazarv/react-server/config";
 import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
@@ -18,11 +18,6 @@ import colors from "picocolors";
 
 const cwd = sys.cwd();
 const __require = createRequire(import.meta.url);
-const reactServerRouterDir = dirname(
-  __require.resolve("@lazarv/react-server-router", {
-    paths: [cwd],
-  })
-);
 
 function mergeOrApply(a, b = {}) {
   if (typeof b === "function") {
@@ -73,7 +68,9 @@ const PAGE_EXTENSION_TYPES = [
 ];
 
 const reactServerRouterDtsTemplate = await readFile(
-  pathToFileURL(join(reactServerRouterDir, "react-server-router.d.ts")),
+  pathToFileURL(
+    join(dirname(fileURLToPath(import.meta.url)), "react-server-router.d.ts")
+  ),
   "utf8"
 );
 
@@ -283,7 +280,7 @@ export default function viteReactServerRouter(options = {}) {
 
     if (viteCommand === "serve" && viteServer) {
       const manifestModule = viteServer.moduleGraph.getModuleById(
-        `virtual:@lazarv/react-server-router/manifest`
+        `virtual:@lazarv/react-server/file-router/manifest`
       );
       if (manifestModule) {
         viteServer.moduleGraph.invalidateModule(manifestModule);
@@ -644,7 +641,7 @@ export default function viteReactServerRouter(options = {}) {
           if (viteServer) {
             const manifestModule =
               viteServer.environments.rsc.moduleGraph.getModuleById(
-                "virtual:@lazarv/react-server-router/manifest"
+                "virtual:@lazarv/react-server/file-router/manifest"
               );
             if (manifestModule) {
               viteServer.environments.rsc.moduleGraph.invalidateModule(
@@ -714,7 +711,7 @@ export default function viteReactServerRouter(options = {}) {
 
           const manifestModule =
             viteServer.environments.rsc.moduleGraph.getModuleById(
-              "virtual:@lazarv/react-server-router/manifest"
+              "virtual:@lazarv/react-server/file-router/manifest"
             );
           if (manifestModule) {
             viteServer.environments.rsc.moduleGraph.invalidateModule(
@@ -730,7 +727,7 @@ export default function viteReactServerRouter(options = {}) {
   }
 
   return {
-    name: "@lazarv/react-server-router",
+    name: "react-server:file-router",
     configureServer(server) {
       viteServer = server;
     },
@@ -847,14 +844,14 @@ export default function viteReactServerRouter(options = {}) {
     },
     resolveId(id) {
       if (
-        id === "@lazarv/react-server-router/manifest" ||
+        id === "@lazarv/react-server/file-router/manifest" ||
         id.startsWith("__react_server_router_page__")
       ) {
         return `virtual:${id}`;
       }
     },
     load(id) {
-      if (id === "virtual:@lazarv/react-server-router/manifest") {
+      if (id === "virtual:@lazarv/react-server/file-router/manifest") {
         const code = `
           ${entry.middlewares
             .map(

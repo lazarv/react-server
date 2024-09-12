@@ -144,13 +144,6 @@ export default async function help() {
   ) {
     const packageManager = await detectPackageManager();
 
-    const installCommand =
-      packageManager === "yarn"
-        ? "yarn add"
-        : packageManager === "pnpm"
-          ? "pnpm add"
-          : "npm install";
-
     const execCommand =
       packageManager === "yarn "
         ? "yarn exec "
@@ -176,7 +169,7 @@ You don't need to do anything else to get started, just create a ${colors.cyan("
 
 Start the development server with ${colors.cyan(`${execCommand}react-server <root>`)} or build your project with ${colors.cyan(`${execCommand}react-server build <root>`)} then start the production server with ${colors.cyan(`${execCommand}react-server start`)} where ${colors.cyan("<root>")} is your entrypoint (like ${colors.cyan("./App.jsx")}). See all available commands by running ${colors.cyan(`${execCommand}react-server --help`)} or read more on how to use ${colors.cyan("@lazarv/react-server")} at ${colors.cyan("https://react-server.dev")}.
 
-Alternatively you can install the ${colors.cyan("@lazarv/react-server-router")} package by running ${colors.cyan(`${installCommand} @lazarv/react-server-router`)} to use the optional file-system based routing then omit the ${colors.cyan("<root>")} in the above commands. Learn more at ${colors.cyan("https://react-server.dev/router")}.
+Alternatively you can use the built-in file-system based routing by omitting the ${colors.cyan("<root>")} in the above commands. Learn more at ${colors.cyan("https://react-server.dev/router")}.
 `,
         maxLineWidth
       )

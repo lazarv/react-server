@@ -12,7 +12,6 @@
   "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
-    "@lazarv/react-server-router": "workspace:^",
     "@mantine/carousel": "^7.12.2",
     "@mantine/charts": "^7.12.2",
     "@mantine/code-highlight": "^7.12.2",

@@ -46,6 +46,7 @@ export function moduleAliases(condition) {
   const reactServerDomWebpackServerEdge = __require.resolve(
     "react-server-dom-webpack/server.edge"
   );
+  const reactIs = __require.resolve("react-is");
   const picocolors = __require.resolve("picocolors");
   let vite;
   try {
@@ -64,6 +65,7 @@ export function moduleAliases(condition) {
     "react-dom/server.edge": reactDomServerEdge,
     "react-server-dom-webpack/client.edge": reactServerDomWebpackClientEdge,
     "react-server-dom-webpack/server.edge": reactServerDomWebpackServerEdge,
+    "react-is": reactIs,
     picocolors,
     vite,
   };

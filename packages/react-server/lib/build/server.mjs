@@ -66,6 +66,7 @@ export default async function serverBuild(root, options) {
       externalConditions: ["react-server"],
       dedupe: [
         "react-server-dom-webpack",
+        "react-is",
         "picocolors",
         "@lazarv/react-server",
         ...(config.resolve?.dedupe ?? []),
@@ -140,6 +141,7 @@ export default async function serverBuild(root, options) {
             "react-server-dom-webpack/client.browser",
             "react-server-dom-webpack/client.edge",
             "react-server-dom-webpack/server.edge",
+            "react-is",
             "picocolors",
             ...(config.build?.rollupOptions?.external ?? []),
             ...(config.external ?? []),
@@ -200,6 +202,7 @@ export default async function serverBuild(root, options) {
         "react",
         "react-dom",
         "react-server-dom-webpack",
+        "react-is",
         ...(config.ssr?.external ?? []),
         ...(config.external ?? []),
       ],

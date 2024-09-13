@@ -1031,7 +1031,7 @@ export default function viteReactServerRouter(options = {}) {
                   entry.pages.find(({ src: entrySrc }) => entrySrc === src)
                     .module
                 }")))?.file;
-                pageStyles.push(...collectStylesheets?.(pageModule));
+                pageStyles.unshift(...collectStylesheets?.(pageModule));
 
                 ${layouts
                   .map(
@@ -1046,7 +1046,7 @@ export default function viteReactServerRouter(options = {}) {
                       entry.pages.find(({ src: entrySrc }) => entrySrc === src)
                         .module
                     }")))?.file;
-                pageStyles.push(...collectStylesheets?.(__react_server_router_layout_css_${i}__));`
+                pageStyles.unshift(...collectStylesheets?.(__react_server_router_layout_css_${i}__));`
                   )
                   .join("\n")}
 
@@ -1059,12 +1059,12 @@ export default function viteReactServerRouter(options = {}) {
                       entry.pages.find(({ src: entrySrc }) => entrySrc === src)
                         .module
                     }"))?.file;
-                pageStyles.push(...collectStylesheets?.(__react_server_router_css_${i}__));`
+                pageStyles.unshift(...collectStylesheets?.(__react_server_router_css_${i}__));`
                   )
                   .join("\n")}
               }`
                   : `const pageModule = __require.resolve("${src}", { paths: [cwd] });
-              pageStyles.push(...collectStylesheets?.(pageModule));
+              pageStyles.unshift(...collectStylesheets?.(pageModule));
 
               ${[
                 ...layouts,
@@ -1078,7 +1078,7 @@ export default function viteReactServerRouter(options = {}) {
                     [src],
                     i
                   ) => `const __react_server_router_css_${i}__ = __require.resolve("${src}", { paths: [cwd] });
-              pageStyles.push(...collectStylesheets?.(__react_server_router_css_${i}__));`
+              pageStyles.unshift(...collectStylesheets?.(__react_server_router_css_${i}__));`
                 )
                 .join("\n")}`
               }

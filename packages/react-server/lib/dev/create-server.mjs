@@ -455,7 +455,7 @@ export default async function createServer(root, options) {
             (mod) => !/\.(css|scss|less)/.test(mod.id)
           );
 
-          styles.push(...importedStyles.map((mod) => mod.url));
+          styles.unshift(...importedStyles.map((mod) => mod.url));
           imports.forEach((mod) => mod.id && collectCss(mod.id));
         }
       }

@@ -1,8 +1,9 @@
+import "@mantine/charts/styles.css";
+
 import { ClientOnly } from "@lazarv/react-server/client";
 
 import MyAreaChart from "../components/charts/AreaChart/MyAreaChart";
 import MyBarChart from "../components/charts/BarChart/MyBarChart";
-import MyLineChart from "../components/charts/LineChart/MyLineChart";
 
 export default async function ChartsPage() {
   const data = await getData();
@@ -19,11 +20,9 @@ export default async function ChartsPage() {
       </div>
       <div>
         <h2>Bar Chart</h2>
-        <MyBarChart />
-      </div>
-      <div>
-        <h2>Bar Chart</h2>
-        <MyLineChart />
+        <ClientOnly>
+          <MyBarChart />
+        </ClientOnly>
       </div>
     </div>
   );

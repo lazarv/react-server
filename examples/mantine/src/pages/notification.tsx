@@ -1,3 +1,5 @@
+import "@mantine/notifications/styles.css";
+
 import MyNotification from "../components/MyNotification";
 
 export default async function NotificationsPage() {

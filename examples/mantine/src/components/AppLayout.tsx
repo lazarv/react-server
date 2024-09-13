@@ -1,8 +1,10 @@
 "use client";
 
 import { Link } from "@lazarv/react-server/navigation";
-import { AppShell, Burger, Group, Title } from "@mantine/core";
+import { AppShell, Burger, Group } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { MantineLogo } from "@mantinex/mantine-logo";
+import { IconPlus } from "@tabler/icons-react";
 
 import AppLogo from "./AppLogo";
 import { MainNavigation } from "./MainNavigation";
@@ -31,8 +33,9 @@ export function AppLayout({
           <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
           <Link to="/" style={{ textDecoration: "none", color: "inherit" }}>
             <Group ml="lg">
-              <AppLogo height={"50px"} width={"50px"} />
-              <Title order={1}>Mantine</Title>
+              <AppLogo height={"32px"} width={"32px"} />
+              <IconPlus size={24} />
+              <MantineLogo size={32} />
             </Group>
           </Link>
         </Group>

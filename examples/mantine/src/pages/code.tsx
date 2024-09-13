@@ -1,3 +1,5 @@
+import "@mantine/code-highlight/styles.css";
+
 import MyCodeHighlight from "../components/MyCodeHighlight";
 
 export default async function FormsPage() {
@@ -14,8 +16,8 @@ export default async function FormsPage() {
 
 const getData = async () => {
   const data = {
-    title: "Ext / CodeHighlight",
-    headline: "Extentions / CodeHighlight",
+    title: "Ext / Code Highlight",
+    headline: "Extentions / Code Highlight",
   };
 
   return data;

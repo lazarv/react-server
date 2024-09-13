@@ -17,6 +17,7 @@ const reactServerDomWebpackClientEdge = __require.resolve(
 const reactServerDomWebpackServerEdge = __require.resolve(
   "react-server-dom-webpack/server.edge"
 );
+const reactIs = __require.resolve("react-is");
 
 export {
   react,
@@ -28,4 +29,5 @@ export {
   reactServerDomWebpackClientBrowser,
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
+  reactIs,
 };

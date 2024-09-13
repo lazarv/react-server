@@ -20,9 +20,3 @@ const getData = async () => {
 
   return data;
 };
-
-export const getConfig = async () => {
-  return {
-    render: "static",
-  };
-};

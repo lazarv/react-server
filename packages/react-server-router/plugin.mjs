@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, dirname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -390,6 +390,7 @@ export default function viteReactServerRouter(options = {}) {
 
     if (viteCommand !== "build") {
       const writeTypedRouter = async () => {
+        await mkdir(join(cwd, outDir), { recursive: true });
         await writeFile(
           join(cwd, outDir, "react-server-router.d.ts"),
           reactServerRouterDts

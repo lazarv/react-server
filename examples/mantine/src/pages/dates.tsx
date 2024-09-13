@@ -1,21 +1,21 @@
-import MyModal from "../components/MyModal";
+import MyDates from "../components/MyDates";
 
-export default async function ModalsManagerPage() {
+export default async function DatesPage() {
   const data = await getData();
 
   return (
     <div>
       <title>{data.title}</title>
       <h1>{data.headline}</h1>
-      <MyModal />
+      <MyDates />
     </div>
   );
 }
 
 const getData = async () => {
   const data = {
-    title: "Ext / Modals manager",
-    headline: "Extentions / Modals manager",
+    title: "Ext / Carousels",
+    headline: "Extentions / Carousels",
   };
 
   return data;

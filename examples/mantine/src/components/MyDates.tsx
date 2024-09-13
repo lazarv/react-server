@@ -1,11 +1,12 @@
 "use client";
 
+import "dayjs/locale/de";
+
 import { useState } from "react";
 
-//import 'dayjs/locale/de';
 import { DateInput } from "@mantine/dates";
 
-export default function MyDate() {
+export default function MyDates() {
   const [value, setValue] = useState<Date | null>(null);
   return (
     <DateInput

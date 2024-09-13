@@ -1,5 +1,3 @@
-import { Link } from "@lazarv/react-server/navigation";
-
 import MyFormSimple from "../components/forms/MyFormSimple";
 
 export default async function FormsPage() {
@@ -10,9 +8,6 @@ export default async function FormsPage() {
       <title>{data.title}</title>
       <h1>{data.headline}</h1>
       <MyFormSimple />
-      <Link to="/" className="mt-4 inline-block underline">
-        Return home
-      </Link>
     </div>
   );
 }

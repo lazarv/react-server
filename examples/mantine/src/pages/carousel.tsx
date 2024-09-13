@@ -1,5 +1,3 @@
-import { Link } from "@lazarv/react-server/navigation";
-
 import MyCarousel from "../components/MyCarousel";
 
 export default async function CarouselsPage() {
@@ -10,9 +8,6 @@ export default async function CarouselsPage() {
       <title>{data.title}</title>
       <h1>{data.headline}</h1>
       <MyCarousel />
-      <Link to="/" className="mt-4 inline-block underline">
-        Return home
-      </Link>
     </div>
   );
 }
@@ -24,10 +19,4 @@ const getData = async () => {
   };
 
   return data;
-};
-
-export const getConfig = async () => {
-  return {
-    render: "static",
-  };
 };

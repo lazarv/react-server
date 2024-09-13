@@ -1,3 +1,5 @@
+import "@mantine/nprogress/styles.css";
+
 import MyNavigationProgress from "../components/MyNavigationProgress";
 
 export default async function NavigationProgressesPage() {
@@ -14,8 +16,8 @@ export default async function NavigationProgressesPage() {
 
 const getData = async () => {
   const data = {
-    title: "Ext / NavigationsProgresses",
-    headline: "Extentions / NavigationsProgresses",
+    title: "Ext / NavigationProgress",
+    headline: "Extentions / NavigationProgress",
   };
 
   return data;

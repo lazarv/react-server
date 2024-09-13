@@ -19,7 +19,12 @@ const getData = async () => {
   const data = {
     title: "@lazarv/react-server",
     headline: "Mantine UI example",
-    body: "This is an example of how to use @lazarv/react-server with Mantine UI.",
+    body: (
+      <>
+        This is an example of how to use <b>@lazarv/react-server</b> with{" "}
+        <b>Mantine UI.</b>
+      </>
+    ),
   };
 
   return data;

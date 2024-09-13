@@ -1,3 +1,5 @@
+import "@mantine/spotlight/styles.css";
+
 import MySpotlight from "../components/MySpotlight";
 
 export default async function SpotlightsPage() {

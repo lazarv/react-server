@@ -26,6 +26,7 @@
     "@mantine/nprogress": "^7.12.2",
     "@mantine/spotlight": "^7.12.2",
     "@mantine/tiptap": "^7.12.2",
+    "@mantinex/mantine-logo": "^1.0.1",
     "@tabler/icons-react": "^3.16.0",
     "@tiptap/extension-highlight": "^2.6.6",
     "@tiptap/extension-link": "^2.6.6",
@@ -37,7 +38,7 @@
     "@tiptap/react": "^2.6.6",
     "@tiptap/starter-kit": "^2.6.6",
     "dayjs": "^1.11.13",
-    "recharts": "2"
+    "recharts": "2.13.0-alpha.5"
   },
   "devDependencies": {
     "@types/react": "^18.3.5",

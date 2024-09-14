@@ -12,7 +12,7 @@ In this tutorial, you will learn how to use client components to create interact
 
 We will build a simple photo gallery application that will use client components for navigation and image display. You will learn how to create client components and handle user interactions.
 
-We will also use the file-system based routing solution provided by `@lazarv/react-server-router` to create routes for our application. This will allow us to navigate between different pages and display the appropriate content.
+We will also use the file-system based routing solution provided by the framework to create routes for our application. This will allow us to navigate between different pages and display the appropriate content.
 
 <Link name="project-setup">
 ## Project setup
@@ -24,7 +24,7 @@ To get started, create a new React application using the following command:
 mkdir photos
 cd photos
 pnpm init
-pnpm add @lazarv/react-server @lazarv/react-server-router react-click-away-listener @faker-js/faker
+pnpm add @lazarv/react-server react-click-away-listener @faker-js/faker
 pnpm add -D @types/react @types/react-dom autoprefixer postcss tailwindcss typescript typescript-plugin-css-modules
 pnpx tailwindcss init -p
 mkdir src
@@ -83,7 +83,7 @@ Our `tsconfig.json` will look like this:
 }
 ```
 
-We enabled the `typescript-plugin-css-modules` plugin to support CSS modules in our project and we also include `.react-server/**/*.ts` files in our project to enable typed routing when using `@lazarv/react-server-router` with the built-in `Link` component.
+We enabled the `typescript-plugin-css-modules` plugin to support CSS modules in our project and we also include `.react-server/**/*.ts` files in our project to enable typed routing when using the file-system based router with the built-in `Link` component.
 
 When using the file-system based router we can specify the root directory for our routes in the `react-server.config.json` file so that the router knows where to look for the routes without crawling the entire project directory tree. This is especially useful for larger projects with many directories and files. Create the `react-server.config.json` file in the root of your project with the following content:
 
@@ -400,7 +400,7 @@ To run the application, add the following scripts to your `package.json` file:
 }
 ```
 
-Using the `@lazarv/react-server-router` package and the file-system based routing, we no longer need to specify the entrypoint of our application. The router will automatically find the routes in the `src/app` directory and render the appropriate component for each route.
+Using the file-system based router, we no longer need to specify the entrypoint of our application. The router will automatically find the routes in the `src/app` directory and render the appropriate component for each route.
 
 Now you can run the application using the following command:
 
@@ -426,4 +426,4 @@ pnpm start
 ## Conclusion
 </Link>
 
-In this tutorial, you learned how to use client components to create interactive elements in your application. You built a simple photo gallery application that uses client components for navigation and image display. You also learned how to create routes for your application using the file-system based routing solution provided by `@lazarv/react-server-router`. You can also find this example application in the [GitHub repository](https://github.com/lazarv/react-server/tree/main/examples/photos) and after cloning the repo and installing the dependencies by executing `pnpm install` you can run the application using the `pnpm --filter ./examples/photos dev` command.
+In this tutorial, you learned how to use client components to create interactive elements in your application. You built a simple photo gallery application that uses client components for navigation and image display. You also learned how to create routes for your application using the file-system based routing solution provided by the framework. You can also find this example application in the [GitHub repository](https://github.com/lazarv/react-server/tree/main/examples/photos) and after cloning the repo and installing the dependencies by executing `pnpm install` you can run the application using the `pnpm --filter ./examples/photos dev` command.

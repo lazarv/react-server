@@ -1,16 +1,14 @@
 ---
 title: Server-side routing
-category: Framework
-order: 2
+category: Router
+order: 0
 ---
 
 import Link from "../../../../components/Link.jsx";
 
 # Server-side routing
 
-> These are core features of the `@lazarv/react-server` framework, so you don't need to install `@lazarv/react-server-router` for these features to work.
-
-The built-in low-level routing solution in `@lazarv/react-server` is sufficient for simple use cases, but it is not recommended for more complex applications. For a more advanced routing solution, install the `@lazarv/react-server-router` package and follow the instructions in the next chapter about the file-system based [Router](/router/install).
+The built-in low-level routing solution in `@lazarv/react-server` is sufficient for simple use cases, but it is not recommended for more complex applications. For a more advanced routing solution, use the [file-system based router](/router/file-router) or a third-party router like [React Router](https://reactrouter.com/) or [TanStack Router](https://tanstack.com/router).
 
 <Link name="routes">
 ## Routes
@@ -235,3 +233,23 @@ export default function App() {
   return rewrite("/user");
 }
 ```
+
+<Link name="middlewares">
+## Middlewares
+</Link>
+
+Middlewares are functions that are executed before the route handler. They can be used for many things, like authentication, logging, parsing, etc.
+
+Export an async function named `init$` from your entry module. This function can initialize your request handler that will be the middleware runner. The `init$` function needs to return with an async function. This function will be the middleware runner.
+
+```jsx
+// index.jsx
+
+export async function init$() {
+  return async (context) {
+    // do something
+  };
+}
+```
+
+You can use all functions available from the `@lazarv/react-server` module in your middleware. You can redirect or rewrite the request, manage cookies or add headers to the response. Everything is available and possible that would be available in a React server component.

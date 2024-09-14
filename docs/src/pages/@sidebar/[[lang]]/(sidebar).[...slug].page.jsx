@@ -43,7 +43,7 @@ export default function PageSidebar({ lang }) {
               ) ? (
                 <a
                   href={`/${lang === defaultLanguage ? "" : `${lang}/`}${category.toLowerCase()}`}
-                  className="mb-2"
+                  className={`mb-2${pathname.includes(`/${lang}/${category.toLowerCase()}`) ? " text-indigo-500 dark:text-yellow-600" : ""}`}
                 >
                   {category}
                 </a>

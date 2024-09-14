@@ -1,3 +1,4 @@
+import { usePathname } from "@lazarv/react-server";
 import { ClientOnly } from "@lazarv/react-server/client";
 
 import GitHub from "../../../../public/github.svg?react";
@@ -7,6 +8,12 @@ import { defaultLanguage } from "../../../const.mjs";
 
 export default function Header({ lang }) {
   const baseUrl = lang === defaultLanguage ? "/" : `/${lang}`;
+  const pathname = usePathname();
+
+  const activeClass = (path) =>
+    pathname.includes(`/${lang}/${path}`)
+      ? " text-indigo-500 dark:text-yellow-600"
+      : "";
 
   return (
     <header>
@@ -20,22 +27,40 @@ export default function Header({ lang }) {
           <h4>@lazarv</h4>
           <h3>react-server</h3>
         </a>
-        <a href={`${baseUrl}guide`} className="ml-auto hidden lg:inline">
+        <a
+          href={`${baseUrl}guide`}
+          className={`ml-auto hidden lg:inline${activeClass("guide")}`}
+        >
           Guide
         </a>
-        <a href={`${baseUrl}framework`} className="hidden lg:inline">
+        <a
+          href={`${baseUrl}framework`}
+          className={`hidden lg:inline${activeClass("framework")}`}
+        >
           Framework
         </a>
-        <a href={`${baseUrl}router`} className="hidden lg:inline">
+        <a
+          href={`${baseUrl}router`}
+          className={`hidden lg:inline${activeClass("router")}`}
+        >
           Router
         </a>
-        <a href={`${baseUrl}deploy`} className="hidden lg:inline">
+        <a
+          href={`${baseUrl}deploy`}
+          className={`hidden lg:inline${activeClass("deploy")}`}
+        >
           Deploy
         </a>
-        <a href={`${baseUrl}tutorials`} className="hidden lg:inline">
+        <a
+          href={`${baseUrl}tutorials`}
+          className={`hidden lg:inline${activeClass("tutorials")}`}
+        >
           Tutorials
         </a>
-        <a href={`${baseUrl}team`} className="mr-auto hidden lg:inline">
+        <a
+          href={`${baseUrl}team`}
+          className={`mr-auto hidden lg:inline${activeClass("team")}`}
+        >
           Team
         </a>
         <ClientOnly>

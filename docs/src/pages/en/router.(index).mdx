@@ -1,16 +1,14 @@
 # Router
 
-When you build a more complex application, you will need a router to handle the routing logic. The `@lazarv/react-server-router` package provides a file-system based router that you can use to define your routes in a simple and declarative way.
+The `@lazarv/react-server` framework includes a file-system based router which is building on top of the framework's own low-level routing solutions and it's very easy to use and configure. If you think this router is too much for your needs, you can use the built-in low-level [server-side router](/router/server-routing) and [client-side navigation](/router/client-navigation) components of the framework or use a third-party router like [React Router](https://reactrouter.com/) or [TanStack Router](https://tanstack.com/router). You can check out the [examples](https://github.com/lazarv/react-server/tree/main/examples) collection on how to use these third-party routers.
 
-This file-system based router is building on top of the framework's built-in low-level routing solutions and it's very easy to use and configure. If you think this router is too much for your needs, you can use the built-in [server-side router](/framework/server-routing) and [client-side navigation](/framework/client-navigation) components of the framework.
+Using the [file-system based router](/router/file-router) is extremely easy and simple. You just omit the entrypoint when using the `react-server` CLI and the router will be used automatically.
 
-[Installing](/router/install) the router is extremely easy and simple. You just need to add the package to your project and you are ready to go.
+You can learn about how to [define your routes](/router/define-routes) and how to [configure the router](/router/configuration) to create layouts, pages and different types of routes like nested routes, dynamic routes and catch-all routes.
 
-You can learn about the [basics](/router/basics) of the router on how to configure the router or how to create layouts, pages and different types of routes.
+You can also create [outlets](/router/outlets) to create reusable parts of your application that can be used in different layouts, while[error handling](/router/error-handling) and [loading](/router/loading) components are also supported in the router.
 
-This router also supports creating [server](/router/server) routes that can be used to create API endpoints or middlewares using the file-system and all the rules you already learned in the basics.
-
-There are some more [advanced](/router/advanced) solutions available in the router, like outlets, error handling or loader components.
+This router also supports creating [middlewares](/router/middlewares) and [API route handlers](/router/api) to create middlewares and API endpoints using the file-system and all the rules you already learned when creating pages and layouts.
 
 This documentation is also the best example that you can use [Markdown](/router/markdown) or MDX files as pages in your application. This is a very simple way to create static pages in your application.
 

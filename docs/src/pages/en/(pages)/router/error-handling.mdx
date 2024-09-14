@@ -1,0 +1,41 @@
+---
+title: Error handling
+category: Router
+order: 5
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Error handling
+
+Error handling is an important part of any application. The file-system based router allows you to define custom error components for each layout of your app. When a page fails to render, the error component will be rendered instead. You can also define a fallback component that will be used when an error occurs during the rendering of a page and no error component is defined for the error.
+
+<Link name="implementation">
+## Implementation
+</Link>
+
+You can define a custom error component by creating a route definition file for any path by using the same rules like normal route files, but named `error.jsx`. This file will be used to render the error component when an error occurs during the rendering of a page.
+
+```jsx
+// (root).error.jsx
+
+export default function Error({ error }) {
+  return <div>{error.message}</div>;
+}
+```
+
+<Link name="fallback">
+## Fallback
+</Link>
+
+You can also define a fallback component by creating a route definition file for any path by using the same rules like normal route files, but named `fallback.jsx`. This file will be used to render the fallback component when an error occurs during the rendering of a page and no error component is defined for the error.
+
+```jsx
+// (root).fallback.jsx
+
+export default function FallbackError({ error }) {
+  return <div>{error.message}</div>;
+}
+```
+
+> **Warning:** you can define an error boundary, error fallback or loading component only for layouts, not for pages.

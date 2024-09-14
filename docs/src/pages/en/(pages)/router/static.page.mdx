@@ -1,14 +1,14 @@
 ---
 title: Static generation
 category: Router
-order: 6
+order: 9
 ---
 
 import Link from "../../../../components/Link.jsx";
 
 # Static generation
 
-When you mark a page as static `@lazarv/react-server-router` will add the page as an export to `@lazarv/react-server`'s exports.
+When you mark a page as static the file-system based router will add the page as an export to `@lazarv/react-server`'s exports.
 
 To mark a page as static, create a file with the matching path for the page with the `.static.{js,mjs,ts,mts,json}` extension and export default an array or a function returning an array of possible parameters for that route. The function can also be an async function.
 
@@ -56,7 +56,7 @@ For example, if you have a page at `/users/:id` you can create a file at `/users
 [{ "id": 1 }, { "id": 2 }, { "id": 3 }]
 ```
 
-> **Note:** we define static routes independently from the page component to separate the concerns of routing and page rendering. This way `@lazarv/react-server-router` doesn't need to import the code defining your page component during build time, which can be useful if you have a large dependency tree for your page component or your code has side-effects.
+> **Note:** we define static routes independently from the page component to separate the concerns of routing and page rendering. This way router doesn't need to import the code defining your page component during build time, which can be useful if you have a large dependency tree for your page component or your code has side-effects.
 
 <Link name="override-static-paths">
 ## Override static paths

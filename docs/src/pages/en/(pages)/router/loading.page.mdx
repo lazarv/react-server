@@ -1,0 +1,29 @@
+---
+title: Loading
+category: Router
+order: 6
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Loading
+
+Loading components are used to render a loading state while the page is being fetched.
+
+<Link name="implementation">
+## Implementation
+</Link>
+
+You can define a custom loading component by creating a route definition file for any path by using the same rules like normal route files, but named `loading.jsx`. This file will be used to render the loader component while the page is being fetched.
+
+```jsx
+// (root).loading.jsx
+
+export default function Loading() {
+  return <div>Loading...</div>;
+}
+```
+
+When you add a loading component or a fallback error component beside your layout, the router will enable partial pre-rendering for the page it renders automatically. To disable partial pre-rendering, add `prerender: false` to your `react-server.config.mjs`. See more details at [Partial pre-rendering](/framework/ppr).
+
+> **Warning:** you can define an error boundary, error fallback or loading component only for layouts, not for pages.

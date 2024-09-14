@@ -1,12 +1,14 @@
 ---
 title: Configuration
 category: Router
-order: 7
+order: 10
 ---
+
+import Link from "../../../../components/Link.jsx";
 
 # Configuration
 
-The router can be configured by creating a `react-server.config.mjs` or `react-server.config.json` file in the root of your project. The configuration file should export a configuration object and it should include the `root` path for your routes. You can also specify a `public` path for your static files. The `@lazarv/react-server-router` package will automatically scaffold the files in the root directory for routing and prepares and builds the routing based on your files in the root directory.
+The router can be configured by creating a `react-server.config.mjs` or `react-server.config.json` file in the root of your project. The configuration file should export a configuration object and it should include the `root` path for your routes. You can also specify a `public` path for your static files. The file-system based router will automatically scaffold the files in the root directory for routing and prepares and builds the routing based on your files in the root directory.
 
 ```js filename="react-server.config.mjs"
 export default {
@@ -15,7 +17,9 @@ export default {
 };
 ```
 
+<Link name="private-files-and-directories">
 ## Private files and directories
+</Link>
 
 You can configure the router to exclude files and directories from the routing by using the `router(config)` function in the configuration. The function should return a configuration object with the `excludes` property containing an array of file and directory names to exclude from the routing. You can use glob patterns to exclude multiple files and directories.
 
@@ -76,7 +80,9 @@ export default {
 };
 ```
 
+<Link name="include-files-and-directories">
 ## Include files and directories
+</Link>
 
 You can configure the router to include only specific files and directories from the routing by using the `router(config)` function in the configuration. The function should return a configuration object with the `includes` property containing an array of file and directory names to include from the routing. You can use glob patterns to include multiple files and directories.
 

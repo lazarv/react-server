@@ -16,4 +16,5 @@ export const clientAlias = (dev) => [
     find: /^react-server-dom-webpack\/client.browser$/,
     replacement: dependencies.reactServerDomWebpackClientBrowser,
   },
+  { find: /^react-is$/, replacement: dependencies.reactIs },
 ];

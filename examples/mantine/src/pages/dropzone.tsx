@@ -14,8 +14,8 @@ export default async function DropzonesPage() {
 
 const getData = async () => {
   const data = {
-    title: "Ext / Dropzones",
-    headline: "Extentions / Dropzones",
+    title: "Ext / Dropzone",
+    headline: "Extentions / Dropzone",
   };
 
   return data;

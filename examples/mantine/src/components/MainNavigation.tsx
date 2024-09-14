@@ -62,19 +62,19 @@ export function MainNavigation({ serverPathname }: { serverPathname: string }) {
       <NavLink
         component={Link}
         to="/navigationprogress"
-        label="Navigation Progress"
+        label="NavigationProgress"
         active={pathname === "/navigationprogress"}
       />
       <NavLink
         component={Link}
         to="/modalsmanager"
-        label="Modals Manager"
+        label="Modals manager"
         active={pathname === "/modalsmanager"}
       />
       <NavLink
         component={Link}
         to="/rte"
-        label="Rich Text Editor"
+        label="Rich text editor"
         active={pathname === "/rte"}
       />
     </>

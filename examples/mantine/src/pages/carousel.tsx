@@ -1,3 +1,5 @@
+import "@mantine/carousel/styles.css";
+
 import MyCarousel from "../components/MyCarousel";
 
 export default async function CarouselsPage() {
@@ -14,8 +16,8 @@ export default async function CarouselsPage() {
 
 const getData = async () => {
   const data = {
-    title: "Ext / Carousels",
-    headline: "Extentions / Carousels",
+    title: "Ext / Carousel",
+    headline: "Extentions / Carousel",
   };
 
   return data;

@@ -111,6 +111,7 @@ export default async function createServer(root, options) {
         "react-dom",
         "react-dom/client",
         "react-server-dom-webpack/client.browser",
+        "react-is",
         ...(config.optimizeDeps?.include ?? []),
       ],
     },
@@ -185,6 +186,7 @@ export default async function createServer(root, options) {
             "react-dom",
             "react-dom/client",
             "react-server-dom-webpack",
+            "react-is",
           ],
           conditions: ["default"],
           externalConditions: ["default"],
@@ -192,6 +194,7 @@ export default async function createServer(root, options) {
             "react",
             "react-dom",
             "react-server-dom-webpack",
+            "react-is",
             "picocolors",
             "@lazarv/react-server",
           ],
@@ -243,6 +246,7 @@ export default async function createServer(root, options) {
             "react",
             "react-dom",
             "react-server-dom-webpack",
+            "react-is",
             ...(config.ssr?.external ?? []),
             ...(config.external ?? []),
           ],
@@ -252,6 +256,7 @@ export default async function createServer(root, options) {
             "react",
             "react-dom",
             "react-server-dom-webpack",
+            "react-is",
             "picocolors",
             "@lazarv/react-server",
           ],
@@ -427,7 +432,7 @@ export default async function createServer(root, options) {
             (mod) => !/\.(css|scss|less)/.test(mod.id)
           );
 
-          styles.push(...importedStyles.map((mod) => mod.url));
+          styles.unshift(...importedStyles.map((mod) => mod.url));
           imports.forEach((mod) => mod.id && collectCss(mod.id));
         }
       }

@@ -136,7 +136,7 @@ export async function init$(type = "server", options = {}) {
     function collectCss(entry) {
       if (!entry) return styles;
       if (entry.css) {
-        styles.push(...entry.css.map((href) => `/${href}`));
+        styles.unshift(...entry.css.map((href) => `/${href}`));
       }
       if (entry.imports) {
         entry.imports.forEach((imported) => collectCss(manifestEnv[imported]));

@@ -1,3 +1,5 @@
+import "@mantine/tiptap/styles.css";
+
 import MyRichTextEditor from "../components/MyRichTextEditor";
 
 export default async function RtePage() {

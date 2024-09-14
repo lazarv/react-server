@@ -1,3 +1,5 @@
+import "@mantine/dates/styles.css";
+
 import MyDates from "../components/MyDates";
 
 export default async function DatesPage() {
@@ -14,8 +16,8 @@ export default async function DatesPage() {
 
 const getData = async () => {
   const data = {
-    title: "Ext / Carousels",
-    headline: "Extentions / Carousels",
+    title: "Ext / Dates",
+    headline: "Extentions / Dates",
   };
 
   return data;

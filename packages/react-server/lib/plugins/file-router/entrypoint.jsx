@@ -1,14 +1,14 @@
 import { dirname } from "node:path";
 
 import { status, useOutlet } from "@lazarv/react-server";
-import { useMatch } from "@lazarv/react-server/router";
-import { context$ } from "@lazarv/react-server/server/context.mjs";
-import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";
 import {
   middlewares,
   pages,
   routes,
-} from "@lazarv/react-server-router/manifest";
+} from "@lazarv/react-server/file-router/manifest";
+import { useMatch } from "@lazarv/react-server/router";
+import { context$ } from "@lazarv/react-server/server/context.mjs";
+import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";
 
 export async function init$() {
   return async (context) => {

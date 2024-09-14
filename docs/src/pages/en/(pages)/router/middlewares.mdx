@@ -1,0 +1,50 @@
+---
+title: Middlewares
+category: Router
+order: 7
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Middlewares
+
+With the file-system based router you can create server middlewares and API routes too. You can use the same routing structure as the basic routing for pages.
+
+You can use all functions available from the `@lazarv/react-server` module in your middlewares and API routes. You can redirect or rewrite the request, manage cookies or add headers to the response. Everything is available and possible that would be available in a React server component.
+
+<Link name="implementation">
+## Implementation
+</Link>
+
+Middlewares are functions that are executed before any route handler. They can be used for many things, like authentication, logging, parsing, etc. To create a middleware route, create a file for the middleware with the `.middleware.{js,mjs,ts,mts}` extension and export default an async function from your module. This function will be the middleware handler. You can either return a response from your middleware to stop executing any futher middlewares or the route handler, or you can omit the return value to continue executing the next middleware or the route handler.
+
+You can use the `usePathname` function to get the pathname and the `useMatch` function to get the matched route. You can also use the `redirect` and `rewrite` functions to redirect or rewrite the request. But you can also use any other helper or hook function from the `@lazarv/react-server` module in your middlewares.
+
+```jsx
+// index.middleware.mjs
+import { redirect, rewrite, usePathname } from "@lazarv/react-server";
+import { useMatch } from "@lazarv/react-server/router";
+
+export default async function MyMiddleware() {
+  const pathname = usePathname();
+
+  const isRedirect = useMatch("/redirect");
+  if (isRedirect) {
+    redirect("/");
+  }
+
+  const isRewrite = useMatch("/rewrite");
+  if (isRewrite) {
+    rewrite("/");
+  }
+
+  const isJson = useMatch("/json");
+  if (isJson) {
+    return new Response(JSON.stringify({ message: "Hello World" }), {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  }
+}
+```

@@ -8,7 +8,7 @@ import Link from "../../../../components/Link.jsx";
 
 # Markdown
 
-`@lazarv/react-server-router` supports Markdown out of the box. Not just standard Markdown files, but also MDX and any plugin for both Remark and Rehype.
+The file-system based router supports Markdown out of the box. Not just standard Markdown files, but also MDX and any plugin for both Remark and Rehype.
 
 <Link name="usage">
 ## Usage
@@ -26,17 +26,17 @@ This is an MDX page.
 
 This route will available at `/readme` instantly.
 
-Because your Markdown/MDX document will be rendered as a React Server Compoennt, it will also support all React features, like client components, loading fallbacks and error boundaries. Like on all standard `@lazarv/react-server-router` pages.
+Because your Markdown/MDX document will be rendered as a React Server Compoennt, it will also support all React features, like client components, loading fallbacks and error boundaries. Like on all standard pages.
 
 Your parent layouts will also be applied to your Markdown/MDX pages.
 
-> **Fun fact:** This documentation website was also created by using MDX with `@lazarv/react-server-router`.
+> **Fun fact:** This documentation website was also created by using MDX with the file-system based router.
 
 <Link name="plugins">
 ## Plugins
 </Link>
 
-You can use any Remark or Rehype plugin with `@lazarv/react-server-router`. Just install the plugin and add it to your `react-server.config.mjs` file. In the following example, we use `remark-gfm` and `rehype-highlight`.
+You can use any Remark or Rehype plugin with the file-system based router. Just install the plugin and add it to your `react-server.config.mjs` file. In the following example, we use `remark-gfm` and `rehype-highlight`.
 
 ```mjs
 import rehypeHighlight from "rehype-highlight";

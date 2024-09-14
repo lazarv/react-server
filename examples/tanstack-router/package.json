@@ -12,7 +12,6 @@
   "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
-    "@lazarv/react-server-router": "workspace:^",
     "@tanstack/react-router": "^1.40.0"
   },
   "devDependencies": {

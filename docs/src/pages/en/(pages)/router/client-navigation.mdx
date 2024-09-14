@@ -1,14 +1,12 @@
 ---
 title: Client-side navigation
-category: Framework
-order: 3
+category: Router
+order: 1
 ---
 
 import Link from "../../../../components/Link.jsx";
 
 # Client-side navigation
-
-> These are core features of the `@lazarv/react-server` framework, so you don't need to install `@lazarv/react-server-router` for these features to work.
 
 After the server has rendered the initial page, the client takes over and handles all subsequent navigation. This can be done by using the client components exported by the `@lazarv/react-server/navigation` module or by the functions exposed by the `useClient` hook from the `@lazarv/react-server/client` module. You can use these functions to navigate to a new page, prefetch a page, or refresh the current page.
 
@@ -16,9 +14,11 @@ It's recommended to use the built-in client components for navigation and refres
 
 Functions exposed by the `useClient` hook are more low-level and should be used only when you need to start a React transition manually.
 
-<Link name="navigation">
-## Navigation
+<Link name="link">
+## Link
 </Link>
+
+You can navigate to a new page by using the `Link` client component exported by the `@lazarv/react-server/navigation` module.
 
 ```jsx
 import { Link } from "@lazarv/react-server/navigation";
@@ -32,24 +32,6 @@ export default function Home() {
 }
 ```
 
-To programmatically navigate to a new page you can use the `navigate` function returned by the `useClient` hook. It's recommended to use `navigate` in a React transition to render only the parts of the page that are changing.
-
-```jsx
-import { startTransition } from "react";
-import { useClient } from "@lazarv/react-server/client";
-
-export default function Home() {
-  const { navigate } = useClient();
-
-  return (
-    <div>
-      <button onClick={() => startTransition(async () => navigate("/about"))}>
-        About
-      </button>
-    </div>
-  );
-}
-```
 
 <Link name="prefetch">
 ### Prefetch
@@ -123,8 +105,68 @@ export default function Home() {
 }
 ```
 
+<Link name="navigate">
+### Navigate
+</Link>
+
+To programmatically navigate to a new page you can use the `navigate` function returned by the `useClient` hook. It's recommended to use `navigate` in a React transition to render only the parts of the page that are changing.
+
+```jsx
+import { startTransition } from "react";
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => startTransition(async () => navigate("/about"))}>
+        About
+      </button>
+    </div>
+  );
+}
+```
+
+<Link name="refresh">
+## Refresh
+</Link>
+
+You can refresh the current page by using the `<Refresh>` client component exported by the `@lazarv/react-server/navigation` module or the `refresh` function returned by the `useClient` hook from the `@lazarv/react-server/client` module.
+
+```jsx
+import { Refresh } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Refresh>Click to refresh!</Refresh>
+    </div>
+  );
+}
+```
+
+To programmatically refresh the current page you can use the `refresh` function returned by the `useClient` hook. Again, it's recommended to start a React transition for the page refresh.
+
+```jsx
+import { startTransition } from "react";
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { refresh } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => startTransition(async () => refresh())}>
+        Refresh
+      </button>
+    </div>
+  );
+}
+```
+
 <Link name="outlet">
-### Outlet
+## Outlet
 </Link>
 
 You can use the `ReactServerComponent` to create an outlet which you can use for sub-page navigation. It's a modern React Server Component driven version of the `<iframe>` element. When using a `Link` or `Refresh` component or programmatically navigating with the `navigate` or `replace` functions, the client-side router will automatically update the content of the outlet by rendering the result of server-side rendering the outlet. You need to handle the server-side rendering of the outlet yourself using server-side routing and using the [useOutlet](/framework/http#outlet) helper function.
@@ -167,43 +209,6 @@ When using the `ReactServerComponent` with the `defer` prop, the content of the 
 You can also specify the `url` prop on the `ReactServerComponent` to specify the URL of the content of the outlet. This can be useful when you want to render the content of the outlet from a different URL than the current page.
 
 Using both `defer` and `url` props on the `ReactServerComponent` you can achieve a similar behavior to the `iframe` element.
-
-<Link name="refresh">
-## Refresh
-</Link>
-
-You can refresh the current page by using the `<Refresh>` client component exported by the `@lazarv/react-server/navigation` module or the `refresh` function returned by the `useClient` hook from the `@lazarv/react-server/client` module.
-
-```jsx
-import { Refresh } from "@lazarv/react-server/navigation";
-
-export default function Home() {
-  return (
-    <div>
-      <Refresh>Click to refresh!</Refresh>
-    </div>
-  );
-}
-```
-
-To programmatically refresh the current page you can use the `refresh` function returned by the `useClient` hook. Again, it's recommended to start a React transition for the page refresh.
-
-```jsx
-import { startTransition } from "react";
-import { useClient } from "@lazarv/react-server/client";
-
-export default function Home() {
-  const { refresh } = useClient();
-
-  return (
-    <div>
-      <button onClick={() => startTransition(async () => refresh())}>
-        Refresh
-      </button>
-    </div>
-  );
-}
-```
 
 <Link name="use-client">
 ## useClient

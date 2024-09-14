@@ -1,0 +1,67 @@
+---
+title: Outlets
+category: Router
+order: 4
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Outlets
+
+Outlets are a powerful feature of the file-system based router that allows you to create nested layouts and reuse components in your app. You can add outlets to your layouts by defining routes in a subdirectory of your layout with a name starting with `@`. When the route under your outlet directory matches the URL, the component exported from that route definition file will be passed as a React prop to your layout component.
+
+<Link name="implementation">
+## Implementation
+</Link>
+
+You can add outlets to your layouts by defining routes in a subdirectory of your layout with a name starting with `@`. When the route under your outlet directory matches the URL, the component exported from that route definition file will be passed as a React prop to your layout component.
+
+```txt
+src
+- (main).layout.jsx
+- (main).page.jsx
+- @sidebar
+  - (sidebar).page.jsx
+```
+
+```jsx
+// (main).layout.jsx
+
+export default function RootLayout({ sidebar, children }) {
+  return (
+    <main>
+      {sidebar}
+      {children}
+    </main>
+  );
+}
+```
+
+```jsx filename="@sidebar/(sidebar).page.jsx"
+export default function Sidebar() {
+  return <aside>...</aside>;
+}
+```
+
+<Link name="client-side-navigation">
+## Client-side navigation
+</Link>
+
+To make outlets available for [client-side navigation](/router/client-navigation), you can use the `ReactServerComponent` component from the `@lazarv/react-server/navigation` module. But using the file-system based router, the server-side rendering is handled automatically for each outlet. You can fine-tune the navigation of your app by using the [Link](/router/client-navigation#navigation) and [Refresh](/router/client-navigation#refresh) components from the same module when using outlets. Combining an initial content using the outlet available as the prop in your layout component and client-side navigation with the `ReactServerComponent` component, you can create a powerful navigation system for your app.
+
+```jsx filename="(main).layout.jsx"
+import { ReactServerComponent } from "@lazarv/react-server/navigation";
+
+export default function RootLayout({ sidebar, children }) {
+  return (
+    <main>
+      <ReactServerComponent outlet="sidebar">
+        {sidebar}
+      </ReactServerComponent>
+      {children}
+    </main>
+  );
+}
+```
+
+To check out an example using outlets, see the [Photos tutorial](/tutorials/photos#outlet).

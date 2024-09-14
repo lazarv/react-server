@@ -1,0 +1,88 @@
+---
+title: File-system based router
+category: Router
+order: 2
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# File-system based router
+
+This framework allows you to build your application using a file-system based router too. This router allows you to create a file-system based routing structure, similar to other meta-frameworks, like Next.js.
+
+`@lazarv/react-server` will automatically use the file-system based router when you don't specify an entrypoint for your app when using the `react-server` CLI.
+
+<Link name="react-server">
+## Development server
+</Link>
+
+To start your development server using the file-system based router, run the command:
+
+```sh
+pnpm exec react-server
+```
+
+<Link name="build">
+## Build
+</Link>
+
+Build your application using the file-system based router by using:
+
+```sh
+pnpm exec react-server build
+```
+
+<Link name="start">
+## Start
+</Link>
+
+Start your built production application as usual by using:
+
+```sh
+pnpm exec react-server start
+```
+
+
+<Link name="typed-routes">
+## Typed routes
+</Link>
+
+The router supports typed routes out of the box. If you use TypeScript, you can include the generated types in your project and all of your routes will be type checked. Typed routes work for `Link` components, `useMatch` hooks, `navigate`, `replace` and `prefetch` functions from the `useClient` hook and also the possible outlets available to use in a `ReactServerComponent`.
+
+To include the generated types in your project you only need to include `.ts` files from the `.react-server` directory in your TypeScript configuration. To do so, add `.react-server/**/*.ts` to the `include` array in your `tsconfig.json` file:
+
+```json
+{
+  "compilerOptions": {
+    // ...
+  },
+  "include": [/* ... */, ".react-server/**/*.ts"]
+}
+```
+
+<Link name="nextjs-compatibility">
+## Next.js compatibility
+</Link>
+
+The file-system based router is compatible with Next.js in a way that if you don't use any Next.js specific modules to implement your application, you can use the file-system based router interchangeably with your Next.js project.
+
+The file-system based router shares the following features with Next.js:
+
+- [ ] Static and dynamic routes
+- [ ] Layouts and pages
+- [ ] Nested routes
+- [ ] Route groups
+- [ ] Parallel routes
+- [ ] Error handling
+- [ ] Loading states
+
+To emulate the Next.js type file-system based router, configure the router to only allow `page.tsx` files to be used as page routes in the `app` directory or change the `root` directory to `src/app` when you use a `src` directory based project structure.
+
+```json
+{
+  "root": "app",
+  "page": {
+    "include": ["**/page.tsx"]
+  }
+}
+```

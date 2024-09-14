@@ -91,31 +91,35 @@ You can unleash cluster mode by using the `REACT_SERVER_CLUSTER` environment var
 REACT_SERVER_CLUSTER=8 pnpm exec react-server start
 ```
 
-## @lazarv/react-server-router
+## File-system based routing
 
-To enable file-system based routing, you need to install the `@lazarv/react-server-router` package and you no longer need to specify and entrypoint for your app.
+To enable file-system based routing, you just omit the entrypoint when running a `@lazarv/react-server` app.
 
-```sh
-pnpm add @lazarv/react-server-router
-```
-
-Create a `@lazarv/react-server` configuration file in your project root to specify where the router should start processing files. By default every file are included in the routing, but you can include/exclude using arrays of glob patterns.
+Create a `@lazarv/react-server` configuration file in your project root to specify where the router should start processing files by using the `root` property. By default every file are included in the routing, but you can include/exclude using arrays of glob patterns. The following example will only include `page.tsx` files as pages and `layout.tsx` files as layouts, emulating the behavior of Next.js.
 
 #### `react-server.config.json`
 
 ```json
 {
-  "root": "src"
+  "root": "app",
+  "page": {
+    "include": ["**/page.tsx"],
+  },
+  "layout": {
+    "include": ["**/layout.tsx"],
+  }
 }
 ```
 
-Move your entrypoint from `./App.tsx` to `./src/page.tsx` to transform it into a page.
+Move your entrypoint component from `./App.tsx` to `./app/layout.tsx` and `./app/page.tsx` to transform it into a page with a layout.
 
-Just start `react-server` without using an entrypoint.
+Just start `react-server` without specifying an entrypoint.
 
 ```sh
 pnpm exec react-server --open
 ```
+
+Read more about file-system based routing at [react-server.dev/router](https://react-server.dev/router).
 
 ## Documentation
 

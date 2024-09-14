@@ -13,7 +13,6 @@
   "dependencies": {
     "@faker-js/faker": "^8.4.1",
     "@lazarv/react-server": "workspace:^",
-    "@lazarv/react-server-router": "workspace:^",
     "react-click-away-listener": "^2.2.3"
   },
   "devDependencies": {

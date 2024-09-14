@@ -3,7 +3,7 @@ dist
 build
 .react-server
 .vercel
-packages/react-server-router/react-server-router.d.ts
+packages/react-server/lib/plugins/file-router/react-server-router.d.ts
 *.mdx
 *.md
 *.json

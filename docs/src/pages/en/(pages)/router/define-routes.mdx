@@ -1,20 +1,20 @@
 ---
-title: Basics
+title: Define routes
 category: Router
-order: 1
+order: 3
 ---
 
 import Link from "../../../../components/Link.jsx";
 
-# Basics
+# Define routes
 
-In this chapter we will learn about the basics of the file-system based router. We will learn how to create routes, how to use parameters and how to use the router in a project.
+In this chapter we will learn about the basics of the file-system based router. We will learn how to define routes, how to use parameters and page layouts.
 
 <Link name="configuration">
 ## Configuration
 </Link>
 
-The router can be configured by creating a `react-server.config.mjs` or `react-server.config.json` file in the root of your project. The configuration file should export a configuration object and it should include the `root` path for your routes. You can also specify a `public` path for your static files. The `@lazarv/react-server-router` package will automatically scaffold the files in the root directory for routing and prepares and builds the routing based on your files in the root directory.
+The router can be configured by creating a `react-server.config.mjs` or `react-server.config.json` file in the root of your project. The configuration file should export a configuration object and it should include the `root` path for your routes. You can also specify a `public` path for your static files. The file-system based router will automatically scaffold the files in the root directory to prepare and build the routing based on your files in the root directory.
 
 ```js
 export default {
@@ -117,6 +117,22 @@ export default function Layout({ children }) {
 }
 ```
 
+<Link name="transparent-route-segments">
+## Transparent route segments
+</Link>
+
+Transparent segments are segments that are not rendered in the URL but are used to identify your file for yourself. You can create transparent segments by creating a file named `(transparent).page.jsx` where `(transparent)` is the name of your transparent segment and could be anything you want. For example if you create a file named `(main).page.jsx` in the root directory it will be treated as a route with the path `/`. If you create a file named `(main).page.jsx` in a directory named `users` it will be treated as a route with the path `/users`. You can also use transparent segments in your directory structure to group your files. For example if you create a file named `page.jsx` in a directory named `(dashboard)/users` it will be treated as a route with the path `/users`.
+
+```txt
+src
+- (root).layout.jsx
+- (root).page.jsx
+- (dashboard)
+  - users
+    - (users).page.jsx
+    - [userId].page.jsx
+```
+
 <Link name="escape-route-segments">
 ## Escape route segments
 </Link>
@@ -124,20 +140,3 @@ export default function Layout({ children }) {
 You can escape route segments by wrapping the segment in curly braces. For example if you create a file named `{sitemap.xml}.server.mjs` in the root directory it will be treated as a named route with the path `/sitemap.xml`.
 
 > **Example:** see the Photos example in the [examples](https://github.com/lazarv/react-server/tree/main/examples/photos) directory for a basic example of file-system based routing.
-
-<Link name="typed-routes">
-## Typed routes
-</Link>
-
-The router supports typed routes out of the box. If you use TypeScript, you can include the generated types in your project and all of your routes will be type checked. Typed routes work for `Link` components, `useMatch` hooks, `navigate`, `replace` and `prefetch` functions from the `useClient` hook and also the possible outlets available to use in a `ReactServerComponent`.
-
-To include the generated types in your project you only need to include `.ts` files from the `.react-server` directory in your TypeScript configuration. To do so, add `.react-server/**/*.ts` to the `include` array in your `tsconfig.json` file:
-
-```json
-{
-  "compilerOptions": {
-    // ...
-  },
-  "include": [/* ... */, ".react-server/**/*.ts"]
-}
-```

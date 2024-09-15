@@ -46,7 +46,12 @@ export function moduleAliases(condition) {
   const reactServerDomWebpackServerEdge = __require.resolve(
     "react-server-dom-webpack/server.edge"
   );
-  const reactIs = __require.resolve("react-is");
+  let reactIs;
+  try {
+    reactIs = __require.resolve("react-is");
+  } catch {
+    // noop
+  }
   const picocolors = __require.resolve("picocolors");
   let vite;
   try {

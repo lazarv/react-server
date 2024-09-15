@@ -9,10 +9,11 @@ import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
+import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
-import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import * as sys from "../sys.mjs";
+import { makeResolveAlias } from "../utils/config.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
@@ -79,7 +80,7 @@ export default async function clientBuild(_, options) {
           replacement: join(sys.rootDir, "client"),
         },
         ...clientAlias(options.dev),
-        ...(config.resolve?.alias ?? []),
+        ...makeResolveAlias(config.resolve?.alias ?? []),
       ],
     },
     customLogger,

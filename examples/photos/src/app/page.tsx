@@ -1,6 +1,5 @@
+import swagPhotos from "@/photos";
 import { Link } from "@lazarv/react-server/navigation";
-
-import swagPhotos from "../photos";
 
 export const ttl = 30000;
 

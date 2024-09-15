@@ -48,6 +48,7 @@ import useClient from "../plugins/use-client.mjs";
 import useServer from "../plugins/use-server.mjs";
 import useServerInline from "../plugins/use-server-inline.mjs";
 import * as sys from "../sys.mjs";
+import { makeResolveAlias } from "../utils/config.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
 import { bareImportRE, findPackageRoot, tryStat } from "../utils/module.mjs";
@@ -145,7 +146,7 @@ export default async function createServer(root, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
-        ...(config.resolve?.alias ?? []),
+        ...makeResolveAlias(config.resolve?.alias),
       ],
       noExternal: [bareImportRE],
     },

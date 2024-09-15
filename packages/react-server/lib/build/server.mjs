@@ -1,28 +1,28 @@
 import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
-import merge from "../../lib/utils/merge.mjs";
+import fileRouter from "../plugins/file-router/plugin.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
+import rootModule from "../plugins/root-module.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
-import rootModule from "../plugins/root-module.mjs";
-import fileRouter from "../plugins/file-router/plugin.mjs";
 import * as sys from "../sys.mjs";
+import { makeResolveAlias } from "../utils/config.mjs";
+import merge from "../utils/merge.mjs";
+import { bareImportRE } from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
 } from "../utils/plugins.mjs";
 import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
-import { bareImportRE } from "../utils/module.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -53,7 +53,7 @@ export default async function serverBuild(root, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
-        ...(config.resolve?.alias ?? []),
+        ...makeResolveAlias(config.resolve?.alias ?? []),
       ],
       conditions: ["react-server"],
       externalConditions: ["react-server"],

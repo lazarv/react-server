@@ -1,4 +1,4 @@
-import { Photo } from "../../photos";
+import { Photo } from "@/photos";
 
 export default function Frame({ photo }: { photo: Photo }) {
   return (

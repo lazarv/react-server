@@ -1,4 +1,6 @@
-const SVGComponent = (props) => (
+import type { SVGProps } from "react";
+
+const SVGComponent = (props: SVGProps<SVGSVGElement>) => (
   <svg
     width="128"
     height="128"

@@ -130,16 +130,31 @@ export default async function errorHandler(err) {
       statusText: "Internal Server Error",
     };
 
+    const error = await prepareError(err);
+
+    const viteDevServer = getContext(SERVER_CONTEXT);
+    if (viteDevServer) {
+      try {
+        viteDevServer.environments.client.moduleGraph.invalidateAll();
+        viteDevServer.environments.ssr.moduleGraph.invalidateAll();
+        viteDevServer.environments.rsc.moduleGraph.invalidateAll();
+      } catch (e) {
+        // ignore
+      }
+    }
+
     return new Response(
       `<!DOCTYPE html>
     <html lang="en">
       <head>
         <meta charset="UTF-8" />
         <title>Error</title>
+        <script type="module" src="${`${server.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}"></script>
+        <script type="module" src="${`${server.config.base || "/"}/@hmr`.replace(/\/+/g, "/")}"></script>
         <script type="module">
           import { ErrorOverlay } from "${`${server.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}";
           document.body.appendChild(new ErrorOverlay(${JSON.stringify(
-            await prepareError(err)
+            error
           ).replace(/</g, "\\u003c")}))
         </script>
       </head>

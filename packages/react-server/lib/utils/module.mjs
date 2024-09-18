@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import * as sys from "../sys.mjs";
@@ -21,14 +21,18 @@ export function loadPackageData(pkgPath) {
 }
 
 const packagePathCache = new Map();
-export function findPackageRoot(basedir) {
+export function findPackageRoot(basedir, isRoot = false) {
   const directoryStack = [basedir];
   while (basedir) {
     if (packagePathCache.has(basedir)) {
       return packagePathCache.get(basedir);
     }
     const pkgPath = join(basedir, "package.json");
-    if (tryStat(pkgPath)) {
+    const nextBasedir = dirname(basedir);
+    if (
+      tryStat(pkgPath) &&
+      (!isRoot || (isRoot && nextBasedir.endsWith("node_modules")))
+    ) {
       try {
         const pkgRoot = dirname(pkgPath);
         while (directoryStack.length > 0) {
@@ -40,7 +44,6 @@ export function findPackageRoot(basedir) {
         // noop
       }
     }
-    const nextBasedir = dirname(basedir);
     if (nextBasedir === basedir || nextBasedir === cwd) break;
     basedir = nextBasedir;
     directoryStack.push(basedir);
@@ -49,7 +52,7 @@ export function findPackageRoot(basedir) {
 }
 
 const packageCache = new Map();
-export function findNearestPackageData(basedir) {
+export function findNearestPackageData(basedir, isRoot = false) {
   const directoryStack = [basedir];
   while (basedir) {
     if (packageCache.has(basedir)) {
@@ -59,13 +62,15 @@ export function findNearestPackageData(basedir) {
     if (tryStat(pkgPath)) {
       try {
         const pkgData = loadPackageData(pkgPath);
-        const pkgRoot = dirname(pkgPath);
-        while (directoryStack.length > 0) {
-          const dir = directoryStack.pop();
-          packageCache.set(dir, pkgData);
-          packagePathCache.set(dir, pkgRoot);
+        if (!isRoot || (isRoot && pkgData.name)) {
+          const pkgRoot = dirname(pkgPath);
+          while (directoryStack.length > 0) {
+            const dir = directoryStack.pop();
+            packageCache.set(dir, pkgData);
+            packagePathCache.set(dir, pkgRoot);
+          }
+          return pkgData;
         }
-        return pkgData;
       } catch {
         // noop
       }
@@ -79,7 +84,7 @@ export function findNearestPackageData(basedir) {
 }
 
 const packageTypeCache = new Map();
-export function isModule(filePath) {
+export function isModule(filePath, isRoot = false) {
   if (packageTypeCache.has(filePath)) {
     return packageTypeCache.get(filePath);
   } else if (/\.m[jt]s$/.test(filePath)) {
@@ -92,17 +97,21 @@ export function isModule(filePath) {
       const dir = dirname(
         filePath.startsWith("file://") ? fileURLToPath(filePath) : filePath
       );
-      const root = findPackageRoot(dir);
-      const pkg = findNearestPackageData(dir);
+      const root = findPackageRoot(dir, isRoot);
+      const pkg = findNearestPackageData(dir, isRoot);
       const isModule =
         pkg?.type === "module" ||
-        (pkg?.module && join(root, pkg?.module) === filePath);
+        (pkg?.module && !relative(root, filePath).startsWith("../")); //join(root, pkg?.module) === filePath);
       packageTypeCache.set(filePath, isModule);
       return isModule;
     } catch (e) {
       return false;
     }
   }
+}
+
+export function isRootModule(filePath) {
+  return isModule(filePath, true);
 }
 
 const clientComponentsCache = new Map();

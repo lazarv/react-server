@@ -40,11 +40,9 @@ export function AppLayout({
           </Link>
         </Group>
       </AppShell.Header>
-
       <AppShell.Navbar p="md">
         <MainNavigation serverPathname={serverPathname} />
       </AppShell.Navbar>
-
       <AppShell.Main>{children}</AppShell.Main>
     </AppShell>
   );

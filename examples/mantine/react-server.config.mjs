@@ -4,15 +4,6 @@ export default {
   optimizeDeps: {
     exclude: ["@mantine/core"],
   },
-  resolve: {
-    alias: [
-      {
-        find: "highlight.js",
-        replacement: "highlight.js",
-      },
-    ],
-    external: ["dayjs"],
-  },
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

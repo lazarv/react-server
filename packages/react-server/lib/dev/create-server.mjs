@@ -106,6 +106,7 @@ export default async function createServer(root, options) {
     clearScreen: options.clearScreen,
     configFile: false,
     optimizeDeps: {
+      holdUntilCrawlEnd: true,
       ...config.optimizeDeps,
       force: options.force || config.optimizeDeps?.force,
       include: [

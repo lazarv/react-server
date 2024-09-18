@@ -1,6 +1,13 @@
+import { readFile } from "node:fs/promises";
+
 import { moduleAliases } from "../loader/module-alias.mjs";
 import { applyAlias } from "../loader/utils.mjs";
-import { bareImportRE, isModule, tryStat } from "../utils/module.mjs";
+import {
+  bareImportRE,
+  isModule,
+  isRootModule,
+  tryStat,
+} from "../utils/module.mjs";
 
 const alias = moduleAliases();
 
@@ -17,9 +24,8 @@ export default function optimizeDeps() {
         );
         const path = resolved?.id?.split("?")[0];
         if (
-          this.environment.name === "client" &&
-          !this.environment.depsOptimizer?.isOptimizedDepFile(specifier) &&
-          path &&
+          (this.environment.name === "rsc" ||
+            this.environment.name === "ssr") &&
           /\.[cm]?js$/.test(path) &&
           (bareImportRE.test(specifier) ||
             (specifier[0] !== "." && specifier[0] !== "/")) &&
@@ -28,11 +34,43 @@ export default function optimizeDeps() {
           tryStat(path)?.isFile()
         ) {
           try {
+            const content = await readFile(path, "utf-8");
+            const ast = this.parse(content);
+            const hasImportExport = ast.body.some(
+              (node) =>
+                node.type === "ImportDeclaration" ||
+                node.type === "ExportNamedDeclaration" ||
+                node.type === "ExportDefaultDeclaration" ||
+                node.type === "ExportAllDeclaration"
+            );
+            if (hasImportExport) {
+              return resolved;
+            }
+          } catch (e) {
+            console.log("error", path, e);
+            // ignore
+          }
+          return { externalize: specifier };
+        } else if (
+          this.environment.name === "client" &&
+          !this.environment.depsOptimizer?.isOptimizedDepFile(specifier) &&
+          path &&
+          /\.[cm]?js$/.test(path) &&
+          (bareImportRE.test(specifier) ||
+            (specifier[0] !== "." && specifier[0] !== "/")) &&
+          applyAlias(alias, specifier) === specifier &&
+          !isRootModule(path) &&
+          tryStat(path)?.isFile()
+        ) {
+          try {
             const optimizedInfo =
               this.environment.depsOptimizer.registerMissingImport(
                 specifier,
                 path
               );
+            this.environment.depsOptimizer.metadata.discovered[specifier] = {
+              ...optimizedInfo,
+            };
             return {
               id: this.environment.depsOptimizer.getOptimizedDepId(
                 optimizedInfo
@@ -45,7 +83,6 @@ export default function optimizeDeps() {
         return resolved || { externalize: specifier };
       } catch {
         return { externalize: specifier };
-        // ignore
       }
     },
   };

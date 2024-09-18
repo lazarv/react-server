@@ -16,13 +16,13 @@ import rollupUseServer from "../plugins/use-server.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import merge from "../utils/merge.mjs";
-import { bareImportRE } from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
 } from "../utils/plugins.mjs";
 import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
+import { bareImportRE, findNearestPackageData } from "../utils/module.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -38,6 +38,65 @@ export default async function serverBuild(root, options) {
     ...userOrBuiltInVitePluginReact(config.plugins),
     ...filterOutVitePluginReact(config.plugins),
   ];
+
+  const external = (id, parentId, isResolved) => {
+    const external = [
+      /manifest\.json/,
+      /^bun:/,
+      /^node:/,
+      "react",
+      "react/jsx-runtime",
+      "react-dom",
+      "react-dom/client",
+      "react-dom/server.edge",
+      "react-server-dom-webpack/client.browser",
+      "react-server-dom-webpack/client.edge",
+      "react-server-dom-webpack/server.edge",
+      "react-is",
+      "picocolors",
+      ...(Array.isArray(config.build?.rollupOptions?.external)
+        ? config.build?.rollupOptions?.external
+        : []),
+      ...(config.external ?? []),
+    ];
+    for (const mod of external) {
+      if (
+        (typeof mod === "string" && id === mod) ||
+        (mod instanceof RegExp && mod.test(id))
+      ) {
+        return true;
+      }
+    }
+    if (typeof config.build?.rollupOptions?.external === "function") {
+      const isExternal = config.build?.rollupOptions?.external(
+        id,
+        parentId,
+        isResolved
+      );
+      if (isExternal) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const rscExternal = (id) => {
+    if (bareImportRE.test(id)) {
+      try {
+        const mod = __require.resolve(id, { paths: [cwd] });
+        const pkg = findNearestPackageData(mod);
+        if (
+          /[cm]?js$/.test(mod) &&
+          !(pkg?.type === "module" || pkg?.module || pkg?.exports)
+        ) {
+          return true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return false;
+  };
+
   const buildConfig = {
     root: cwd,
     configFile: false,
@@ -121,33 +180,8 @@ export default async function serverBuild(root, options) {
                     }
                   ),
         },
-        external(id) {
-          const external = [
-            /manifest\.json/,
-            /^bun:/,
-            /^node:/,
-            "react",
-            "react/jsx-runtime",
-            "react-dom",
-            "react-dom/client",
-            "react-dom/server.edge",
-            "react-server-dom-webpack/client.browser",
-            "react-server-dom-webpack/client.edge",
-            "react-server-dom-webpack/server.edge",
-            "react-is",
-            "picocolors",
-            ...(config.build?.rollupOptions?.external ?? []),
-            ...(config.external ?? []),
-          ];
-          for (const mod of external) {
-            if (
-              (typeof mod === "string" && id === mod) ||
-              (mod instanceof RegExp && mod.test(id))
-            ) {
-              return true;
-            }
-          }
-          return false;
+        external(id, parentId, isResolved) {
+          return external(id, parentId, isResolved) || rscExternal(id);
         },
         plugins: [
           resolveWorkspace(),
@@ -225,6 +259,7 @@ export default async function serverBuild(root, options) {
             },
             {}
           ),
+          external,
           plugins: [
             resolveWorkspace(),
             replace({

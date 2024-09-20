@@ -34,6 +34,12 @@ export default function Header({ lang }) {
           Guide
         </a>
         <a
+          href={`${baseUrl}integrations`}
+          className={`hidden lg:inline${activeClass("integrations")}`}
+        >
+          Integrations
+        </a>
+        <a
           href={`${baseUrl}framework`}
           className={`hidden lg:inline${activeClass("framework")}`}
         >
@@ -53,13 +59,13 @@ export default function Header({ lang }) {
         </a>
         <a
           href={`${baseUrl}tutorials`}
-          className={`hidden lg:inline${activeClass("tutorials")}`}
+          className={`mr-auto xl:mr-0 hidden lg:inline${activeClass("tutorials")}`}
         >
           Tutorials
         </a>
         <a
           href={`${baseUrl}team`}
-          className={`mr-auto hidden lg:inline${activeClass("team")}`}
+          className={`mr-auto hidden xl:inline${activeClass("team")}`}
         >
           Team
         </a>

@@ -7,7 +7,7 @@ export default function useMDXComponents() {
       return (
         <pre {...props} className={`${className ?? ""} relative`}>
           {filename && (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-sm text-gray-500 dark:text-gray-400 [&+code]:mt-0">
               {filename}
             </div>
           )}

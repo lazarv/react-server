@@ -5,6 +5,7 @@ import { cookie, usePathname } from "@lazarv/react-server";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
+import EditPage from "../components/EditPage.jsx";
 export default function Layout({
   breadcrumb,
   header,
@@ -75,6 +76,7 @@ export default function Layout({
           {sidebar}
           <article>
             {breadcrumb}
+            <EditPage pathname={pathname} />
             {children}
             {navigation}
           </article>

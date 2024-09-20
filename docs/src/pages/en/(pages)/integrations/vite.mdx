@@ -1,0 +1,176 @@
+---
+title: Vite
+category: Integrations
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Vite
+
+`@lazarv/react-server` is not just compatible with Vite, but it's also built on top of the Vite Environment API. This means that you can use all the features of Vite and many Vite plugins with `@lazarv/react-server` without any issues.
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can keep all the Vite configuration in the `vite.config.js`, `vite.config.ts`, `vite.config.mjs` or `vite.config.cjs` file. You can follow the [Vite configuration guide](https://vitejs.dev/config/) to configure Vite.
+
+<Link name="plugins">
+## Plugins
+</Link>
+
+You can use all the Vite plugins in your project. You can follow the [Vite plugins guide](https://vitejs.dev/plugins/) to learn more about Vite plugins.
+
+When using Vite plugins, expect three environments:
+
+- [ ] `rsc` - when the plugin is used in React Server Components (RSC payload)
+- [ ] `ssr` - when the plugin is used in server-side rendering (HTML output)
+- [ ] `client` - when the plugin is used in client components
+
+<Link name="migration">
+## Migration
+</Link>
+
+If you are migrating from Vite to `@lazarv/react-server`, you can follow this guide to migrate your project.
+
+### Getting started
+
+Starting a new Vite + React app is easy:
+
+```sh
+pnpm create vite my-react-app --template react
+```
+
+Then you just need to change directory, install dependencies and start your app:
+
+```sh
+cd my-react-app
+pnpm install
+pnpm dev
+```
+
+It just works!
+
+### React Server Components
+
+As we want to use RSCs, let's move everything from the `index.html` into `src/main.jsx` and instead of rendering `App` on the client-side, just use it as a component in this RSC layout:
+
+```jsx
+import App from "./App.jsx";
+import "./index.css";
+
+export default function Html() {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Vite + React</title>
+      </head>
+      <body>
+        <div id="root">
+          <App />
+        </div>
+      </body>
+    </html>
+  );
+}
+```
+
+Beware that you need to fix `charSet` as it has a different casing when used in JSX than in HTML!
+
+For now, just add a `"use client";` directive to `App.jsx` to make it work instantly as the App component includes a `useState` React hook.
+
+Now let's uninstall `react` and `react-dom` as we will not need them, both were just React 18. Now we need to install `@lazarv/react-server`:
+
+```sh
+pnpm add @lazarv/react-server@latest 
+```
+
+Update npm scripts on how to start our app:
+
+```json
+"scripts": {
+  "dev": "react-server ./src/main.jsx",
+  "build": "react-server build ./src/main.jsx",
+  "lint": "eslint .",
+  "start": "react-server start"
+}
+```
+
+Let's start our app using `pnpm dev --open`!
+
+### Optimizing client components
+
+In the current state of our app, the whole `App` component is a client component. This is not ideal, as only the counter part is interactive in it. We also attached some CSS to this client component which will only be loaded when the client component loads in the browser at runtime. This is causing a glitch for a blink of an eye at page load.
+
+Let's create a new `Counter` component in a new file at `src/Counter.jsx` and move the counter button into this new component:
+
+```jsx
+"use client";
+
+import { useState } from "react";
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <button onClick={() => setCount((count) => count + 1)}>
+      count is {count}
+    </button>
+  );
+}
+
+export default Counter;
+```
+
+Now let's get back to the `App` component, remove the `"use client";` directive, remove the `App.css` import and the code which was only part of the `Counter` component, but import it instead:
+
+```jsx
+import reactLogo from "./assets/react.svg";
+import viteLogo from "/vite.svg";
+import Counter from "./Counter.jsx";
+
+function App() {
+  return (
+    <>
+      <div>
+        <a href="https://vitejs.dev" target="_blank">
+          <img src={viteLogo} className="logo" alt="Vite logo" />
+        </a>
+        <a href="https://react.dev" target="_blank">
+          <img src={reactLogo} className="logo react" alt="React logo" />
+        </a>
+      </div>
+      <h1>Vite + React</h1>
+      <div className="card">
+        <Counter />
+        <p>
+          Edit <code>src/App.jsx</code> and save to test HMR
+        </p>
+      </div>
+      <p className="read-the-docs">
+        Click on the Vite and React logos to learn more
+      </p>
+    </>
+  );
+}
+
+export default App;
+```
+
+The easiest resolution of the CSS issue is to import `App.css` in  `main.jsx`:
+
+```jsx
+import App from "./App.jsx";
+import "./index.css";
+import "./App.css";
+
+export default function Html() {
+  // we don't need to do any change here
+}
+```
+
+Now both CSS files will be loaded instantly on page load and there will be no flickering. The counter button will still work as before as we refactored it to be a new client component. Every other part of the `App` component was static, which is best to be included in RSCs. You can also combine the 2 CSS files as there's no reason why we have two, just fix the CSS imports in the `main.jsx` after that.

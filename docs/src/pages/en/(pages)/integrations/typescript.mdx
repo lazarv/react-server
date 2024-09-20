@@ -1,0 +1,82 @@
+---
+title: TypeScript
+category: Integrations
+order: 1
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# TypeScript
+
+`@lazarv/react-server` is compatible with TypeScript. You can use TypeScript normally like in any other React project. TypeScript just works with this framework as it is relying on Vite and Esbuild to transpile the code.
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can keep all the TypeScript configuration in the `tsconfig.json` file. You can follow the [TypeScript configuration guide](https://www.typescriptlang.org/docs/handbook/tsconfig-json.html) to configure TypeScript.
+
+A basic example of `tsconfig.json` file to use with `@lazarv/react-server`:
+
+```json filename="./tsconfig.json"
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "types": ["react/experimental", "react-dom/experimental"],
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}
+```
+
+The important part is to use the `react/experimental` and `react-dom/experimental` types for React as `@lazarv/react-server` uses the experimental React APIs.
+
+<Link name="typescript-file-system-routing">
+## Type-safe file-system based routing
+</Link>
+
+`@lazarv/react-server` uses the file-system based routing. This means that the file-system is the source of truth for the routing. When you create a new file, you create a new route.
+
+This is a very powerful feature, but it can be hard to work with if you are using TypeScript. `@lazarv/react-server` has a built-in feature to help you with this.
+
+By including the `.react-server` directory in the `tsconfig.json` file, you can use TypeScript to type the file-system based routing.
+
+<Link name="typescript-path-aliases">
+## TypeScript path aliases
+</Link>
+
+To make the TypeScript path aliases work, you need to include the `baseUrl` and `paths` in the `tsconfig.json` file.
+
+```json filename="./tsconfig.json"
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+```
+
+While you also need to include the paths in your `vite.config.js` file as `resolve.alias` entries to make the path aliases work.
+
+```js filename="./vite.config.mjs"
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@/': new URL('./src/', import.meta.url).pathname
+    }
+  }
+});
+```

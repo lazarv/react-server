@@ -139,6 +139,7 @@ article {
   justify-items: left;
   overflow: auto;
   view-transition-name: content;
+  position: relative;
 
   @media (prefers-reduced-motion) {
     view-transition-name: none;

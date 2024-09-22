@@ -1,6 +1,6 @@
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import colors from "picocolors";
-import { rimraf } from "rimraf";
 
 import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
@@ -41,11 +41,20 @@ export default async function build(root, options) {
           }
           // empty out dir
           if (options.server && options.client)
-            await rimraf(join(cwd, options.outDir));
+            await rm(join(cwd, options.outDir), {
+              recursive: true,
+              force: true,
+            });
           else if (options.server)
-            await rimraf(join(cwd, options.outDir, "server"));
+            await rm(join(cwd, options.outDir, "server"), {
+              recursive: true,
+              force: true,
+            });
           else if (options.client)
-            await rimraf(join(cwd, options.outDir, "client"));
+            await rm(join(cwd, options.outDir, "client"), {
+              recursive: true,
+              force: true,
+            });
           // build server
           let buildOutput = false;
           if (options.server) {
@@ -63,8 +72,17 @@ export default async function build(root, options) {
             (options.export ||
               typeof config[CONFIG_ROOT]?.export !== "undefined")
           ) {
-            await rimraf(join(cwd, options.outDir, "dist"));
+            const start = Date.now();
+            await rm(join(cwd, options.outDir, "dist"), {
+              recursive: true,
+              force: true,
+            });
             await staticSiteGenerator(root, options);
+            console.log(
+              colors.green(
+                `✔ exported in ${formatDuration(Date.now() - start)}`
+              )
+            );
           }
           await adapter(root, options);
           if (buildOutput) {

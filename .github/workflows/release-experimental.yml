@@ -88,6 +88,19 @@ jobs:
         run: |
           gh release create "v${{ env.VERSION }}" --generate-notes
 
+      - name: Prepare @lazarv/react-server-adapter-core
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-core')
+        working-directory: ./packages/react-server-adapter-core
+        run: |
+          jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
+
+      - name: Publish @lazarv/react-server-adapter-core
+        if: steps.publish-react-server-adapter-core.outcome == 'success'
+        working-directory: ./packages/react-server-adapter-core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+        run: pnpm publish --access=public --no-git-checks
+
       - name: Prepare @lazarv/react-server-adapter-vercel
         if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-vercel')
         working-directory: ./packages/react-server-adapter-vercel

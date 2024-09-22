@@ -30,7 +30,7 @@ const cwd = sys.cwd();
 export default async function serverBuild(root, options) {
   root ||= "@lazarv/react-server/file-router";
 
-  banner("server", options.dev);
+  banner("rsc", options.dev);
   const config = forRoot();
   const clientManifest = new Map();
   const serverManifest = new Map();
@@ -281,6 +281,9 @@ export default async function serverBuild(root, options) {
       },
     };
 
+    // empty line
+    console.log();
+    banner("ssr", options.dev);
     await viteBuild(viteConfigClientComponents);
   } else {
     await writeFile(

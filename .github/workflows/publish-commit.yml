@@ -97,6 +97,10 @@ jobs:
         if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server/')
         run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server --comment=update
 
+      - name: Publish @lazarv/react-server-adapter-core
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-core/')
+        run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server-adapter-core --comment=update
+
       - name: Publish @lazarv/react-server-adapter-vercel
         if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-vercel/')
         run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server-adapter-vercel --comment=update

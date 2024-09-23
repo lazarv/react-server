@@ -118,7 +118,7 @@ importers:
         version: 1.0.12(next@14.2.8(@babel/core@7.24.7)(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)(sass@1.77.6))(react@19.0.0-rc-a7d1240c-20240731)
       '@vitejs/plugin-react-swc':
         specifier: ^3.7.0
-        version: 3.7.0(@swc/helpers@0.5.5)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1))
+        version: 3.7.0(@swc/helpers@0.5.5)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1))
       highlight.js:
         specifier: ^11.9.0
         version: 11.9.0
@@ -136,14 +136,14 @@ importers:
         version: 4.0.0
       vite-plugin-svgr:
         specifier: ^4.2.0
-        version: 4.2.0(rollup@4.18.0)(typescript@5.5.2)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1))
+        version: 4.2.0(rollup@4.18.0)(typescript@5.5.2)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1))
     devDependencies:
       '@types/react':
         specifier: ^18.3.2
         version: 18.3.3
       autoprefixer:
         specifier: ^10.4.19
-        version: 10.4.19(postcss@8.4.39)
+        version: 10.4.19(postcss@8.4.45)
       concurrently:
         specifier: ^8.2.2
         version: 8.2.2
@@ -668,9 +668,6 @@ importers:
       remark-mdx-frontmatter:
         specifier: ^4.0.0
         version: 4.0.0
-      rimraf:
-        specifier: ^5.0.1
-        version: 5.0.7
       sass:
         specifier: ^1.63.6
         version: 1.77.6
@@ -691,7 +688,7 @@ importers:
         specifier: ^20.10.0
         version: 20.14.9
 
-  packages/react-server-adapter-vercel:
+  packages/react-server-adapter-core:
     dependencies:
       '@vercel/nft':
         specifier: ^0.27.2
@@ -707,7 +704,7 @@ importers:
         version: 3.3.2
       log-update:
         specifier: ^6.0.0
-        version: 6.0.0
+        version: 6.1.0
       picocolors:
         specifier: ^1.0.0
         version: 1.0.1
@@ -715,6 +712,15 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../react-server
+
+  packages/react-server-adapter-vercel:
+    devDependencies:
+      '@lazarv/react-server':
+        specifier: workspace:^
+        version: link:../react-server
+      '@lazarv/react-server-adapter-core':
+        specifier: workspace:^
+        version: link:../react-server-adapter-core
 
   test:
     dependencies:
@@ -3601,10 +3607,6 @@ packages:
     resolution: {integrity: sha512-gKXj5ALrKWQLsYG9jlTRmR/xKluxHV+Z9QEwNIgCfM1/uwPMCuzVVnh5mwTd+OuBZcwSIMbqssNWRm1lE51QaQ==}
     engines: {node: '>=8'}
 
-  ansi-escapes@6.2.1:
-    resolution: {integrity: sha512-4nJ3yixlEthEJ9Rk4vPcdBRkZvQZlYyu8j4/Mqz5sgIkddmEnH2Yj2ZrnP9S3tQOvSNRUIgVNF/1yPpRAGNRig==}
-    engines: {node: '>=14.16'}
-
   ansi-escapes@7.0.0:
     resolution: {integrity: sha512-GdYO7a61mR0fOlAsvC9/rIHf7L96sBc6dEWzeOu+KAea5bZyQRPIpojrVoI4AXGJS/ycu/fBTdLrUkA4ODrvjw==}
     engines: {node: '>=18'}
@@ -3963,10 +3965,6 @@ packages:
   cli-cursor@3.1.0:
     resolution: {integrity: sha512-I/zHAwsKf9FqGoXM4WWRACob9+SNukZTd94DWF57E4toouRulbCxcUh6RKUEOQlYTHJnzkPMySvPNaaSLNfLZw==}
     engines: {node: '>=8'}
-
-  cli-cursor@4.0.0:
-    resolution: {integrity: sha512-VGtlMu3x/4DOtIUwEkRezxUZ2lBacNJCHash0N0WeZDBS+7Ux1dm3XWAgWYxLJFMMdOeXMHXorshEFhbMSGelg==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   cli-cursor@5.0.0:
     resolution: {integrity: sha512-aCj4O5wKyszjMmDT4tZj93kxyydN/K5zPWSCe6/0AV/AA1pqe5ZBIw0a2ZfPQV7lL5/yb5HsUreJ6UFAF1tEQw==}
@@ -5814,10 +5812,6 @@ packages:
     resolution: {integrity: sha512-8XPvpAA8uyhfteu8pIvQxpJZ7SYYdpUivZpGy6sFsBuKRY/7rQGavedeB8aK+Zkyq6upMFVL/9AW6vOYzfRyLg==}
     engines: {node: '>=10'}
 
-  log-update@6.0.0:
-    resolution: {integrity: sha512-niTvB4gqvtof056rRIrTZvjNYE4rCUzO6X/X+kYjd7WFxXeJ0NwEFnRxX6ehkvv3jTwrXnNdtAak5XYZuIyPFw==}
-    engines: {node: '>=18'}
-
   log-update@6.1.0:
     resolution: {integrity: sha512-9ie8ItPR6tjY5uYJh8K/Zrv/RMZ5VOlOWvtZdEHYSTFKZfIBPQa9tOAEeAWhd+AnIneLJ22w5fjOYtoutpWq5w==}
     engines: {node: '>=18'}
@@ -7128,10 +7122,6 @@ packages:
     resolution: {integrity: sha512-l+sSefzHpj5qimhFSE5a8nufZYAM3sBSVMAPtYkmC+4EH2anSGaEMXSD0izRQbu9nfyQ9y5JrVmp7E8oZrUjvA==}
     engines: {node: '>=8'}
 
-  restore-cursor@4.0.0:
-    resolution: {integrity: sha512-I9fPXU9geO9bHOt9pHHOhOkYerIMsmVaWB0rA2AI9ERh/+x/i7MV5HKBNrg+ljO5eoPVgCcnFuRjJ9uH6I/3eg==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-
   restore-cursor@5.1.0:
     resolution: {integrity: sha512-oMA2dcrw6u0YfxJQXm342bFKX/E4sG9rbTzO9ptUcR/e8A33cHuvStiYOwH7fszkZlZ1z/ta9AAoPk2F4qIOHA==}
     engines: {node: '>=18'}
@@ -7151,11 +7141,6 @@ packages:
   rimraf@4.4.1:
     resolution: {integrity: sha512-Gk8NlF062+T9CqNGn6h4tls3k6T1+/nXdOcSZVikNVtlRdYpA7wRJJMoXmuvOnLW844rPjdQ7JgXCYM6PPC/og==}
     engines: {node: '>=14'}
-    hasBin: true
-
-  rimraf@5.0.7:
-    resolution: {integrity: sha512-nV6YcJo5wbLW77m+8KjH8aB/7/rxQy9SZ0HY5shnwULfS+9nmTtVXAJET5NdZmCzA4fPI/Hm1wo/Po/4mopOdg==}
-    engines: {node: '>=14.18'}
     hasBin: true
 
   rollup@4.18.0:
@@ -11427,10 +11412,10 @@ snapshots:
       next: 14.2.8(@babel/core@7.24.7)(react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731))(react@19.0.0-rc-a7d1240c-20240731)(sass@1.77.6)
       react: 19.0.0-rc-a7d1240c-20240731
 
-  '@vitejs/plugin-react-swc@3.7.0(@swc/helpers@0.5.5)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1))':
+  '@vitejs/plugin-react-swc@3.7.0(@swc/helpers@0.5.5)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1))':
     dependencies:
       '@swc/core': 1.6.6(@swc/helpers@0.5.5)
-      vite: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1)
+      vite: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1)
     transitivePeerDependencies:
       - '@swc/helpers'
 
@@ -11652,8 +11637,6 @@ snapshots:
     dependencies:
       type-fest: 0.21.3
 
-  ansi-escapes@6.2.1: {}
-
   ansi-escapes@7.0.0:
     dependencies:
       environment: 1.1.0
@@ -11801,6 +11784,16 @@ snapshots:
       normalize-range: 0.1.2
       picocolors: 1.0.1
       postcss: 8.4.39
+      postcss-value-parser: 4.2.0
+
+  autoprefixer@10.4.19(postcss@8.4.45):
+    dependencies:
+      browserslist: 4.23.1
+      caniuse-lite: 1.0.30001638
+      fraction.js: 4.3.7
+      normalize-range: 0.1.2
+      picocolors: 1.0.1
+      postcss: 8.4.45
       postcss-value-parser: 4.2.0
 
   available-typed-arrays@1.0.7:
@@ -12066,10 +12059,6 @@ snapshots:
   cli-cursor@3.1.0:
     dependencies:
       restore-cursor: 3.1.0
-
-  cli-cursor@4.0.0:
-    dependencies:
-      restore-cursor: 4.0.0
 
   cli-cursor@5.0.0:
     dependencies:
@@ -14327,14 +14316,6 @@ snapshots:
       chalk: 4.1.2
       is-unicode-supported: 0.1.0
 
-  log-update@6.0.0:
-    dependencies:
-      ansi-escapes: 6.2.1
-      cli-cursor: 4.0.0
-      slice-ansi: 7.1.0
-      strip-ansi: 7.1.0
-      wrap-ansi: 9.0.0
-
   log-update@6.1.0:
     dependencies:
       ansi-escapes: 7.0.0
@@ -16040,11 +16021,6 @@ snapshots:
       onetime: 5.1.2
       signal-exit: 3.0.7
 
-  restore-cursor@4.0.0:
-    dependencies:
-      onetime: 5.1.2
-      signal-exit: 3.0.7
-
   restore-cursor@5.1.0:
     dependencies:
       onetime: 7.0.0
@@ -16061,10 +16037,6 @@ snapshots:
   rimraf@4.4.1:
     dependencies:
       glob: 9.3.5
-
-  rimraf@5.0.7:
-    dependencies:
-      glob: 10.4.2
 
   rollup@4.18.0:
     dependencies:
@@ -17041,12 +17013,12 @@ snapshots:
       - supports-color
       - terser
 
-  vite-plugin-svgr@4.2.0(rollup@4.18.0)(typescript@5.5.2)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1)):
+  vite-plugin-svgr@4.2.0(rollup@4.18.0)(typescript@5.5.2)(vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1)):
     dependencies:
       '@rollup/pluginutils': 5.1.0(rollup@4.18.0)
       '@svgr/core': 8.1.0(typescript@5.5.2)
       '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@5.5.2))
-      vite: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1)
+      vite: 6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1)
     transitivePeerDependencies:
       - rollup
       - supports-color
@@ -17079,20 +17051,6 @@ snapshots:
       sass: 1.77.6
       stylus: 0.62.0
       sugarss: 4.0.1(postcss@8.4.45)
-      terser: 5.31.1
-
-  vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.39))(terser@5.31.1):
-    dependencies:
-      esbuild: 0.21.5
-      postcss: 8.4.45
-      rollup: 4.18.0
-    optionalDependencies:
-      '@types/node': 20.14.9
-      fsevents: 2.3.3
-      less: 4.2.0
-      sass: 1.77.6
-      stylus: 0.62.0
-      sugarss: 4.0.1(postcss@8.4.39)
       terser: 5.31.1
 
   vite@6.0.0-alpha.18(@types/node@20.14.9)(less@4.2.0)(sass@1.77.6)(stylus@0.62.0)(sugarss@4.0.1(postcss@8.4.45))(terser@5.31.1):

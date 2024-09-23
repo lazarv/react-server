@@ -1,0 +1,145 @@
+---
+title: Adapter API
+category: Deploy
+order: 100
+---
+
+import Link from "../../../../components/Link"
+
+# Adapter API
+
+By using the Adapter API available in the `@lazarv/react-server-adapter-core` package, you can easily create a deployment adapter for any deployment target.
+
+## Define the adapter handler
+
+The adapter handler is a function that you need to implement to handle the deployment of your application. It will be called by the build process and it will receive the information needed to prepare the application for deployment.
+
+An example of an adapter handler implementation can be found in the [Vercel adapter implementation](https://github.com/lazarv/react-server/blob/main/packages/react-server-adapter-vercel/index.mjs).
+
+You can start by copying the Vercel adapter implementation and then modify it to fit your needs.
+
+You need to export the adapter handler function from the file and then use the `createAdapter` function to create the adapter instance.
+
+You also need to export default a function that will be used to create the adapter instance when adapter options are provided by the user in the `react-server.config.js` file.
+
+```js
+import { createAdapter } from "@lazarv/react-server-adapter-core";
+
+export const adapter = createAdapter({
+  name: "Vercel",
+  outDir: ".vercel",
+  outStaticDir: "static",
+  handler: async ({ adapterOptions, files, copy, config, reactServerDir, reactServerOutDir, root, options }) => {
+    // Your adapter handler implementation
+  },
+  deploy: {
+    command: "vercel",
+    args: ["deploy", "--prebuilt"],
+  },
+});
+
+export default function defineConfig(adapterOptions) {
+  return async (_, root, options) => adapter(adapterOptions, root, options);
+}
+```
+
+You need to pass adapter properties to the `createAdapter` function to configure the adapter. These properties are:
+
+`name`: The name of the adapter.
+
+`outDir`: The directory where the adapter will output the deployment configuration.
+
+`outStaticDir`: The directory where the static files will be output. This is optional. When provided, the adapter will copy the static files to the output directory.
+
+`handler`: The adapter handler function.
+
+`deploy`: The deployment command and arguments. This is optional. When provided, the adapter will show what command the developer needs to run to deploy the application after it has been built. If the `--deploy` flag is provided during the build, the adapter will run this command.
+
+## Adapter handler
+
+The adapter handler function will receive the following properties:
+
+- [ ] `adapterOptions`: The adapter options passed from the `react-server.config.js` file.
+- [ ] `files`: The files object contains the static files, assets, client files, public files, server files and the dependencies.
+- [ ] `copy`: The copy object contains the functions to copy the files to the output directory.
+- [ ] `config`: The configuration object contains the configuration of the application.
+- [ ] `reactServerDir`: The path to the directory where the build output is located.
+- [ ] `reactServerOutDir`: The directory name where the build output is located.
+- [ ] `root`: The entry point of the application.
+- [ ] `options`: The options object contains the options passed from the CLI.
+
+The `files` object contains the following functions:
+
+- [ ] `static`: The function to get the static files.
+- [ ] `assets`: The function to get the assets files.
+- [ ] `client`: The function to get the client files.
+- [ ] `public`: The function to get the public files.
+- [ ] `server`: The function to get the server files.
+- [ ] `dependencies`: The function to get the dependencies.
+- [ ] `all`: The function to get all the static files (static + assets + client + public).
+
+```js
+const staticFiles = await files.static();
+```
+
+The `copy` object contains the following functions:
+
+- [ ] `static`: The function to copy the static files.
+- [ ] `assets`: The function to copy the assets files.
+- [ ] `client`: The function to copy the client files.
+- [ ] `public`: The function to copy the public files.
+- [ ] `server`: The function to copy the server files.
+- [ ] `dependencies`: The function to copy the dependencies.
+
+```js
+await copy.server(outServerDir);
+```
+
+## Helper functions
+
+### banner
+
+Shows a banner in the console.
+
+```js
+banner("building serverless functions");
+```
+
+### message
+
+Shows a message in the console. Primary and secondary colors used to show the action and the message.
+
+```js
+message("creating", "index.func module");
+```
+
+### success
+
+Shows a success message in the console.
+
+```js
+success("index.func serverless function initialized.");
+```
+
+### clearDirectory
+
+Clears a directory.
+
+```js
+await clearDirectory(outServerDir);
+```
+
+### writeJSON
+
+Writes a JSON file.
+
+```js
+await writeJSON(join(outServerDir, ".vc-config.json"), {
+  runtime: "nodejs20.x",
+  handler: "index.mjs",
+  launcherType: "Nodejs",
+  shouldAddHelpers: true,
+  supportsResponseStreaming: true,
+  ...adapterOptions?.serverlessFunctions?.index,
+});
+```

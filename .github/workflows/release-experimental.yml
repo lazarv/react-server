@@ -66,6 +66,7 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Prepare @lazarv/react-server
+        id: prepare-react-server
         if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server')
         working-directory: ./packages/react-server
         run: |
@@ -75,7 +76,7 @@ jobs:
 
       - name: Publish @lazarv/react-server
         id: publish-react-server
-        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server')
+        if: steps.prepare-react-server.outcome == 'success'
         working-directory: ./packages/react-server
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
@@ -89,26 +90,28 @@ jobs:
           gh release create "v${{ env.VERSION }}" --generate-notes
 
       - name: Prepare @lazarv/react-server-adapter-core
+        id: prepare-react-server-adapter-core
         if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-core')
         working-directory: ./packages/react-server-adapter-core
         run: |
           jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
 
       - name: Publish @lazarv/react-server-adapter-core
-        if: steps.publish-react-server-adapter-core.outcome == 'success'
+        if: steps.prepare-react-server-adapter-core.outcome == 'success'
         working-directory: ./packages/react-server-adapter-core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
         run: pnpm publish --access=public --no-git-checks
 
       - name: Prepare @lazarv/react-server-adapter-vercel
+        id: prepare-react-server-adapter-vercel
         if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-vercel')
         working-directory: ./packages/react-server-adapter-vercel
         run: |
           jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
 
       - name: Publish @lazarv/react-server-adapter-vercel
-        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-vercel')
+        if: steps.prepare-react-server-adapter-vercel.outcome == 'success'
         working-directory: ./packages/react-server-adapter-vercel
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}

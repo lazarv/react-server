@@ -190,6 +190,7 @@ export default async function ssrHandler(root, options = {}) {
             if (
               !accept ||
               !(
+                accept.includes("*/*") ||
                 accept.includes("text/html") ||
                 accept.includes("text/x-component") ||
                 accept.includes("application/json")

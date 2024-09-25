@@ -4,6 +4,8 @@ node_modules
 .react-server-*
 .vercel
 .aws-lambda
+.serverless
+.sst
 *.pem
 *.sqlite
 *.log

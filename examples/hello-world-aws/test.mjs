@@ -8,7 +8,8 @@ const eventData = {
   rawPath: queryPath,
   rawQueryString: "",
   headers: {
-    accept: "*/*",
+    accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", //"*/*",
     "content-length": "0",
     host: "localhost",
     "user-agent": "PostmanRuntime/7.26.8",

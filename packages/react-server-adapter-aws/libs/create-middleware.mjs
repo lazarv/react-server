@@ -1,28 +1,28 @@
-import { /*join,*/ resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { Worker } from "node:worker_threads";
 
 import { compose } from "@hattip/compose";
-//import { cookie } from "@hattip/cookie";
-//import { cors } from "@hattip/cors";
+import { cookie } from "@hattip/cookie";
+import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
-//import notFoundHandler from "@lazarv/react-server/lib/handlers/not-found.mjs";
-//import staticHandler from "@lazarv/react-server/lib/handlers/static.mjs";
+import notFoundHandler from "@lazarv/react-server/lib/handlers/not-found.mjs";
+import staticHandler from "@lazarv/react-server/lib/handlers/static.mjs";
 import trailingSlashHandler from "@lazarv/react-server/lib/handlers/trailing-slash.mjs";
 import ssrHandler from "@lazarv/react-server/lib/start/ssr-handler.mjs";
-//import * as sys from "@lazarv/react-server/lib/sys.mjs";
+import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import { MemoryCache } from "@lazarv/react-server/memory-cache/index.mjs";
-//import { PrerenderStorage } from "@lazarv/react-server/server/prerender-storage.mjs";
+import { PrerenderStorage } from "@lazarv/react-server/server/prerender-storage.mjs";
 import { getRuntime, runtime$ } from "@lazarv/react-server/server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   FORM_DATA_PARSER,
-  //LOGGER_CONTEXT,
+  LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "@lazarv/react-server/server/symbols.mjs";
 
-//const cwd = sys.cwd();
+const cwd = sys.cwd();
 
 const urlParser = (ctx) => {
   ctx.url = new URL(ctx.request.url, ctx.request.origin);
@@ -43,7 +43,7 @@ export async function createMiddleware(root, options) {
   runtime$(WORKER_THREAD, worker);
 
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
-  //const logger = getRuntime(LOGGER_CONTEXT);
+  const logger = getRuntime(LOGGER_CONTEXT);
 
   const initialRuntime = {
     [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
@@ -57,17 +57,11 @@ export async function createMiddleware(root, options) {
           ...config.runtime,
         }
   );
-  const initialHandlers = [
-    urlParser,
-    await trailingSlashHandler(),
-    await ssrHandler(root, options),
-  ];
-  return compose(initialHandlers);
 
-  /*
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
   const initialHandlers = [
+    urlParser,
     async () => PrerenderStorage.enterWith({}),
     await staticHandler(join(cwd, options.outDir, "dist"), {
       cwd: join(options.outDir, "dist"),
@@ -102,5 +96,4 @@ export async function createMiddleware(root, options) {
   );
 
   return middleware;
-  */
 }

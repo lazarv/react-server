@@ -39,4 +39,9 @@ const eventData = {
   isBase64Encoded: false,
 };
 const response = await handler(eventData, {});
+
 console.log(response);
+
+if (response?.isBase64Encoded === true) {
+  console.log(Buffer.from(response.body, "base64").toString());
+}

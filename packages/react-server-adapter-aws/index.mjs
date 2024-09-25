@@ -9,7 +9,7 @@ import {
   createAdapter,
   message,
   success,
-  //writeJSON,
+  writeJSON,
 } from "@lazarv/react-server-adapter-core";
 
 const cwd = sys.cwd();
@@ -41,6 +41,9 @@ export const adapter = createAdapter({
     await clearDirectory(outServerDir);
     await cp(join(adapterDir, "functions/index.mjs"), entryFile);
 
+    await writeJSON(join(outServerDir, "package.json"), {
+      type: "module",
+    });
     success("index.func serverless function initialized.");
 
     await copy.server(outServerDir);

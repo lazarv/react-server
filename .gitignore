@@ -3,6 +3,7 @@ node_modules
 .react-server
 .react-server-*
 .vercel
+.aws-lambda
 *.pem
 *.sqlite
 *.log

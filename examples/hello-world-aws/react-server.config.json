@@ -1,0 +1,4 @@
+{
+  "root": "src",
+  "adapter": "@lazarv/react-server-adapter-aws"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "hello-world-aws",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "react-server",
+    "build": "react-server build",
+    "start": "react-server start",
+    "test": "node test.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server-adapter-aws": "workspace:^",
+    "@lazarv/react-server": "workspace:^"
+  }
+}

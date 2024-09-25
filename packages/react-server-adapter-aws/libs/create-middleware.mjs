@@ -34,7 +34,10 @@ export async function createMiddleware(root, options) {
   }
 
   const workerUrl = resolve(
-    "node_modules/@lazarv/react-server/lib/start/render-stream.mjs"
+    join(
+      options.outDir,
+      "../node_modules/@lazarv/react-server/lib/start/render-stream.mjs"
+    )
   );
 
   const worker = new Worker(workerUrl, {

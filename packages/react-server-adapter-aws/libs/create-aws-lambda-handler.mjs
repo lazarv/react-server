@@ -6,5 +6,6 @@ export const createAWSLambdaHandler = async () =>
   awsLambdaAdapter(
     await createHandler({
       origin: process.env.ORIGIN || "http://localhost:3000",
+      outDir: process.env?.OUT_DIR,
     })
   );

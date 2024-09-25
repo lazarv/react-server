@@ -25,7 +25,7 @@ import {
 //const cwd = sys.cwd();
 
 const urlParser = (ctx) => {
-  ctx.url = new URL(ctx.request.url);
+  ctx.url = new URL(ctx.request.url, ctx.request.origin);
 };
 
 export async function createMiddleware(root, options) {

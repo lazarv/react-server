@@ -1,4 +1,9 @@
 {
   "root": "src",
+  "vite": {
+    "build": {
+      "sourcemap": true
+    }
+  },
   "adapter": "@lazarv/react-server-adapter-aws"
 }

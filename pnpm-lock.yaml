@@ -648,20 +648,20 @@ importers:
         specifier: ^8.14.1
         version: 8.21.0
       react:
-        specifier: 0.0.0-experimental-58af67a8f8-20240628
-        version: 0.0.0-experimental-58af67a8f8-20240628
+        specifier: 0.0.0-experimental-204a551e-20240926
+        version: 0.0.0-experimental-204a551e-20240926
       react-dom:
-        specifier: 0.0.0-experimental-58af67a8f8-20240628
-        version: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
+        specifier: 0.0.0-experimental-204a551e-20240926
+        version: 0.0.0-experimental-204a551e-20240926(react@0.0.0-experimental-204a551e-20240926)
       react-is:
-        specifier: 0.0.0-experimental-58af67a8f8-20240628
-        version: 0.0.0-experimental-58af67a8f8-20240628
+        specifier: 0.0.0-experimental-204a551e-20240926
+        version: 0.0.0-experimental-204a551e-20240926
       react-property:
         specifier: ^2.0.2
         version: 2.0.2
       react-server-dom-webpack:
-        specifier: 0.0.0-experimental-58af67a8f8-20240628
-        version: 0.0.0-experimental-58af67a8f8-20240628(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)(webpack@5.90.1(@swc/core@1.6.6(@swc/helpers@0.5.5))(esbuild@0.19.12))
+        specifier: 0.0.0-experimental-204a551e-20240926
+        version: 0.0.0-experimental-204a551e-20240926(react-dom@0.0.0-experimental-204a551e-20240926(react@0.0.0-experimental-204a551e-20240926))(react@0.0.0-experimental-204a551e-20240926)(webpack@5.90.1(@swc/core@1.6.6(@swc/helpers@0.5.5))(esbuild@0.19.12))
       remark-frontmatter:
         specifier: ^5.0.0
         version: 5.0.0
@@ -6864,10 +6864,10 @@ packages:
     peerDependencies:
       react: ^15.3.0 || ^16.0.0 || ^17.0.0 || ^18.0.0
 
-  react-dom@0.0.0-experimental-58af67a8f8-20240628:
-    resolution: {integrity: sha512-b6SvDT4u/nCnOYd8LX+c0S7dH0hScrk/X3mDWjCeNo2GBHrZhgUCmuVunCHN8aqPylVfVtIotoByBVeIrm2aMg==}
+  react-dom@0.0.0-experimental-204a551e-20240926:
+    resolution: {integrity: sha512-jdc8/86r3pwaqRzAiayGYktRAG1tpaV7tOxWLXI5S03cMaXSE3/KURMbJI+De6gw/hrelm8hrUieMWE433DDXQ==}
     peerDependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
+      react: 0.0.0-experimental-204a551e-20240926
 
   react-dom@19.0.0-rc-3208e73e-20240730:
     resolution: {integrity: sha512-jspKji5vQTTlFY7zFGh0VB+rZV+5FweCQkYxtLoPZvc5ZH6vEf1n8d+4h9YqNqF8nnhFkcHO8XLtKTtTyVGSXA==}
@@ -6892,8 +6892,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-is@0.0.0-experimental-58af67a8f8-20240628:
-    resolution: {integrity: sha512-IN7/CS7P16lb+UgrOdcM0Mxeg1PMjf9U3iObS2xekKp6zXityqsfaAGSFsp9xhuACCZtEvEqgYLI0RWv7fpksQ==}
+  react-is@0.0.0-experimental-204a551e-20240926:
+    resolution: {integrity: sha512-arwEH+4YWGjpdXJ3mFUMasax0QkUaMg4rF6j0iUHK99AC9jz3aTGuwDqcojo4mGZEVLOYg0aWt/gVfoxjC57kQ==}
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -6947,12 +6947,12 @@ packages:
     peerDependencies:
       react: 0.0.0-experimental-58af67a8f8-20240628
 
-  react-server-dom-webpack@0.0.0-experimental-58af67a8f8-20240628:
-    resolution: {integrity: sha512-J44OhH88PnTCVee9N+MkYKe9XTm9x+uFOThL3MPGKNMAWY46fZpLGs3Iq7G8YHnLw/krN9uuS8B+m0ALuvJiqw==}
+  react-server-dom-webpack@0.0.0-experimental-204a551e-20240926:
+    resolution: {integrity: sha512-iYDgj4o55KXBtbMutHn27DHDe6SmHgR5bdFtN3lKbp5p5NOdd1BySHJ94kKH1NA42fq2Q6s75eSEEkbgvicuJA==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628
+      react: 0.0.0-experimental-204a551e-20240926
+      react-dom: 0.0.0-experimental-204a551e-20240926
       webpack: ^5.59.0
 
   react-smooth@4.0.1:
@@ -6983,8 +6983,8 @@ packages:
       react: '>=16.6.0'
       react-dom: '>=16.6.0'
 
-  react@0.0.0-experimental-58af67a8f8-20240628:
-    resolution: {integrity: sha512-T8x5Am201j0TqY6yuGWIttlKYqPw/on7NXE8URJPQbSc7quYaokunawAYfL3y/Dvmqqb3l2kuK1+JRDd718DYg==}
+  react@0.0.0-experimental-204a551e-20240926:
+    resolution: {integrity: sha512-t/+tjZsV80YVrED1A+Rh501TZu8/ob5JQDd3S4+iXbq73kPBIgUA8diayiQ49OesYiMe33l1WY5QgioGl67oJg==}
     engines: {node: '>=0.10.0'}
 
   react@19.0.0-rc-a7d1240c-20240731:
@@ -7201,8 +7201,8 @@ packages:
   sax@1.4.1:
     resolution: {integrity: sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg==}
 
-  scheduler@0.0.0-experimental-58af67a8f8-20240628:
-    resolution: {integrity: sha512-348hpideTG2rOcXDP9TH7YjD4aS3ZNdZSVjfywcDRveO1qjmqSQYIWw1ow6IS15QZlpX723wVdgiyfi4inFYpQ==}
+  scheduler@0.0.0-experimental-204a551e-20240926:
+    resolution: {integrity: sha512-Kb9Cyp+rVp8hwT7SCzmf6FAQyAuHqXgrXmfH8pGu6XHLCyHGjaLw3z3aMi68VbVmaeJSyvpWZd1nTBGsVkUBJA==}
 
   scheduler@0.25.0-rc-3208e73e-20240730:
     resolution: {integrity: sha512-eCGy6Bm6PX2JB7dLumQuEYwmXku9HweMfdXCQQ2ZaRG3kwxK76RWFr7CsW/LHju8fiDSiJajl0Iq62uoaH9VLQ==}
@@ -15701,10 +15701,10 @@ snapshots:
       '@babel/runtime': 7.25.6
       react: 19.0.0-rc-a7d1240c-20240731
 
-  react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628):
+  react-dom@0.0.0-experimental-204a551e-20240926(react@0.0.0-experimental-204a551e-20240926):
     dependencies:
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      scheduler: 0.0.0-experimental-58af67a8f8-20240628
+      react: 0.0.0-experimental-204a551e-20240926
+      scheduler: 0.0.0-experimental-204a551e-20240926
 
   react-dom@19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731):
     dependencies:
@@ -15729,7 +15729,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.5
 
-  react-is@0.0.0-experimental-58af67a8f8-20240628: {}
+  react-is@0.0.0-experimental-204a551e-20240926: {}
 
   react-is@16.13.1: {}
 
@@ -15774,13 +15774,14 @@ snapshots:
       '@remix-run/router': 1.17.0
       react: 19.0.0-rc-a7d1240c-20240731
 
-  react-server-dom-webpack@0.0.0-experimental-58af67a8f8-20240628(react-dom@0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628))(react@0.0.0-experimental-58af67a8f8-20240628)(webpack@5.90.1(@swc/core@1.6.6(@swc/helpers@0.5.5))(esbuild@0.19.12)):
+  react-server-dom-webpack@0.0.0-experimental-204a551e-20240926(react-dom@0.0.0-experimental-204a551e-20240926(react@0.0.0-experimental-204a551e-20240926))(react@0.0.0-experimental-204a551e-20240926)(webpack@5.90.1(@swc/core@1.6.6(@swc/helpers@0.5.5))(esbuild@0.19.12)):
     dependencies:
       acorn-loose: 8.4.0
       neo-async: 2.6.2
-      react: 0.0.0-experimental-58af67a8f8-20240628
-      react-dom: 0.0.0-experimental-58af67a8f8-20240628(react@0.0.0-experimental-58af67a8f8-20240628)
+      react: 0.0.0-experimental-204a551e-20240926
+      react-dom: 0.0.0-experimental-204a551e-20240926(react@0.0.0-experimental-204a551e-20240926)
       webpack: 5.90.1(@swc/core@1.6.6(@swc/helpers@0.5.5))(esbuild@0.19.12)
+      webpack-sources: 3.2.3
 
   react-smooth@4.0.1(react-dom@19.0.0-rc-3208e73e-20240730):
     dependencies:
@@ -15815,7 +15816,7 @@ snapshots:
       react: 19.0.0-rc-a7d1240c-20240731
       react-dom: 19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-a7d1240c-20240731)
 
-  react@0.0.0-experimental-58af67a8f8-20240628: {}
+  react@0.0.0-experimental-204a551e-20240926: {}
 
   react@19.0.0-rc-a7d1240c-20240731: {}
 
@@ -16110,7 +16111,7 @@ snapshots:
   sax@1.4.1:
     optional: true
 
-  scheduler@0.0.0-experimental-58af67a8f8-20240628: {}
+  scheduler@0.0.0-experimental-204a551e-20240926: {}
 
   scheduler@0.25.0-rc-3208e73e-20240730: {}
 

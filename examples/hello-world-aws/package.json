@@ -4,16 +4,28 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "react-server",
     "build": "react-server build",
-    "start": "react-server start",
-    "test": "node test.mjs"
+    "dev": "react-server",
+    "start": "react-server start"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@lazarv/react-server": "workspace:^",
     "@lazarv/react-server-adapter-aws": "workspace:^",
-    "@lazarv/react-server": "workspace:^"
+    "aws-cdk-lib": "^2.160.0",
+    "constructs": "^10.3.0",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.145",
+    "aws-cdk": "^2.160.0",
+    "serverless": "3",
+    "serverless-cloudfront-invalidate": "^1.12.2",
+    "serverless-s3-sync": "^3.3.0",
+    "serverless-scriptable-plugin": "^1.3.1",
+    "sst": "^3.1.38",
+    "tsx": "^4.19.1"
   }
 }

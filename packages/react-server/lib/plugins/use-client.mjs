@@ -148,7 +148,7 @@ registerClientReference(${name}, "${workspacePath(id)}", "${name}");`
           )
           .join("\n\n");
 
-        const clientReferenceCode = `import { registerClientReference } from "${sys.rootDir}/server/client-register.mjs";\n\n${
+        const clientReferenceCode = `import { registerClientReference } from "react-server-dom-webpack/server.edge";\n\n${
           defaultExport ? `${namedExports}\n\n${defaultExport}` : namedExports
         }`;
 

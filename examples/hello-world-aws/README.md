@@ -85,11 +85,20 @@ pnpm sls remove
 ## SST V3 (ion)
 
 Currently only deployment is supported, dev mode is not implemented and boken.
-The sample configuration does not support AWS Cloudfront and static assets from AWS S3 and only implements the full stack as a lambda function which also provides the static assets behind the API Gateway.
+
+The sample configuration support AWS Cloudfront and static assets from AWS S3.
 
 required files and folders:
 * `sst-env.d.ts`
 * `sst.config.ts`
+
+create a symbolic link from `react-server.ts`
+```sh
+cd .sst/platform/src/components/aws
+ln ../../../../../react-server.js react-server.js
+```
+
+add `export * from "./react-server.js";` to `.sst/platform/src/components/aws/index.ts`
 
 add the following packages:
 ```sh

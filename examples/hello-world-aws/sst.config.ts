@@ -12,22 +12,9 @@ export default $config({
   },
 
   async run() {
-    const api = new sst.aws.ApiGatewayV2("ApiGateway");
-    api.route("$default", {
-      handler: "index.handler",
-      bundle: "bundle", // disable bundling with esbuild
-      copyFiles: [
-        {
-          from: ".aws-lambda/output/static",
-          to: ".react-server",
-        },
-        {
-          from: ".aws-lambda/output/functions/index.func",
-          to: ".",
-        },
-      ],
-      environment: {
-        NODE_ENV: "production",
+    new sst.aws.ReactServer("ReactServertackDemoApp", {
+      server: {
+        architecture: "arm64",
       },
     });
   },

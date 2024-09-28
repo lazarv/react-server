@@ -1,8 +1,8 @@
+import { statSync } from "node:fs";
 import { open, readFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import glob from "fast-glob";
 import mime from "mime";
 
 import { prerender$ } from "../../server/prerender-storage.mjs";
@@ -12,27 +12,32 @@ import * as sys from "../sys.mjs";
 const cwd = sys.cwd();
 
 export default async function staticHandler(dir, options = {}) {
-  const files = (
-    await glob(`${dir}/**/*`, {
-      cwd: options.cwd,
-      stats: true,
-      absolute: true,
-    })
-  ).reduce((files, file) => {
-    files.set(
-      sys.normalizePath(
-        `/${relative(join(cwd, options.cwd ?? "."), file.path)}`
-      ),
-      {
-        ...file,
-        etag: `W/"${file.stats.size}-${file.stats.mtime.getTime()}"`,
-        mime:
-          mime.getType(file.path.replace(/\.(br|gz)$/, "")) ||
-          "application/octet-stream",
+  const files = new Map();
+
+  const exists = (path) => {
+    if (files.has(path)) {
+      return true;
+    }
+    try {
+      const file = statSync(join(cwd, options.cwd ?? ".", path));
+      if (file.isFile()) {
+        files.set(path, {
+          ...file,
+          stats: file,
+          path: join(options.cwd ?? cwd, path),
+          etag: `W/"${file.size}-${file.mtime.getTime()}"`,
+          mime:
+            mime.getType(path.replace(/\.(br|gz)$/, "")) ||
+            "application/octet-stream",
+        });
+        return true;
       }
-    );
-    return files;
-  }, new Map());
+    } catch {
+      // ignore
+    }
+    return false;
+  };
+
   const fileCache = new Map();
 
   return async (context) => {
@@ -76,13 +81,13 @@ export default async function staticHandler(dir, options = {}) {
           }
         );
         prerender$(POSTPONE_STATE, postponed);
-      } else if (isBrotli && files.has(`${basename}.br`)) {
+      } else if (isBrotli && exists(`${basename}.br`)) {
         pathname = `${basename}.br`;
         contentEncoding = "br";
-      } else if (isGzip && files.has(`${basename}.gz`)) {
+      } else if (isGzip && exists(`${basename}.gz`)) {
         pathname = `${basename}.gz`;
         contentEncoding = "gzip";
-      } else if (files.has(basename)) {
+      } else if (exists(basename)) {
         pathname = basename;
       }
     }
@@ -93,13 +98,13 @@ export default async function staticHandler(dir, options = {}) {
       const isGzip = acceptEncoding?.includes("gzip");
 
       const basename = `${pathname}/x-component.rsc`.replace(/^\/+/g, "");
-      if (isBrotli && files.has(`${basename}.br`)) {
+      if (isBrotli && exists(`${basename}.br`)) {
         pathname = `${basename}.br`;
         contentEncoding = "br";
-      } else if (isGzip && files.has(`${basename}.gz`)) {
+      } else if (isGzip && exists(`${basename}.gz`)) {
         pathname = `${basename}.gz`;
         contentEncoding = "gzip";
-      } else if (files.has(basename)) {
+      } else if (exists(basename)) {
         pathname = basename;
       }
     }
@@ -110,18 +115,18 @@ export default async function staticHandler(dir, options = {}) {
       const isGzip = acceptEncoding?.includes("gzip");
 
       const basename = `${pathname}/remote.rsc`.replace(/^\/+/g, "");
-      if (isBrotli && files.has(`${basename}.br`)) {
+      if (isBrotli && exists(`${basename}.br`)) {
         pathname = `${basename}.br`;
         contentEncoding = "br";
-      } else if (isGzip && files.has(`${basename}.gz`)) {
+      } else if (isGzip && exists(`${basename}.gz`)) {
         pathname = `${basename}.gz`;
         contentEncoding = "gzip";
-      } else if (files.has(basename)) {
+      } else if (exists(basename)) {
         pathname = basename;
       }
     }
 
-    if (pathname !== "/" && files.has(pathname)) {
+    if (pathname !== "/" && exists(pathname)) {
       try {
         const file = files.get(pathname);
         if (

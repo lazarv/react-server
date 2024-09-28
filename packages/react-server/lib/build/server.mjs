@@ -6,6 +6,7 @@ import replace from "@rollup/plugin-replace";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
+import configPrebuilt from "../plugins/config-prebuilt.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
@@ -161,6 +162,7 @@ export default async function serverBuild(root, options) {
           },
         },
         input: {
+          "server/__react_server_config__/prebuilt": "virtual:config/prebuilt",
           "server/render": __require.resolve(
             "@lazarv/react-server/server/render-rsc.jsx",
             { paths: [cwd] }
@@ -196,6 +198,7 @@ export default async function serverBuild(root, options) {
           rollupUseServer("rsc", serverManifest),
           rollupUseServerInline(serverManifest),
           rootModule(root),
+          configPrebuilt(),
           ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },

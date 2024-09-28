@@ -16,6 +16,7 @@ import {
   LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import { getEnv } from "../sys.mjs";
 import banner from "../utils/banner.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
@@ -44,8 +45,9 @@ export default async function dev(root, options) {
           options
         );
 
-        const port = options.port ?? configRoot.port;
-        const host = options.host ?? configRoot.host;
+        const port = options.port ?? getEnv("PORT") ?? configRoot.port ?? 3000;
+        const host =
+          options.host ?? getEnv("HOST") ?? configRoot.host ?? "localhost";
         const listenerHost = host === true ? undefined : host;
 
         const openServer = (https, host, port) => {

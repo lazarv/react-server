@@ -2,7 +2,9 @@ import { setEnv } from "../../lib/sys.mjs";
 
 export default (cli) =>
   cli
-    .command("[root]", "start server in development mode")
+    .command("[root]", "start server in development mode", {
+      ignoreOptionDefaultValue: true,
+    })
     .option("--host [host]", "[string] host to listen on", {
       default: "localhost",
     })

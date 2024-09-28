@@ -8,7 +8,19 @@ import Link from "../../../../components/Link.jsx";
 
 # Configuration
 
-To configure the behavior of the framework, you need to create a `react-server.config.*` file in the root of your project. This file is used to configure the server and the build process. The file type could be `.mjs`, `.ts`, or `.json`.
+To configure the behavior of the framework, you need to create a `react-server.config.*` or `+*.config.*` file in the root of your project. This file is used to configure the server and the build process. The file type could be `.js`, `.mjs`, `.ts`, `.mts` or `.json`.
+
+You can use the `+*.config.*` file to extend the configuration of the framework. The `+*.config.*` file is merged with the `react-server.config.*` file.
+
+The `+*.config.*` file is useful when you want to extend the configuration of the framework. You can use as many `+*.config.*` files as you want. All the configuration files are merged together in the order they are loaded.
+
+If you want to only add configuration to use when running the framework in production mode, then use the `.production.config.*` extension. These configuration files only loaded in production mode.
+
+In a similar way, you can create configuration files with the `.development.config.*` extension to use a different configuration for development mode.
+
+To add configuration to the build process, you can create `.build.config.*` files and these configuration files will only be used during a production build.
+
+Configuration files with the `.runtime.config.*` or `.server.config.*` extensions are not used during the build process.
 
 The configuration object you need to export as default is an extension of the Vite config object. You can find the full list of options [here](https://vitejs.dev/config/).
 
@@ -17,6 +29,10 @@ The configuration object you need to export as default is an extension of the Vi
 </Link>
 
 To provide full control over the Vite configuration, you can use the `vite` option to configure the Vite server and the build process. The `vite` option is an object that extends the Vite config object or a function that returns a new Vite config object. As a function you can discover and mutate the default configuration for Vite.
+
+You can also use a `vite.config.*` file to configure Vite as you would do in a Vite project. The `vite.config.*` file is merged with the `react-server.config.*` file.
+
+Best practice is to use a `vite.config.*` file to configure Vite as you would do in a Vite project and use the `react-server.config.*` file to configure the framework specific options.
 
 <Link name="additional-configuration">
 ## Additional configuration

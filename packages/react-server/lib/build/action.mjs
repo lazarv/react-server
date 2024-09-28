@@ -25,7 +25,7 @@ export default async function build(root, options) {
   if (!options.outDir) {
     options.outDir = ".react-server";
   }
-  const config = await loadConfig({}, options);
+  const config = await loadConfig({}, { ...options, command: "build" });
 
   return new Promise((resolve) => {
     ContextStorage.run(

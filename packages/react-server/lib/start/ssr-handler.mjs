@@ -2,7 +2,7 @@ import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { forChild } from "../../config/index.mjs";
+import { forChild } from "../../config/context.mjs";
 import { init$ as memory_cache_init$ } from "../../memory-cache/index.mjs";
 import { ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
@@ -61,10 +61,11 @@ export default async function ssrHandler(root, options = {}) {
       paths: [cwd],
     }
   );
-  const { render } = await import(pathToFileURL(entryModule));
-  const { default: Component, init$: root_init$ } = await import(
-    pathToFileURL(rootModule)
-  );
+  const [{ render }, { default: Component, init$: root_init$ }] =
+    await Promise.all([
+      import(pathToFileURL(entryModule)),
+      import(pathToFileURL(rootModule)),
+    ]);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
   const mainModule = getRuntime(MAIN_MODULE)?.map((mod) =>

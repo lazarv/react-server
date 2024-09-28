@@ -5,7 +5,7 @@ import { isIPv6 } from "node:net";
 import { availableParallelism } from "node:os";
 import { pathToFileURL } from "node:url";
 
-import { loadConfig } from "../../config/index.mjs";
+import { loadConfig } from "../../config/prebuilt.mjs";
 import { logger } from "../../server/logger.mjs";
 import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
 import {
@@ -14,6 +14,7 @@ import {
   LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import { getEnv } from "../sys.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
 import createServer from "./create-server.mjs";
@@ -38,27 +39,41 @@ function primary(numCPUs) {
   });
 }
 
-async function worker(root, options) {
-  const config = await loadConfig({}, options);
+async function worker(root, options, config) {
+  config ??= await loadConfig({}, options);
   const configRoot = config[CONFIG_ROOT];
 
   await runtime_init$(async () => {
     runtime$(CONFIG_CONTEXT, config);
 
-    if (!configRoot?.logger || typeof configRoot?.logger === "string") {
-      const { default: loggerModule } = await import(
-        pathToFileURL(__require.resolve(configRoot?.logger ?? "pino"))
-      );
+    if (!configRoot?.logger) {
+      const { default: loggerModule } = await import("pino");
       const logger = loggerModule();
       runtime$(LOGGER_CONTEXT, logger);
+    } else if (typeof configRoot?.logger === "string") {
+      try {
+        const { default: loggerModule } = await import(
+          pathToFileURL(__require.resolve(configRoot?.logger))
+        );
+        const logger = loggerModule();
+        runtime$(LOGGER_CONTEXT, logger);
+      } catch {
+        const { default: loggerModule } = await import("pino");
+        const logger = loggerModule();
+        logger.warn(
+          `Failed to load logger module ${configRoot?.logger}, using default logger.`
+        );
+        runtime$(LOGGER_CONTEXT, logger);
+      }
     } else {
       runtime$(LOGGER_CONTEXT, configRoot?.logger);
     }
 
     const server = await createServer(root, options);
 
-    const port = options.port ?? configRoot.port;
-    const host = options.host ?? configRoot.host;
+    const port = options.port ?? getEnv("PORT") ?? configRoot.port ?? 3000;
+    const host =
+      options.host ?? getEnv("HOST") ?? configRoot.host ?? "localhost";
     const listenerHost = host === true ? undefined : host;
 
     const listener = server.listen(port, listenerHost);
@@ -110,7 +125,7 @@ export default async function start(root, options) {
       ) {
         primary(numCPUs);
       } else {
-        worker(root, options);
+        worker(root, options, config);
       }
     } catch (error) {
       console.error(error);

@@ -95,7 +95,7 @@ required files and folders:
 create a symbolic link from `react-server.ts`
 ```sh
 cd .sst/platform/src/components/aws
-ln ../../../../../react-server.js react-server.js
+ln ../../../../../react-server.ts.master react-server.ts
 ```
 
 add `export * from "./react-server.js";` to `.sst/platform/src/components/aws/index.ts`

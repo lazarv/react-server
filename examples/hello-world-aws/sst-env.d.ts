@@ -4,10 +4,5 @@
 import "sst";
 export {};
 declare module "sst" {
-  export interface Resource {
-    ReactServertackDemoApp: {
-      type: "sst.aws.ReactServer";
-      url: string;
-    };
-  }
+  export interface Resource {}
 }

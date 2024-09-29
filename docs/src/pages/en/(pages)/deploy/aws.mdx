@@ -95,6 +95,11 @@ You can build and deploy your application to AWS using the following command:
 pnpm sst deploy
 ```
 
+>  **Error:**
+> `TypeError: aws_exports.ReactServer is not a constructor`
+> 
+> run `pnpm build` again to fix missing ReactServer stack to sst.
+
 **remove stack:**
 ```sh
 pnpm sst remove

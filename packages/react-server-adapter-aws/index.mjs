@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,13 +14,13 @@ import {
 } from "@lazarv/react-server-adapter-core";
 
 const cwd = sys.cwd();
-const awsDir = join(cwd, ".aws-lambda");
+const awsDir = join(cwd, ".aws-react-server");
 const outDir = join(awsDir, "output");
 const outStaticDir = join(outDir, "static");
 const adapterDir = dirname(fileURLToPath(import.meta.url));
 
 export const adapter = createAdapter({
-  name: "AWS Lambda",
+  name: "AWS",
   outDir,
   outStaticDir,
   handler: async ({
@@ -62,12 +63,88 @@ export const adapter = createAdapter({
 
     await copy.server(outServerDir);
     await copy.dependencies(outServerDir, [entryFile]);
+
+    banner("detect aws build tool");
+    await setupFramework();
   },
-  // deploy: {
-  //   command: "vercel",
-  //   args: ["deploy", "--prebuilt"],
-  // },
+  deploy: deployFramework(),
 });
+
+function detectFramework() {
+  if (existsSync(join(cwd, ".sst"))) {
+    return "sst";
+  } else if (existsSync(join(cwd, "cdk.json"))) {
+    return "cdk";
+  } else if (existsSync(join(cwd, "serverless.yml"))) {
+    return "sls";
+  }
+  return null;
+}
+
+async function setupFramework() {
+  const framework = detectFramework();
+  if (framework === "sst") {
+    if (
+      !existsSync(join(cwd, ".sst/platform/src/components/aws/react-server.ts"))
+    ) {
+      await cp(
+        join(adapterDir, "setup", "sst/react-server.ts.template"),
+        join(cwd, ".sst/platform/src/components/aws/react-server.ts")
+      );
+      message("found sst framework:", "missing react-server.ts stack added.");
+    } else {
+      message("found sst framework:", "react-server.ts stack exists.");
+    }
+  } else if (framework === "cdk") {
+    if (await fileIsEmpty(join(cwd, "cdk.json"))) {
+      await cp(join(adapterDir, "setup", "cdk"), cwd, {
+        overwrite: true,
+        recursive: true,
+      });
+      message("found cdk framework:", "cdk setup initialized.");
+    } else {
+      message("found cdk framework:", "cdk setup exists.");
+    }
+  } else if (framework === "sls") {
+    if (await fileIsEmpty(join(cwd, "serverless.yml"))) {
+      await cp(join(adapterDir, "setup", "sls"), join(cwd), {
+        overwrite: true,
+        recursive: true,
+      });
+      message("found sls framework:", "serverless.yml initialized.");
+    } else {
+      message("found sls framework:", "serverless.yml exists.");
+    }
+  } else {
+    message("no framework detected.");
+  }
+}
+
+function deployFramework() {
+  const framework = detectFramework();
+  if (framework === "sst") {
+    return {
+      command: "pnpm",
+      args: ["sst", "deploy"],
+    };
+  } else if (framework === "cdk") {
+    return {
+      command: "pnpm",
+      args: ["cdk", "deploy", "--all"],
+    };
+  } else if (framework === "sls") {
+    return {
+      command: "pnpm",
+      args: ["sls", "deploy"],
+    };
+  }
+  return null;
+}
+
+async function fileIsEmpty(path) {
+  const stats = await stat(path);
+  return stats.size === 0;
+}
 
 export default function defineConfig(adapterOptions) {
   return async (_, root, options) => adapter(adapterOptions, root, options);

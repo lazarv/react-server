@@ -20,6 +20,9 @@ Add the `@lazarv/react-server-adapter-aws` package to your project:
 pnpm add -D @lazarv/react-server-adapter-aws
 ```
 
+Add this to `.gitignore`:
+`.aws-react-server`
+
 Then you need to add the adapter to your `react-server.config.mjs` file:
 
 ```mjs
@@ -43,6 +46,11 @@ AWS deployment frameworks/tools:
 
 ## SST V3 (ion)
 
+**Architecture:**
+* AWS Cloudfront - globals CDN and reverse proxy for the framework and the static assets
+* AWS Lambda URL Function - provides the react-server framework
+* AWS S3 - static assets
+
 > **Note:** Currently only deployment is supported, dev mode is not implemented and boken.
 
 <Link name="installation-sst">
@@ -63,7 +71,12 @@ async run() {
     new sst.aws.ReactServer("ReactServertackDemoApp");
   },
 ```
-> **Note:** if `ReactServer()` sst stack is missing in the `.sst` folder, the first deployment will add the missing file.
+
+Third, add the `ReactServer()` sst stack `.sst/platform/src/components/aws/react-server.ts`:
+
+```sh
+pnpm build
+```
 
 <Link name="configuration-sst">
 ## Configuration
@@ -89,14 +102,20 @@ pnpm sst remove
 
 ## AWS CDK
 
-A sample configuration can be found here:
-https://github.com/lazarv/react-server/tree/main/examples/hello-world-aws
+> **Note:** Streaming is not supported.
 
-required files and folders:
-* `cdk.json`
-* `cdk`
+**Architecture:**
+* AWS Cloudfront - globals CDN and reverse proxy for the framework and the static assets
+* AWS API Gateway - used by AWS Lambda function
+* AWS Lambda Function - provides the react-server framework
+* AWS S3 - static assets
 
-add the following packages:
+<Link name="installation-cdk">
+## Installation
+</Link>
+
+First you need to install this packages:
+
 ```sh
 pnpm add aws-cdk-lib constructs source-map-support
 pnpm add -D aws-cdk tsx
@@ -108,12 +127,24 @@ add to `.gitignore`:
 cdk.out
 ```
 
+Third, add the `ReactServer()` cdk stack `cdk/lib/react-server-stack.ts`:
+
+```sh
+touch cdk.json
+pnpm build
+```
+> **Note:** will only add a sample configuration when `cdk.json` is empty.
+
 Configuration of the stack is possible in `cdk/bin/infrastructure.ts`:
 * custome domain
 * ssl certificate
 
-**deploy:**
+<Link name="deploy-cdk">
+## Deploy
+</Link>
+
 ```sh
+pnpm build
 pnpm cdk deploy --all
 ```
 
@@ -124,11 +155,13 @@ pnpm cdk destroy --all
 
 ## Serverless Framework V3
 
-A sample configuration can be found here:
-https://github.com/lazarv/react-server/tree/main/examples/hello-world-aws
+> **Note:** Streaming is not supported.
 
-required files and folders:
-* serverless.yml
+**Architecture:**
+* AWS Cloudfront - globals CDN and reverse proxy for the framework and the static assets
+* AWS API Gateway - used by AWS Lambda function
+* AWS Lambda Function - provides the react-server framework
+* AWS S3 - static assets
 
 add the following packages:
 ```sh
@@ -141,13 +174,28 @@ add to `.gitignore`:
 .serverless
 ```
 
+run this commands to create a sample configuration:
+
+```sh
+touch serverless.yml
+pnpm build
+```
+
+> **Note:** will only add a sample configuration when `serverless.yml` is empty.
+
+<Link name="deploy-sls">
+## Deploy
+</Link>
+
+```sh
+pnpm build
+pnpm sls deploy
+```
+
 get FrontendCloudFrontDistributionUrl:
 `pnpm sls info --verbose`
 
-**deploy:**
-```sh
-pnpm sls deploy
-```
+Configuration of the stack is possible in `serverless.yml`.
 
 **remove stack:**
 ```sh

@@ -16,7 +16,8 @@
     "@lazarv/react-server-adapter-aws": "workspace:^",
     "aws-cdk-lib": "^2.160.0",
     "constructs": "^10.3.0",
-    "source-map-support": "^0.5.21"
+    "source-map-support": "^0.5.21",
+    "sst": "3.1.49"
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.145",

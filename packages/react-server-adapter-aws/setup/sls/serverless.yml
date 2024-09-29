@@ -20,13 +20,13 @@ plugins:
 package:
   patterns:
     - "!**/**"
-    - ".aws-lambda/output/functions/**/*"
+    - ".aws-react-server/output/functions/**/*"
 
 functions:
   ssr:
-    handler: .aws-lambda/output/functions/index.func/index.handler
+    handler: .aws-react-server/output/functions/index.func/index.handler
     environment:
-      OUT_DIR: ".aws-lambda/output/functions/index.func/.react-server"
+      OUT_DIR: ".aws-react-server/output/functions/index.func/.react-server"
     events:
       - httpApi: "*"
 
@@ -35,7 +35,7 @@ custom:
   project: react-server-demo-001
   s3Sync:
     - bucketNameKey: WebSiteBucket
-      localDir: .aws-lambda/output/static
+      localDir: .aws-react-server/output/static
       deleteRemoved: true
       acl: public-read # required
       params:

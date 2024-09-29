@@ -91,6 +91,10 @@ async function setupFramework() {
         join(adapterDir, "setup", "sst/react-server.ts.template"),
         join(cwd, ".sst/platform/src/components/aws/react-server.ts")
       );
+      await addExport(
+        join(cwd, ".sst/platform/src/components/aws/index.ts"),
+        "react-server"
+      );
       message("found sst framework:", "missing react-server.ts stack added.");
     } else {
       message("found sst framework:", "react-server.ts stack exists.");
@@ -144,6 +148,17 @@ function deployFramework() {
 async function fileIsEmpty(path) {
   const stats = await stat(path);
   return stats.size === 0;
+}
+
+async function addExport(path, exportfile) {
+  const content = await readFile(path, { encoding: "utf-8" });
+  if (!content.includes(`export * from "./${exportfile}.js";`)) {
+    await writeFile(
+      path,
+      `${content}\nexport * from "./${exportfile}.js";`,
+      "utf-8"
+    );
+  }
 }
 
 export default function defineConfig(adapterOptions) {

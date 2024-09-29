@@ -457,7 +457,7 @@ export class ReactServer extends Component implements Link.Linkable {
       return outputPath.apply((outputPath) => {
         const assetsPath = path.join(
           outputPath,
-          ".aws-lambda",
+          ".aws-react-server",
           "output",
           "static"
         );
@@ -482,11 +482,11 @@ export class ReactServer extends Component implements Link.Linkable {
             bundle: "bundle", // disable bundling with esbuild
             copyFiles: [
               {
-                from: ".aws-lambda/output/static",
+                from: ".aws-react-server/output/static",
                 to: ".react-server",
               },
               {
-                from: ".aws-lambda/output/functions/index.func",
+                from: ".aws-react-server/output/functions/index.func",
                 to: ".",
               },
             ],

@@ -34,7 +34,10 @@ export class ReactServerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ReactServerStackProps) {
     super(scope, id, props);
 
-    const awsOutputDirectory = join(__dirname, "../../.aws-lambda/output");
+    const awsOutputDirectory = join(
+      __dirname,
+      "../../.aws-react-server/output"
+    );
 
     const certificate =
       props.customStackProps?.certificate &&

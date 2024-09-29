@@ -1,5 +1,5 @@
 # react-server adapter aws
-.aws-lambda
+.aws-react-server
 # aws-cdk
 .cdk.staging
 cdk.out

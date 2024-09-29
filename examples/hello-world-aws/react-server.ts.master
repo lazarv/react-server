@@ -1,4 +1,3 @@
-// eslint-disable
 import { all, ComponentResourceOptions, Output, output } from "@pulumi/pulumi";
 import fs from "fs";
 import path from "path";
@@ -6,7 +5,7 @@ import path from "path";
 import { buildApp } from "../base/base-ssr-site.js";
 import { Component } from "../component.js";
 import { DevArgs } from "../dev.js";
-//import { VisibleError } from "../error.js";
+import { VisibleError } from "../error.js";
 import { Link } from "../link.js";
 import { Bucket } from "./bucket.js";
 import { Cdn } from "./cdn.js";
@@ -395,13 +394,19 @@ export class ReactServer extends Component implements Link.Linkable {
     const outputPath = buildApp(parent, name, args, sitePath);
 
     const preset = outputPath.apply((output) => {
-      const awsLambdaHandler = fs.readFileSync(
-        path.join(output, "dist/serve-aws-lambda.js"),
+      if (!fs.existsSync(path.join(output, "react-server.config.json"))) return "aws-lambda";
+      const fileData = fs.readFileSync(
+        path.join(output, "react-server.config.json"),
         { encoding: "utf-8" }
       );
-      return awsLambdaHandler.includes("streamHandle:handle")
-        ? "aws-lambda-streaming"
-        : "aws-lambda";
+      try {
+        const reactServerConfig = JSON.parse(fileData);
+
+        return reactServerConfig?.adapter?.[1]?.streaming === true
+          ? "aws-lambda-streaming"
+          : "aws-lambda";
+      } catch (e) { }
+      return "aws-lambda";
     });
 
     const buildMeta = loadBuildMetadata();
@@ -470,7 +475,7 @@ export class ReactServer extends Component implements Link.Linkable {
 
     function buildPlan() {
       return all([outputPath, buildMeta, preset]).apply(
-        ([_outputPath, buildMeta, preset]) => {
+        ([outputPath, buildMeta, preset]) => {
           const serverConfig = {
             description: "Server handler for react-server",
             handler: "index.handler",
@@ -488,6 +493,8 @@ export class ReactServer extends Component implements Link.Linkable {
             environment: {
               NODE_ENV: "production",
             },
+            //handler: "index.handler",
+            //bundle: path.join(outputPath, ".output", "server"),
             streaming: preset === "aws-lambda-streaming",
           };
 

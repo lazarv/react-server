@@ -5,5 +5,10 @@
       "sourcemap": true
     }
   },
-  "adapter": "@lazarv/react-server-adapter-aws"
+  "adapter": [
+    "@lazarv/react-server-adapter-aws",
+    {
+      "streaming": true
+    }
+  ]
 }

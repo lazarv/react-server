@@ -1,4 +1,4 @@
-import { loadConfig } from "@lazarv/react-server/config/index.mjs";
+import { loadConfig } from "@lazarv/react-server/config/prebuilt.mjs";
 import { experimentalWarningSilence } from "@lazarv/react-server/lib/sys.mjs";
 import {
   init$ as runtime_init$,

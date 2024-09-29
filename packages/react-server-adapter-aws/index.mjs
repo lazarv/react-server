@@ -1,4 +1,4 @@
-import { cp } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,7 +23,7 @@ export const adapter = createAdapter({
   outDir,
   outStaticDir,
   handler: async ({
-    // adapterOptions,
+    adapterOptions,
     // files,
     copy,
     // config,
@@ -38,8 +38,22 @@ export const adapter = createAdapter({
     const outServerDir = join(outDir, "functions/index.func");
     const entryFile = join(outServerDir, "index.mjs");
 
+    let entryFileContent = await readFile(
+      join(adapterDir, "functions/index.mjs"),
+      { encoding: "utf-8" }
+    );
+    const streaming = adapterOptions?.streaming === true;
+    if (streaming) {
+      entryFileContent = entryFileContent.replace(
+        "awsLambdaAdapter",
+        "awsLambdaAdapterStreaming"
+      );
+    }
+
     await clearDirectory(outServerDir);
-    await cp(join(adapterDir, "functions/index.mjs"), entryFile);
+    await mkdir(outServerDir, { recursive: true });
+
+    await writeFile(entryFile, entryFileContent, "utf-8");
 
     await writeJSON(join(outServerDir, "package.json"), {
       type: "module",

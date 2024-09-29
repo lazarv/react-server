@@ -31,6 +31,10 @@
       "default": "./server/router.jsx",
       "types": "./server/router.d.ts"
     },
+    "./remote": {
+      "default": "./server/remote.jsx",
+      "types": "./server/remote.d.ts"
+    },
     "./prerender": {
       "default": "./server/prerender.jsx",
       "types": "./server/prerender.d.ts"

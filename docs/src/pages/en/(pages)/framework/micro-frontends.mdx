@@ -51,7 +51,7 @@ Just don't use `html`, `head` or `body` tags in your micro-frontend route as the
 The `RemoteComponent` component takes a `src` prop that specifies the URL of the micro-frontend. By using this component, you can compose your application from multiple micro-frontends, each developed and deployed independently.
 
 ```jsx
-import { RemoteComponent } from "@lazarv/react-server/router";
+import RemoteComponent from "@lazarv/react-server/remote";
 
 export default function Home() {
   return (
@@ -70,7 +70,7 @@ You can also export your hosting application while using the `RemoteComponent` a
 For streaming response to work from a micro-frontend, you need to pass `defer` as a prop to the `RemoteComponent`. The initial content will be rendered during server-side rendering, and the rest of the content will be streamed from the micro-frontend after the initial content is rendered and the `RemoteComponent` gets hydrated.
 
 ```jsx
-import { RemoteComponent } from "@lazarv/react-server/router";
+import RemoteComponent from "@lazarv/react-server/remote";
 
 export default function Home() {
   return (

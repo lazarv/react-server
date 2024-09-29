@@ -4,9 +4,6 @@
   "description": "React Server Adapter for AWS Lambda",
   "module": "index.mjs",
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
   "sideEffects": true,
   "exports": {
     "./create-handler": {

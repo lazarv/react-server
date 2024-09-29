@@ -1,4 +1,4 @@
-import { RemoteComponent } from "@lazarv/react-server/router";
+import RemoteComponent from "@lazarv/react-server/remote";
 
 import HostButton from "./HostButton.jsx";
 

@@ -53,29 +53,29 @@ export default async function createServer(root, options) {
 
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
-  const initialHandlers = [
+  const initialHandlers = await Promise.all([
     async () => PrerenderStorage.enterWith({}),
-    await staticHandler(join(cwd, options.outDir, "dist"), {
+    staticHandler(join(cwd, options.outDir, "dist"), {
       cwd: join(options.outDir, "dist"),
     }),
-    await staticHandler("{client,assets}", { cwd: options.outDir }),
-    await staticHandler(join(cwd, options.outDir), {
+    staticHandler("{client,assets}", { cwd: options.outDir }),
+    staticHandler(join(cwd, options.outDir), {
       cwd: options.outDir,
     }),
     ...(config.public !== false
       ? [
-          await staticHandler(join(cwd, publicDir), {
+          staticHandler(join(cwd, publicDir), {
             cwd: publicDir,
           }),
         ]
       : []),
-    await trailingSlashHandler(),
+    trailingSlashHandler(),
     cookie(config.cookies),
     ...(config.handlers?.pre ?? []),
-    await ssrHandler(root, options),
+    ssrHandler(root, options),
     ...(config.handlers?.post ?? []),
-    await notFoundHandler(),
-  ];
+    notFoundHandler(),
+  ]);
   if (options.cors) {
     logger.info("CORS enabled");
     initialHandlers.unshift(cors());
@@ -89,12 +89,12 @@ export default async function createServer(root, options) {
     ),
     {
       origin:
-        config.server?.origin ??
         options.origin ??
-        process.env.ORIGIN ??
+        sys.getEnv("ORIGIN") ??
+        config.server?.origin ??
         `${
           config.server?.https || options.https ? "https" : "http"
-        }://${config.server?.host ?? options.host ?? "localhost"}:${config.server?.port ?? options.port}`,
+        }://${options.host ?? sys.getEnv("HOST") ?? config.server?.host ?? "localhost"}:${options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000}`,
       trustProxy: config.server?.trustProxy ?? options.trustProxy,
     }
   );

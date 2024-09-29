@@ -34,7 +34,6 @@ import {
 } from "../../server/symbols.mjs";
 import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
-import staticWatchHandler from "../handlers/static-watch.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import { alias, moduleAliases } from "../loader/module-alias.mjs";
 import { applyAlias } from "../loader/utils.mjs";
@@ -452,21 +451,14 @@ export default async function createServer(root, options) {
         }
   );
 
-  const initialHandlers = [
-    ...(config.public !== false
-      ? [
-          await staticWatchHandler(join(cwd, publicDir), {
-            cwd: publicDir,
-          }),
-        ]
-      : []),
-    await trailingSlashHandler(),
+  const initialHandlers = await Promise.all([
+    trailingSlashHandler(),
     cookie(config.cookies),
     ...(config.handlers?.pre ?? []),
-    await ssrHandler(root),
+    ssrHandler(root),
     ...(config.handlers?.post ?? []),
-    await notFoundHandler(),
-  ];
+    notFoundHandler(),
+  ]);
   if (options.cors) {
     initialHandlers.unshift(cors());
   }

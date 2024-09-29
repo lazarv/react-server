@@ -1,0 +1,155 @@
+---
+title: AWS
+category: Deploy
+order: 2
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# AWS
+
+To deploy to AWS, use the `@lazarv/react-server-adapter-aws` package. This adapter is specifically designed to work with AWS and it's configuration.
+
+<Link name="installation">
+## Installation
+</Link>
+
+Add the `@lazarv/react-server-adapter-aws` package to your project:
+
+```sh
+pnpm add -D @lazarv/react-server-adapter-aws
+```
+
+Then you need to add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: '@lazarv/react-server-adapter-aws',
+};
+```
+
+**Streaming** can be activated by setting the property `streaming: true`:
+```mjs
+export default {
+adapter: [ '@lazarv/react-server-adapter-aws', {streaming: true} ]
+};
+```
+> **Note:** check if your deployment framework supports streaming!
+
+AWS deployment frameworks/tools:
+* [AWS CDK](#aws-cdk)
+* [Serverless Framework V3](#serverless-framework-v3)
+* [SST V3 (ion)](#sst-v3-ion)
+
+## SST V3 (ion)
+
+> **Note:** Currently only deployment is supported, dev mode is not implemented and boken.
+
+<Link name="installation-sst">
+## Installation
+</Link>
+
+First you need to initialize your project with sst. You can do this by running the following command:
+
+```sh
+pnpx sst@latest init
+```
+
+**Answers:** 1. **Template:** js, 2. **Framework:** aws
+
+Second, open `sst.config.ts` and replace `async run() {},`with:
+```mjs
+async run() {
+    new sst.aws.ReactServer("ReactServertackDemoApp");
+  },
+```
+> **Note:** if `ReactServer()` sst stack is missing in the `.sst` folder, the first deployment will add the missing file.
+
+<Link name="configuration-sst">
+## Configuration
+</Link>
+
+All possible configuration options are documented here:
+`.sst/platform/src/components/aws/react-server.ts`
+
+<Link name="deploy-sst">
+## Deploy
+</Link>
+
+You can build and deploy your application to AWS using the following command:
+
+```sh
+pnpm sst deploy
+```
+
+**remove stack:**
+```sh
+pnpm sst remove
+```
+
+## AWS CDK
+
+A sample configuration can be found here:
+https://github.com/lazarv/react-server/tree/main/examples/hello-world-aws
+
+required files and folders:
+* `cdk.json`
+* `cdk`
+
+add the following packages:
+```sh
+pnpm add aws-cdk-lib constructs source-map-support
+pnpm add -D aws-cdk tsx
+```
+
+add to `.gitignore`: 
+
+```.gitignore
+cdk.out
+```
+
+Configuration of the stack is possible in `cdk/bin/infrastructure.ts`:
+* custome domain
+* ssl certificate
+
+**deploy:**
+```sh
+pnpm cdk deploy --all
+```
+
+**remove stack:**
+```sh
+pnpm cdk destroy --all
+```
+
+## Serverless Framework V3
+
+A sample configuration can be found here:
+https://github.com/lazarv/react-server/tree/main/examples/hello-world-aws
+
+required files and folders:
+* serverless.yml
+
+add the following packages:
+```sh
+pnpm add -D serverless@3 serverless-cloudfront-invalidate serverless-s3-sync
+```
+
+add to `.gitignore`:
+
+```.gitignore
+.serverless
+```
+
+get FrontendCloudFrontDistributionUrl:
+`pnpm sls info --verbose`
+
+**deploy:**
+```sh
+pnpm sls deploy
+```
+
+**remove stack:**
+```sh
+pnpm sls remove
+```

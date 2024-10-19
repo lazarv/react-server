@@ -53,10 +53,17 @@ if (import.meta.env.DEV) {
     if (!window.__react_server_error_overlay__) {
       if (typeof error === "string") {
         const [message, ...stack] = error.split("\n");
-        error = {
-          message,
-          stack: stack.join("\n"),
-        };
+        if (stack[0]) {
+          error = {
+            message,
+            stack: stack.join("\n"),
+          };
+        } else {
+          error = {
+            message: error,
+            stack: "",
+          };
+        }
       }
       error.plugin = "@lazarv/react-server";
       const stacklines = error.stack
@@ -123,8 +130,58 @@ if (import.meta.env.DEV) {
       overlay.addEventListener("click", () => {
         window.__react_server_error_overlay__ = false;
       });
+      window.addEventListener("keydown", (e) => {
+        if (window.__react_server_error_overlay__ && e.key === "Escape") {
+          window.__react_server_error_overlay__ = false;
+        }
+      });
       document.body.appendChild(overlay);
     }
+  };
+
+  const errorToastStyle = document.createElement("style");
+  errorToastStyle.textContent = `.error-toast {
+  --monospace: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  --red: #ff5555;
+  --white: #fff;
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: var(--monospace);
+  font-size: 12px;
+  color: var(--white);
+  box-sizing: border-box;
+  padding: 8px 16px;
+  background: var(--red);
+  border-radius: 6px 6px 8px 8px;
+  box-shadow: 0 19px 38px rgba(0, 0, 0, 0.30), 0 15px 12px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  direction: ltr;
+  text-align: left;
+  transition: border-left 0.2s ease-in-out;
+}
+.error-toast:hover {
+  border-left: 8px solid var(--white);
+}
+body:has(vite-error-overlay) .error-toast {
+  display: none;
+}`;
+  document.head.appendChild(errorToastStyle);
+
+  const errorToast = (message, callback) => {
+    let el = document.querySelector(".error-toast");
+    if (el) {
+      el.remove();
+    }
+    el = document.createElement("div");
+    el.className = "error-toast";
+    el.textContent = `${message.slice(0, Math.min(24, message.length))}...`;
+    el.addEventListener("click", callback);
+    document.body.appendChild(el);
   };
 
   const originalConsoleError = console.error;
@@ -132,19 +189,20 @@ if (import.meta.env.DEV) {
     const [ctrl, style, server] = args;
     if (
       // check and detect server error proxy message
+      typeof ctrl === "string" &&
       !(
         ctrl.startsWith("%c") &&
         style.startsWith("background:") &&
         server?.toLowerCase()?.trim() === "server"
       )
     ) {
-      showErrorOverlay(format(...args));
+      errorToast(format(...args), () => showErrorOverlay(format(...args)));
     }
     originalConsoleError(...args);
   };
 
   window.onerror = (message, source, lineno, colno, error) => {
-    showErrorOverlay(error, source, lineno, colno, message);
+    errorToast(message, () => showErrorOverlay(error, source, lineno, colno));
   };
 }
 

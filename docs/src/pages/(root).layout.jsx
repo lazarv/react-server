@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import EditPage from "../components/EditPage.jsx";
+
 export default function Layout({
   breadcrumb,
   header,

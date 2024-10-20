@@ -15,6 +15,7 @@ export default (cli) =>
     })
     .option("--cors", "enable CORS", { default: false })
     .option("--force", "force optimize deps", { default: false })
+    .option("--watch", "watch for config changes", { default: true })
     .option("--clear-screen", "clear screen on server start", {
       default: false,
     })

@@ -17,7 +17,7 @@ export default async function SpotlightsPage() {
 const getData = async () => {
   const data = {
     title: "Ext / Spotlights",
-    headline: "Extentions / Spotlights",
+    headline: "Extensions / Spotlights",
   };
 
   return data;

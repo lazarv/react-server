@@ -17,7 +17,7 @@ export default async function FormsPage() {
 const getData = async () => {
   const data = {
     title: "Ext / Code Highlight",
-    headline: "Extentions / Code Highlight",
+    headline: "Extensions / Code Highlight",
   };
 
   return data;

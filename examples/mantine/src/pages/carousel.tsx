@@ -17,7 +17,7 @@ export default async function CarouselsPage() {
 const getData = async () => {
   const data = {
     title: "Ext / Carousel",
-    headline: "Extentions / Carousel",
+    headline: "Extensions / Carousel",
   };
 
   return data;

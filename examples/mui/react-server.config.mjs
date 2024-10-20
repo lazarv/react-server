@@ -11,7 +11,7 @@ export default {
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("@mui/")) {
+          if (id.includes("@mui/material")) {
             return "@mui/material";
           }
         },

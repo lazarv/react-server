@@ -17,7 +17,7 @@ export default async function RtePage() {
 const getData = async () => {
   const data = {
     title: "Ext / Rich text editor",
-    headline: "Extentions / Rich text editor",
+    headline: "Extensions / Rich text editor",
   };
 
   return data;

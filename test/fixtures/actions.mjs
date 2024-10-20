@@ -10,6 +10,7 @@ export async function formAction(prevState, formData) {
   return {
     name: formData.get("name"),
     echo: `Hello ${formData.get("name")}!`,
+    prev: prevState.name,
   };
 }
 

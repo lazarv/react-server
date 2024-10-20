@@ -37,9 +37,9 @@ export function MainNavigation({ serverPathname }: { serverPathname: string }) {
       />
       <NavLink
         component={Link}
-        to="/notification"
+        to="/notification-system"
         label="Notification System"
-        active={pathname === "/notification"}
+        active={pathname === "/notification-system"}
       />
       <NavLink
         component={Link}

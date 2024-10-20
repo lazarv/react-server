@@ -38,6 +38,7 @@ remoteTransport.fetchModule = async (id, importer) => {
   if (
     [
       "react",
+      "react/jsx-runtime",
       "react/jsx-dev-runtime",
       "react-dom/client",
       "react-server-dom-webpack/client.edge",

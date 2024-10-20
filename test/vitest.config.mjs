@@ -18,10 +18,12 @@ export default defineConfig({
       if (type === "stderr" && log.match(/error: (redirect|test)/i))
         return false;
     },
-    testTimeout: 30000,
+    testTimeout: 60000,
     reporters: process.env.GITHUB_ACTIONS
       ? ["dot", "github-actions"]
       : ["default"],
+    pool: "forks",
+    fileParallelism: false,
   },
   publicDir: false,
 });

@@ -12,8 +12,8 @@ export default {
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("@chakra-ui/react")) {
-            return "@chakra-ui/react";
+          if (id.includes("@emotion")) {
+            return "vendor";
           }
         },
       },

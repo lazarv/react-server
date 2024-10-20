@@ -1,7 +1,12 @@
-import { hostname, logs, page, server, waitForChange } from "playground/utils";
+import {
+  hostname,
+  logs,
+  page,
+  server,
+  waitForChange,
+  waitForConsole,
+} from "playground/utils";
 import { expect, test } from "vitest";
-
-import { waitForConsole } from "../utils.mjs";
 
 test("hello world", async () => {
   await server("fixtures/hello-world.jsx");

@@ -15,7 +15,7 @@ export default async function ModalsManagerPage() {
 const getData = async () => {
   const data = {
     title: "Ext / Modals manager",
-    headline: "Extentions / Modals manager",
+    headline: "Extensions / Modals manager",
   };
 
   return data;

@@ -10,7 +10,7 @@ export async function waitForChange(action, getValue) {
   const originalValue = await getValue();
   let newValue = originalValue;
   while (newValue === originalValue) {
-    await action();
+    await action?.();
     newValue = await getValue();
     if (newValue !== originalValue) return;
     await nextAnimationFrame();
@@ -28,4 +28,14 @@ export async function waitForConsole(evaluator) {
     result = await evaluator();
   }
   return result;
+}
+
+export async function waitForHydration() {
+  let isHydrated = false;
+  while (!isHydrated) {
+    isHydrated = await page.evaluate(
+      () => window.__flightHydration__PAGE_ROOT__
+    );
+    await nextAnimationFrame();
+  }
 }

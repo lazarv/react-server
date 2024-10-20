@@ -17,7 +17,7 @@ export default async function NavigationProgressesPage() {
 const getData = async () => {
   const data = {
     title: "Ext / NavigationProgress",
-    headline: "Extentions / NavigationProgress",
+    headline: "Extensions / NavigationProgress",
   };
 
   return data;

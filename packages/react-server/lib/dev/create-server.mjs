@@ -490,7 +490,6 @@ export default async function createServer(root, options) {
     },
     close: () => {
       viteDevServer.close();
-      viteDevServer.environments.client.hot.close();
     },
     ws: viteDevServer.environments.client.hot,
     middlewares: viteDevServer.middlewares,

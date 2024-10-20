@@ -9,7 +9,6 @@ import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import merge from "@lazarv/react-server/lib/utils/merge.mjs";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
-import { logger } from "@lazarv/react-server/server/logger.mjs";
 import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
@@ -87,8 +86,10 @@ export default function viteReactServerRouter(options = {}) {
   };
   let config = {};
   let configRoot = {};
+  let sourceWatcher;
   let viteCommand;
   let viteServer;
+  let logger;
   let mdxCounter = 0;
   let mdxComponents;
   let mdx;
@@ -570,7 +571,7 @@ export default function viteReactServerRouter(options = {}) {
             }
           )
         );
-        const sourceWatcher = watch(
+        sourceWatcher = watch(
           [
             "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}",
             "!**/node_modules/**",
@@ -731,9 +732,13 @@ export default function viteReactServerRouter(options = {}) {
     name: "react-server:file-router",
     configureServer(server) {
       viteServer = server;
+      viteServer.handlers = [...(viteServer.handlers ?? []), sourceWatcher];
     },
-    async config(config, { command }) {
+    config(_, { command }) {
       viteCommand = command;
+    },
+    async configResolved(config) {
+      logger = config.logger;
       if (viteCommand === "build") {
         await config_init$();
         const options = getContext(BUILD_OPTIONS);
@@ -804,43 +809,7 @@ export default function viteReactServerRouter(options = {}) {
           ...(globalThis.__react_server_ready__ ?? []),
           reactServerRouterReadyPromise,
         ];
-        return new Promise((resolve, reject) => {
-          const configWatcher = watch(
-            [
-              "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
-              "!**/node_modules/**",
-            ],
-            {
-              cwd,
-            }
-          );
-          configWatcher.on("error", reject);
-          configWatcher.on("ready", async () => {
-            await config_init$();
-
-            let configTimer = null;
-            const handleConfigChange = (type) => (src) => {
-              logger.info(
-                `${
-                  type !== "unlink" ? "Applying" : "Removing"
-                } configuration file ${colors.green(relative(cwd, src))} ${
-                  type !== "unlink" ? "to" : "from"
-                } router configuration`
-              );
-              if (configTimer) {
-                clearTimeout(configTimer);
-                configTimer = null;
-              }
-              configTimer = setTimeout(config_init$, 500);
-            };
-
-            configWatcher.on("add", handleConfigChange("add"));
-            configWatcher.on("unlink", handleConfigChange("unlink"));
-            configWatcher.on("change", handleConfigChange("change"));
-
-            resolve();
-          });
-        });
+        await config_init$();
       }
     },
     resolveId(id) {

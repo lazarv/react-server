@@ -5,6 +5,7 @@ import {
   nextAnimationFrame,
   page,
   server,
+  waitForChange,
   waitForHydration,
 } from "playground/utils";
 import { expect, test } from "vitest";
@@ -93,13 +94,17 @@ test(
     await search.fill("Home");
     await nextAnimationFrame();
     await search.blur();
-    await page.waitForTimeout(100);
 
+    await waitForChange(
+      null,
+      () => page.getByRole("button", { name: "Home" }).isVisible(),
+      false
+    );
     const homeItem = await page.getByRole("button", { name: "Home" });
     expect(await homeItem.isVisible()).toBe(true);
 
     await homeItem.click();
-    await page.waitForTimeout(500);
+    await waitForChange(null, () => search.isVisible(), true);
     expect(await search.isVisible()).toBe(false);
 
     await page.goto(new URL("/carousel", hostname).href);
@@ -115,7 +120,11 @@ test(
     const right = await page.locator("button[tabindex='0']");
     await right.click();
 
-    await page.waitForTimeout(100);
+    await waitForChange(
+      null,
+      () => carouselContainer.getAttribute("style"),
+      "transform: translate3d(0px, 0px, 0px);"
+    );
     const rightStyle = await carouselContainer.getAttribute("style");
     expect(rightStyle).not.toEqual(carouselContainerStyle);
 
@@ -126,7 +135,11 @@ test(
     const startProgress = await page.getByRole("button", { name: "Start" });
     await startProgress.click();
 
-    await page.waitForTimeout(500);
+    await waitForChange(
+      null,
+      () => page.locator("div[role='progressbar']").isVisible(),
+      false
+    );
     const progressBar = await page.locator("div[role='progressbar']");
     expect(await progressBar.isVisible()).toBe(true);
 
@@ -138,8 +151,12 @@ test(
       name: "Open confirm modal",
     });
     await openConfirmModal.click();
-    await page.waitForTimeout(100);
 
+    await waitForChange(
+      null,
+      () => page.locator("section[role='dialog']").isVisible(),
+      false
+    );
     const confirmModal = await page.locator("section[role='dialog']");
     expect(await confirmModal.isVisible()).toBe(true);
 
@@ -147,7 +164,8 @@ test(
       name: "Confirm",
     });
     await confirmModalClose.click();
-    await page.waitForTimeout(500);
+
+    await waitForChange(null, () => confirmModal.isVisible(), true);
     expect(await confirmModal.isVisible()).toBe(false);
 
     await page.goto(new URL("/rte", hostname).href);

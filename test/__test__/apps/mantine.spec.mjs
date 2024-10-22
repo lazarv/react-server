@@ -16,7 +16,18 @@ test(
   "mantine and extensions",
   async () => {
     await server(null);
-    await page.goto(hostname, { timeout: 60000 });
+    let res = await page.goto(hostname, { timeout: 60000 });
+
+    // TODO: I don't like this, but it's a workaround for an async dependency optimization issue in development mode
+    let attempts = 0;
+    while (res.status() === 500 && attempts < 5) {
+      res = await page.goto(hostname, { timeout: 60000 });
+      attempts++;
+    }
+
+    if (!res.ok) {
+      throw new Error("Failed to load page");
+    }
 
     await page.waitForLoadState("networkidle");
     await waitForHydration();

@@ -43,6 +43,7 @@ import optimizeDeps from "../plugins/optimize-deps.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
+import useCacheInline from "../plugins/use-cache-inline.mjs";
 import useClient from "../plugins/use-client.mjs";
 import useServer from "../plugins/use-server.mjs";
 import useServerInline from "../plugins/use-server-inline.mjs";
@@ -132,6 +133,7 @@ export default async function createServer(root, options) {
       useClient(),
       useServer(),
       useServerInline(),
+      useCacheInline(config.cache?.profiles),
       ...filterOutVitePluginReact(config.plugins),
       asset(),
       optimizeDeps(),

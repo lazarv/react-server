@@ -1,5 +1,18 @@
 {
   "server": {
     "hmr": false
+  },
+  "cache": {
+    "profiles": {
+      "default": {
+        "ttl": 30000
+      },
+      "frequent": {
+        "ttl": 200
+      },
+      "day": {
+        "ttl": 86400000
+      }
+    }
   }
 }

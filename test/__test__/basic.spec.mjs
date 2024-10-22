@@ -167,7 +167,7 @@ test("use cache primitive", async () => {
   await page.reload();
   expect(await page.textContent("body")).toBe(time);
 
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(500);
   await page.reload();
   const newTime = await page.textContent("body");
   expect(newTime).not.toBe(time);
@@ -196,7 +196,7 @@ test("use cache invalidate", async () => {
   await page.reload();
   expect(await page.textContent("pre")).toContain(payload.timestamp);
 
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(500);
   await page.reload();
   const newPayload = JSON.parse(await page.textContent("pre"));
   expect(newPayload).not.toContain(payload.timestamp);

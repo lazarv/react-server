@@ -90,7 +90,7 @@ beforeAll(async ({ name, id }) => {
             server: true,
             client: true,
             export: false,
-            adapter: false,
+            adapter: ["false"],
             minify: false,
           };
           await build(

@@ -6,8 +6,11 @@ export function nextAnimationFrame() {
   return page.evaluate(() => new Promise(requestAnimationFrame));
 }
 
-export async function waitForChange(action, getValue) {
+export async function waitForChange(action, getValue, initialValue) {
   const originalValue = await getValue();
+  if (typeof initialValue !== "undefined" && initialValue !== originalValue) {
+    return originalValue;
+  }
   let newValue = originalValue;
   while (newValue === originalValue) {
     await action?.();

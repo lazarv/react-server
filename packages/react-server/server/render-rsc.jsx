@@ -13,6 +13,7 @@ import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs
 import {
   ACTION_CONTEXT,
   CACHE_CONTEXT,
+  CACHE_MISS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   ERROR_CONTEXT,
@@ -221,7 +222,7 @@ export async function render(Component) {
             ifModifiedSince,
           ]);
 
-          if (hasCache) {
+          if (hasCache !== CACHE_MISS) {
             return resolve(
               new Response(null, {
                 status: 304,
@@ -274,7 +275,7 @@ export async function render(Component) {
               outlet,
               FLIGHT_CACHE,
             ]);
-            if (responseFromCache) {
+            if (responseFromCache !== CACHE_MISS) {
               return resolve(
                 new Response(responseFromCache.buffer, {
                   status: responseFromCache.status,
@@ -392,7 +393,7 @@ export async function render(Component) {
               outlet,
               HTML_CACHE,
             ]);
-            if (responseFromCache) {
+            if (responseFromCache !== CACHE_MISS) {
               const stream = new ReadableStream({
                 type: "bytes",
                 async start(controller) {

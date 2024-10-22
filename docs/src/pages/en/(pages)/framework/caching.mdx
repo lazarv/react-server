@@ -84,6 +84,73 @@ export default async function App() {
 }
 ```
 
+<Link name="use-cache">
+## "use cache" directive
+</Link>
+
+The `"use cache"` directive can be used to enable caching in any function. The directive accepts the `profile`, `ttl`, and `tags` options. The `profile` option is used to specify the cache profile to use. The `ttl` option is used to specify the time-to-live for the cache in milliseconds, which overrides the `ttl` option from the cache profile. The `tags` option is used to specify the tags for the cache key.
+
+You can use the `tags` option to specify a comma-separated list of tags to address when invalidating the cache for a specific group of tags. For example, if you have a function that fetches todos and you want to invalidate the cache for all todos, you can use the `tags` option to add the `todos` tag to the cache key.
+
+```jsx filename="App.jsx"
+import { invalidate } from "@lazarv/react-server";
+
+async function getTodos() {
+  "use cache; ttl=200; tags=todos";
+  const res = await fetch("https://jsonplaceholder.typicode.com/todos");
+  return {
+    timestamp: Date.now(),
+    data: await res.json(),
+  };
+}
+
+export default async function App() {
+  const todos = await getTodos();
+  return (
+    <form
+      action={async () => {
+        "use server";
+        invalidate(getTodos);
+      }}
+    >
+      <button type="submit">Refresh</button>
+      <pre>{JSON.stringify(todos, null, 2)}</pre>
+    </form>
+  );
+}
+```
+
+You can use both `"use cache"` and `"use server"` directives in the same file as both directives are server-only, but you cannot use the `"use cache"` directive in a client component.
+
+While `invalidate` is an async function to support any cache implementation in the future, the `"use cache"` directive is using the in-memory cache by default right now and so you don't need to await the `invalidate` function as the in-memory cache is synchronous.
+
+Cache profiles are defined in the server configuration. You can specify any number of cache profiles and reference them by name in the `"use cache"` directive. The cache profile can include the `ttl` and `tags` options which will be used when the `"use cache"` directive does not specify them.
+
+```json filename="react-server.config.json"
+{
+  "cache": {
+    "profiles": {
+      "todos": { "ttl": 30000, "tags": "todos" }
+    }
+  }
+}
+```
+
+After defining the cache profiles, you can reference them by name in the `"use cache"` directive.
+
+```jsx filename="App.jsx"
+async function getTodos() {
+  "use cache; profile=todos";
+  const res = await fetch("https://jsonplaceholder.typicode.com/todos");
+  return {
+    timestamp: Date.now(),
+    data: await res.json(),
+  };
+}
+```
+
+The `"use cache"` directive currently will use the in-memory cache. Custom cache adapters are not yet supported for the `"use cache"` directive.
+
 <Link name="cache-adapters">
 ## Cache adapters
 </Link>

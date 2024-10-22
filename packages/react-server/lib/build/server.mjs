@@ -14,6 +14,7 @@ import rootModule from "../plugins/root-module.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
+import rollupUseCacheInline from "../plugins/use-cache-inline.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import merge from "../utils/merge.mjs";
@@ -197,6 +198,7 @@ export default async function serverBuild(root, options) {
           rollupUseClient("server", clientManifest),
           rollupUseServer("rsc", serverManifest),
           rollupUseServerInline(serverManifest),
+          rollupUseCacheInline(config.cache?.profiles),
           rootModule(root),
           configPrebuilt(),
           ...(config.build?.rollupOptions?.plugins ?? []),

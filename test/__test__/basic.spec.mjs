@@ -158,3 +158,51 @@ test("style assets with base url", async () => {
   );
   expect(background).toBe("rgb(0, 0, 255)");
 });
+
+test("use cache primitive", async () => {
+  await server("fixtures/use-cache-primitive.jsx");
+  await page.goto(hostname);
+  const time = await page.textContent("body");
+
+  await page.reload();
+  expect(await page.textContent("body")).toBe(time);
+
+  await page.waitForTimeout(500);
+  await page.reload();
+  const newTime = await page.textContent("body");
+  expect(newTime).not.toBe(time);
+
+  await page.reload();
+  expect(await page.textContent("body")).toBe(newTime);
+
+  await page.goto(hostname + "?force=true");
+  expect(await page.textContent("body")).not.toBe(newTime);
+});
+
+test("use cache element", async () => {
+  await server("fixtures/use-cache-element.jsx");
+  await page.goto(hostname);
+  const time = await page.textContent("body");
+
+  await page.reload();
+  expect(await page.textContent("body")).toBe(time);
+});
+
+test("use cache invalidate", async () => {
+  await server("fixtures/use-cache-invalidate.jsx");
+  await page.goto(hostname);
+
+  const payload = JSON.parse(await page.textContent("pre"));
+  await page.reload();
+  expect(await page.textContent("pre")).toContain(payload.timestamp);
+
+  await page.waitForTimeout(500);
+  await page.reload();
+  const newPayload = JSON.parse(await page.textContent("pre"));
+  expect(newPayload).not.toContain(payload.timestamp);
+
+  const button = await page.getByRole("button");
+  await button.click();
+
+  expect(await page.textContent("pre")).not.toContain(payload.timestamp);
+});

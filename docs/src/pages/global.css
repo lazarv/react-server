@@ -180,20 +180,20 @@ article {
   }
 
   & > p {
-    @apply text-base mb-4;
+    @apply text-base mb-4 leading-7;
   }
 
   & pre code {
-    @apply rounded-lg my-8 border border-gray-500 shadow-xl shadow-gray-500 dark:shadow-[rgba(255,255,255,0.1)] dark:shadow-lg;
+    @apply rounded-lg my-8 text-sm leading-5 border border-gray-500 shadow-xl shadow-gray-500 dark:shadow-[rgba(255,255,255,0.1)] dark:shadow-lg;
   }
 
   & > code {
-    white-space: nowrap;
+    @apply whitespace-nowrap;
   }
 
   & p code,
   & li code {
-    @apply bg-gray-100 dark:bg-gray-500 dark:text-white text-sm p-1 font-semibold;
+    @apply bg-gray-100 dark:bg-gray-500 dark:text-white rounded-md text-sm p-1 font-semibold;
   }
 
   & ul {

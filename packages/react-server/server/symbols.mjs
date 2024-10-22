@@ -27,3 +27,5 @@ export const WORKER_THREAD = Symbol.for("WORKER_THREAD");
 export const PRELUDE_HTML = Symbol.for("PRELUDE_HTML");
 export const POSTPONE_STATE = Symbol.for("POSTPONE_STATE");
 export const IMPORT_MAP = Symbol.for("IMPORT_MAP");
+export const CACHE_MISS = Symbol.for("CACHE_MISS");
+export const CACHE_KEY = Symbol.for("CACHE_KEY");

@@ -1,5 +1,10 @@
 import { context$, getContext } from "../server/context.mjs";
-import { CACHE_CONTEXT, MEMORY_CACHE_CONTEXT } from "../server/symbols.mjs";
+import {
+  CACHE_CONTEXT,
+  CACHE_KEY,
+  CACHE_MISS,
+  MEMORY_CACHE_CONTEXT,
+} from "../server/symbols.mjs";
 
 export class MemoryCache {
   constructor() {
@@ -29,7 +34,7 @@ export class MemoryCache {
       }
     }
 
-    return null;
+    return CACHE_MISS;
   }
 
   async set(keys, value) {
@@ -116,10 +121,18 @@ export async function init$() {
 export async function useCache(keys, promise, ttl = Infinity, force = false) {
   const cache = getContext(MEMORY_CACHE_CONTEXT);
   let result = await cache.get(keys);
-  if (force || result === null) {
+  if (force || result === CACHE_MISS) {
     result = typeof promise === "function" ? await promise() : promise;
     await cache.setExpiry(keys, Date.now() + ttl);
     await cache.set(keys, result);
   }
   return result;
+}
+
+export function invalidate(key) {
+  const cache = getContext(MEMORY_CACHE_CONTEXT);
+  if (typeof key === "function" && key[CACHE_KEY]) {
+    return cache?.delete(key[CACHE_KEY]);
+  }
+  return cache?.delete(key);
 }

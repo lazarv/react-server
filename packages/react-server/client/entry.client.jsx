@@ -147,6 +147,7 @@ if (import.meta.env.DEV) {
   position: fixed;
   left: 16px;
   bottom: 16px;
+  z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;

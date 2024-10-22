@@ -143,6 +143,17 @@ export function rewrite(pathname: string): void;
 export function revalidate(key?: string): void;
 
 /**
+ * Invalidates cached function.
+ *
+ * @param key - The cache key, compound key or cached function to invalidate.
+ */
+export function invalidate(key?: string): Promise<void>;
+export function invalidate(key: string[]): Promise<void>;
+export function invalidate<T extends (...args: any[]) => any>(
+  fn: T
+): Promise<void>;
+
+/**
  * Sets the status code and status text of the response.
  *
  * @param status - The status code to set

@@ -40,6 +40,7 @@ You can use any Remark or Rehype plugin with the file-system based router. Just 
 
 ```mjs
 import rehypeHighlight from "rehype-highlight";
+import rehypeMdxCodeProps from "rehype-mdx-code-props";
 import remarkGfm from "remark-gfm";
 
 export default {
@@ -57,14 +58,14 @@ export default {
 To use custom components, you have to create an `mdx-components.jsx` or `mdx-components.tsx` file in your project root. This file should export a `useMDXComponents` function that returns an object with the custom components.
 
 ```jsx
-export function useMDXComponents() {
+export default function useMDXComponents() {
   return {
     h1: (props) => <h1 style={{ color: "red" }} {...props} />,
   };
 }
 ```
 
-You can also specify where your file exporting the `useMDXComponents` function is located in your `react-server.config.mjs` file.
+You can also specify where your file default exporting the `useMDXComponents` function is located in your `react-server.config.mjs` file.
 
 ```mjs
 export default {

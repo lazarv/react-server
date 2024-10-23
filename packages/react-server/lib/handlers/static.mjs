@@ -154,7 +154,7 @@ export default async function staticHandler(dir, options = {}) {
                 controller.close();
               },
             });
-          } catch (e) {
+          } catch {
             fd.close();
             return;
           }

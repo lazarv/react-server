@@ -13,7 +13,7 @@ try {
       paths: [cwd()],
     })
   ).startsWith("../");
-} catch (e) {
+} catch {
   reactServerInstalled = false;
 }
 

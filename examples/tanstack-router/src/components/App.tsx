@@ -23,9 +23,6 @@ export default function App({
   outlets: Record<string, React.ReactNode>;
 }) {
   const client = useClient();
-  return (
-    <RouterProvider
-      router={createRouter({ routeTree, context: { client, outlets } })}
-    />
-  );
+
+  return <RouterProvider router={router} context={{ client, outlets }} />;
 }

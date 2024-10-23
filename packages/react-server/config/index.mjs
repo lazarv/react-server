@@ -56,7 +56,7 @@ export async function loadConfig(initialConfig, options = {}) {
           .digest("hex");
         try {
           await stat(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
-        } catch (e) {
+        } catch {
           const { build } = await import("esbuild");
           await build({
             absWorkingDir: join(fileURLToPath(import.meta.url), "../.."),

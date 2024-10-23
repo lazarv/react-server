@@ -180,7 +180,7 @@ export default async function ssrHandler(root, options = {}) {
                   return resolve(response);
                 }
               }
-            } catch (e) {
+            } catch {
               const redirect = getContext(REDIRECT_CONTEXT);
               if (redirect?.response) {
                 return resolve(redirect.response);

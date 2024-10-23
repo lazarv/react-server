@@ -64,10 +64,10 @@ export default function App() {
 Similarly how you would run a script with `node`, use `react-server` to start your app. Magic!
 
 ```sh
-pnpm exec react-server ./App.tsx --open
+pnpm exec react-server ./App.tsx
 ```
 
-> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx --open` to start your application in development mode.
+> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx` to start your application in development mode.
 
 #### Build
 
@@ -116,7 +116,7 @@ Move your entrypoint component from `./App.tsx` to `./app/layout.tsx` and `./app
 Just start `react-server` without specifying an entrypoint.
 
 ```sh
-pnpm exec react-server --open
+pnpm exec react-server
 ```
 
 Read more about file-system based routing at [react-server.dev/router](https://react-server.dev/router).

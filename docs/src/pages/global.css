@@ -183,6 +183,10 @@ article {
     @apply text-base mb-4 leading-7;
   }
 
+  & > pre {
+    @apply w-full;
+  }
+
   & pre code {
     @apply rounded-lg my-8 text-sm leading-5 border border-gray-500 shadow-xl shadow-gray-500 dark:shadow-[rgba(255,255,255,0.1)] dark:shadow-lg;
   }
@@ -224,7 +228,7 @@ article {
     @apply border-l-8 border-blue-300 p-4 mb-4 bg-blue-100 dark:bg-yellow-500 dark:border-yellow-600 dark:text-gray-800 shadow-xl dark:shadow-[rgba(255,255,255,0.1)];
 
     & code {
-      @apply bg-gray-100 dark:bg-gray-100 dark:text-gray-800 text-sm p-1;
+      @apply bg-gray-100 dark:bg-gray-100 dark:text-gray-800 text-sm whitespace-nowrap p-1;
     }
   }
 

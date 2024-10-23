@@ -118,15 +118,37 @@ export async function init$() {
   return context$(CACHE_CONTEXT, cache);
 }
 
+const lock = new Map();
 export async function useCache(keys, promise, ttl = Infinity, force = false) {
-  const cache = getContext(MEMORY_CACHE_CONTEXT);
-  let result = await cache.get(keys);
-  if (force || result === CACHE_MISS) {
-    result = typeof promise === "function" ? await promise() : promise;
-    await cache.setExpiry(keys, Date.now() + ttl);
-    await cache.set(keys, result);
+  const key = keys.map((key) => key?.toString()).join(":");
+
+  // HACK: concurrency workaround to avoid race condition on the lock
+  await new Promise((resolve) => setImmediate(resolve));
+
+  let release;
+  if (lock.has(key)) {
+    await lock.get(key);
+  } else {
+    lock.set(key, new Promise((resolve) => (release = resolve)));
   }
-  return result;
+
+  try {
+    const cache = getContext(MEMORY_CACHE_CONTEXT);
+    let result = await cache.get(keys);
+    if (force || result === CACHE_MISS) {
+      result = typeof promise === "function" ? promise() : promise;
+      await cache.setExpiry(keys, Date.now() + ttl);
+      await cache.set(keys, result);
+    }
+
+    lock.delete(key);
+    release?.();
+
+    return await result;
+  } catch {
+    lock.delete(key);
+    release?.();
+  }
 }
 
 export function invalidate(key) {

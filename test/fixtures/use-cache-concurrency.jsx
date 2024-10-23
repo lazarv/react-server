@@ -1,7 +1,9 @@
 import { invalidate } from "@lazarv/react-server";
 
 async function getTodos() {
-  "use cache; ttl=5000; tags=todos";
+  "use cache; ttl=10000; tags=todos";
+  console.log("getTodos");
+  await new Promise((resolve) => setTimeout(resolve, 500));
   const res = await fetch("https://jsonplaceholder.typicode.com/todos");
   return {
     timestamp: Date.now(),

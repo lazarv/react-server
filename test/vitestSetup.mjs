@@ -7,16 +7,17 @@ import { Worker } from "node:worker_threads";
 import { chromium } from "playwright-chromium";
 import { afterAll, beforeAll, inject } from "vitest";
 
-let browser;
-let httpServer;
-
+export let browser;
+export let httpServer;
 export let page;
 export let server;
 export let hostname;
 export let logs;
+export let serverLogs;
 
 console.log = (...args) => {
   logs.push(args.join(" "));
+  serverLogs.push(args.join(" "));
 };
 
 const BASE_PORT = 3000;
@@ -27,13 +28,14 @@ beforeAll(async ({ name, id }) => {
   const wsEndpoint = inject("wsEndpoint");
   browser = await chromium.connect(wsEndpoint);
   page = await browser.newPage();
-  logs = [];
   page.on("console", (msg) => {
     logs.push(msg.text());
   });
   server = (root, initialConfig) =>
     new Promise(async (resolve, reject) => {
       try {
+        logs = [];
+        serverLogs = [];
         const hashValue = createHash("sha256")
           .update(
             `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(process.cwd(), root) : root || process.cwd()}`
@@ -72,6 +74,8 @@ beforeAll(async ({ name, id }) => {
           httpServer = createServer(middlewares);
           httpServer.once("listening", () => {
             hostname = `http://localhost:${port}`;
+            logs = [];
+            serverLogs = [];
             resolve();
           });
           httpServer.on("error", (err) => {
@@ -110,6 +114,8 @@ beforeAll(async ({ name, id }) => {
             if (msg.port) {
               hostname = `http://localhost:${msg.port}`;
               process.env.ORIGIN = hostname;
+              logs = [];
+              serverLogs = [];
               resolve();
             } else if (msg.console) {
               console.log(...msg.console);

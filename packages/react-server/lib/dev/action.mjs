@@ -33,7 +33,7 @@ export default async function dev(root, options) {
         try {
           let config = await loadConfig(
             {},
-            options.watch
+            options.watch ?? true
               ? {
                   ...options,
                   onChange() {

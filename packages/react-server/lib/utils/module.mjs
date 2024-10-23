@@ -104,7 +104,7 @@ export function isModule(filePath, isRoot = false) {
         (pkg?.module && !relative(root, filePath).startsWith("../")); //join(root, pkg?.module) === filePath);
       packageTypeCache.set(filePath, isModule);
       return isModule;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

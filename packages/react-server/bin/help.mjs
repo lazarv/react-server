@@ -113,7 +113,6 @@ function extractTextAndAnsiCodes(text) {
   const parts = [];
   let lastIndex = 0;
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const match = regex.exec(text);
     if (!match) break;

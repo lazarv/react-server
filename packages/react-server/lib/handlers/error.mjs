@@ -138,7 +138,7 @@ export default async function errorHandler(err) {
         viteDevServer.environments.client.moduleGraph.invalidateAll();
         viteDevServer.environments.ssr.moduleGraph.invalidateAll();
         viteDevServer.environments.rsc.moduleGraph.invalidateAll();
-      } catch (e) {
+      } catch {
         // ignore
       }
     }

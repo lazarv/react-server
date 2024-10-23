@@ -83,7 +83,7 @@ export async function init$(type = "server", options = {}) {
           return import(pathToFileURL(id));
         }
       }
-    } catch (e) {
+    } catch {
       // noop
     }
     if (entryCache.has(id)) {

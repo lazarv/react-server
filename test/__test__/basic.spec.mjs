@@ -191,14 +191,21 @@ test("use cache element", async () => {
 
 test("use cache invalidate", async () => {
   await server("fixtures/use-cache-invalidate.jsx");
+
+  const start = Date.now();
   await page.goto(hostname);
 
   const payload = JSON.parse(await page.textContent("pre"));
   await page.reload();
   expect(await page.textContent("pre")).toContain(payload.timestamp);
 
-  await page.waitForTimeout(500);
-  await page.reload();
+  await waitForChange(
+    () => page.reload(),
+    () => page.textContent("pre")
+  );
+  const end = Date.now();
+  expect(end - start).toBeGreaterThan(5000);
+
   const newPayload = JSON.parse(await page.textContent("pre"));
   expect(newPayload).not.toContain(payload.timestamp);
 

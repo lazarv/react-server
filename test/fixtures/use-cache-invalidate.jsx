@@ -1,7 +1,7 @@
 import { invalidate } from "@lazarv/react-server";
 
 async function getTodos() {
-  "use cache; ttl=200; tags=todos";
+  "use cache; ttl=5000; tags=todos";
   const res = await fetch("https://jsonplaceholder.typicode.com/todos");
   return {
     timestamp: Date.now(),
@@ -11,6 +11,7 @@ async function getTodos() {
 
 export default async function App() {
   const todos = await getTodos();
+
   return (
     <form
       action={async () => {

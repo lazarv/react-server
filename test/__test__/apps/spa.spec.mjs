@@ -9,6 +9,7 @@ test("single-page application load", async () => {
   await server("./src/index.jsx");
   await page.goto(hostname);
   await waitForHydration();
-  await page.getByText("single-page application");
-  expect(await page.textContent("body")).toContain("single-page application");
+  expect(await page.getByText("single-page application").isVisible()).toBe(
+    true
+  );
 });

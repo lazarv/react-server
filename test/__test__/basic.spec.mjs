@@ -3,6 +3,7 @@ import {
   logs,
   page,
   server,
+  serverLogs,
   waitForChange,
   waitForConsole,
 } from "playground/utils";
@@ -205,4 +206,14 @@ test("use cache invalidate", async () => {
   await button.click();
 
   expect(await page.textContent("pre")).not.toContain(payload.timestamp);
+});
+
+test("use cache concurrency", async () => {
+  await server("fixtures/use-cache-concurrency.jsx");
+
+  await Promise.all([
+    fetch(hostname, { headers: { accept: "text/html" } }),
+    fetch(hostname, { headers: { accept: "text/html" } }),
+  ]);
+  expect(JSON.stringify(serverLogs)).toBe(`["getTodos"]`);
 });

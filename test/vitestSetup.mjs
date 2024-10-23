@@ -7,16 +7,17 @@ import { Worker } from "node:worker_threads";
 import { chromium } from "playwright-chromium";
 import { afterAll, beforeAll, inject } from "vitest";
 
-let browser;
-let httpServer;
-
+export let browser;
+export let httpServer;
 export let page;
 export let server;
 export let hostname;
 export let logs;
+export let serverLogs;
 
 console.log = (...args) => {
   logs.push(args.join(" "));
+  serverLogs.push(args.join(" "));
 };
 
 const BASE_PORT = 3000;
@@ -28,6 +29,7 @@ beforeAll(async ({ name, id }) => {
   browser = await chromium.connect(wsEndpoint);
   page = await browser.newPage();
   logs = [];
+  serverLogs = [];
   page.on("console", (msg) => {
     logs.push(msg.text());
   });

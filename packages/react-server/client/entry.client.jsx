@@ -60,8 +60,21 @@ if (import.meta.env.DEV) {
           };
         } else {
           error = {
-            message: error,
+            message,
             stack: "",
+            details: stack.slice(1).map((line) => {
+              if (!line.startsWith("http")) {
+                const el = document.createElement("pre");
+                el.textContent = line || " ";
+                return el;
+              } else {
+                const el = document.createElement("a");
+                el.href = line;
+                el.target = "_blank";
+                el.textContent = line;
+                return el;
+              }
+            }),
           };
         }
       }
@@ -135,12 +148,107 @@ if (import.meta.env.DEV) {
           window.__react_server_error_overlay__ = false;
         }
       });
+      if (error.details) {
+        const el = document.createElement("div");
+        el.className = "details";
+        const styles = document.createElement("style");
+        styles.textContent = `.details {
+  color: var(--dim);
+  --code-bg: #282828;
+  --green: #00ff00;
+  --red: #ff0000;
+  --white: #fff;
+}
+.details pre {
+  margin: 2px 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.details pre span.code {
+  color: var(--yellow);
+  background: var(--code-bg);
+  padding: 4px;
+  border-radius: 4px;
+}
+.details a {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--white);
+}
+.details code {
+  display: block;
+  padding: 16px;
+  overflow: auto;
+  background: var(--code-bg);
+  color: var(--white);
+  border-radius: 6px 6px 8px 8px;
+}
+.details code pre {
+  margin: 0;
+}
+.details code .added {
+  color: var(--green);
+  font-weight: 600;
+}
+.details code .removed {
+  color: var(--red);
+  font-weight: 600;
+}`;
+        let code;
+        error.details.forEach((d) => {
+          const content = d.textContent.trim();
+          if (!code && content.startsWith("<")) {
+            code = document.createElement("code");
+            el.appendChild(code);
+          } else if (code && !content) {
+            code = null;
+          }
+          if (code) {
+            if (content.startsWith("+")) {
+              d.classList.add("added");
+            } else if (content.startsWith("-")) {
+              d.classList.add("removed");
+            }
+            code.appendChild(d);
+          } else {
+            const parts = content.split(/`([^`]+)`/);
+            if (parts.length > 1) {
+              d.innerHTML = "";
+              for (let i = 0; i < parts.length; i++) {
+                if (i % 2 === 0) {
+                  // Text outside of backticks
+                  d.appendChild(document.createTextNode(parts[i]));
+                } else {
+                  // Code inside backticks
+                  const codeEl = document.createElement("span");
+                  codeEl.className = "code";
+                  codeEl.textContent = parts[i];
+                  d.appendChild(codeEl);
+                }
+              }
+            }
+            el.appendChild(d);
+          }
+        });
+        el.appendChild(styles);
+        overlay.shadowRoot
+          .querySelector("pre.message")
+          .insertAdjacentElement("afterend", el);
+      }
       document.body.appendChild(overlay);
     }
   };
 
-  const errorToastStyle = document.createElement("style");
-  errorToastStyle.textContent = `.error-toast {
+  class ReactServerErrorIndicator extends HTMLElement {
+    constructor(message, callback) {
+      super();
+      this.message = message;
+      this.callback = callback;
+      this.root = this.attachShadow({ mode: "closed" });
+
+      const errorToastStyle = document.createElement("style");
+      errorToastStyle.textContent = `:host {
   --monospace: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
   --red: #ff5555;
   --white: #fff;
@@ -165,23 +273,36 @@ if (import.meta.env.DEV) {
   text-align: left;
   transition: border-left 0.2s ease-in-out;
 }
-.error-toast:hover {
+:host(:hover) {
   border-left: 8px solid var(--white);
-}
-body:has(vite-error-overlay) .error-toast {
-  display: none;
 }`;
-  document.head.appendChild(errorToastStyle);
+      this.root.textContent = this.message;
+      this.root.appendChild(errorToastStyle);
+    }
+
+    connectedCallback() {
+      this.addEventListener("click", this.callback);
+      const observer = new MutationObserver(() => {
+        this.style.display =
+          document.querySelector("vite-error-overlay") !== null ? "none" : "";
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+  customElements.define(
+    "react-server-error-indicator",
+    ReactServerErrorIndicator
+  );
 
   const errorToast = (message, callback) => {
-    let el = document.querySelector(".error-toast");
+    let el = document.querySelector("react-server-error-indicator");
     if (el) {
       el.remove();
     }
-    el = document.createElement("div");
-    el.className = "error-toast";
-    el.textContent = `${message.slice(0, Math.min(24, message.length))}...`;
-    el.addEventListener("click", callback);
+    el = new ReactServerErrorIndicator(
+      `${message.slice(0, Math.min(24, message.length))}...`,
+      callback
+    );
     document.body.appendChild(el);
   };
 
@@ -203,7 +324,15 @@ body:has(vite-error-overlay) .error-toast {
   };
 
   window.onerror = (message, source, lineno, colno, error) => {
-    errorToast(message, () => showErrorOverlay(error, source, lineno, colno));
+    const msg = message.replace(/^Uncaught Error:/, "");
+    errorToast(msg, () =>
+      showErrorOverlay(
+        msg.split("\n").length > 1 ? msg : error,
+        source,
+        lineno,
+        colno
+      )
+    );
   };
 }
 

@@ -28,14 +28,14 @@ beforeAll(async ({ name, id }) => {
   const wsEndpoint = inject("wsEndpoint");
   browser = await chromium.connect(wsEndpoint);
   page = await browser.newPage();
-  logs = [];
-  serverLogs = [];
   page.on("console", (msg) => {
     logs.push(msg.text());
   });
   server = (root, initialConfig) =>
     new Promise(async (resolve, reject) => {
       try {
+        logs = [];
+        serverLogs = [];
         const hashValue = createHash("sha256")
           .update(
             `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(process.cwd(), root) : root || process.cwd()}`
@@ -74,6 +74,8 @@ beforeAll(async ({ name, id }) => {
           httpServer = createServer(middlewares);
           httpServer.once("listening", () => {
             hostname = `http://localhost:${port}`;
+            logs = [];
+            serverLogs = [];
             resolve();
           });
           httpServer.on("error", (err) => {
@@ -112,6 +114,8 @@ beforeAll(async ({ name, id }) => {
             if (msg.port) {
               hostname = `http://localhost:${msg.port}`;
               process.env.ORIGIN = hostname;
+              logs = [];
+              serverLogs = [];
               resolve();
             } else if (msg.console) {
               console.log(...msg.console);

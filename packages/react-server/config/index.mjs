@@ -30,9 +30,9 @@ export async function loadConfig(initialConfig, options = {}) {
   if (options.onChange) {
     const watcher = watch(configPatterns, { cwd, ignoreInitial: true });
     const handler = () => {
-      watcher.close();
       options.onChange();
     };
+    options.onWatch?.(watcher);
     watcher.on("add", handler);
     watcher.on("unlink", handler);
     watcher.on("change", handler);

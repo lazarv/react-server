@@ -1,4 +1,5 @@
 import { isIPv6 } from "node:net";
+import { setTimeout } from "node:timers/promises";
 
 import open from "open";
 import colors from "picocolors";
@@ -20,6 +21,7 @@ import { getEnv } from "../sys.mjs";
 import banner from "../utils/banner.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
+import { command } from "./command.mjs";
 import createServer from "./create-server.mjs";
 
 export default async function dev(root, options) {
@@ -28,25 +30,41 @@ export default async function dev(root, options) {
     banner("starting development server");
 
     let server;
+    let configWatcher;
+    let showHelp = true;
     const restart = async () => {
       await runtime_init$(async () => {
         try {
+          const restartServer = async () => {
+            try {
+              configWatcher?.close?.();
+              globalThis.__react_server_ready__ = [];
+              globalThis.__react_server_start__ = Date.now();
+              await Promise.all(
+                server?.handlers?.map(
+                  (handler) => handler.close?.() ?? handler.terminate?.()
+                )
+              );
+              await server?.close();
+              await restart?.();
+            } catch (e) {
+              console.error(colors.red(e.stack));
+            }
+          };
+
           let config = await loadConfig(
             {},
             options.watch ?? true
               ? {
                   ...options,
-                  onChange() {
+                  onWatch(watcher) {
+                    configWatcher = watcher;
+                  },
+                  async onChange() {
                     getRuntime(LOGGER_CONTEXT)?.warn?.(
-                      `config changed, restarting server...`
+                      `Configuration changed, restarting server...`
                     );
-                    globalThis.__react_server_ready__ = [];
-                    globalThis.__react_server_start__ = Date.now();
-                    server?.handlers?.forEach(
-                      (handler) => handler.close?.() ?? handler.terminate?.()
-                    );
-                    server?.close();
-                    restart?.();
+                    await restartServer();
                   },
                 }
               : options
@@ -121,9 +139,25 @@ export default async function dev(root, options) {
                 }
 
                 server.printUrls(resolvedUrls);
-                getRuntime(LOGGER_CONTEXT)?.info?.(
-                  `${colors.green("✔")} Ready in ${formatDuration(Date.now() - globalThis.__react_server_start__)}`
+
+                const logger = getRuntime(LOGGER_CONTEXT);
+                logger?.info?.(
+                  `${colors.green("✔")} Ready in ${formatDuration(Date.now() - globalThis.__react_server_start__)} 🚀`
                 );
+
+                if (showHelp) {
+                  logger.info?.("Press any key to open the command menu 💻");
+                  logger.info?.("Start typing to search the docs 🔍");
+                  logger.info?.("Ctrl+C to exit 🚫");
+                  showHelp = false;
+                }
+
+                command({
+                  logger: getRuntime(LOGGER_CONTEXT),
+                  server,
+                  resolvedUrls,
+                  restartServer,
+                });
               })
               .on("error", (e) => {
                 if (e.code === "EADDRINUSE") {

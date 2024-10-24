@@ -451,7 +451,7 @@ export default function viteReactServerRouter(options = {}) {
 
   async function config_init$() {
     if (viteCommand !== "build")
-      logger.info("Initializing router configuration");
+      logger.info("Initializing router configuration 🚦");
     try {
       while (config_destroy.length > 0) {
         await config_destroy.pop()();
@@ -556,7 +556,7 @@ export default function viteReactServerRouter(options = {}) {
         await setupMdx();
         createManifest();
       } else {
-        logger.info(`Router configuration ${colors.green("successful")}`);
+        logger.info(`Router configuration ${colors.green("successful")} ✅`);
 
         const initialFiles = new Set(
           await glob(
@@ -595,7 +595,7 @@ export default function viteReactServerRouter(options = {}) {
             watcherTimeout = null;
             if (initialFiles.size > 0) {
               logger.warn(
-                `Router configuration still waiting for source files watcher to finish...`
+                `Router configuration still waiting for source files watcher to finish... ⏳`
               );
             }
           }, 500);
@@ -636,7 +636,7 @@ export default function viteReactServerRouter(options = {}) {
 
           if (includeInRouter) {
             logger.info(
-              `Adding source file ${colors.cyan(sys.normalizePath(relative(rootDir, src)))} to router`
+              `Adding source file ${colors.cyan(sys.normalizePath(relative(rootDir, src)))} to router 📁`
             );
           }
 
@@ -655,7 +655,7 @@ export default function viteReactServerRouter(options = {}) {
           if (initialFiles.has(src)) {
             initialFiles.delete(src);
             if (initialFiles.size === 0) {
-              logger.info(`Router configuration ${colors.green("ready")}`);
+              logger.info(`Router configuration ${colors.green("ready")} 📦`);
               reactServerRouterReadyResolve?.();
               reactServerRouterReadyResolve = null;
             }
@@ -699,7 +699,7 @@ export default function viteReactServerRouter(options = {}) {
 
           if (includeInRouter) {
             logger.info(
-              `Removing source file ${colors.red(relative(rootDir, src))} from router`
+              `Removing source file ${colors.red(relative(rootDir, src))} from router 🗑️`
             );
           }
 
@@ -723,7 +723,8 @@ export default function viteReactServerRouter(options = {}) {
         });
       }
     } catch (e) {
-      if (viteCommand !== "build") logger.error("Router configuration failed");
+      if (viteCommand !== "build")
+        logger.error("Router configuration failed ❌");
       else throw e;
     }
   }

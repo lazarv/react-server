@@ -508,5 +508,6 @@ export default async function createServer(root, options) {
       );
       viteDevServer.printUrls();
     },
+    environments: viteDevServer.environments,
   };
 }

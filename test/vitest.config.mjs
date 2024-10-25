@@ -23,7 +23,7 @@ export default defineConfig({
       ? ["dot", "github-actions"]
       : ["default"],
     pool: "forks",
-    fileParallelism: false,
+    fileParallelism: !process.env.CI,
   },
   publicDir: false,
 });

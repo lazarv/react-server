@@ -224,7 +224,7 @@ export default function useServerInline(profiles) {
             ],
           };
           cache.node.body.body = [
-            ...(cache.params.length > 0
+            ...(cache.params.length > 0 || cache.node.params.length > 0
               ? [
                   {
                     type: "VariableDeclaration",
@@ -263,7 +263,10 @@ export default function useServerInline(profiles) {
                   name: "useCache",
                 },
                 arguments: [
-                  cacheKey,
+                  {
+                    ...cacheKey,
+                    elements: [...cacheKey.elements, ...cache.node.params],
+                  },
                   {
                     type: "FunctionExpression",
                     id: null,

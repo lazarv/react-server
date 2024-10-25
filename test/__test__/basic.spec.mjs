@@ -224,3 +224,18 @@ test("use cache concurrency", async () => {
   ]);
   expect(JSON.stringify(serverLogs)).toBe(`["getTodos"]`);
 });
+
+test("use cache dynamic", async () => {
+  await server("fixtures/use-cache-dynamic.jsx");
+  await page.goto(hostname + "?id=1");
+  const time = await page.textContent("body");
+
+  await page.reload();
+  expect(await page.textContent("body")).toBe(time);
+
+  await page.goto(hostname + "?id=2");
+  expect(await page.textContent("body")).not.toBe(time);
+
+  await page.goto(hostname + "?id=1");
+  expect(await page.textContent("body")).toBe(time);
+});

@@ -1,3 +1,5 @@
+import equals from "deep-eql";
+
 import { context$, getContext } from "../server/context.mjs";
 import {
   CACHE_CONTEXT,
@@ -27,9 +29,7 @@ export class MemoryCache {
 
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (
-        keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-      ) {
+      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
         return this.cache.get(entryKeys);
       }
     }
@@ -41,26 +41,19 @@ export class MemoryCache {
     if (await this.hasExpiry(keys)) {
       const cacheKeys = this.cache.keys();
       for (const entryKeys of cacheKeys) {
-        if (
-          keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-        ) {
+        if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
           this.cache.set(entryKeys, value);
           return;
         }
       }
-      this.cache.set(
-        keys.map((key) => key?.toString()),
-        value
-      );
+      this.cache.set(keys, value);
     }
   }
 
   async has(keys) {
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (
-        keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-      ) {
+      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
         return true;
       }
     }
@@ -71,17 +64,12 @@ export class MemoryCache {
   async setExpiry(keys, expiry) {
     const expiryKeys = this.expiry.keys();
     for (const entryKeys of expiryKeys) {
-      if (
-        keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-      ) {
+      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
         this.expiry.set(entryKeys, expiry);
         return;
       }
     }
-    this.expiry.set(
-      keys.map((key) => key?.toString()),
-      expiry
-    );
+    this.expiry.set(keys, expiry);
   }
 
   async hasExpiry(keys) {
@@ -89,7 +77,7 @@ export class MemoryCache {
     for (const entryKeys of expiryKeys) {
       for (let keyIndex = 0; keyIndex < entryKeys.length; keyIndex++) {
         const key = keys[keyIndex];
-        if (entryKeys[keyIndex] !== key?.toString()) {
+        if (!equals(entryKeys[keyIndex], key)) {
           break;
         }
         if (keyIndex === entryKeys.length - 1) {
@@ -104,9 +92,7 @@ export class MemoryCache {
   async delete(keys) {
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (
-        keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-      ) {
+      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
         this.cache.delete(entryKeys);
       }
     }

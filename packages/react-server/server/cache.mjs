@@ -11,7 +11,7 @@ export function withCache(Component, ttl = Infinity) {
 }
 
 export function useResponseCache(ttl = Infinity) {
-  const url = useUrl()?.toString();
+  const url = useUrl();
   const accept = useRequest()?.headers?.get?.("accept");
   const outlet = useOutlet();
   const cache = getContext(CACHE_CONTEXT);

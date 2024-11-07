@@ -126,7 +126,6 @@ article ~ .root {
     position: sticky;
     top: 0;
     align-self: flex-start;
-    min-height: min-content;
     max-height: calc(100vh - 48px);
     margin-top: -1rem;
     height: auto;

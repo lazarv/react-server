@@ -112,6 +112,10 @@ article ~ .root {
   pointer-events: auto;
   /* view-transition-name: sidebar; */
 
+  &:has(nav:empty) {
+    @apply hidden;
+  }
+
   @media (prefers-reduced-motion) {
     view-transition-name: none;
   }

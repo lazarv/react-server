@@ -81,7 +81,7 @@ export default function TableOfContents() {
     };
   }, []);
 
-  if (tableOfContents.length === 1) return null;
+  if (tableOfContents.length < 2) return null;
 
   return (
     <>

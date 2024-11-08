@@ -5,17 +5,25 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { Worker } from "node:worker_threads";
 import { createBrotliCompress, createGzip } from "node:zlib";
+
+import { parseMultipartFormData } from "@hattip/multipart";
 import { filesize } from "filesize";
 import colors from "picocolors";
 
 import { forRoot } from "../../config/index.mjs";
+import { MemoryCache } from "../../memory-cache/index.mjs";
 import { getContext } from "../../server/context.mjs";
 import {
   getRuntime,
-  init$ as runtime_init$,
   runtime$,
+  init$ as runtime_init$,
 } from "../../server/runtime.mjs";
-import { CONFIG_CONTEXT, WORKER_THREAD } from "../../server/symbols.mjs";
+import {
+  CONFIG_CONTEXT,
+  FORM_DATA_PARSER,
+  MEMORY_CACHE_CONTEXT,
+  WORKER_THREAD,
+} from "../../server/symbols.mjs";
 import ssrHandler from "../start/ssr-handler.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
@@ -64,6 +72,19 @@ export default async function staticSiteGenerator(root, options) {
     );
     runtime$(WORKER_THREAD, worker);
     runtime$(CONFIG_CONTEXT, config);
+
+    const initialRuntime = {
+      [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
+      [FORM_DATA_PARSER]: parseMultipartFormData,
+    };
+    runtime$(
+      typeof config.runtime === "function"
+        ? config.runtime(initialRuntime) ?? initialRuntime
+        : {
+            ...initialRuntime,
+            ...config.runtime,
+          }
+    );
 
     const configRoot = forRoot();
 

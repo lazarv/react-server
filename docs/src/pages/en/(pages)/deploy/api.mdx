@@ -10,7 +10,9 @@ import Link from "../../../../components/Link"
 
 By using the Adapter API available in the `@lazarv/react-server-adapter-core` package, you can easily create a deployment adapter for any deployment target.
 
+<Link name="define-the-adapter-handler">
 ## Define the adapter handler
+</Link>
 
 The adapter handler is a function that you need to implement to handle the deployment of your application. It will be called by the build process and it will receive the information needed to prepare the application for deployment.
 
@@ -55,7 +57,9 @@ You need to pass adapter properties to the `createAdapter` function to configure
 
 `deploy`: The deployment command and arguments. This is optional. When provided, the adapter will show what command the developer needs to run to deploy the application after it has been built. If the `--deploy` flag is provided during the build, the adapter will run this command.
 
+<Link name="adapter-handler">
 ## Adapter handler
+</Link>
 
 The adapter handler function will receive the following properties:
 
@@ -95,7 +99,9 @@ The `copy` object contains the following functions:
 await copy.server(outServerDir);
 ```
 
+<Link name="helper-functions">
 ## Helper functions
+</Link>
 
 ### banner
 

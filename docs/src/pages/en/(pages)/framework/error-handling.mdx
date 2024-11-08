@@ -1,0 +1,89 @@
+---
+title: Error handling
+category: Framework
+order: 2
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Error handling
+
+You can use the `ErrorBoundary` component to catch errors in your application inside a server component. You can define a fallback component that will be rendered while the error is being handled and a client component that will be rendered when the error occurs.
+
+This is useful when you want to fine-tune the error handling for different parts of your app. You can use any number of `ErrorBoundary` components in your app and each `ErrorBoundary` can have its own fallback component.
+
+```jsx filename="App.jsx"
+import { ErrorBoundary } from "@lazarv/react-server/error-boundary";
+
+export default function MyComponent() {
+  return (
+    <ErrorBoundary fallback={"Loading..."} component={ErrorMessage}>
+      <MaybeAnError />
+    </ErrorBoundary>
+  );
+}
+```
+
+The `fallback` prop is a React node that will be rendered while the error is being handled. The `component` prop is a React component that will be rendered when the error occurs. The `fallback` prop is actually used on a `Suspense` component internally, so it's a good practice to use a `Suspense` fallback in the `fallback` prop.
+
+```jsx filename="ErrorMessage.jsx"
+"use client";
+
+export default function ErrorMessage({ error }) {
+  return (
+    <>
+      <h1>Error</h1>
+      <p>{error.message}</p>
+      <pre>{error.stack}</pre>
+    </>
+  );
+}
+```
+
+You error component passed in the `component` prop of the error boundary component will be rendered in place of the children of the error boundary, where the error occurred. You can render detailed information based on the error or whatever component you would like to, like "uh oh!".
+
+<Link name="reset-error">
+## Reset error
+</Link>
+
+You can reset the error by calling the `resetErrorBoundary()` function from the error client component if the error occurred on the client.
+
+```jsx filename="ErrorMessage.jsx"
+"use client";
+
+export default function ErrorMessage({ error, resetErrorBoundary }) {
+  return (
+    <>
+      <h1>Error</h1>
+      <p>{error.message}</p>
+      <pre>{error.stack}</pre>
+      <button onClick={resetErrorBoundary}>Retry</button>
+    </>
+  );
+}
+```
+
+When the error occurs on the server, you can't reset the error because the error was not thrown on the client. But you can use the `Refresh` component to reload the page. Check it out in more details in the [client-side navigation](/router/client-navigation) page of the [router](/router) section.
+
+```jsx filename="ErrorMessage.jsx"
+"use client";
+
+import { Refresh } from "@lazarv/react-server/navigation";
+
+export default function ErrorMessage({ error }) {
+  return (
+    <>
+      <h1>Error</h1>
+      <p>{error.message}</p>
+      <pre>{error.stack}</pre>
+      <Refresh>Retry</Refresh>
+    </>
+  );
+}
+```
+
+<Link name="file-system-based-error-handling">
+## File-system based error handling
+</Link>
+
+You can learn more about how to handle errors when using the file-system based routing in the [error handling](/router/error-handling) page of the [router](/router) section.

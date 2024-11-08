@@ -439,6 +439,7 @@ export async function render(Component) {
           const prelude = getContext(PRELUDE_HTML);
           const postponed = getContext(POSTPONE_STATE);
           const importMap = getContext(IMPORT_MAP);
+          let isStarted = false;
           const stream = await renderStream({
             stream: flight,
             bootstrapModules: standalone ? [] : getContext(MAIN_MODULE),
@@ -470,6 +471,7 @@ export async function render(Component) {
                 ],
             outlet,
             start: async () => {
+              isStarted = true;
               ContextStorage.run(contextStore, async () => {
                 const redirect = getContext(REDIRECT_CONTEXT);
                 if (redirect?.response) {
@@ -516,10 +518,12 @@ export async function render(Component) {
               });
             },
             onError(e, digest) {
-              ContextStorage.run(contextStore, async () => {
-                logger.error(e, digest);
-                getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
-              });
+              logger.error(e, digest);
+              if (!isStarted) {
+                ContextStorage.run(contextStore, async () => {
+                  getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
+                });
+              }
             },
             formState,
             isPrerender: typeof onPostponed === "function",

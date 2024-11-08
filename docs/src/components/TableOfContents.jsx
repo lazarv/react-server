@@ -81,8 +81,6 @@ export default function TableOfContents() {
     };
   }, []);
 
-  if (tableOfContents.length < 2) return null;
-
   return (
     <>
       <header className="text-md font-semibold mb-2 whitespace-nowrap">

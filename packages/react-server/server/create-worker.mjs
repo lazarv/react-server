@@ -20,6 +20,9 @@ export function createWorker() {
       if (error) {
         const err = new Error(error);
         err.stack = stack;
+        if (start) {
+          workerMap.get(id).start({ id });
+        }
         workerMap.get(id)?.onError?.(err, digest);
       } else if (stream) {
         workerMap.get(id).resolve(stream);

@@ -4,7 +4,7 @@ import { usePathname } from "@lazarv/react-server";
 
 import Sidebar from "../../../components/Sidebar.jsx";
 import { defaultLanguage } from "../../../const.mjs";
-import { categories } from "../../../pages.mjs";
+import { hasCategory, categories } from "../../../pages.mjs";
 
 const pages = Array.from(
   Object.entries(
@@ -12,8 +12,12 @@ const pages = Array.from(
   )
 );
 
-export default function PageSidebar({ lang }) {
+export default function PageSidebar({ lang, slug: [category] }) {
   const pathname = usePathname();
+
+  if (!hasCategory(category)) {
+    return null;
+  }
 
   return (
     <Sidebar id="sidebar" menu="Menu">

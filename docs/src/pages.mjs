@@ -68,3 +68,7 @@ export function getPages(pathname, lang) {
         }),
     }));
 }
+
+export function hasCategory(category) {
+  return categories?.find((c) => c.toLowerCase() === category?.toLowerCase());
+}

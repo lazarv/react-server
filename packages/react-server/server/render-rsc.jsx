@@ -449,11 +449,7 @@ export async function render(Component) {
                   `const moduleCache = new Map();
                     self.__webpack_require__ = function (id) {
                       if (!moduleCache.has(id)) {
-                        ${
-                          config.base
-                            ? `const modulePromise = import(("${`/${config.base}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));`
-                            : `const modulePromise = import(id);`
-                        }
+                        const modulePromise = import(("${`/${config.base ?? ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));
                         modulePromise.then(
                           (module) => {
                             modulePromise.value = module;

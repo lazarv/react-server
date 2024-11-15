@@ -258,12 +258,16 @@ export const createRenderer = ({
                                 importMap
                               )}</script>`
                             : ""
-                        }${bootstrapModules
-                          .map(
-                            (mod) =>
-                              `<script type="module" src="${mod}" async></script>`
-                          )
-                          .join("")}`
+                        }${
+                          hmr
+                            ? "<script>self.__react_server_hydrate_init__?.();</script>"
+                            : bootstrapModules
+                                .map(
+                                  (mod) =>
+                                    `<script type="module" src="${mod}" async></script>`
+                                )
+                                .join("")
+                        }`
                       );
                       yield script;
                       hydrated = true;

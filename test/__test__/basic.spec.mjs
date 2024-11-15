@@ -245,9 +245,9 @@ test("suspense client", async () => {
   await server("fixtures/suspense-client.jsx");
   await page.goto(hostname);
   await waitForHydration();
-  const scripts = await page.$$("script");
 
   if (process.env.NODE_ENV === "production") {
+    const scripts = await page.$$("script");
     expect(scripts.length).toBe(2);
     expect(await scripts[0].getAttribute("src")).toContain("/client/index");
     expect(await scripts[1].getAttribute("src")).toBe(null);
@@ -256,6 +256,11 @@ test("suspense client", async () => {
     expect(await button.isVisible()).toBe(true);
     await button.click();
     expect(logs).toContain("use client");
+    await waitForChange(
+      () => {},
+      () => page.$$("script")
+    );
+    const scripts = await page.$$("script");
     expect(scripts.length).toBe(5);
     expect(await scripts[0].getAttribute("src")).toBe("/@vite/client");
     expect(await scripts[1].getAttribute("src")).toBe("/@hmr");

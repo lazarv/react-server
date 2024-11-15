@@ -252,6 +252,10 @@ test("suspense client", async () => {
     expect(await scripts[0].getAttribute("src")).toContain("/client/index");
     expect(await scripts[1].getAttribute("src")).toBe(null);
   } else {
+    const button = await page.getByRole("button");
+    expect(await button.isVisible()).toBe(true);
+    await button.click();
+    expect(logs).toContain("use client");
     expect(scripts.length).toBe(5);
     expect(await scripts[0].getAttribute("src")).toBe("/@vite/client");
     expect(await scripts[1].getAttribute("src")).toBe("/@hmr");

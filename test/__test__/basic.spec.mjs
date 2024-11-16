@@ -6,6 +6,7 @@ import {
   serverLogs,
   waitForChange,
   waitForConsole,
+  waitForHydration,
 } from "playground/utils";
 import { expect, test } from "vitest";
 
@@ -238,4 +239,33 @@ test("use cache dynamic", async () => {
 
   await page.goto(hostname + "?id=1");
   expect(await page.textContent("body")).toBe(time);
+});
+
+test("suspense client", async () => {
+  await server("fixtures/suspense-client.jsx");
+  await page.goto(hostname);
+  await waitForHydration();
+
+  if (process.env.NODE_ENV === "production") {
+    const scripts = await page.$$("script");
+    expect(scripts.length).toBe(2);
+    expect(await scripts[0].getAttribute("src")).toContain("/client/index");
+    expect(await scripts[1].getAttribute("src")).toBe(null);
+  } else {
+    const button = await page.getByRole("button");
+    expect(await button.isVisible()).toBe(true);
+    await button.click();
+    expect(logs).toContain("use client");
+    await waitForChange(
+      () => {},
+      () => page.$$("script")
+    );
+    const scripts = await page.$$("script");
+    // this is flaky and needs a stable solution
+    expect(scripts.length).toBeGreaterThanOrEqual(4);
+    expect(await scripts[0].getAttribute("src")).toBe("/@vite/client");
+    expect(await scripts[1].getAttribute("src")).toBe("/@hmr");
+    expect(await scripts[2].getAttribute("src")).toBe("/@__webpack_require__");
+    expect(await scripts[3].getAttribute("src")).toBe(null);
+  }
 });

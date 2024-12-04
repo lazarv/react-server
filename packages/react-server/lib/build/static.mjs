@@ -107,7 +107,16 @@ export default async function staticSiteGenerator(root, options) {
       paths =
         typeof configRoot.export === "function"
           ? await configRoot.export(paths)
-          : [...configRoot.export, ...paths];
+          : [...(configRoot.export ?? []), ...paths];
+      const validPaths = paths.filter(({ path, filename }) => filename || path);
+      if (validPaths.length < paths.length) {
+        throw new Error(
+          `${colors.bold("path")} property is not defined for ${colors.bold(
+            paths.length - validPaths.length
+          )} path${paths.length - validPaths.length > 1 ? "s" : ""}`
+        );
+      }
+      paths = validPaths;
 
       if (paths.length === 0) {
         console.log(colors.yellow("warning: no paths to export, skipping..."));

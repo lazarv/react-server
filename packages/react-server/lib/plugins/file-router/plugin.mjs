@@ -791,7 +791,14 @@ export default function viteReactServerRouter(options = {}) {
                       if (typeof def === "function") {
                         obj = await def();
                       }
-                      return { path: applyParamsToPath(path, obj) };
+                      try {
+                        return { path: applyParamsToPath(path, obj) };
+                      } catch (e) {
+                        if (typeof obj.path === "string") {
+                          return { path: obj.path };
+                        }
+                        throw e;
+                      }
                     })
                   );
                   return validPaths;

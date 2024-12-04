@@ -9,6 +9,7 @@ import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import merge from "@lazarv/react-server/lib/utils/merge.mjs";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
+import { applyParamsToPath } from "@lazarv/react-server/server/route-match.mjs";
 import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
@@ -749,46 +750,62 @@ export default function viteReactServerRouter(options = {}) {
           for (const [, path] of manifest.pages.filter(
             ([, , outlet, type]) => !outlet && type === "page"
           )) {
-            if (/\[[^/]+\]/.test(path)) {
-              try {
-                const staticSrc = manifest.pages.find(
-                  ([, staticPath, , staticType]) =>
-                    staticType === "static" && staticPath === path
-                )?.[0];
+            try {
+              const staticSrc = manifest.pages.find(
+                ([, staticPath, , staticType]) =>
+                  staticType === "static" && staticPath === path
+              )?.[0];
 
-                if (staticSrc) {
-                  const key = relative(cwd, dirname(staticSrc));
-                  const filename = basename(staticSrc);
-                  const src = join(cwd, key, filename);
-                  const hash = createHash("shake256", {
-                    outputLength: 4,
-                  })
-                    .update(await readFile(src, "utf8"))
-                    .digest("hex");
-                  const exportEntry = pathToFileURL(
-                    join(cwd, outDir, "static", `${hash}.mjs`)
-                  );
-                  config.build.rollupOptions.input[join("static", hash)] =
-                    staticSrc;
-                  paths.push(async () => {
-                    const staticPaths = (await import(exportEntry)).default;
-                    if (typeof staticPaths === "boolean" && staticPaths) {
-                      if (/\[[^\]]+\]/.test(path)) {
-                        throw new Error(
-                          `Static path ${colors.green(path)} contains dynamic segments`
-                        );
+              if (staticSrc) {
+                const key = relative(cwd, dirname(staticSrc));
+                const filename = basename(staticSrc);
+                const src = join(cwd, key, filename);
+                const hash = createHash("shake256", {
+                  outputLength: 4,
+                })
+                  .update(await readFile(src, "utf8"))
+                  .digest("hex");
+                const exportEntry = pathToFileURL(
+                  join(cwd, outDir, "static", `${hash}.mjs`)
+                );
+                config.build.rollupOptions.input[join("static", hash)] =
+                  staticSrc;
+                paths.push(async () => {
+                  const staticPaths = (await import(exportEntry)).default;
+                  if (typeof staticPaths === "boolean" && staticPaths) {
+                    if (/\[[^\]]+\]/.test(path)) {
+                      throw new Error(
+                        `missing values on static site generation of ${colors.bold(
+                          path
+                        )}, add missing values for all dynamic segments`
+                      );
+                    }
+                    return { path };
+                  }
+                  if (typeof staticPaths === "function") {
+                    return await staticPaths();
+                  }
+                  const validPaths = await Promise.all(
+                    staticPaths.map(async (def) => {
+                      let obj = def;
+                      if (typeof def === "function") {
+                        obj = await def();
                       }
-                      return path;
-                    }
-                    if (typeof staticPaths === "function") {
-                      return await staticPaths();
-                    }
-                    return staticPaths;
-                  });
-                }
-              } catch (e) {
-                console.error(e);
+                      try {
+                        return { path: applyParamsToPath(path, obj) };
+                      } catch (e) {
+                        if (typeof obj.path === "string") {
+                          return { path: obj.path };
+                        }
+                        throw e;
+                      }
+                    })
+                  );
+                  return validPaths;
+                });
               }
+            } catch (e) {
+              console.error(e);
             }
           }
           if (paths.length > 0) {

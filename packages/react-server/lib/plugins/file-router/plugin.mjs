@@ -771,7 +771,10 @@ export default function viteReactServerRouter(options = {}) {
                 config.build.rollupOptions.input[join("static", hash)] =
                   staticSrc;
                 paths.push(async () => {
-                  const staticPaths = (await import(exportEntry)).default;
+                  let staticPaths = (await import(exportEntry)).default;
+                  if (typeof staticPaths === "function") {
+                    staticPaths = await staticPaths();
+                  }
                   if (typeof staticPaths === "boolean" && staticPaths) {
                     if (/\[[^\]]+\]/.test(path)) {
                       throw new Error(

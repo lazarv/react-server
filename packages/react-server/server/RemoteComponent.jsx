@@ -18,7 +18,7 @@ async function RemoteComponentLoader({ url, ttl, request = {}, onError }) {
             Origin: url.origin,
             ...request.headers,
             Accept: "text/html;remote",
-            "React-Server-Outlet": url.toString(),
+            "React-Server-Outlet": encodeURIComponent(url.toString()),
           },
         }).catch((e) => {
           (onError ?? getContext(LOGGER_CONTEXT)?.error)?.(e);

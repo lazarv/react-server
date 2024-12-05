@@ -785,23 +785,16 @@ export default function viteReactServerRouter(options = {}) {
                     }
                     return { path };
                   }
-                  if (typeof staticPaths === "function") {
-                    return await staticPaths();
-                  }
                   const validPaths = await Promise.all(
                     staticPaths.map(async (def) => {
                       let obj = def;
                       if (typeof def === "function") {
                         obj = await def();
                       }
-                      try {
-                        return { path: applyParamsToPath(path, obj) };
-                      } catch (e) {
-                        if (typeof obj.path === "string") {
-                          return { path: obj.path };
-                        }
-                        throw e;
+                      if (typeof obj.path === "string") {
+                        return { path: obj.path };
                       }
+                      return { path: applyParamsToPath(path, obj) };
                     })
                   );
                   return validPaths;

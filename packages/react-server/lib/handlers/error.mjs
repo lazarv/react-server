@@ -104,7 +104,7 @@ function plainResponse(e) {
   return new Response(e?.stack ?? null, {
     ...httpStatus,
     headers: {
-      "Content-Type": "text/plain",
+      "Content-Type": "text/plain; charset=utf-8",
       ...(getContext(HTTP_HEADERS) ?? {}),
     },
   });
@@ -164,7 +164,7 @@ export default async function errorHandler(err) {
       {
         ...httpStatus,
         headers: {
-          "Content-Type": "text/html",
+          "Content-Type": "text/html; charset=utf-8",
           ...(getContext(HTTP_HEADERS) ?? {}),
         },
       }

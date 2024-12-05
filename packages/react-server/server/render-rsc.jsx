@@ -66,19 +66,22 @@ export async function render(Component) {
         const accept = context.request.headers.get("accept");
         const remote = accept.includes(";remote");
         const standalone = accept.includes(";standalone") || remote;
-        const outlet = (
-          context.request.headers.get("react-server-outlet") ?? "PAGE_ROOT"
-        ).replace(/[^a-zA-Z0-9_]/g, "_");
+        const outlet = decodeURIComponent(
+          (
+            context.request.headers.get("react-server-outlet") ?? "PAGE_ROOT"
+          ).replace(/[^a-zA-Z0-9_]/g, "_")
+        );
 
         const isFormData = context.request.headers
           .get("content-type")
           ?.includes("multipart/form-data");
         let formState;
-        const serverActionHeader =
-          context.request.headers.get("react-server-action") ?? null;
+        const serverActionHeader = decodeURIComponent(
+          context.request.headers.get("react-server-action") ?? null
+        );
         if (
           "POST,PUT,PATCH,DELETE".includes(context.request.method) &&
-          (serverActionHeader || isFormData)
+          ((serverActionHeader && serverActionHeader !== "null") || isFormData)
         ) {
           let action = async function () {
             throw new Error("Server action not found");
@@ -128,7 +131,7 @@ export async function render(Component) {
             );
           }
 
-          if (serverActionHeader) {
+          if (serverActionHeader && serverActionHeader !== "null") {
             const [serverReferenceModule, serverReferenceName] =
               serverActionHeader.split("#");
             action = async () => {
@@ -157,6 +160,11 @@ export async function render(Component) {
           }
 
           const { data, actionId, error } = await action();
+          const httpStatus = getContext(HTTP_STATUS) ?? {
+            status: 200,
+            statusText: "OK",
+          };
+          const httpHeaders = getContext(HTTP_HEADERS) ?? {};
 
           if (!isFormData) {
             if (error) {
@@ -165,9 +173,10 @@ export async function render(Component) {
 
             return resolve(
               new Response(JSON.stringify(data), {
-                status: 200,
+                ...httpStatus,
                 headers: {
-                  "content-type": "application/json",
+                  "content-type": "application/json; charset=utf-8",
+                  ...httpHeaders,
                 },
               })
             );
@@ -182,10 +191,11 @@ export async function render(Component) {
               const [result, key] = formState;
               return resolve(
                 new Response(JSON.stringify(result), {
-                  status: 200,
+                  ...httpStatus,
                   headers: {
-                    "React-Server-Action-Key": key,
-                    "content-type": "application/json",
+                    "React-Server-Action-Key": encodeURIComponent(key),
+                    "content-type": "application/json; charset=utf-8",
+                    ...httpHeaders,
                   },
                 })
               );
@@ -281,7 +291,7 @@ export async function render(Component) {
                   status: responseFromCache.status,
                   statusText: responseFromCache.statusText,
                   headers: {
-                    "content-type": "text/x-component",
+                    "content-type": "text/x-component; charset=utf-8",
                     "cache-control":
                       context.request.headers.get("cache-control") ===
                       "no-cache"
@@ -352,7 +362,7 @@ export async function render(Component) {
                 new Response(stream, {
                   ...httpStatus,
                   headers: {
-                    "content-type": "text/x-component",
+                    "content-type": "text/x-component; charset=utf-8",
                     "cache-control":
                       context.request.headers.get("cache-control") ===
                       "no-cache"
@@ -406,7 +416,7 @@ export async function render(Component) {
                   status: responseFromCache.status,
                   statusText: responseFromCache.statusText,
                   headers: {
-                    "content-type": "text/html",
+                    "content-type": "text/html; charset=utf-8",
                     "cache-control":
                       context.request.headers.get("cache-control") ===
                       "no-cache"
@@ -500,7 +510,7 @@ export async function render(Component) {
                   new Response(responseStream, {
                     ...httpStatus,
                     headers: {
-                      "content-type": "text/html",
+                      "content-type": "text/html; charset=utf-8",
                       "cache-control":
                         context.request.headers.get("cache-control") ===
                         "no-cache"

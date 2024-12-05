@@ -62,8 +62,8 @@ export function rewrite(pathname) {
 }
 
 export function useOutlet() {
-  return (
+  return decodeURIComponent(
     getContext(HTTP_CONTEXT)?.request?.headers?.get("react-server-outlet") ??
-    "PAGE_ROOT"
+      "PAGE_ROOT"
   );
 }

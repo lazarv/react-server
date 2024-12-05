@@ -50,7 +50,7 @@ export default async function staticHandler(dir, options = {}) {
     if (pathname.startsWith("/@source")) {
       return new Response(await readFile(pathname.slice(8), "utf8"), {
         headers: {
-          "content-type": "text/plain",
+          "content-type": "text/plain; charset=utf-8",
         },
       });
     }
@@ -178,7 +178,10 @@ export default async function staticHandler(dir, options = {}) {
           }
           return new Response(res, {
             headers: {
-              "content-type": file.mime,
+              "content-type":
+                file.mime.includes("text/") || file.mime === "application/json"
+                  ? `${file.mime}; charset=utf-8`
+                  : file.mime,
               "content-length": file.stats.size,
               etag: file.etag,
               "cache-control":

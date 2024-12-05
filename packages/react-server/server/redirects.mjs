@@ -23,7 +23,7 @@ export function redirect(url, status = 302) {
             {
               status,
               headers: {
-                "content-type": "text/html",
+                "content-type": "text/html; charset=utf-8",
                 Location: url,
               },
             }

@@ -99,6 +99,8 @@ export default async function serverBuild(root, options) {
     return false;
   };
 
+  const publicDir =
+    typeof config.public === "string" ? config.public : "public";
   const buildConfig = {
     root: cwd,
     configFile: false,
@@ -232,6 +234,7 @@ export default async function serverBuild(root, options) {
         externalConditions: ["react-server"],
       },
     },
+    publicDir: join(cwd, publicDir),
   };
 
   let viteConfig = buildConfig;

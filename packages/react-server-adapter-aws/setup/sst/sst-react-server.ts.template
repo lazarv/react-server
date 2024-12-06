@@ -1,16 +1,14 @@
+// Version: 0.1.0
+// Do not modify this file, it is generated from a template and will be replaced on updates
+//
 import { all, ComponentResourceOptions, Output, output } from "@pulumi/pulumi";
 import fs from "fs";
 import path from "path";
 
-import { buildApp } from "../base/base-ssr-site.js";
-import { Component } from "../component.js";
-import { DevArgs } from "../dev.js";
-import { VisibleError } from "../error.js";
-import { Link } from "../link.js";
-import { Bucket } from "./bucket.js";
-import { Cdn } from "./cdn.js";
-import { Function } from "./function.js";
-import { URL_UNAVAILABLE } from "./linkable.js";
+import { Bucket } from "./.sst/platform/src/components/aws/bucket.ts";
+import { Cdn } from "./.sst/platform/src/components/aws/cdn.ts";
+import { Function } from "./.sst/platform/src/components/aws/function.ts";
+import { URL_UNAVAILABLE } from "./.sst/platform/src/components/aws/linkable.ts";
 import {
   createBucket,
   createDevServer,
@@ -19,7 +17,10 @@ import {
   SsrSiteArgs,
   useCloudFrontFunctionHostHeaderInjection,
   validatePlan,
-} from "./ssr-site.js";
+} from "./.sst/platform/src/components/aws/ssr-site.ts";
+import { buildApp } from "./.sst/platform/src/components/base/base-ssr-site.ts";
+import { Component } from "./.sst/platform/src/components/component.ts";
+import { Link } from "./.sst/platform/src/components/link.ts";
 
 export interface ReactServerArgs extends SsrSiteArgs {
   /**
@@ -35,7 +36,7 @@ export interface ReactServerArgs extends SsrSiteArgs {
    *
    * To disable dev mode, pass in `false`.
    */
-  dev?: false | DevArgs["dev"];
+  dev?: SsrSiteArgs["dev"];
   /**
    * Permissions and the resources that the [server function](#nodes-server) in your ReactServer app needs to access. These permissions are used to create the function's IAM role.
    *
@@ -271,7 +272,7 @@ export interface ReactServerArgs extends SsrSiteArgs {
 }
 
 /**
- * The `ReactServer` component lets you deploy a [ReactServer](https://tanstack.com/start/latest) app to AWS.
+ * The `ReactServer` component lets you deploy a [ReactServer](https://react-server.dev/deploy/aws) app to AWS.
  *
  * @example
  *
@@ -394,7 +395,8 @@ export class ReactServer extends Component implements Link.Linkable {
     const outputPath = buildApp(parent, name, args, sitePath);
 
     const preset = outputPath.apply((output) => {
-      if (!fs.existsSync(path.join(output, "react-server.config.json"))) return "aws-lambda";
+      if (!fs.existsSync(path.join(output, "react-server.config.json")))
+        return "aws-lambda";
       const fileData = fs.readFileSync(
         path.join(output, "react-server.config.json"),
         { encoding: "utf-8" }
@@ -405,7 +407,7 @@ export class ReactServer extends Component implements Link.Linkable {
         return reactServerConfig?.adapter?.[1]?.streaming === true
           ? "aws-lambda-streaming"
           : "aws-lambda";
-      } catch (e) { }
+      } catch (e) {}
       return "aws-lambda";
     });
 
@@ -457,7 +459,7 @@ export class ReactServer extends Component implements Link.Linkable {
       return outputPath.apply((outputPath) => {
         const assetsPath = path.join(
           outputPath,
-          ".aws-lambda",
+          ".aws-react-server",
           "output",
           "static"
         );
@@ -482,11 +484,11 @@ export class ReactServer extends Component implements Link.Linkable {
             bundle: "bundle", // disable bundling with esbuild
             copyFiles: [
               {
-                from: ".aws-lambda/output/static",
+                from: ".aws-react-server/output/static",
                 to: ".react-server",
               },
               {
-                from: ".aws-lambda/output/functions/index.func",
+                from: ".aws-react-server/output/functions/index.func",
                 to: ".",
               },
             ],

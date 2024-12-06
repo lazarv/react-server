@@ -7,3 +7,4 @@ cdk.out
 .serverless
 # sst
 .sst
+sst-react-server.ts

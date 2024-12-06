@@ -84,21 +84,37 @@ function detectFramework() {
 async function setupFramework() {
   const framework = detectFramework();
   if (framework === "sst") {
-    if (
-      !existsSync(join(cwd, ".sst/platform/src/components/aws/react-server.ts"))
-    ) {
+    const reactStackTemplatePath = join(
+      adapterDir,
+      "setup",
+      "sst/sst-react-server.ts.template"
+    );
+    const reactStackTargetPath = join(cwd, "sst-react-server.ts");
+    const reactStackTemplateContent = await readFile(reactStackTemplatePath, {
+      encoding: "utf-8",
+    });
+    const existsReactServerStack = existsSync(join(cwd, "sst-react-server.ts"));
+    const reactStackTemplateVersion = reactStackTemplateContent.match(
+      /\/\/ Version: (\d+\.\d+\.\d+)/
+    )[1];
+    const reactStackTargetVersion = existsReactServerStack
+      ? (await readFile(reactStackTargetPath, { encoding: "utf-8" })).match(
+          /\/\/ Version: (\d+\.\d+\.\d+)/
+        )?.[1] ?? ""
+      : "";
+    if (reactStackTemplateVersion !== reactStackTargetVersion) {
       await cp(
-        join(adapterDir, "setup", "sst/react-server.ts.template"),
-        join(cwd, ".sst/platform/src/components/aws/react-server.ts")
+        join(adapterDir, "setup", "sst/sst-react-server.ts.template"),
+        join(cwd, "sst-react-server.ts")
       );
-      await addExport(
-        join(cwd, ".sst/platform/src/components/aws/index.ts"),
-        "react-server"
+      message(
+        "found sst framework:",
+        "'./sst-react-server.ts' stack added or replaced."
       );
-      message("found sst framework:", "missing react-server.ts stack added.");
     } else {
-      message("found sst framework:", "react-server.ts stack exists.");
+      message("found sst framework:", "sst-react-server.ts stack exists.");
     }
+    await modifySstConfig(cwd);
   } else if (framework === "cdk") {
     if (await fileIsEmpty(join(cwd, "cdk.json"))) {
       await cp(join(adapterDir, "setup", "cdk"), cwd, {
@@ -150,15 +166,59 @@ async function fileIsEmpty(path) {
   return stats.size === 0;
 }
 
-async function addExport(path, exportfile) {
+async function modifySstConfig(cwd) {
+  let dirty = false;
+  const path = join(cwd, "sst.config.ts");
   const content = await readFile(path, { encoding: "utf-8" });
-  if (!content.includes(`export * from "./${exportfile}.js";`)) {
-    await writeFile(
-      path,
-      `${content}\nexport * from "./${exportfile}.js";`,
-      "utf-8"
+  const lines = content.split("\n");
+  if (!content.includes("async run() {}")) return;
+  if (!content.includes('./sst-react-server"')) {
+    const importIndex = lines.findIndex((line) => line.startsWith("import"));
+    lines.splice(
+      importIndex + 2,
+      0,
+      'import { ReactServer } from "./sst-react-server";'
+    );
+    dirty = true;
+  }
+  if (content.includes("async run() {}")) {
+    const packageJsonPath = join(cwd, "package.json");
+    const packageJsonData = await readFile(packageJsonPath, {
+      encoding: "utf-8",
+    });
+    const packageJson = JSON.parse(packageJsonData);
+    const appName = capitalizeWords(packageJson.name);
+    lines.forEach((line, index) => {
+      if (line.includes("async run() {}")) {
+        lines[index] = lines[index].replace(
+          "async run() {}",
+          `
+  async run() {
+    new ReactServer("${appName}", {
+      server: {
+        architecture: "arm64",
+      },
+    });
+  }`
+        );
+        dirty = true;
+      }
+    });
+  }
+  if (dirty) {
+    await writeFile(path, lines.join("\n"), "utf-8");
+    message(
+      "found sst framework:",
+      "fix missing 'new ReactServer()' in './sst.config.ts'."
     );
   }
+}
+
+function capitalizeWords(str) {
+  return str
+    .split(/[^a-zA-Z]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
 }
 
 export default function defineConfig(adapterOptions) {

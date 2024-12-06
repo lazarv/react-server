@@ -57,25 +57,42 @@ AWS deployment frameworks/tools:
 ## Installation
 </Link>
 
-First you need to initialize your project with sst. You can do this by running the following command:
+1. First you need to initialize your project with sst. You can do this by running the following command:
 
 ```sh
-pnpx sst@latest init
+pnpm add sst
+pnpm sst init
 ```
 
-**Answers:** 1. **Template:** js, 2. **Framework:** aws
+```
+>  JS project detected. This will...
+   - use the JS template
+   - create an sst.config.ts
 
-Second, open `sst.config.ts` and replace `async run() {},`with:
+? Continue:
+```
+**Answers:** Yes
+
+```
+? Where do you want to deploy your app? You can change this later: 
+```
+
+**Answers:** aws
+
+2. Create the `sst-react-server.ts` sst stack to your project and add the stack to `sst.config.ts`:
+
+```sh
+pnpm build
+```
+
+**Optional manual `sst.config.ts` setup:**
+
+1. add `import { ReactServer } from "./sst-react-server";`
+2. replace `async run() {},`with:
 ```mjs
 async run() {
     new sst.aws.ReactServer("ReactServertackDemoApp");
   },
-```
-
-Third, add the `ReactServer()` sst stack `.sst/platform/src/components/aws/react-server.ts`:
-
-```sh
-pnpm build
 ```
 
 <Link name="configuration-sst">
@@ -83,7 +100,7 @@ pnpm build
 </Link>
 
 All possible configuration options are documented here:
-`.sst/platform/src/components/aws/react-server.ts`
+`./sst-react-server.ts`
 
 <Link name="deploy-sst">
 ## Deploy

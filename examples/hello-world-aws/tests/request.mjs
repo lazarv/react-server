@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { argv } from "node:process";
 
 const requestHandlerPath =
-  "../.aws-lambda/output/functions/index.func/index.mjs";
+  "../.aws-react-server/output/functions/index.func/index.mjs";
 
 const firstParameter = argv[2];
 if (firstParameter === "-h" || firstParameter === "--help") {
@@ -37,7 +37,7 @@ if (firstParameter === "-e") {
   try {
     eventData = JSON.parse(data);
   } catch (e) {
-    console.error(`Error: invalid JSON: ${eventFilePath}`);
+    console.error(`Error '${eventFilePath}': ${e.message}`);
     process.exit(1);
   }
 } else {

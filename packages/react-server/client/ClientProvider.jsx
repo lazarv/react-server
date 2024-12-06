@@ -243,7 +243,7 @@ export const streamOptions = (outlet, remote) => ({
             )
               ? {}
               : {
-                  "React-Server-Action": id,
+                  "React-Server-Action": encodeURIComponent(id),
                 },
           });
           emit(target, url, (err, result) => {
@@ -258,8 +258,8 @@ export const streamOptions = (outlet, remote) => ({
               body: formData,
               headers: {
                 accept: "application/json",
-                "React-Server-Action": id,
-                "React-Server-Outlet": outlet || PAGE_ROOT,
+                "React-Server-Action": encodeURIComponent(id),
+                "React-Server-Outlet": encodeURIComponent(outlet || PAGE_ROOT),
               },
             }
           );
@@ -304,7 +304,9 @@ function getFlightResponse(url, options = {}) {
               accept: `text/x-component${
                 options.standalone && url !== PAGE_ROOT ? ";standalone" : ""
               }${options.remote && url !== PAGE_ROOT ? ";remote" : ""}`,
-              "React-Server-Outlet": options.outlet || PAGE_ROOT,
+              "React-Server-Outlet": encodeURIComponent(
+                options.outlet || PAGE_ROOT
+              ),
               ...options.headers,
             },
           }),

@@ -127,7 +127,7 @@ export default async function ssrHandler(root, options = {}) {
     return new Response(e?.stack ?? null, {
       ...httpStatus,
       headers: {
-        "Content-Type": "text/plain",
+        "Content-Type": "text/plain; charset=utf-8",
         ...(getContext(HTTP_HEADERS) ?? {}),
       },
     });

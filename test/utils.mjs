@@ -6,11 +6,14 @@ export function nextAnimationFrame() {
   return page.evaluate(() => new Promise(requestAnimationFrame));
 }
 
-export async function waitForChange(action, getValue) {
+export async function waitForChange(action, getValue, initialValue) {
   const originalValue = await getValue();
+  if (typeof initialValue !== "undefined" && initialValue !== originalValue) {
+    return originalValue;
+  }
   let newValue = originalValue;
   while (newValue === originalValue) {
-    await action();
+    await action?.();
     newValue = await getValue();
     if (newValue !== originalValue) return;
     await nextAnimationFrame();
@@ -28,4 +31,14 @@ export async function waitForConsole(evaluator) {
     result = await evaluator();
   }
   return result;
+}
+
+export async function waitForHydration() {
+  let isHydrated = false;
+  while (!isHydrated) {
+    isHydrated = await page.evaluate(
+      () => window.__flightHydration__PAGE_ROOT__
+    );
+    await nextAnimationFrame();
+  }
 }

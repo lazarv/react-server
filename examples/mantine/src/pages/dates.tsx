@@ -17,7 +17,7 @@ export default async function DatesPage() {
 const getData = async () => {
   const data = {
     title: "Ext / Dates",
-    headline: "Extentions / Dates",
+    headline: "Extensions / Dates",
   };
 
   return data;

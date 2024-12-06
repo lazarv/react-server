@@ -4,6 +4,8 @@ order: 0
 ---
 
 import Link from "../../../../components/Link.jsx";
+import Card from "../../../../components/Card.jsx";
+import Pill from "../../../../components/Pill.jsx";
 
 # Get Started
 
@@ -49,8 +51,10 @@ export default function App() {
 To start your application in development mode, you can use the `react-server` CLI simply by passing the path to your application entry file. By using the `--open` flag, your application will be opened in your default browser on http://localhost:3000.
 
 ```sh
-pnpm exec react-server ./App.jsx --open
+pnpm exec react-server ./App.jsx
 ```
+
+> **Note:** if you want to open the application in your default browser, you can use the `--open` flag.
 
 <Link name="build">
 ## Build
@@ -72,10 +76,98 @@ To start your application in production, just use the `start` command. This will
 pnpm exec react-server start
 ```
 
-> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx --open` to start your application in development mode.
+> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx` to start your application in development mode.
 
 <Link name="next-steps">
 ## Next steps
 </Link>
 
-Now that you have a basic understanding of how to get started with `@lazarv/react-server`, you can learn more about the advanced features in the following sections.
+Success! You have now created your first application using `@lazarv/react-server`.
+
+Here are some recommended topics to learn more about. You can read these in any order you would like. You can even leave for now to start building your application and come back when you run into trouble or have a question.
+
+> Don't forget that you can join a discussion on [GitHub Discussions](https://github.com/lazarv/react-server/discussions) if you have any questions or need help.
+
+<div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+  <Card>
+
+#### Integrations
+
+##### How to integrate with other libraries
+
+Learn how to integrate with other libraries and how the framework works togetherwith tools like Vite, TypeScript, Tailwind CSS and more.
+
+    <Pill href="/integrations">
+      Learn more
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### Framework
+
+##### Advanced features
+
+Learn about the advanced features of the framework, like how to access the HTTP request and response objects, how to use caching, or how to build a micro-frontend application.
+
+    <Pill href="/framework">
+      Learn more
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### Router
+
+##### File-system based router
+
+Learn how to use the file-system based router to create a full-fledged application with nested routes, dynamic routes, and more.
+
+    <Pill href="/router">
+      Learn more
+    </Pill>
+  </Card>
+</div>
+
+You can also learn more about the framework by reading the following tutorials. These are not required to get started, but they can be helpful to understand some of the concepts and features.
+
+<div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+  <Card>
+
+#### Hello World!
+
+##### Your first application
+
+Create a new React application with server-side rendering in just a few steps. Start building your app with React Server Components and enjoy faster initial page loads.
+
+    <Pill href="/tutorials/hello-world">
+      Read tutorial
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### Todo App
+
+##### Using server actions
+
+Build a simple Todo application with server actions. Learn how to interact with the server from your components and manage server-side operations efficiently.
+
+    <Pill href="/tutorials/todo-app">
+      Read tutorial
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### Photos
+
+##### Using client components
+
+Learn how to use client components to create interactive elements in your application. Enhance your user experience with client-side rendering and dynamic content updates.
+
+    <Pill href="/tutorials/photos">
+      Read tutorial
+    </Pill>
+  </Card>
+</div>

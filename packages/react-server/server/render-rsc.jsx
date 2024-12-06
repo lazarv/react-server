@@ -13,6 +13,7 @@ import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs
 import {
   ACTION_CONTEXT,
   CACHE_CONTEXT,
+  CACHE_MISS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   ERROR_CONTEXT,
@@ -221,7 +222,7 @@ export async function render(Component) {
             ifModifiedSince,
           ]);
 
-          if (hasCache) {
+          if (hasCache !== CACHE_MISS) {
             return resolve(
               new Response(null, {
                 status: 304,
@@ -274,7 +275,7 @@ export async function render(Component) {
               outlet,
               FLIGHT_CACHE,
             ]);
-            if (responseFromCache) {
+            if (responseFromCache !== CACHE_MISS) {
               return resolve(
                 new Response(responseFromCache.buffer, {
                   status: responseFromCache.status,
@@ -392,7 +393,7 @@ export async function render(Component) {
               outlet,
               HTML_CACHE,
             ]);
-            if (responseFromCache) {
+            if (responseFromCache !== CACHE_MISS) {
               const stream = new ReadableStream({
                 type: "bytes",
                 async start(controller) {
@@ -438,6 +439,7 @@ export async function render(Component) {
           const prelude = getContext(PRELUDE_HTML);
           const postponed = getContext(POSTPONE_STATE);
           const importMap = getContext(IMPORT_MAP);
+          let isStarted = false;
           const stream = await renderStream({
             stream: flight,
             bootstrapModules: standalone ? [] : getContext(MAIN_MODULE),
@@ -447,11 +449,7 @@ export async function render(Component) {
                   `const moduleCache = new Map();
                     self.__webpack_require__ = function (id) {
                       if (!moduleCache.has(id)) {
-                        ${
-                          config.base
-                            ? `const modulePromise = import(("${`/${config.base}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));`
-                            : `const modulePromise = import(id);`
-                        }
+                        const modulePromise = import(("${`/${config.base ?? ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));
                         modulePromise.then(
                           (module) => {
                             modulePromise.value = module;
@@ -469,6 +467,7 @@ export async function render(Component) {
                 ],
             outlet,
             start: async () => {
+              isStarted = true;
               ContextStorage.run(contextStore, async () => {
                 const redirect = getContext(REDIRECT_CONTEXT);
                 if (redirect?.response) {
@@ -515,10 +514,12 @@ export async function render(Component) {
               });
             },
             onError(e, digest) {
-              ContextStorage.run(contextStore, async () => {
-                logger.error(e, digest);
-                getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
-              });
+              logger.error(e, digest);
+              if (!isStarted) {
+                ContextStorage.run(contextStore, async () => {
+                  getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
+                });
+              }
             },
             formState,
             isPrerender: typeof onPostponed === "function",

@@ -31,24 +31,6 @@ export default function useServer(type, manifest) {
           "Cannot use both 'use client' and 'use server' in the same module."
         );
 
-      // if (mode === "build") {
-      //   ast.body = ast.body.filter(
-      //     (node) =>
-      //       node.type !== "ExpressionStatement" ||
-      //       node.directive !== "use server"
-      //   );
-
-      //   const gen = escodegen.generate(ast, {
-      //     sourceMap: true,
-      //     sourceMapWithCode: true,
-      //   });
-
-      //   return {
-      //     code: gen.code,
-      //     map: gen.map.toString(),
-      //   };
-      // }
-
       const exports = [
         ...(ast.body.some(
           (node) =>

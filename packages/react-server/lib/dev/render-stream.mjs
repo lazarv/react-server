@@ -38,6 +38,7 @@ remoteTransport.fetchModule = async (id, importer) => {
   if (
     [
       "react",
+      "react/jsx-runtime",
       "react/jsx-dev-runtime",
       "react-dom/client",
       "react-server-dom-webpack/client.edge",
@@ -47,7 +48,7 @@ remoteTransport.fetchModule = async (id, importer) => {
   }
   try {
     return await remoteTransport.resolve("fetchModule", id, importer);
-  } catch (e) {
+  } catch {
     try {
       const packageRoot = realpathSync(findPackageRoot(importer));
       let parentPath = join(packageRoot, "..");
@@ -56,7 +57,7 @@ remoteTransport.fetchModule = async (id, importer) => {
       }
       parentPath = join(parentPath, "..");
       return await remoteTransport.resolve("fetchModule", id, parentPath);
-    } catch (e) {
+    } catch {
       return { externalize: id };
     }
   }

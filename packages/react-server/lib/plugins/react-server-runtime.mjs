@@ -13,7 +13,7 @@ try {
       paths: [cwd()],
     })
   ).startsWith("../");
-} catch (e) {
+} catch {
   reactServerInstalled = false;
 }
 
@@ -35,9 +35,12 @@ export default function viteReactServerRuntime() {
           window.$RefreshSig$ = () => (type) => type;
           window.__vite_plugin_react_preamble_installed__ = true;
           console.log("Hot Module Replacement installed.");
-          if (typeof __react_server_hydrate__ !== "undefined") {
-            import(/* @vite-ignore */ "${reactServerDir}/client/entry.client.jsx");
-          }`;
+          self.__react_server_hydrate_init__ = () => {
+            if (typeof __react_server_hydrate__ !== "undefined") {
+              import(/* @vite-ignore */ "${reactServerDir}/client/entry.client.jsx");
+            }
+          };
+          self.__react_server_hydrate_init__();`;
       } else if (id.endsWith("/@__webpack_require__")) {
         return `
           const moduleCache = new Map();

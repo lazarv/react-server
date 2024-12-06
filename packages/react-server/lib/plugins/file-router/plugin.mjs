@@ -9,7 +9,7 @@ import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import merge from "@lazarv/react-server/lib/utils/merge.mjs";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
-import { logger } from "@lazarv/react-server/server/logger.mjs";
+import { applyParamsToPath } from "@lazarv/react-server/server/route-match.mjs";
 import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
@@ -87,8 +87,10 @@ export default function viteReactServerRouter(options = {}) {
   };
   let config = {};
   let configRoot = {};
+  let sourceWatcher;
   let viteCommand;
   let viteServer;
+  let logger;
   let mdxCounter = 0;
   let mdxComponents;
   let mdx;
@@ -450,7 +452,7 @@ export default function viteReactServerRouter(options = {}) {
 
   async function config_init$() {
     if (viteCommand !== "build")
-      logger.info("Initializing router configuration");
+      logger.info("Initializing router configuration 🚦");
     try {
       while (config_destroy.length > 0) {
         await config_destroy.pop()();
@@ -555,7 +557,7 @@ export default function viteReactServerRouter(options = {}) {
         await setupMdx();
         createManifest();
       } else {
-        logger.info(`Router configuration ${colors.green("successful")}`);
+        logger.info(`Router configuration ${colors.green("successful")} ✅`);
 
         const initialFiles = new Set(
           await glob(
@@ -570,7 +572,7 @@ export default function viteReactServerRouter(options = {}) {
             }
           )
         );
-        const sourceWatcher = watch(
+        sourceWatcher = watch(
           [
             "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}",
             "!**/node_modules/**",
@@ -594,7 +596,7 @@ export default function viteReactServerRouter(options = {}) {
             watcherTimeout = null;
             if (initialFiles.size > 0) {
               logger.warn(
-                `Router configuration still waiting for source files watcher to finish...`
+                `Router configuration still waiting for source files watcher to finish... ⏳`
               );
             }
           }, 500);
@@ -635,7 +637,7 @@ export default function viteReactServerRouter(options = {}) {
 
           if (includeInRouter) {
             logger.info(
-              `Adding source file ${colors.cyan(sys.normalizePath(relative(rootDir, src)))} to router`
+              `Adding source file ${colors.cyan(sys.normalizePath(relative(rootDir, src)))} to router 📁`
             );
           }
 
@@ -654,7 +656,7 @@ export default function viteReactServerRouter(options = {}) {
           if (initialFiles.has(src)) {
             initialFiles.delete(src);
             if (initialFiles.size === 0) {
-              logger.info(`Router configuration ${colors.green("ready")}`);
+              logger.info(`Router configuration ${colors.green("ready")} 📦`);
               reactServerRouterReadyResolve?.();
               reactServerRouterReadyResolve = null;
             }
@@ -698,7 +700,7 @@ export default function viteReactServerRouter(options = {}) {
 
           if (includeInRouter) {
             logger.info(
-              `Removing source file ${colors.red(relative(rootDir, src))} from router`
+              `Removing source file ${colors.red(relative(rootDir, src))} from router 🗑️`
             );
           }
 
@@ -722,7 +724,8 @@ export default function viteReactServerRouter(options = {}) {
         });
       }
     } catch (e) {
-      if (viteCommand !== "build") logger.error("Router configuration failed");
+      if (viteCommand !== "build")
+        logger.error("Router configuration failed ❌");
       else throw e;
     }
   }
@@ -731,9 +734,13 @@ export default function viteReactServerRouter(options = {}) {
     name: "react-server:file-router",
     configureServer(server) {
       viteServer = server;
+      viteServer.handlers = [...(viteServer.handlers ?? []), sourceWatcher];
     },
-    async config(config, { command }) {
+    config(_, { command }) {
       viteCommand = command;
+    },
+    async configResolved(config) {
+      logger = config.logger;
       if (viteCommand === "build") {
         await config_init$();
         const options = getContext(BUILD_OPTIONS);
@@ -743,46 +750,58 @@ export default function viteReactServerRouter(options = {}) {
           for (const [, path] of manifest.pages.filter(
             ([, , outlet, type]) => !outlet && type === "page"
           )) {
-            if (/\[[^/]+\]/.test(path)) {
-              try {
-                const staticSrc = manifest.pages.find(
-                  ([, staticPath, , staticType]) =>
-                    staticType === "static" && staticPath === path
-                )?.[0];
+            try {
+              const staticSrc = manifest.pages.find(
+                ([, staticPath, , staticType]) =>
+                  staticType === "static" && staticPath === path
+              )?.[0];
 
-                if (staticSrc) {
-                  const key = relative(cwd, dirname(staticSrc));
-                  const filename = basename(staticSrc);
-                  const src = join(cwd, key, filename);
-                  const hash = createHash("shake256", {
-                    outputLength: 4,
-                  })
-                    .update(await readFile(src, "utf8"))
-                    .digest("hex");
-                  const exportEntry = pathToFileURL(
-                    join(cwd, outDir, "static", `${hash}.mjs`)
-                  );
-                  config.build.rollupOptions.input[join("static", hash)] =
-                    staticSrc;
-                  paths.push(async () => {
-                    const staticPaths = (await import(exportEntry)).default;
-                    if (typeof staticPaths === "boolean" && staticPaths) {
-                      if (/\[[^\]]+\]/.test(path)) {
-                        throw new Error(
-                          `Static path ${colors.green(path)} contains dynamic segments`
-                        );
+              if (staticSrc) {
+                const key = relative(cwd, dirname(staticSrc));
+                const filename = basename(staticSrc);
+                const src = join(cwd, key, filename);
+                const hash = createHash("shake256", {
+                  outputLength: 4,
+                })
+                  .update(await readFile(src, "utf8"))
+                  .digest("hex");
+                const exportEntry = pathToFileURL(
+                  join(cwd, outDir, "static", `${hash}.mjs`)
+                );
+                config.build.rollupOptions.input[join("static", hash)] =
+                  staticSrc;
+                paths.push(async () => {
+                  let staticPaths = (await import(exportEntry)).default;
+                  if (typeof staticPaths === "function") {
+                    staticPaths = await staticPaths();
+                  }
+                  if (typeof staticPaths === "boolean" && staticPaths) {
+                    if (/\[[^\]]+\]/.test(path)) {
+                      throw new Error(
+                        `missing values on static site generation of ${colors.bold(
+                          path
+                        )}, add missing values for all dynamic segments`
+                      );
+                    }
+                    return { path };
+                  }
+                  const validPaths = await Promise.all(
+                    staticPaths.map(async (def) => {
+                      let obj = def;
+                      if (typeof def === "function") {
+                        obj = await def();
                       }
-                      return path;
-                    }
-                    if (typeof staticPaths === "function") {
-                      return await staticPaths();
-                    }
-                    return staticPaths;
-                  });
-                }
-              } catch (e) {
-                console.error(e);
+                      if (typeof obj.path === "string") {
+                        return { path: obj.path };
+                      }
+                      return { path: applyParamsToPath(path, obj) };
+                    })
+                  );
+                  return validPaths;
+                });
               }
+            } catch (e) {
+              console.error(e);
             }
           }
           if (paths.length > 0) {
@@ -804,43 +823,7 @@ export default function viteReactServerRouter(options = {}) {
           ...(globalThis.__react_server_ready__ ?? []),
           reactServerRouterReadyPromise,
         ];
-        return new Promise((resolve, reject) => {
-          const configWatcher = watch(
-            [
-              "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
-              "!**/node_modules/**",
-            ],
-            {
-              cwd,
-            }
-          );
-          configWatcher.on("error", reject);
-          configWatcher.on("ready", async () => {
-            await config_init$();
-
-            let configTimer = null;
-            const handleConfigChange = (type) => (src) => {
-              logger.info(
-                `${
-                  type !== "unlink" ? "Applying" : "Removing"
-                } configuration file ${colors.green(relative(cwd, src))} ${
-                  type !== "unlink" ? "to" : "from"
-                } router configuration`
-              );
-              if (configTimer) {
-                clearTimeout(configTimer);
-                configTimer = null;
-              }
-              configTimer = setTimeout(config_init$, 500);
-            };
-
-            configWatcher.on("add", handleConfigChange("add"));
-            configWatcher.on("unlink", handleConfigChange("unlink"));
-            configWatcher.on("change", handleConfigChange("change"));
-
-            resolve();
-          });
-        });
+        await config_init$();
       }
     },
     resolveId(id) {

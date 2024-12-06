@@ -15,3 +15,4 @@ export {
   useUrl,
 } from "./request.mjs";
 export { revalidate } from "./revalidate.mjs";
+export { invalidate, useCache } from "../memory-cache/index.mjs";

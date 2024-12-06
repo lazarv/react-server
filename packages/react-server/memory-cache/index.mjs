@@ -1,5 +1,12 @@
+import equals from "deep-eql";
+
 import { context$, getContext } from "../server/context.mjs";
-import { CACHE_CONTEXT, MEMORY_CACHE_CONTEXT } from "../server/symbols.mjs";
+import {
+  CACHE_CONTEXT,
+  CACHE_KEY,
+  CACHE_MISS,
+  MEMORY_CACHE_CONTEXT,
+} from "../server/symbols.mjs";
 
 export class MemoryCache {
   constructor() {
@@ -22,40 +29,31 @@ export class MemoryCache {
 
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (
-        keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-      ) {
+      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
         return this.cache.get(entryKeys);
       }
     }
 
-    return null;
+    return CACHE_MISS;
   }
 
   async set(keys, value) {
     if (await this.hasExpiry(keys)) {
       const cacheKeys = this.cache.keys();
       for (const entryKeys of cacheKeys) {
-        if (
-          keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-        ) {
+        if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
           this.cache.set(entryKeys, value);
           return;
         }
       }
-      this.cache.set(
-        keys.map((key) => key?.toString()),
-        value
-      );
+      this.cache.set(keys, value);
     }
   }
 
   async has(keys) {
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (
-        keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-      ) {
+      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
         return true;
       }
     }
@@ -66,17 +64,12 @@ export class MemoryCache {
   async setExpiry(keys, expiry) {
     const expiryKeys = this.expiry.keys();
     for (const entryKeys of expiryKeys) {
-      if (
-        keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-      ) {
+      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
         this.expiry.set(entryKeys, expiry);
         return;
       }
     }
-    this.expiry.set(
-      keys.map((key) => key?.toString()),
-      expiry
-    );
+    this.expiry.set(keys, expiry);
   }
 
   async hasExpiry(keys) {
@@ -84,7 +77,7 @@ export class MemoryCache {
     for (const entryKeys of expiryKeys) {
       for (let keyIndex = 0; keyIndex < entryKeys.length; keyIndex++) {
         const key = keys[keyIndex];
-        if (entryKeys[keyIndex] !== key?.toString()) {
+        if (!equals(entryKeys[keyIndex], key)) {
           break;
         }
         if (keyIndex === entryKeys.length - 1) {
@@ -99,9 +92,7 @@ export class MemoryCache {
   async delete(keys) {
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (
-        keys.every((key, keyIndex) => entryKeys[keyIndex] === key?.toString())
-      ) {
+      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
         this.cache.delete(entryKeys);
       }
     }
@@ -113,13 +104,43 @@ export async function init$() {
   return context$(CACHE_CONTEXT, cache);
 }
 
+const lock = new Map();
 export async function useCache(keys, promise, ttl = Infinity, force = false) {
-  const cache = getContext(MEMORY_CACHE_CONTEXT);
-  let result = await cache.get(keys);
-  if (force || result === null) {
-    result = typeof promise === "function" ? await promise() : promise;
-    await cache.setExpiry(keys, Date.now() + ttl);
-    await cache.set(keys, result);
+  const key = keys.map((key) => key?.toString()).join(":");
+
+  // HACK: concurrency workaround to avoid race condition on the lock
+  await new Promise((resolve) => setImmediate(resolve));
+
+  let release;
+  if (lock.has(key)) {
+    await lock.get(key);
+  } else {
+    lock.set(key, new Promise((resolve) => (release = resolve)));
   }
-  return result;
+
+  try {
+    const cache = getContext(MEMORY_CACHE_CONTEXT);
+    let result = await cache.get(keys);
+    if (force || result === CACHE_MISS) {
+      result = typeof promise === "function" ? promise() : promise;
+      await cache.setExpiry(keys, Date.now() + ttl);
+      await cache.set(keys, result);
+    }
+
+    lock.delete(key);
+    release?.();
+
+    return await result;
+  } catch {
+    lock.delete(key);
+    release?.();
+  }
+}
+
+export function invalidate(key) {
+  const cache = getContext(MEMORY_CACHE_CONTEXT);
+  if (typeof key === "function" && key[CACHE_KEY]) {
+    return cache?.delete(key[CACHE_KEY]);
+  }
+  return cache?.delete(key);
 }

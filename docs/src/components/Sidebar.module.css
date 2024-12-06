@@ -107,9 +107,9 @@ article ~ .root {
   padding: 4rem 1rem 1rem 1rem;
   width: 100%;
   z-index: 10;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   pointer-events: auto;
-  /* view-transition-name: sidebar; */
 
   @media (prefers-reduced-motion) {
     view-transition-name: none;
@@ -126,7 +126,6 @@ article ~ .root {
     position: sticky;
     top: 0;
     align-self: flex-start;
-    min-height: min-content;
     max-height: calc(100vh - 48px);
     margin-top: -1rem;
     height: auto;

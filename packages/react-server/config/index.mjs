@@ -3,6 +3,7 @@ import { readFile, rm, stat } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { watch } from "chokidar";
 import glob from "fast-glob";
 
 import { CONFIG_PARENT, CONFIG_ROOT } from "../server/symbols.mjs";
@@ -17,20 +18,29 @@ const defaultConfig = {};
 export async function loadConfig(initialConfig, options = {}) {
   const outDir = options.outDir ?? ".react-server";
   const config = {};
+
+  const configPatterns = [
+    "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
+    options.command === "build"
+      ? "**/{react-server,+*,vite}.build.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}"
+      : "**/{react-server,+*,vite}.{development,runtime,server}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
+    "!**/node_modules",
+    "!*/**/vite.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
+  ];
+  if (options.onChange) {
+    const watcher = watch(configPatterns, { cwd, ignoreInitial: true });
+    const handler = () => {
+      options.onChange();
+    };
+    options.onWatch?.(watcher);
+    watcher.on("add", handler);
+    watcher.on("unlink", handler);
+    watcher.on("change", handler);
+  }
   const configFiles = (
-    await glob(
-      [
-        "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
-        options.command === "build"
-          ? "**/{react-server,+*,vite}.build.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}"
-          : "**/{react-server,+*,vite}.{development,runtime,server}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
-        "!**/node_modules",
-        "!*/**/vite.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
-      ],
-      {
-        cwd,
-      }
-    )
+    await glob(configPatterns, {
+      cwd,
+    })
   ).map((file) => relative(cwd, file));
 
   for await (const file of configFiles) {
@@ -46,7 +56,7 @@ export async function loadConfig(initialConfig, options = {}) {
           .digest("hex");
         try {
           await stat(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
-        } catch (e) {
+        } catch {
           const { build } = await import("esbuild");
           await build({
             absWorkingDir: join(fileURLToPath(import.meta.url), "../.."),

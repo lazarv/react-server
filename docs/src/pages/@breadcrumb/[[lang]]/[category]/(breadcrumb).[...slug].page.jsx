@@ -1,6 +1,11 @@
 import { defaultLanguage } from "../../../../const.mjs";
+import { hasCategory } from "../../../../pages.mjs";
 
 export default function Breadcrumb({ lang, category }) {
+  if (!hasCategory(category)) {
+    return null;
+  }
+
   return (
     <a
       data-no-content

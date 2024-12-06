@@ -1,6 +1,6 @@
 export default function NavigationLinks({ prev, next }) {
   return (
-    <div className="flex flex-wrap gap-2 md:flex-row md:justify-between">
+    <div className="w-full flex flex-wrap gap-2 md:flex-row md:justify-between">
       {prev && (
         <a
           href={prev.href}

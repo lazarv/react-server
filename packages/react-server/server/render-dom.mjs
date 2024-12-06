@@ -32,6 +32,7 @@ export const createRenderer = ({
       throw new Error("No flight stream provided.");
     }
     let started = false;
+    let error = null;
     moduleCacheStorage.run(new Map(), async () => {
       const linkQueue = new Set();
       linkQueueStorage.run(linkQueue, async () => {
@@ -83,23 +84,14 @@ export const createRenderer = ({
                   html = await resume(tree, postponed, {
                     formState,
                     onError(e) {
-                      parentPort.postMessage({
-                        id,
-                        error: e.message,
-                        stack: e.stack,
-                      });
+                      error = e;
                     },
                   });
                 } else {
                   html = await renderToReadableStream(tree, {
                     formState,
                     onError(e) {
-                      parentPort.postMessage({
-                        id,
-                        error: e.message,
-                        stack: e.stack,
-                        digest: e.digest,
-                      });
+                      error = e;
                     },
                   });
                 }
@@ -266,12 +258,16 @@ export const createRenderer = ({
                                 importMap
                               )}</script>`
                             : ""
-                        }${bootstrapModules
-                          .map(
-                            (mod) =>
-                              `<script type="module" src="${mod}" async></script>`
-                          )
-                          .join("")}`
+                        }${
+                          hmr
+                            ? "<script>self.__react_server_hydrate_init__?.();</script>"
+                            : bootstrapModules
+                                .map(
+                                  (mod) =>
+                                    `<script type="module" src="${mod}" async></script>`
+                                )
+                                .join("")
+                        }`
                       );
                       yield script;
                       hydrated = true;
@@ -324,7 +320,13 @@ export const createRenderer = ({
 
                     if (!started) {
                       started = true;
-                      parentPort.postMessage({ id, start: true });
+                      parentPort.postMessage({
+                        id,
+                        start: true,
+                        error: error?.message,
+                        stack: error?.stack,
+                        digest: error?.digest,
+                      });
                     }
                   }
                 };
@@ -380,7 +382,13 @@ export const createRenderer = ({
 
                     if (!started) {
                       started = true;
-                      parentPort.postMessage({ id, start: true });
+                      parentPort.postMessage({
+                        id,
+                        start: true,
+                        error: error?.message,
+                        stack: error?.stack,
+                        digest: error?.digest,
+                      });
                     }
                   }
                 };

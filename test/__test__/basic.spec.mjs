@@ -1,7 +1,14 @@
-import { hostname, logs, page, server, waitForChange } from "playground/utils";
+import {
+  hostname,
+  logs,
+  page,
+  server,
+  serverLogs,
+  waitForChange,
+  waitForConsole,
+  waitForHydration,
+} from "playground/utils";
 import { expect, test } from "vitest";
-
-import { waitForConsole } from "../utils.mjs";
 
 test("hello world", async () => {
   await server("fixtures/hello-world.jsx");
@@ -152,4 +159,113 @@ test("style assets with base url", async () => {
     () => getComputedStyle(document.body).backgroundColor
   );
   expect(background).toBe("rgb(0, 0, 255)");
+});
+
+test("use cache primitive", async () => {
+  await server("fixtures/use-cache-primitive.jsx");
+  await page.goto(hostname);
+  const time = await page.textContent("body");
+
+  await page.reload();
+  expect(await page.textContent("body")).toBe(time);
+
+  await page.waitForTimeout(500);
+  await page.reload();
+  const newTime = await page.textContent("body");
+  expect(newTime).not.toBe(time);
+
+  await page.reload();
+  expect(await page.textContent("body")).toBe(newTime);
+
+  await page.goto(hostname + "?force=true");
+  expect(await page.textContent("body")).not.toBe(newTime);
+});
+
+test("use cache element", async () => {
+  await server("fixtures/use-cache-element.jsx");
+  await page.goto(hostname);
+  const time = await page.textContent("body");
+
+  await page.reload();
+  expect(await page.textContent("body")).toBe(time);
+});
+
+test("use cache invalidate", async () => {
+  await server("fixtures/use-cache-invalidate.jsx");
+
+  const start = Date.now();
+  await page.goto(hostname);
+
+  const payload = JSON.parse(await page.textContent("pre"));
+  await page.reload();
+  expect(await page.textContent("pre")).toContain(payload.timestamp);
+
+  await waitForChange(
+    () => page.reload(),
+    () => page.textContent("pre")
+  );
+  const end = Date.now();
+  expect(end - start).toBeGreaterThan(5000);
+
+  const newPayload = JSON.parse(await page.textContent("pre"));
+  expect(newPayload).not.toContain(payload.timestamp);
+
+  const button = await page.getByRole("button");
+  await button.click();
+
+  expect(await page.textContent("pre")).not.toContain(payload.timestamp);
+});
+
+test("use cache concurrency", async () => {
+  await server("fixtures/use-cache-concurrency.jsx");
+
+  await Promise.all([
+    fetch(hostname, { headers: { accept: "text/html" } }),
+    fetch(hostname, { headers: { accept: "text/html" } }),
+  ]);
+  expect(JSON.stringify(serverLogs)).toBe(`["getTodos"]`);
+});
+
+test("use cache dynamic", async () => {
+  await server("fixtures/use-cache-dynamic.jsx");
+  await page.goto(hostname + "?id=1");
+  const time = await page.textContent("body");
+
+  await page.reload();
+  expect(await page.textContent("body")).toBe(time);
+
+  await page.goto(hostname + "?id=2");
+  expect(await page.textContent("body")).not.toBe(time);
+
+  await page.goto(hostname + "?id=1");
+  expect(await page.textContent("body")).toBe(time);
+});
+
+test("suspense client", async () => {
+  await server("fixtures/suspense-client.jsx");
+  await page.goto(hostname);
+  await waitForHydration();
+
+  if (process.env.NODE_ENV === "production") {
+    const scripts = await page.$$("script");
+    expect(scripts.length).toBe(2);
+    expect(await scripts[0].getAttribute("src")).toContain("/client/index");
+    expect(await scripts[1].getAttribute("src")).toBe(null);
+  } else {
+    const button = await page.getByRole("button");
+    expect(await button.isVisible()).toBe(true);
+    await button.click();
+    expect(logs).toContain("use client");
+    await waitForChange(
+      () => {},
+      () => page.$$("script")
+    );
+    const scripts = await page.$$("script");
+    // this is flaky and needs a stable solution
+    expect(scripts.length).toBeGreaterThanOrEqual(4);
+    expect(await scripts[0].getAttribute("src")).toBe("/@vite/client");
+    expect(await scripts[1].getAttribute("src")).toBe("/@hmr");
+    expect(await scripts[2].getAttribute("src")).toBe("/@__webpack_require__");
+    expect(await scripts[3].getAttribute("src")).toBe(null);
+  }
 });

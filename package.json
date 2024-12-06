@@ -4,7 +4,7 @@
   "scripts": {
     "test": "pnpm --filter ./test test",
     "format": "prettier --write --cache .",
-    "lint": "eslint --cache --ext .js,.jsx,.mjs,.ts,.tsx .",
+    "lint": "eslint",
     "docs": "pnpm --filter ./docs dev --open",
     "docs-build": "pnpm --filter ./docs build",
     "preinstall": "npx only-allow pnpm",
@@ -41,25 +41,28 @@
     "@lazarv/react-server": "link:packages/react-server"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.24.5",
-    "@babel/plugin-syntax-import-assertions": "^7.24.1",
-    "@babel/preset-react": "^7.24.1",
+    "@babel/eslint-parser": "^7.25.9",
+    "@babel/plugin-syntax-import-assertions": "^7.25.9",
+    "@babel/preset-react": "^7.25.9",
     "@commitlint/cli": "^19.4.1",
     "@commitlint/config-conventional": "^19.4.1",
+    "@eslint/eslintrc": "^3.1.0",
+    "@eslint/js": "^9.13.0",
     "@types/node": "^20.12.12",
-    "@typescript-eslint/eslint-plugin": "^7.10.0",
-    "@typescript-eslint/parser": "^7.10.0",
-    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^8.11.0",
+    "@typescript-eslint/parser": "^8.11.0",
+    "eslint": "^9.13.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-jsx-a11y": "^6.8.0",
-    "eslint-plugin-prettier": "^5.0.0",
-    "eslint-plugin-react": "^7.34.1",
-    "eslint-plugin-simple-import-sort": "^12.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.1",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^15.11.0",
     "lint-staged": "^15.2.9",
     "pkg-pr-new": "^0.0.20",
     "prettier": "^3.2.5",
     "simple-git-hooks": "^2.11.1",
-    "typescript": "^5.4.5",
+    "typescript": "^5.6.3",
     "typescript-plugin-css-modules": "^5.1.0"
   },
   "pnpm": {
@@ -87,5 +90,5 @@
       "supertest>superagent": "9.0.2"
     }
   },
-  "packageManager": "pnpm@9.11.0+sha512.0a203ffaed5a3f63242cd064c8fb5892366c103e328079318f78062f24ea8c9d50bc6a47aa3567cabefd824d170e78fa2745ed1f16b132e16436146b7688f19b"
+  "packageManager": "pnpm@9.12.2+sha512.22721b3a11f81661ae1ec68ce1a7b879425a1ca5b991c975b074ac220b187ce56c708fe5db69f4c962c989452eee76c82877f4ee80f474cebd61ee13461b6228"
 }

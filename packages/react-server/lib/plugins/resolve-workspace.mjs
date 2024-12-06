@@ -32,7 +32,7 @@ export default function resolveWorkspace() {
             (await this.resolve(id, parentPath)) ||
             fileURLToPath(relative(cwd, import.meta.resolve(id)))
           );
-        } catch (e) {
+        } catch {
           return null;
         }
       }

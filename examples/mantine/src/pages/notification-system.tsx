@@ -17,7 +17,7 @@ export default async function NotificationsPage() {
 const getData = async () => {
   const data = {
     title: "Ext / Notifications",
-    headline: "Extentions / Notifications",
+    headline: "Extensions / Notifications",
   };
 
   return data;

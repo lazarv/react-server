@@ -31,7 +31,7 @@ export default function useClient(type, manifest, enforce) {
           sourceFile: id,
           locations: true,
         });
-      } catch (e) {
+      } catch {
         return null;
       }
 

@@ -42,7 +42,7 @@ export async function checkReactDependencies() {
             `  ${colors.cyan(`${pkg}@${userPkgVersion}`)} ${colors.red(`expected: ${pkg}@${systemPkgVersion}`)} \n`
           );
         }
-      } catch (e) {
+      } catch {
         // Do nothing
       }
     })

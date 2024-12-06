@@ -1,0 +1,10 @@
+# react-server adapter aws
+.aws-react-server
+# aws-cdk
+.cdk.staging
+cdk.out
+# serverless framework
+.serverless
+# sst
+.sst
+sst-react-server.ts

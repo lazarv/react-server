@@ -1,7 +1,8 @@
-import { getContext } from "@lazarv/react-server/server/context.mjs";
+import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
 import {
   FORM_DATA_PARSER,
   HTTP_CONTEXT,
+  HTTP_OUTLET,
 } from "@lazarv/react-server/server/symbols.mjs";
 
 export function useHttpContext() {
@@ -57,13 +58,35 @@ export async function useFormData(handleFile) {
   });
 }
 
+const urlProperties = Object.getOwnPropertyNames(URL.prototype).filter(
+  (key) => {
+    const descriptor = Object.getOwnPropertyDescriptor(URL.prototype, key);
+    return descriptor && descriptor.set;
+  }
+);
 export function rewrite(pathname) {
-  getContext(HTTP_CONTEXT).url.pathname = pathname;
+  const httpContext = getContext(HTTP_CONTEXT);
+  const url =
+    typeof pathname === "string"
+      ? new URL(pathname, httpContext.url)
+      : pathname;
+  urlProperties.forEach((key) => {
+    httpContext.url[key] = url[key];
+  });
+  return httpContext.url;
 }
 
 export function useOutlet() {
   return decodeURIComponent(
-    getContext(HTTP_CONTEXT)?.request?.headers?.get("react-server-outlet") ??
+    getContext(HTTP_OUTLET) ??
+      getContext(HTTP_CONTEXT)?.request?.headers?.get("react-server-outlet") ??
       "PAGE_ROOT"
   );
+}
+
+export function outlet(target) {
+  if (target) {
+    context$(HTTP_OUTLET, target);
+  }
+  return useOutlet();
 }

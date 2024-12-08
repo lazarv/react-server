@@ -132,8 +132,10 @@ export function useFormData(): FormData;
  * Rewrites the current request URL to the specified pathname.
  *
  * @param pathname - The new pathname to use
+ *
+ * @returns The new URL object
  */
-export function rewrite(pathname: string): void;
+export function rewrite(pathname: string): URL;
 
 /**
  * Revalidates the current request cache.
@@ -152,6 +154,15 @@ export function invalidate(key: string[]): Promise<void>;
 export function invalidate<T extends (...args: any[]) => any>(
   fn: T
 ): Promise<void>;
+
+/**
+ * Instructs the framework to reload the page or the specified outlet after executing the current server function, using the component rendered at the specified URL.
+ * Only usable inside server functions!
+ *
+ * @param url - Render the component at the specified URL
+ * @param outlet - The outlet to reload after rendering the component (defaults to page root)
+ */
+export function reload(url?: URL | string, outlet?: string): void;
 
 /**
  * Sets the status code and status text of the response.
@@ -195,6 +206,13 @@ export function headers(headers?: Record<string, string>): void;
  * @returns The outlet name or page root outlet name ("PAGE_ROOT")
  */
 export function useOutlet(): string;
+
+/**
+ * Get or set the active outlet.
+ *
+ * @param target - The outlet name
+ */
+export function outlet(target: string): string;
 
 export type Cookies = RequestContextExtensions["cookie"];
 

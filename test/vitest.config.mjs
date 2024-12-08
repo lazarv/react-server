@@ -13,9 +13,12 @@ export default defineConfig({
     setupFiles: ["./vitestSetup.mjs"],
     globalSetup: ["./vitestGlobalSetup.mjs"],
     onConsoleLog(log, type) {
-      if (type === "stderr" && log.match(/websocket server error/i))
-        return false;
-      if (type === "stderr" && log.match(/error: (redirect|test)/i))
+      if (
+        type === "stderr" &&
+        (log.match(/websocket server error/i) ||
+          log.match(/error: (redirect|test)/i) ||
+          log.match(/generated an empty chunk/i))
+      )
         return false;
     },
     testTimeout: 60000,

@@ -234,6 +234,36 @@ export default function App() {
 }
 ```
 
+<Link name="reload">
+## Reload
+</Link>
+
+In server functions, you can use the `reload` function to reload the current page or an outlet. This is useful when you want to reload the page or an outlet after a mutation to refresh the elements in your app.
+
+```tsx
+"use server";
+
+import { reload } from "@lazarv/react-server";
+
+export async function addTodo(todo) {
+  await addTodo(todo);
+  reload();
+}
+```
+
+You can also pass an URL and an outlet name to the `reload` function to render a different route and outlet. You can use this approach to optimize the performance of your app by avoiding unnecessary re-renders of the entire app even when using server functions to mutate data.
+
+```tsx
+"use server";
+
+import { reload } from "@lazarv/react-server";
+
+export async function addTodo(todo) {
+  await addTodo(todo);
+  reload("/todos", "todo-list");
+}
+```
+
 <Link name="middlewares">
 ## Middlewares
 </Link>

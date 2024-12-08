@@ -36,7 +36,7 @@ function FlightComponent({
   useEffect(() => {
     let mounted = true;
     const unregisterOutlet = registerOutlet(outlet, url);
-    const unsubscribe = subscribe(outlet || url, (to, callback) => {
+    const unsubscribe = subscribe(outlet || url, (to, options, callback) => {
       const nextComponent = getFlightResponse(to, {
         outlet,
         standalone,
@@ -44,11 +44,15 @@ function FlightComponent({
         request,
       });
       if (!mounted) return;
-      startTransition(() => {
-        setError(null);
-        setComponent(nextComponent);
+      if (options.callServer) {
         callback(null, nextComponent);
-      });
+      } else {
+        startTransition(() => {
+          setError(null);
+          setComponent(nextComponent);
+          callback(null, nextComponent);
+        });
+      }
     });
     return () => {
       mounted = false;

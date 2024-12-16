@@ -29,6 +29,7 @@ import {
   POSTPONE_STATE,
   PRELUDE_HTML,
   REDIRECT_CONTEXT,
+  RELOAD,
   RENDER_STREAM,
   STYLES_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
@@ -71,6 +72,7 @@ export async function render(Component) {
             context.request.headers.get("react-server-outlet") ?? "PAGE_ROOT"
           ).replace(/[^a-zA-Z0-9_]/g, "_")
         );
+        let serverFunctionResult, callServer, callServerHeaders;
 
         const isFormData = context.request.headers
           .get("content-type")
@@ -160,26 +162,17 @@ export async function render(Component) {
           }
 
           const { data, actionId, error } = await action();
-          const httpStatus = getContext(HTTP_STATUS) ?? {
-            status: 200,
-            statusText: "OK",
-          };
-          const httpHeaders = getContext(HTTP_HEADERS) ?? {};
 
           if (!isFormData) {
-            if (error) {
-              return reject(error);
-            }
-
-            return resolve(
-              new Response(JSON.stringify(data), {
-                ...httpStatus,
-                headers: {
-                  "content-type": "application/json; charset=utf-8",
-                  ...httpHeaders,
-                },
-              })
-            );
+            serverFunctionResult = error
+              ? Promise.reject(error)
+              : data instanceof Buffer
+                ? data.buffer.slice(
+                    data.byteOffset,
+                    data.byteOffset + data.byteLength
+                  )
+                : data;
+            callServer = true;
           } else {
             const formState = await server.decodeFormState(
               data,
@@ -189,16 +182,11 @@ export async function render(Component) {
 
             if (formState) {
               const [result, key] = formState;
-              return resolve(
-                new Response(JSON.stringify(result), {
-                  ...httpStatus,
-                  headers: {
-                    "React-Server-Action-Key": encodeURIComponent(key),
-                    "content-type": "application/json; charset=utf-8",
-                    ...httpHeaders,
-                  },
-                })
-              );
+              serverFunctionResult = result;
+              callServer = true;
+              callServerHeaders = {
+                "React-Server-Action-Key": encodeURIComponent(key),
+              };
             }
           }
 
@@ -276,7 +264,31 @@ export async function render(Component) {
             <Component />
           </>
         );
+
+        const reload = getContext(RELOAD) ?? false;
+        if (reload) {
+          callServerHeaders = {
+            ...callServerHeaders,
+            "React-Server-Render": reload.url.toString(),
+            "React-Server-Outlet": reload.outlet,
+          };
+        }
+
         let app = ComponentWithStyles;
+        if (callServer && accept.includes("text/x-component")) {
+          callServerHeaders = {
+            ...callServerHeaders,
+            "React-Server-Data": "rsc",
+          };
+          app = reload ? (
+            <>
+              {ComponentWithStyles}
+              {serverFunctionResult}
+            </>
+          ) : (
+            <>{[serverFunctionResult]}</>
+          );
+        }
 
         const lastModified = new Date().toUTCString();
         if (
@@ -285,7 +297,7 @@ export async function render(Component) {
         ) {
           const contextUrl = context.url.href.replace("/x-component.rsc", "");
           context.url.href = contextUrl === "" ? "/" : contextUrl;
-          if (!noCache) {
+          if (!noCache && !callServer) {
             const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
               context.url,
               accept,
@@ -376,6 +388,7 @@ export async function render(Component) {
                         ? "no-cache"
                         : "must-revalidate",
                     "last-modified": lastModified,
+                    ...(callServer ? callServerHeaders : {}),
                     ...httpHeaders,
                   },
                 })
@@ -403,7 +416,7 @@ export async function render(Component) {
             },
           });
         } else if (accept.includes("text/html")) {
-          if (!noCache) {
+          if (!noCache && !callServer) {
             const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
               context.url,
               accept,
@@ -524,6 +537,7 @@ export async function render(Component) {
                           ? "no-cache"
                           : "must-revalidate",
                       "last-modified": lastModified,
+                      ...(callServer ? callServerHeaders : {}),
                       ...httpHeaders,
                     },
                   })

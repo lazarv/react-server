@@ -1,5 +1,7 @@
 "use server";
 
+import { reload, status } from "@lazarv/react-server";
+
 export async function serverAction() {
   console.log("submitted server-action!");
 }
@@ -22,4 +24,57 @@ export async function callActionProp() {
 export async function callActionImport() {
   console.log("submitted call-action-import!");
   return "call-action-import";
+}
+
+export async function formDataAction() {
+  console.log("submitted form-data-action!");
+  const formData = new FormData();
+  formData.append("hello", "world");
+  return formData;
+}
+
+export async function arrayBufferAction() {
+  console.log("submitted array-buffer-action!");
+  return new ArrayBuffer(10);
+}
+
+export async function bufferAction() {
+  console.log("submitted buffer-action!");
+  return Buffer.from("hello");
+}
+
+export async function arrayBufferViewAction() {
+  console.log("submitted array-buffer-view-action!");
+  return new Uint8Array(10);
+}
+
+export async function blobAction() {
+  console.log("submitted blob-action!");
+  return new Blob(["hello"], { type: "text/plain" });
+}
+
+export async function textAction() {
+  console.log("submitted text-action!");
+  return "hello";
+}
+
+export async function jsonAction() {
+  console.log("submitted json-action!");
+  return { hello: "world" };
+}
+
+export async function noContentAction() {
+  console.log("submitted no-content-action!");
+}
+
+export async function errorAction() {
+  console.log("submitted error-action!");
+  status(500);
+  throw new Error("error-action");
+}
+
+export async function reloadAction() {
+  console.log("submitted reload-action!");
+  reload("/", "rsf");
+  return { hello: "world", timestamp: Date.now() };
 }

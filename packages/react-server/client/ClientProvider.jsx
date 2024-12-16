@@ -26,10 +26,10 @@ const subscribe = (url, listener) => {
   urlListeners.add(listener);
   return () => urlListeners.delete(listener);
 };
-const emit = (url, to = url, callback = () => {}) => {
+const emit = (url, to = url, options = {}, callback = () => {}) => {
   if (!listeners.has(url)) return callback();
   const urlListeners = listeners.get(url);
-  for (const listener of urlListeners) listener(to, callback);
+  for (const listener of urlListeners) listener(to, options, callback);
 };
 const prefetchOutlet = (to, { outlet = PAGE_ROOT, ttl = Infinity }) => {
   if (prefetching.get(outlet) !== to) {
@@ -76,7 +76,7 @@ const refresh = async (outlet = PAGE_ROOT) => {
       cache.delete(url);
       cache.delete(outlet);
     }
-    emit(outlet, url, (err) => {
+    emit(outlet, url, {}, (err) => {
       if (err) reject(err);
       else {
         activeChunk.set(outlet, cache.get(outlet));
@@ -129,7 +129,7 @@ const navigateOutlet = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
       cache.delete(to);
       cache.delete(outlet);
     }
-    emit(outlet, to, (err) => {
+    emit(outlet, to, {}, (err) => {
       if (err) reject(err);
       else {
         activeChunk.set(outlet, cache.get(outlet));
@@ -184,7 +184,7 @@ window.addEventListener("popstate", () => {
       flightCache.delete(timeoutKey);
     }
     outlets.set(PAGE_ROOT, location.href);
-    emit(PAGE_ROOT, location.href, (err) => {
+    emit(PAGE_ROOT, location.href, {}, (err) => {
       if (!err) {
         activeChunk.set(PAGE_ROOT, cache.get(PAGE_ROOT));
       }
@@ -209,7 +209,7 @@ window.addEventListener("popstate", () => {
         cache.delete(location.href);
       }
       outlets.set(outlet, location.href);
-      emit(outlet, location.href, (err) => {
+      emit(outlet, location.href, {}, (err) => {
         if (!err) {
           activeChunk.set(outlet, cache.get(outlet));
         }
@@ -223,52 +223,57 @@ export const streamOptions = (outlet, remote) => ({
       try {
         const formData = await encodeReply(args);
         const url = outlet || PAGE_ROOT;
-        if (
-          formData instanceof FormData &&
-          !Array.from(formData.keys()).find((key) =>
-            key.includes("$ACTION_KEY")
-          )
-        ) {
-          let target = outlet;
-          cache.delete(url);
-          cache.delete(target);
-          getFlightResponse(outlets.get(target) || url, {
-            method: "POST",
-            body: formData,
-            outlet: target,
-            remote,
-            standalone: target !== PAGE_ROOT,
-            headers: Array.from(formData.keys()).find((key) =>
-              key.includes("ACTION_ID")
-            )
+
+        let target = outlet;
+        cache.delete(url);
+        cache.delete(target);
+        getFlightResponse(outlets.get(target) || url, {
+          method: "POST",
+          body: formData,
+          outlet: target,
+          remote,
+          standalone: target !== PAGE_ROOT,
+          callServer: id || true,
+          onFetch: (res) => {
+            const callServer =
+              typeof res.headers.get("React-Server-Data") === "string"
+                ? id || true
+                : false;
+            emit(target, url, { callServer }, async (err, result) => {
+              if (err) reject(err);
+              else {
+                if (!callServer) {
+                  return resolve();
+                }
+                const rsc = await result;
+                try {
+                  const value = await rsc.at(-1);
+                  resolve(value);
+
+                  const url = res.headers.get("React-Server-Render");
+                  const outlet = res.headers.get("React-Server-Outlet");
+
+                  if (url && outlet) {
+                    cache.set(outlet, rsc.slice(0, -1));
+                    emit(outlet, url, {});
+                  }
+                } catch (e) {
+                  reject(e);
+                }
+              }
+            });
+          },
+          onError: (err) => {
+            reject(err);
+          },
+          headers:
+            formData instanceof FormData &&
+            Array.from(formData.keys()).find((key) => key.includes("ACTION_ID"))
               ? {}
               : {
                   "React-Server-Action": encodeURIComponent(id),
                 },
-          });
-          emit(target, url, (err, result) => {
-            if (err) reject(err);
-            else resolve(result);
-          });
-        } else {
-          const response = await fetch(
-            url === PAGE_ROOT ? location.href : url,
-            {
-              method: "POST",
-              body: formData,
-              headers: {
-                accept: "application/json",
-                "React-Server-Action": encodeURIComponent(id),
-                "React-Server-Outlet": encodeURIComponent(outlet || PAGE_ROOT),
-              },
-            }
-          );
-          if (!response.ok) {
-            reject(new Error(response.statusText));
-          } else {
-            resolve(await response.json());
-          }
-        }
+        });
       } catch (e) {
         reject(e);
       }
@@ -312,6 +317,15 @@ function getFlightResponse(url, options = {}) {
                 ),
                 ...options.headers,
               },
+            }
+          ).then(
+            (res) => {
+              options.onFetch?.(res);
+              return res;
+            },
+            (err) => {
+              options.onError?.(err);
+              throw err;
             }
           ),
           streamOptions(options.outlet || url, options.remote)

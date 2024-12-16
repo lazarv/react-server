@@ -4,6 +4,7 @@ export { headers } from "./http-headers.mjs";
 export { status } from "./http-status.mjs";
 export { redirect } from "./redirects.mjs";
 export {
+  outlet,
   rewrite,
   useFormData,
   useHttpContext,
@@ -16,3 +17,4 @@ export {
 } from "./request.mjs";
 export { revalidate } from "./revalidate.mjs";
 export { invalidate, useCache } from "../memory-cache/index.mjs";
+export { reload } from "./reload.mjs";

@@ -23,6 +23,7 @@ export default function Layout({
     <html
       lang="en"
       className={dark === "1" ? "dark" : dark === "0" ? "light" : null}
+      suppressHydrationWarning
     >
       <head>
         <meta charSet="utf-8" />
@@ -71,7 +72,7 @@ export default function Layout({
           crossOrigin="anonymous"
         />
       </head>
-      <body data-path={pathname}>
+      <body data-path={pathname} suppressHydrationWarning>
         {header}
         <main>
           {sidebar}

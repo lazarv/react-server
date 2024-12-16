@@ -20,6 +20,11 @@ console.log = (...args) => {
   serverLogs.push(args.join(" "));
 };
 
+console.error = (...args) => {
+  logs.push(args.join(" "));
+  serverLogs.push(args.join(" "));
+};
+
 const BASE_PORT = 3000;
 const MAX_PORT = 32767;
 let portCounter = 0;

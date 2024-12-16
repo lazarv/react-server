@@ -292,24 +292,28 @@ function getFlightResponse(url, options = {}) {
       self[`__flightHydration__${options.outlet || PAGE_ROOT}__`] = true;
       activeChunk.set(options.outlet || url, cache.get(options.outlet || url));
     } else if (!options.fromScript) {
+      const fetchURL = url === PAGE_ROOT ? location.href : url;
       cache.set(
         options.outlet || url,
         createFromFetch(
-          fetch(url === PAGE_ROOT ? location.href : url, {
-            ...options.request,
-            method: options.method,
-            body: options.body,
-            headers: {
-              ...options.request?.headers,
-              accept: `text/x-component${
-                options.standalone && url !== PAGE_ROOT ? ";standalone" : ""
-              }${options.remote && url !== PAGE_ROOT ? ";remote" : ""}`,
-              "React-Server-Outlet": encodeURIComponent(
-                options.outlet || PAGE_ROOT
-              ),
-              ...options.headers,
-            },
-          }),
+          fetch(
+            fetchURL + (fetchURL.endsWith("/") ? "" : "/") + "x-component.rsc",
+            {
+              ...options.request,
+              method: options.method,
+              body: options.body,
+              headers: {
+                ...options.request?.headers,
+                accept: `text/x-component${
+                  options.standalone && url !== PAGE_ROOT ? ";standalone" : ""
+                }${options.remote && url !== PAGE_ROOT ? ";remote" : ""}`,
+                "React-Server-Outlet": encodeURIComponent(
+                  options.outlet || PAGE_ROOT
+                ),
+                ...options.headers,
+              },
+            }
+          ),
           streamOptions(options.outlet || url, options.remote)
         )
       );

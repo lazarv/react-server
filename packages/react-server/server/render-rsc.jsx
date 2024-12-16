@@ -219,9 +219,11 @@ export async function render(Component) {
           context.request.headers.get("if-modified-since");
         const noCache =
           context.request.headers.get("cache-control") === "no-cache";
-        const cacheType = accept.includes("text/x-component")
-          ? FLIGHT_CACHE
-          : HTML_CACHE;
+        const cacheType =
+          accept.includes("text/x-component") ||
+          context.url.href.endsWith("/x-component.rsc")
+            ? FLIGHT_CACHE
+            : HTML_CACHE;
 
         if (ifModifiedSince && !noCache) {
           const hasCache = await getContext(CACHE_CONTEXT)?.get([
@@ -277,7 +279,12 @@ export async function render(Component) {
         let app = ComponentWithStyles;
 
         const lastModified = new Date().toUTCString();
-        if (accept.includes("text/x-component")) {
+        if (
+          accept.includes("text/x-component") ||
+          context.url.href.endsWith("/x-component.rsc")
+        ) {
+          const contextUrl = context.url.href.replace("/x-component.rsc", "");
+          context.url.href = contextUrl === "" ? "/" : contextUrl;
           if (!noCache) {
             const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
               context.url,

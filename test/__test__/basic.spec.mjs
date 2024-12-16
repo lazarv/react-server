@@ -124,6 +124,7 @@ test(`server action state`, async () => {
 test("useActionState hook using server action", async () => {
   await server("fixtures/use-action-state.jsx");
   await page.goto(hostname);
+  await waitForHydration();
 
   const input = await page.getByRole("textbox");
   await input.type("react-server");

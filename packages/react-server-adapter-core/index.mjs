@@ -349,6 +349,7 @@ export function createAdapter({
           ["**/*", "!**/*.html.gz", "!**/*.html.br", "!**/x-component.*"],
           distDir
         ),
+      xcomponent: () => getFiles(["**/x-component.rsc"], distDir),
       assets: () => getFiles(["assets/**/*"], reactServerDir),
       client: () =>
         getFiles(["client/**/*", "!**/*-manifest.json"], reactServerDir),
@@ -374,6 +375,14 @@ export function createAdapter({
         copyFiles(
           "copying static files",
           await files.static(),
+          distDir,
+          out ?? outStaticDir,
+          reactServerDir
+        ),
+      xcomponent: async (out) =>
+        copyFiles(
+          "copying x-component",
+          await files.xcomponent(),
           distDir,
           out ?? outStaticDir,
           reactServerDir
@@ -432,6 +441,7 @@ export function createAdapter({
 
     if (outStaticDir) {
       await copy.static();
+      await copy.xcomponent();
       await copy.assets();
       await copy.client();
       await copy.public();

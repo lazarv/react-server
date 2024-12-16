@@ -10,6 +10,7 @@ import {
   getContext,
 } from "@lazarv/react-server/server/context.mjs";
 import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs";
+import { useOutlet } from "@lazarv/react-server/server/request.mjs";
 import {
   ACTION_CONTEXT,
   CACHE_CONTEXT,
@@ -29,6 +30,7 @@ import {
   POSTPONE_STATE,
   PRELUDE_HTML,
   REDIRECT_CONTEXT,
+  RENDER_CONTEXT,
   RELOAD,
   RENDER_STREAM,
   STYLES_CONTEXT,
@@ -64,14 +66,9 @@ export async function render(Component) {
         const origin = context.request.headers.get("origin");
         const protocol = origin && new URL(origin).protocol;
         const host = context.request.headers.get("host");
-        const accept = context.request.headers.get("accept");
-        const remote = accept.includes(";remote");
-        const standalone = accept.includes(";standalone") || remote;
-        const outlet = decodeURIComponent(
-          (
-            context.request.headers.get("react-server-outlet") ?? "PAGE_ROOT"
-          ).replace(/[^a-zA-Z0-9_]/g, "_")
-        );
+        const renderContext = getContext(RENDER_CONTEXT);
+        const remote = renderContext.flags.isRemote;
+        const outlet = useOutlet();
         let serverFunctionResult, callServer, callServerHeaders;
 
         const isFormData = context.request.headers
@@ -207,14 +204,12 @@ export async function render(Component) {
           context.request.headers.get("if-modified-since");
         const noCache =
           context.request.headers.get("cache-control") === "no-cache";
-        const cacheType = accept.includes("text/x-component")
-          ? FLIGHT_CACHE
-          : HTML_CACHE;
+        const cacheType = renderContext.flags.isRSC ? FLIGHT_CACHE : HTML_CACHE;
 
         if (ifModifiedSince && !noCache) {
           const hasCache = await getContext(CACHE_CONTEXT)?.get([
             context.url,
-            accept,
+            "text/x-component",
             outlet,
             cacheType,
             ifModifiedSince,
@@ -273,7 +268,7 @@ export async function render(Component) {
         }
 
         let app = ComponentWithStyles;
-        if (callServer && accept.includes("text/x-component")) {
+        if (callServer) {
           callServerHeaders = {
             ...callServerHeaders,
             "React-Server-Data": "rsc",
@@ -289,11 +284,11 @@ export async function render(Component) {
         }
 
         const lastModified = new Date().toUTCString();
-        if (accept.includes("text/x-component")) {
+        if (renderContext.flags.isRSC && !renderContext.flags.isRemote) {
           if (!noCache && !callServer) {
             const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
               context.url,
-              accept,
+              "text/x-component",
               outlet,
               FLIGHT_CACHE,
             ]);
@@ -399,7 +394,13 @@ export async function render(Component) {
               controller.close();
 
               getContext(CACHE_CONTEXT)?.set(
-                [context.url, accept, outlet, FLIGHT_CACHE, lastModified],
+                [
+                  context.url,
+                  "text/x-component",
+                  outlet,
+                  FLIGHT_CACHE,
+                  lastModified,
+                ],
                 {
                   ...httpStatus,
                   buffer: concat(payload),
@@ -408,11 +409,11 @@ export async function render(Component) {
               );
             },
           });
-        } else if (accept.includes("text/html")) {
+        } else if (renderContext.flags.isHTML || renderContext.flags.isRemote) {
           if (!noCache && !callServer) {
             const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
               context.url,
-              accept,
+              "text/html",
               outlet,
               HTML_CACHE,
             ]);
@@ -465,11 +466,15 @@ export async function render(Component) {
           let isStarted = false;
           const stream = await renderStream({
             stream: flight,
-            bootstrapModules: standalone ? [] : getContext(MAIN_MODULE),
-            bootstrapScripts: standalone
-              ? []
-              : [
-                  `const moduleCache = new Map();
+            bootstrapModules:
+              renderContext.flags.isRSC || renderContext.flags.isRemote
+                ? []
+                : getContext(MAIN_MODULE),
+            bootstrapScripts:
+              renderContext.flags.isRSC || renderContext.flags.isRemote
+                ? []
+                : [
+                    `const moduleCache = new Map();
                     self.__webpack_require__ = function (id) {
                       if (!moduleCache.has(id)) {
                         const modulePromise = import(("${`/${config.base ?? ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));
@@ -487,7 +492,7 @@ export async function render(Component) {
                       }
                       return moduleCache.get(id);
                     };`.replace(/\n/g, ""),
-                ],
+                  ],
             outlet,
             start: async () => {
               isStarted = true;
@@ -510,7 +515,13 @@ export async function render(Component) {
                     payload.push(copyBytesFrom(chunk));
                   }
                   await getContext(CACHE_CONTEXT)?.set(
-                    [context.url, accept, outlet, HTML_CACHE, lastModified],
+                    [
+                      context.url,
+                      "text/html",
+                      outlet,
+                      HTML_CACHE,
+                      lastModified,
+                    ],
                     {
                       ...httpStatus,
                       buffer: concat(payload),

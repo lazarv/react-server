@@ -5,6 +5,10 @@ import { forChild } from "../../config/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
+import {
+  createRenderContext,
+  RENDER_TYPE,
+} from "../../server/render-context.mjs";
 import { getRuntime } from "../../server/runtime.mjs";
 import {
   ACTION_CONTEXT,
@@ -19,6 +23,7 @@ import {
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
   REDIRECT_CONTEXT,
+  RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
   STYLES_CONTEXT,
@@ -101,6 +106,10 @@ export default async function ssrHandler(root) {
               }
 
               await cache_init$?.();
+
+              const renderContext = createRenderContext(httpContext);
+              context$(RENDER_CONTEXT, renderContext);
+
               try {
                 const middlewares = await root_init$?.();
                 if (middlewares) {
@@ -118,15 +127,7 @@ export default async function ssrHandler(root) {
                 }
               }
 
-              const accept = httpContext.request.headers.get("accept");
-              if (
-                !accept ||
-                !(
-                  accept.includes("text/html") ||
-                  accept.includes("text/x-component") ||
-                  accept.includes("application/json")
-                )
-              ) {
+              if (renderContext.type === RENDER_TYPE.Unknown) {
                 return resolve();
               }
 

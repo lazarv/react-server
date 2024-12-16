@@ -6,9 +6,9 @@ import strip from "strip-ansi";
 import packageJson from "../../package.json" with { type: "json" };
 import { getContext } from "../../server/context.mjs";
 import {
-  HTTP_CONTEXT,
   HTTP_HEADERS,
   HTTP_STATUS,
+  RENDER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
 import { replaceError } from "../utils/error.mjs";
@@ -120,8 +120,8 @@ export default async function errorHandler(err) {
       return plainResponse(err);
     }
 
-    const accept = getContext(HTTP_CONTEXT)?.request?.headers?.get?.("accept");
-    if (accept?.includes?.(";standalone")) {
+    const renderContext = getContext(RENDER_CONTEXT);
+    if (renderContext?.flags?.isRSC) {
       return plainResponse(err);
     }
 

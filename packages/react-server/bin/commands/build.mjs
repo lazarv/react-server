@@ -15,6 +15,7 @@ export default (cli) =>
     .option("--server", "[boolean] build server", { default: true })
     .option("--client", "[boolean] build client", { default: true })
     .option("--export", "[boolean] static export")
+    .option("--compression", "[boolean] enable compression", { default: false })
     .option("--adapter <adapter>", "[boolean|string] adapter", {
       default: "",
       type: [String],

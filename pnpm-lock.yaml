@@ -212,8 +212,8 @@ importers:
         specifier: workspace:^
         version: link:../../packages/react-server-adapter-aws
       aws-cdk-lib:
-        specifier: ^2.172.0
-        version: 2.172.0(constructs@10.4.2)
+        specifier: ^2.173.1
+        version: 2.173.1(constructs@10.4.2)
       constructs:
         specifier: ^10.4.2
         version: 10.4.2
@@ -221,15 +221,15 @@ importers:
         specifier: ^0.5.21
         version: 0.5.21
       sst:
-        specifier: 3.3.56
-        version: 3.3.56
+        specifier: 3.4.8
+        version: 3.4.8
     devDependencies:
       '@types/aws-lambda':
         specifier: 8.10.146
         version: 8.10.146
       aws-cdk:
-        specifier: ^2.172.0
-        version: 2.172.0
+        specifier: ^2.173.1
+        version: 2.173.1
       serverless:
         specifier: '3'
         version: 3.39.0
@@ -4893,8 +4893,8 @@ packages:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
 
-  aws-cdk-lib@2.172.0:
-    resolution: {integrity: sha512-SbFn2FyKhsHQpS7M3qeMWnRKtBHELkY3rmejk07cPlJ/BCJk/af8eKyeiNEEB0AZSfIeP4ImZCLNy9JS34mlPw==}
+  aws-cdk-lib@2.173.1:
+    resolution: {integrity: sha512-xlbom4s3sbJDoHzIQmvunTufDQoJHQK8PTh653TE3338PysMX3liZ7efET9/FSQn50S2U3nINDGhrMvjkMBoKw==}
     engines: {node: '>= 14.15.0'}
     peerDependencies:
       constructs: ^10.0.0
@@ -4911,8 +4911,8 @@ packages:
       - yaml
       - mime-types
 
-  aws-cdk@2.172.0:
-    resolution: {integrity: sha512-kacztcAl12F6zlBqKCuzCZmj4vrbMhzgDAxBB4T7fXR2amQyuu6W0nWcGWWvASXeBJcw2DJ6ulpfV4wuc9dksw==}
+  aws-cdk@2.173.1:
+    resolution: {integrity: sha512-1KWz6ZPPpBk3LyxE+iR4Gi1bbdY5N6Zj7kx/26jqvavBfZle93vT3M0jlTKI6v/bBtpYsVHTOmPFcq0fg1DfCw==}
     engines: {node: '>= 14.15.0'}
     hasBin: true
 
@@ -9402,8 +9402,8 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  sst-darwin-arm64@3.3.56:
-    resolution: {integrity: sha512-/zbxDXmVnkbaqLYAdSE5y8cgZUBB3Z6knpOanL+QG1tPPXI2FVFt1iPB3UP3NN0Arf8JPwG3pt4EqaOB5NApJw==}
+  sst-darwin-arm64@3.4.8:
+    resolution: {integrity: sha512-rKgQDCBQZmdYeIjUtNcQi3xO8GHVHH0pCEEkedaUqF+jEgZq+iKBDPR9VbwlI1L+Og2veUx+FcapELvx68uTHQ==}
     cpu: [arm64]
     os: [darwin]
 
@@ -9412,8 +9412,8 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  sst-darwin-x64@3.3.56:
-    resolution: {integrity: sha512-Qzc7B8E5vrM2wzZq64rftE4GqwlQx6FD/xHYWdeVycJpHgEUt810lF03i20dhBzF4OsfaLiFV0vcRTPh7gDEGg==}
+  sst-darwin-x64@3.4.8:
+    resolution: {integrity: sha512-kma71dXzQA6PPQ93rfbD/w3JFUTc6c/LHYKN2mNRWITdNFCoaaRV07BQClLoSwKtCXaaasU9v3Nnqw5+b/MbFA==}
     cpu: [x64]
     os: [darwin]
 
@@ -9422,8 +9422,8 @@ packages:
     cpu: [arm64]
     os: [linux]
 
-  sst-linux-arm64@3.3.56:
-    resolution: {integrity: sha512-r7zgk9LTmNtgZCocnvIulZCEpKkl/tiCGLcUWtaZAGieab/CAMeWS5TK99NB1ap2wCAsIGZoDy89DUAr/zly3g==}
+  sst-linux-arm64@3.4.8:
+    resolution: {integrity: sha512-Ayc03H9eY30VwRMxDUGZzsTZpOMtjyVoYyELltmmCMEjZy75k7Slsjx8D411eM1P4n2KAhnIIjJ4HyKxq33vBA==}
     cpu: [arm64]
     os: [linux]
 
@@ -9432,8 +9432,8 @@ packages:
     cpu: [x64]
     os: [linux]
 
-  sst-linux-x64@3.3.56:
-    resolution: {integrity: sha512-uzYkgToNitM/kygTR1oiNMr6U4JYnD8A+jBt6R2oXg28Pg0ioNNPCckRC1EiQby3K2jFutKKuH/NsXVZ69bCHQ==}
+  sst-linux-x64@3.4.8:
+    resolution: {integrity: sha512-MAa74fPSlDB50BtQqMZS7tInk8qoz8fJC9sclEdv9I4fMjJpGsU99z2ZHMfxD7rDgehTm6DMMBC8pLwF/uIxsQ==}
     cpu: [x64]
     os: [linux]
 
@@ -9442,8 +9442,8 @@ packages:
     cpu: [x86]
     os: [linux]
 
-  sst-linux-x86@3.3.56:
-    resolution: {integrity: sha512-1xieLoXCaFR58OSePXdFjefQYlWLUownJo2Gx4rAc6t1FZUZX/NrjAQPNQhz4GAIKnzABfjsUorQQCJkAHTHgA==}
+  sst-linux-x86@3.4.8:
+    resolution: {integrity: sha512-cqAPqnlhomnzTzWlmnEBs4uuRJ/8JtBF0k/BSg1gahGgdDcINqivmmp6AQUFvyhtrS7CIE+IHLRnfIEoaPjrJw==}
     cpu: [x86]
     os: [linux]
 
@@ -9459,8 +9459,8 @@ packages:
       valibot:
         optional: true
 
-  sst@3.3.56:
-    resolution: {integrity: sha512-0Zjo1nNpyohZunoMZPGAsWfvAdZqib1uZE+8M4xMExy3Hqn8liGhfhFCuIxfjUowOVrd3gRthGoi8508Bsc9cg==}
+  sst@3.4.8:
+    resolution: {integrity: sha512-PGiHch4QEkfO5vKRhauts+nhpsbmGv/iYhU/iO9Q6Esh+k3477K8XEiXt7s+4QQkrS+huwFgUNyLJTvG4E9+KQ==}
     hasBin: true
     peerDependencies:
       hono: 4.x
@@ -15989,7 +15989,7 @@ snapshots:
     dependencies:
       possible-typed-array-names: 1.0.0
 
-  aws-cdk-lib@2.172.0(constructs@10.4.2):
+  aws-cdk-lib@2.173.1(constructs@10.4.2):
     dependencies:
       '@aws-cdk/asset-awscli-v1': 2.2.213
       '@aws-cdk/asset-kubectl-v20': 2.1.3
@@ -15997,7 +15997,7 @@ snapshots:
       '@aws-cdk/cloud-assembly-schema': 38.0.1
       constructs: 10.4.2
 
-  aws-cdk@2.172.0:
+  aws-cdk@2.173.1:
     optionalDependencies:
       fsevents: 2.3.2
 
@@ -21585,31 +21585,31 @@ snapshots:
   sst-darwin-arm64@3.3.54:
     optional: true
 
-  sst-darwin-arm64@3.3.56:
+  sst-darwin-arm64@3.4.8:
     optional: true
 
   sst-darwin-x64@3.3.54:
     optional: true
 
-  sst-darwin-x64@3.3.56:
+  sst-darwin-x64@3.4.8:
     optional: true
 
   sst-linux-arm64@3.3.54:
     optional: true
 
-  sst-linux-arm64@3.3.56:
+  sst-linux-arm64@3.4.8:
     optional: true
 
   sst-linux-x64@3.3.54:
     optional: true
 
-  sst-linux-x64@3.3.56:
+  sst-linux-x64@3.4.8:
     optional: true
 
   sst-linux-x86@3.3.54:
     optional: true
 
-  sst-linux-x86@3.3.56:
+  sst-linux-x86@3.4.8:
     optional: true
 
   sst@3.3.54:
@@ -21624,17 +21624,17 @@ snapshots:
       sst-linux-x64: 3.3.54
       sst-linux-x86: 3.3.54
 
-  sst@3.3.56:
+  sst@3.4.8:
     dependencies:
       aws4fetch: 1.0.20
       jose: 5.2.3
       openid-client: 5.6.4
     optionalDependencies:
-      sst-darwin-arm64: 3.3.56
-      sst-darwin-x64: 3.3.56
-      sst-linux-arm64: 3.3.56
-      sst-linux-x64: 3.3.56
-      sst-linux-x86: 3.3.56
+      sst-darwin-arm64: 3.4.8
+      sst-darwin-x64: 3.4.8
+      sst-linux-arm64: 3.4.8
+      sst-linux-x64: 3.4.8
+      sst-linux-x86: 3.4.8
 
   stack-utils@2.0.6:
     dependencies:

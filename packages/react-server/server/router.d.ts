@@ -9,7 +9,6 @@ export type RouteMatchers = Record<string, (value: string) => boolean>;
  * @property matchers - Custom matchers for route parameters
  * @property element - The element to render for the route
  * @property render - A function that returns the element to render for the route
- * @property standalone - If true, the route is standalone, only rendered when client requests a full page reload
  * @property fallback - If true, the route is a fallback route
  *
  * @example
@@ -34,7 +33,6 @@ export const Route: React.FC<
     render?: (
       props: React.PropsWithChildren<RouteParams>
     ) => React.ReactElement;
-    standalone?: boolean;
     fallback?: boolean;
   }>
 >;

@@ -62,6 +62,12 @@ export const adapter = createAdapter({
       version: 3,
       ...adapterOptions,
       routes: [
+        {
+          src: "/(.*)(@([^.]+)\\.)?(rsc|remote)\\.x-component$",
+          headers: {
+            "Content-Type": "text/x-component; charset=utf-8",
+          },
+        },
         { handle: "filesystem" },
         ...(adapterOptions?.routes ?? []),
         adapterOptions?.routes?.find((route) => route.status === 404) ?? {

@@ -40,10 +40,7 @@ const prefetchOutlet = (to, { outlet = PAGE_ROOT, ttl = Infinity }) => {
     if (flightCache.has(key)) {
       cache.set(outlet, flightCache.get(key));
     } else {
-      getFlightResponse(to, {
-        outlet,
-        standalone: outlet !== PAGE_ROOT,
-      });
+      getFlightResponse(to, { outlet });
       flightCache.set(key, cache.get(outlet));
       if (typeof ttl === "number" && ttl < Infinity) {
         setTimeout(() => {
@@ -232,7 +229,6 @@ export const streamOptions = (outlet, remote) => ({
           body: formData,
           outlet: target,
           remote,
-          standalone: target !== PAGE_ROOT,
           callServer: id || true,
           onFetch: (res) => {
             const callServer =
@@ -297,18 +293,25 @@ function getFlightResponse(url, options = {}) {
       self[`__flightHydration__${options.outlet || PAGE_ROOT}__`] = true;
       activeChunk.set(options.outlet || url, cache.get(options.outlet || url));
     } else if (!options.fromScript) {
+      const src = new URL(url === PAGE_ROOT ? location.href : url, location);
+      const outlet =
+        options.outlet && options.outlet !== PAGE_ROOT
+          ? `@${options.outlet}.`
+          : "";
+      src.pathname = `${src.pathname}/${outlet}rsc.x-component`.replace(
+        /\/+/g,
+        "/"
+      );
       cache.set(
         options.outlet || url,
         createFromFetch(
-          fetch(url === PAGE_ROOT ? location.href : url, {
+          fetch(src.toString(), {
             ...options.request,
             method: options.method,
             body: options.body,
             headers: {
               ...options.request?.headers,
-              accept: `text/x-component${
-                options.standalone && url !== PAGE_ROOT ? ";standalone" : ""
-              }${options.remote && url !== PAGE_ROOT ? ";remote" : ""}`,
+              accept: "text/x-component",
               "React-Server-Outlet": encodeURIComponent(
                 options.outlet || PAGE_ROOT
               ),

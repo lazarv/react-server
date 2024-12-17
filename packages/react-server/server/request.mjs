@@ -3,6 +3,7 @@ import {
   FORM_DATA_PARSER,
   HTTP_CONTEXT,
   HTTP_OUTLET,
+  RENDER_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 
 export function useHttpContext() {
@@ -79,9 +80,10 @@ export function rewrite(pathname) {
 export function useOutlet() {
   return decodeURIComponent(
     getContext(HTTP_OUTLET) ??
+      getContext(RENDER_CONTEXT)?.outlet ??
       getContext(HTTP_CONTEXT)?.request?.headers?.get("react-server-outlet") ??
       "PAGE_ROOT"
-  );
+  ).replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
 export function outlet(target) {

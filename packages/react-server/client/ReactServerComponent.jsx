@@ -9,13 +9,7 @@ import {
   useClient,
 } from "./context.mjs";
 
-function FlightComponent({
-  standalone = false,
-  remote = false,
-  defer = false,
-  request,
-  children,
-}) {
+function FlightComponent({ remote = false, defer = false, request, children }) {
   const { url, outlet } = useContext(FlightContext);
   const client = useClient();
   const { registerOutlet, subscribe, getFlightResponse } = client;
@@ -24,7 +18,6 @@ function FlightComponent({
       (outlet === PAGE_ROOT || remote
         ? getFlightResponse?.(url, {
             outlet,
-            standalone,
             remote,
             defer,
             request,
@@ -39,7 +32,6 @@ function FlightComponent({
     const unsubscribe = subscribe(outlet || url, (to, options, callback) => {
       const nextComponent = getFlightResponse(to, {
         outlet,
-        standalone,
         remote,
         request,
       });
@@ -59,7 +51,7 @@ function FlightComponent({
       unregisterOutlet();
       unsubscribe();
     };
-  }, [url, outlet, standalone, remote, request, subscribe, getFlightResponse]);
+  }, [url, outlet, remote, request, subscribe, getFlightResponse]);
 
   useEffect(() => {
     if (children || (outlet !== PAGE_ROOT && Component)) {
@@ -71,7 +63,6 @@ function FlightComponent({
     if (remote || defer) {
       const nextComponent = getFlightResponse(url, {
         outlet,
-        standalone,
         remote,
         defer,
         request,
@@ -81,7 +72,7 @@ function FlightComponent({
         startTransition(() => setComponent(nextComponent));
       }
     }
-  }, [url, outlet, standalone, remote, defer, request, getFlightResponse]);
+  }, [url, outlet, remote, defer, request, getFlightResponse]);
 
   return (
     <ClientContext.Provider value={{ ...client, error }}>
@@ -93,7 +84,6 @@ function FlightComponent({
 export default function ReactServerComponent({
   url,
   outlet = null,
-  standalone,
   remote,
   defer,
   request,
@@ -101,12 +91,7 @@ export default function ReactServerComponent({
 }) {
   return (
     <FlightContext.Provider value={{ url, outlet }}>
-      <FlightComponent
-        standalone={standalone}
-        remote={remote}
-        defer={defer}
-        request={request}
-      >
+      <FlightComponent remote={remote} defer={defer} request={request}>
         {children}
       </FlightComponent>
     </FlightContext.Provider>

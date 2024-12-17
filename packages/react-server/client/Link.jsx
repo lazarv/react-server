@@ -35,7 +35,18 @@ export default function Link({
     } catch (e) {
       onError?.(e);
     }
-  }, []);
+  }, [
+    to,
+    target,
+    local,
+    outlet,
+    root,
+    replace,
+    push,
+    rollback,
+    onNavigate,
+    onError,
+  ]);
 
   const handleNavigate = async (e) => {
     e.preventDefault();

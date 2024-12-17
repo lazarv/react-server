@@ -14,13 +14,13 @@ To mark a page as static, create a file with the matching path for the page with
 
 For pages without any parameters, export default `true`.
 
-```ts
+```ts filename="users.static.ts"
 export default true;
 ```
 
 The smallest possible way to mark a page as static is by creating a `.static.json` file defining `true`.
 
-```json
+```json filename="users.static.json"
 true
 ```
 
@@ -32,13 +32,13 @@ true
 
 For dynamic routes, if you have a page at `/users/:id` you can create a file at `/users/[id].static.ts` with the following content:
 
-```ts
+```ts filename="users/[id].static.ts"
 export default [{ id: 1 }, { id: 2 }, { id: 3 }];
 ```
 
 You can either export an array of route parameters or an async function returning an array of route parameters.
 
-```ts
+```ts filename="users/[id].static.ts"
 export default async () => [{ id: 1 }, { id: 2 }, { id: 3 }];
 ```
 
@@ -52,7 +52,7 @@ You can use static JSON data for your static pages by creating a file with the `
 
 For example, if you have a page at `/users/:id` you can create a file at `/users/[id].static.json` with the following content:
 
-```json
+```json filename="users/[id].static.json"
 [{ "id": 1 }, { "id": 2 }, { "id": 3 }]
 ```
 
@@ -64,7 +64,7 @@ For example, if you have a page at `/users/:id` you can create a file at `/users
 
 You can override all static paths by defining an `export()` function in your `@lazarv/react-server` configuration file. This function will be called with an array of all static paths and you can return a new array of paths to override the default static paths. In this example, we remove the `/en` prefix from all static paths.
 
-```js
+```js filename="react-server.config.mjs"
 export default {
   export(paths) {
     return paths.map(({ path }) => ({
@@ -76,7 +76,7 @@ export default {
 
 You can also use this function to add new static paths or remove some paths.
 
-```js
+```js filename="react-server.config.mjs"
 export default {
   export(paths) {
     return [
@@ -87,7 +87,7 @@ export default {
 };
 ```
 
-```js
+```js filename="react-server.config.mjs"
 export default {
   export(paths) {
     return paths.filter(({ path }) => path !== "/en");
@@ -101,7 +101,7 @@ export default {
 
 You can also export API routes as static routes. To do this, you can define your static path as an object with the `path`, `filename`, `method` and `headers` properties, where `path` is the route path, `filename` is the filename for the static file, `method` is the HTTP method for the request and `headers` is an object with the headers for the request. `method` and `headers` are optional.
 
-```js
+```js filename="react-server.config.mjs"
 export default {
   export() {
     return [
@@ -124,7 +124,7 @@ export default {
 
 You can also export micro-frontend routes as static. To do this, you can define your static path as an object with the `path` and `remote` properties, where `path` is the route path and `remote` is a flag to indicate that the route is a micro-frontend route and the remote response payload needs to be generated at build time. By using static export for micro-frontends, you can improve the performance of your application by pre-rendering the micro-frontend content at build time.
 
-```js
+```js filename="react-server.config.mjs"
 export default {
   export() {
     return [
@@ -133,6 +133,34 @@ export default {
         remote: true,
       }
     ];
+  },
+};
+```
+
+<Link name="static-export-outlets">
+## Static export outlets
+</Link>
+
+You can also export outlets as static. To do this, you can define your static path as an object with the `path` and `outlet` properties, where `path` is the route path and `outlet` is the name of the outlet. By using static export for outlets, you can improve the performance of your application by pre-rendering the outlet content at build time. Exported outlets will be rendered as RSC components. Client-side navigation to an exported outlet will use the static outlet content instead of making a request to the server.
+
+```js filename="react-server.config.mjs"
+export default {
+  export() {
+    return [{ path: "/photos/1", outlet: "modal" }];
+  },
+};
+```
+
+<Link name="disable-static-export-for-rsc-routes">
+## Disable static export for RSC routes
+</Link>
+
+You can disable static export for RSC routes by setting the `rsc` property to `false`. This is useful if you have a page that is an RSC route but you don't want to pre-render it at build time or you don't plan to use the RSC payload for that route. This will prevent the RSC payload from being generated at build time and the route will be rendered only as a regular HTML page to reduce the deployment size.
+
+```js filename="react-server.config.mjs"
+export default {
+  export() {
+    return [{ path: "/photos/1", rsc: false }];
   },
 };
 ```

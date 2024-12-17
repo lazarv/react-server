@@ -87,6 +87,9 @@ export default async function staticSiteGenerator(root, options) {
     );
 
     const configRoot = forRoot();
+    const compression = !(
+      options.compression === false || configRoot.compression === false
+    );
 
     if (options.export || configRoot?.export) {
       let paths = (
@@ -108,7 +111,9 @@ export default async function staticSiteGenerator(root, options) {
         typeof configRoot.export === "function"
           ? await configRoot.export(paths)
           : [...(configRoot.export ?? []), ...paths];
-      const validPaths = paths.filter(({ path, filename }) => filename || path);
+      const validPaths = paths
+        .map((path) => (typeof path === "string" ? { path } : path))
+        .filter(({ path, filename }) => filename || path);
       if (validPaths.length < paths.length) {
         throw new Error(
           `${colors.bold("path")} property is not defined for ${colors.bold(
@@ -131,13 +136,19 @@ export default async function staticSiteGenerator(root, options) {
         );
       }
 
-      const filenames = paths.flatMap(({ path, filename }) => {
+      const filenames = paths.flatMap(({ path, filename, outlet }) => {
         if (filename) {
           return [filename];
         }
         const normalizedPath = path.replace(/^\/+/g, "").replace(/\/+$/g, "");
         const basename = `${normalizedPath}/index.html`.replace(/^\/+/g, "");
-        return [basename, basename.replace(/index\.html$/, "x-component.rsc")];
+        return [
+          basename,
+          basename.replace(
+            /index\.html$/,
+            outlet ? `@${outlet}.rsc.x-component` : "rsc.x-component"
+          ),
+        ];
       });
       const maxFilenameLength = Math.max(
         ...filenames.map((filename) => filename.length)
@@ -203,15 +214,22 @@ export default async function staticSiteGenerator(root, options) {
               );
             } else {
               const html = await stream.text();
-              const gzip = createGzip();
-              const brotli = createBrotliCompress();
-              const gzipWriteStream = createWriteStream(`${filename}.gz`);
-              const brotliWriteStream = createWriteStream(`${filename}.br`);
-              const files = [
-                pipeline(Readable.from(html), gzip, gzipWriteStream),
-                pipeline(Readable.from(html), brotli, brotliWriteStream),
-                writeFile(filename, html, "utf8"),
-              ];
+
+              const files = [];
+              if (compression) {
+                const gzip = createGzip();
+                const brotli = createBrotliCompress();
+                const gzipWriteStream = createWriteStream(`${filename}.gz`);
+                const brotliWriteStream = createWriteStream(`${filename}.br`);
+                files.push(
+                  pipeline(Readable.from(html), gzip, gzipWriteStream),
+                  pipeline(Readable.from(html), brotli, brotliWriteStream),
+                  writeFile(filename, html, "utf8")
+                );
+              } else {
+                files.push(writeFile(filename, html, "utf8"));
+              }
+
               const postponedFilename = `${filename}.postponed.json`;
               if (postponed) {
                 files.push(
@@ -223,11 +241,16 @@ export default async function staticSiteGenerator(root, options) {
                 );
               }
               await Promise.all(files);
+
               const [htmlStat, gzipStat, brotliStat, postponedStat] =
                 await Promise.all([
                   stat(filename),
-                  stat(`${filename}.gz`),
-                  stat(`${filename}.br`),
+                  compression
+                    ? stat(`${filename}.gz`)
+                    : Promise.resolve({ size: 0 }),
+                  compression
+                    ? stat(`${filename}.br`)
+                    : Promise.resolve({ size: 0 }),
                   postponed
                     ? stat(postponedFilename)
                     : Promise.resolve({ size: 0 }),
@@ -251,11 +274,11 @@ export default async function staticSiteGenerator(root, options) {
 
       await Promise.all(
         paths
-          .filter(({ filename }) => !filename)
-          .map(async ({ path }) => {
+          .filter(({ filename, rsc }) => !filename && rsc !== false)
+          .map(async ({ path, outlet }) => {
             try {
               const url = new URL(
-                `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}`
+                `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}/${outlet ? `@${outlet}.rsc.x-component` : "rsc.x-component"}`
               );
               const stream = await render({
                 url,
@@ -274,26 +297,39 @@ export default async function staticSiteGenerator(root, options) {
                 .replace(/^\/+/g, "")
                 .replace(/\/+$/g, "");
               const normalizedBasename =
-                `${normalizedPath}/x-component.rsc`.replace(/^\/+/g, "");
+                `${normalizedPath}/${outlet ? `@${outlet}.rsc.x-component` : "rsc.x-component"}`.replace(
+                  /^\/+/g,
+                  ""
+                );
               const filename = join(
                 cwd,
                 options.outDir,
                 "dist",
                 normalizedBasename
               );
-              const gzip = createGzip();
-              const brotli = createBrotliCompress();
-              const gzipWriteStream = createWriteStream(`${filename}.gz`);
-              const brotliWriteStream = createWriteStream(`${filename}.br`);
-              await Promise.all([
-                pipeline(Readable.from(html), gzip, gzipWriteStream),
-                pipeline(Readable.from(html), brotli, brotliWriteStream),
-                writeFile(filename, html, "utf8"),
-              ]);
+
+              if (compression) {
+                const gzip = createGzip();
+                const brotli = createBrotliCompress();
+                const gzipWriteStream = createWriteStream(`${filename}.gz`);
+                const brotliWriteStream = createWriteStream(`${filename}.br`);
+                await Promise.all([
+                  pipeline(Readable.from(html), gzip, gzipWriteStream),
+                  pipeline(Readable.from(html), brotli, brotliWriteStream),
+                  writeFile(filename, html, "utf8"),
+                ]);
+              } else {
+                await writeFile(filename, html, "utf8");
+              }
+
               const [htmlStat, gzipStat, brotliStat] = await Promise.all([
                 stat(filename),
-                stat(`${filename}.gz`),
-                stat(`${filename}.br`),
+                compression
+                  ? stat(`${filename}.gz`)
+                  : Promise.resolve({ size: 0 }),
+                compression
+                  ? stat(`${filename}.br`)
+                  : Promise.resolve({ size: 0 }),
               ]);
 
               log(
@@ -317,14 +353,14 @@ export default async function staticSiteGenerator(root, options) {
           .map(async ({ path }) => {
             try {
               const url = new URL(
-                `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}`
+                `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}/remote.x-component`
               );
               const stream = await render({
                 url,
                 request: {
                   url,
                   headers: new Headers({
-                    accept: "text/html;remote",
+                    accept: "text/x-component",
                     "React-Server-Outlet": "REACT_SERVER_BUILD_OUTLET",
                   }),
                 },
@@ -336,29 +372,37 @@ export default async function staticSiteGenerator(root, options) {
               const normalizedPath = path
                 .replace(/^\/+/g, "")
                 .replace(/\/+$/g, "");
-              const normalizedBasename = `${normalizedPath}/remote.rsc`.replace(
-                /^\/+/g,
-                ""
-              );
+              const normalizedBasename =
+                `${normalizedPath}/remote.x-component`.replace(/^\/+/g, "");
               const filename = join(
                 cwd,
                 options.outDir,
                 "dist",
                 normalizedBasename
               );
-              const gzip = createGzip();
-              const brotli = createBrotliCompress();
-              const gzipWriteStream = createWriteStream(`${filename}.gz`);
-              const brotliWriteStream = createWriteStream(`${filename}.br`);
-              await Promise.all([
-                pipeline(Readable.from(html), gzip, gzipWriteStream),
-                pipeline(Readable.from(html), brotli, brotliWriteStream),
-                writeFile(filename, html, "utf8"),
-              ]);
+
+              if (compression) {
+                const gzip = createGzip();
+                const brotli = createBrotliCompress();
+                const gzipWriteStream = createWriteStream(`${filename}.gz`);
+                const brotliWriteStream = createWriteStream(`${filename}.br`);
+                await Promise.all([
+                  pipeline(Readable.from(html), gzip, gzipWriteStream),
+                  pipeline(Readable.from(html), brotli, brotliWriteStream),
+                  writeFile(filename, html, "utf8"),
+                ]);
+              } else {
+                await writeFile(filename, html, "utf8");
+              }
+
               const [htmlStat, gzipStat, brotliStat] = await Promise.all([
                 stat(filename),
-                stat(`${filename}.gz`),
-                stat(`${filename}.br`),
+                compression
+                  ? stat(`${filename}.gz`)
+                  : Promise.resolve({ size: 0 }),
+                compression
+                  ? stat(`${filename}.br`)
+                  : Promise.resolve({ size: 0 }),
               ]);
 
               log(

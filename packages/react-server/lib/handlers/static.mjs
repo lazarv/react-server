@@ -1,5 +1,5 @@
 import { statSync } from "node:fs";
-import { open, readFile } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -21,14 +21,15 @@ export default async function staticHandler(dir, options = {}) {
     try {
       const file = statSync(join(cwd, options.cwd ?? ".", path));
       if (file.isFile()) {
+        const uncompressedPath = path.replace(/\.(br|gz)$/, "");
         files.set(path, {
           ...file,
           stats: file,
           path: join(options.cwd ?? cwd, path),
           etag: `W/"${file.size}-${file.mtime.getTime()}"`,
-          mime:
-            mime.getType(path.replace(/\.(br|gz)$/, "")) ||
-            "application/octet-stream",
+          mime: /(@[^.]+\.)?(rsc|remote)\.x-component$/.test(uncompressedPath)
+            ? "text/x-component"
+            : mime.getType(uncompressedPath) || "application/octet-stream",
         });
         return true;
       }
@@ -46,93 +47,40 @@ export default async function staticHandler(dir, options = {}) {
     }
 
     let { pathname } = context.url;
-
-    if (pathname.startsWith("/@source")) {
-      return new Response(await readFile(pathname.slice(8), "utf8"), {
-        headers: {
-          "content-type": "text/plain; charset=utf-8",
-        },
-      });
-    }
-
-    const accept = context.request.headers.get("accept");
-    const isRemote = accept?.includes("text/html;remote");
-    const isRSC = accept?.includes("text/x-component");
-    const isHTML =
-      (accept?.includes("text/html") && !isRemote) ||
-      accept?.includes("*/*") ||
-      (!isRSC && !accept);
     let contentEncoding = undefined;
 
     let prelude = null;
-    if (isHTML) {
-      const acceptEncoding = context.request.headers.get("accept-encoding");
-      const isBrotli = acceptEncoding?.includes("br");
-      const isGzip = acceptEncoding?.includes("gzip");
+    const acceptEncoding = context.request.headers.get("accept-encoding");
+    const isBrotli = acceptEncoding?.includes("br");
+    const isGzip = acceptEncoding?.includes("gzip");
 
-      const basename = `${pathname}/index.html`.replace(/^\/+/g, "/");
-      if (files.has(`${basename}.postponed.json`)) {
-        prelude = basename;
-        pathname = basename;
-        const { default: postponed } = await import(
-          pathToFileURL(join(dir, `${basename}.postponed.json`)),
-          {
-            with: { type: "json" },
-          }
-        );
-        prerender$(POSTPONE_STATE, postponed);
-      } else if (isBrotli && exists(`${basename}.br`)) {
-        pathname = `${basename}.br`;
-        contentEncoding = "br";
-      } else if (isGzip && exists(`${basename}.gz`)) {
-        pathname = `${basename}.gz`;
-        contentEncoding = "gzip";
-      } else if (exists(basename)) {
-        pathname = basename;
-      }
-    }
-
-    if (isRSC) {
-      const acceptEncoding = context.request.headers.get("accept-encoding");
-      const isBrotli = acceptEncoding?.includes("br");
-      const isGzip = acceptEncoding?.includes("gzip");
-
-      const basename = `${pathname}/x-component.rsc`.replace(/^\/+/g, "");
-      if (isBrotli && exists(`${basename}.br`)) {
-        pathname = `${basename}.br`;
-        contentEncoding = "br";
-      } else if (isGzip && exists(`${basename}.gz`)) {
-        pathname = `${basename}.gz`;
-        contentEncoding = "gzip";
-      } else if (exists(basename)) {
-        pathname = basename;
-      }
-    }
-
-    if (isRemote) {
-      const acceptEncoding = context.request.headers.get("accept-encoding");
-      const isBrotli = acceptEncoding?.includes("br");
-      const isGzip = acceptEncoding?.includes("gzip");
-
-      const basename = `${pathname}/remote.rsc`.replace(/^\/+/g, "");
-      if (isBrotli && exists(`${basename}.br`)) {
-        pathname = `${basename}.br`;
-        contentEncoding = "br";
-      } else if (isGzip && exists(`${basename}.gz`)) {
-        pathname = `${basename}.gz`;
-        contentEncoding = "gzip";
-      } else if (exists(basename)) {
-        pathname = basename;
-      }
+    const basename = (
+      exists(pathname) ? pathname : `${pathname}/index.html`
+    ).replace(/^\/+/g, "/");
+    if (exists(`${basename}.postponed.json`)) {
+      prelude = basename;
+      pathname = basename;
+      const { default: postponed } = await import(
+        pathToFileURL(join(dir, `${basename}.postponed.json`)),
+        {
+          with: { type: "json" },
+        }
+      );
+      prerender$(POSTPONE_STATE, postponed);
+    } else if (isBrotli && exists(`${basename}.br`)) {
+      pathname = `${basename}.br`;
+      contentEncoding = "br";
+    } else if (isGzip && exists(`${basename}.gz`)) {
+      pathname = `${basename}.gz`;
+      contentEncoding = "gzip";
+    } else if (exists(basename)) {
+      pathname = basename;
     }
 
     if (pathname !== "/" && exists(pathname)) {
       try {
         const file = files.get(pathname);
-        if (
-          context.request.headers.get("if-none-match") === file.etag &&
-          !isRSC
-        ) {
+        if (context.request.headers.get("if-none-match") === file.etag) {
           return new Response(null, {
             status: 304,
           });
@@ -187,7 +135,8 @@ export default async function staticHandler(dir, options = {}) {
               "cache-control":
                 context.request.headers.get("cache-control") === "no-cache"
                   ? "no-cache"
-                  : isHTML
+                  : file.mime === "text/x-component" ||
+                      file.mime === "text/html"
                     ? "must-revalidate"
                     : "public,max-age=600",
               "last-modified": file.stats.mtime.toUTCString(),

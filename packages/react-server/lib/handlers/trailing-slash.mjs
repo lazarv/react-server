@@ -1,6 +1,10 @@
 export default async function trailingSlash() {
-  return async ({ url: { pathname } }) => {
-    if (pathname !== "/" && pathname.endsWith("/")) {
+  return async ({ url: { pathname }, request: { method } }) => {
+    if (
+      pathname !== "/" &&
+      pathname.endsWith("/") &&
+      (method === "GET" || method === "HEAD")
+    ) {
       return new Response(null, {
         status: 301,
         headers: {

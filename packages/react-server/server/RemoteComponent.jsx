@@ -11,14 +11,19 @@ async function RemoteComponentLoader({ url, ttl, request = {}, onError }) {
   const Component = await useCache(
     [url],
     async () => {
+      const src = new URL(url);
+      src.pathname =
+        `${src.pathname}/@${url.toString().replace(/[^a-zA-Z0-9_]/g, "_")}.remote.x-component`.replace(
+          /\/+/g,
+          "/"
+        );
       return createFromFetch(
-        fetch(url, {
+        fetch(src.toString(), {
           ...request,
           headers: {
             Origin: url.origin,
             ...request.headers,
-            Accept: "text/html;remote",
-            "React-Server-Outlet": url.toString(),
+            Accept: "text/html",
           },
         }).catch((e) => {
           (onError ?? getContext(LOGGER_CONTEXT)?.error)?.(e);

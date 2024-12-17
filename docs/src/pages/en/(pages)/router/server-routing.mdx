@@ -178,34 +178,6 @@ export default function App() {
 }
 ```
 
-<Link name="route-rendering-in-standalone-mode">
-## Route rendering in standalone-mode
-</Link>
-
-If you want a route to render only it's children when using client-side navigation, you can set the value of the `standalone` prop on the `Route` component to be `false`. This will prevent the route from using it's `render` function when the path matches the route. Upon client-side navigation or refreshing, the route will only render it's children.
-
-```tsx
-import { Route } from '@lazarv/react-server/router';
-
-function Layout({ children }) {
-  return (
-    <div>
-      <h1>Layout</h1>
-      {children}
-    </div>
-  );
-}
-
-export default function App() {
-  return (
-    <Route path="/" render={Layout} standalone={false}>
-      <Route path="/" exact element={<Home />} />
-      <Route path="/about" element={<About />} />
-    </Route>
-  );
-}
-```
-
 <Link name="redirects">
 ## Redirects
 </Link>

@@ -21,6 +21,7 @@ export default {
     return [
       ...paths.map(({ path }) => ({
         path: path.replace(/^\/en/, ""),
+        rsc: false,
       })),
       {
         path: "/sitemap.xml",

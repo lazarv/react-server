@@ -4,11 +4,12 @@ import { pathToFileURL } from "node:url";
 
 import { forChild } from "../../config/context.mjs";
 import { init$ as memory_cache_init$ } from "../../memory-cache/index.mjs";
-import { ContextStorage, getContext } from "../../server/context.mjs";
+import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { logger } from "../../server/logger.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getPrerender } from "../../server/prerender-storage.mjs";
+import { createRenderContext } from "../../server/render-context.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   COLLECT_STYLESHEETS,
@@ -28,6 +29,7 @@ import {
   POSTPONE_STATE,
   PRELUDE_HTML,
   REDIRECT_CONTEXT,
+  RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
   STYLES_CONTEXT,
@@ -172,6 +174,9 @@ export default async function ssrHandler(root, options = {}) {
               await memory_cache_init$?.();
             }
 
+            const renderContext = createRenderContext(httpContext);
+            context$(RENDER_CONTEXT, renderContext);
+
             try {
               const middlewares = await root_init$?.();
               if (middlewares) {
@@ -187,15 +192,7 @@ export default async function ssrHandler(root, options = {}) {
               }
             }
 
-            const accept = httpContext.request.headers.get("accept");
-            if (
-              !accept ||
-              !(
-                accept.includes("text/html") ||
-                accept.includes("text/x-component") ||
-                accept.includes("application/json")
-              )
-            ) {
+            if (renderContext.flags.isUnknown) {
               return resolve();
             }
 

@@ -344,11 +344,8 @@ export function createAdapter({
     success(`${name} output successfully prepared.`);
 
     const files = {
-      static: () =>
-        getFiles(
-          ["**/*", "!**/*.html.gz", "!**/*.html.br", "!**/x-component.*"],
-          distDir
-        ),
+      static: () => getFiles(["**/*", "!**/*.gz", "!**/*.br"], distDir),
+      compressed: () => getFiles(["**/*.gz", "**/*.br"], distDir),
       assets: () => getFiles(["assets/**/*"], reactServerDir),
       client: () =>
         getFiles(["client/**/*", "!**/*-manifest.json"], reactServerDir),
@@ -374,6 +371,14 @@ export function createAdapter({
         copyFiles(
           "copying static files",
           await files.static(),
+          distDir,
+          out ?? outStaticDir,
+          reactServerDir
+        ),
+      compressed: async (out) =>
+        copyFiles(
+          "copying compressed files",
+          await files.compressed(),
           distDir,
           out ?? outStaticDir,
           reactServerDir

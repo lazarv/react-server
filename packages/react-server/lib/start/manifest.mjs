@@ -107,7 +107,7 @@ export async function init$(type = "server", options = {}) {
         : (entry) => entry.src && id.endsWith(entry.src)
     );
     if (!clientEntry && !serverEntry) {
-      throw new Error(`Module not found: ${id}`);
+      throw new Error(`Module not found: ${$$id}`);
     }
     const specifier = __require.resolve(
       `./${outDir}/${(type === "client" ? clientEntry : serverEntry)?.file}`,

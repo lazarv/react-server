@@ -1,5 +1,6 @@
 {
   "root": "src",
+  "public": "src/public",
   "vite": {
     "build": {
       "sourcemap": true

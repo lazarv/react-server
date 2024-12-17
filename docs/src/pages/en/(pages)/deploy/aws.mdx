@@ -48,10 +48,15 @@ AWS deployment frameworks/tools:
 
 **Architecture:**
 * AWS Cloudfront - globals CDN and reverse proxy for the framework and the static assets
+  + path `_server/` origin Lambda - no caching
+  + path `assets/` and `client/` are created by the framework, contain your assets and client code with a cache breaker filename - origin S3
+  + path any other root directory copied from `public` folder or created as a result of static pages - origin S3 (__CloudFront defaults to max. 10 behaviors which allow 8 additional root directories!__)
+  + any url not catched above - origin Lambda - no caching
 * AWS Lambda URL Function - provides the react-server framework
 * AWS S3 - static assets
+* Resources from S3 have a `cache-control: public,max-age=0,s-maxage=86400,stale-while-revalidate=86400` header
 
-> **Note:** Currently only deployment is supported, dev mode is not implemented and boken.
+> **Note:** Currently only deployment is supported, dev mode is not implemented.
 
 <Link name="installation-sst">
 ## Installation

@@ -115,6 +115,7 @@ async function setupFramework() {
       message("found sst framework:", "sst-react-server.ts stack exists.");
     }
     await modifySstConfig(cwd);
+    await sstFixExtentionsContentTypesMap(cwd);
   } else if (framework === "cdk") {
     if (await fileIsEmpty(join(cwd, "cdk.json"))) {
       await cp(join(adapterDir, "setup", "cdk"), cwd, {
@@ -197,6 +198,7 @@ async function modifySstConfig(cwd) {
     new ReactServer("${appName}", {
       server: {
         architecture: "arm64",
+        runtime: "nodejs22.x",
       },
     });
   }`
@@ -211,6 +213,36 @@ async function modifySstConfig(cwd) {
       "found sst framework:",
       "fix missing 'new ReactServer()' in './sst.config.ts'."
     );
+  }
+}
+// fix missing extention '.rsc' in '.sst/platform/src/components/base/base-site.ts'.
+async function sstFixExtentionsContentTypesMap(cwd) {
+  const sstBaseSiteFilePath = join(
+    cwd,
+    ".sst",
+    "platform",
+    "src",
+    "components",
+    "base",
+    "base-site.ts"
+  );
+
+  if (existsSync(sstBaseSiteFilePath)) {
+    const content = await readFile(sstBaseSiteFilePath, { encoding: "utf-8" });
+    if (!content.includes(`[".x-component"]:`)) {
+      await writeFile(
+        sstBaseSiteFilePath,
+        content.replace(
+          `const extensions = {`,
+          'const extensions = {\n  [".x-component"]: { mime: "text/x-component", isText: true },'
+        ),
+        "utf-8"
+      );
+      message(
+        "sst framework:",
+        "fix missing extention '.x-component' in '.sst/platform/src/components/base/base-site.ts'."
+      );
+    }
   }
 }
 

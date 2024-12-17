@@ -140,8 +140,6 @@ export interface ReactServerArgs extends SsrSiteArgs {
   /**
    * Set in your ReactServer app. These are made available:
    *
-   * 1. In `vinxi build`, they are loaded into `process.env`.
-   * 2. Locally while running `sst dev vinxi dev`.
    *
    * :::tip
    * You can also `link` resources to your ReactServer app and access them in a type-safe way with the [SDK](/docs/reference/sdk/). We recommend linking since it's more secure.
@@ -475,6 +473,20 @@ export class ReactServer extends Component implements Link.Linkable {
       });
     }
 
+    function useCloudFrontRoutingDirectoryIndex() {
+      return `
+if (event.request.headers['accept']) { 
+  if (event.request.headers['accept']['value'].includes('text/html')) {
+    // Check if the URI ends with a slash
+    if (!event.request.uri.endsWith('.html')) {
+        // Replace the trailing slash with /index.html
+        event.request.uri = event.request.uri + (event.request.uri.endsWith('/')?'':'/') + 'index.html';
+    }
+  }
+}
+`;
+    }
+
     function buildPlan() {
       return all([outputPath, buildMeta, preset]).apply(
         ([outputPath, buildMeta, preset]) => {
@@ -505,6 +517,9 @@ export class ReactServer extends Component implements Link.Linkable {
             cloudFrontFunctions: {
               serverCfFunction: {
                 injections: [useCloudFrontFunctionHostHeaderInjection()],
+              },
+              serverCfFunctionStatic: {
+                injections: [useCloudFrontRoutingDirectoryIndex()],
               },
             },
             origins: {
@@ -540,6 +555,7 @@ export class ReactServer extends Component implements Link.Linkable {
               ...buildMeta.staticRoutes.map(
                 (route) =>
                   ({
+                    cfFunction: "serverCfFunctionStatic",
                     cacheType: "static",
                     pattern: route,
                     origin: "s3",

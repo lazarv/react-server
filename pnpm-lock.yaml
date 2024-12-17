@@ -227,6 +227,12 @@ importers:
       '@types/aws-lambda':
         specifier: 8.10.146
         version: 8.10.146
+      '@types/react':
+        specifier: ^18.3.2
+        version: 18.3.5
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.0
       aws-cdk:
         specifier: ^2.173.1
         version: 2.173.1
@@ -15101,7 +15107,7 @@ snapshots:
 
   '@types/react-dom@18.3.0':
     dependencies:
-      '@types/react': 18.3.3
+      '@types/react': 18.3.5
 
   '@types/react-transition-group@4.4.11':
     dependencies:

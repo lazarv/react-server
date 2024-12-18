@@ -39,10 +39,26 @@ adapter: [ '@lazarv/react-server-adapter-aws', {streaming: true} ]
 ```
 > **Note:** check if your deployment framework supports streaming!
 
-AWS deployment frameworks/tools:
+AWS deployment toolkits:
 * [AWS CDK](#aws-cdk)
 * [Serverless Framework V3](#serverless-framework-v3)
 * [SST V3 (ion)](#sst-v3-ion)
+
+Each toolkit can have a configuration:
+```mjs
+export default {
+  adapter: [ '@lazarv/react-server-adapter-aws', {streaming: true,
+    "toolkitDefault":"cdk",
+    "toolkit":{
+      "cdk": {
+        "stackName":"myStack"
+      },
+      "sst": {}
+    }
+  }]
+};
+```
+When multiple configuration exist the property `"toolkitDefault" : "cdk",` is required!
 
 ## SST V3 (ion)
 
@@ -135,7 +151,8 @@ pnpm sst remove
 * AWS Cloudfront - globals CDN and reverse proxy for the framework and the static assets
 * AWS API Gateway - used by AWS Lambda function
 * AWS Lambda Function - provides the react-server framework
-* AWS S3 - static assets
+* AWS S3 Bucket - browser client code and static assets with cache breakers
+* AWS S3 Bucket - static assets from public folder and static pages
 
 <Link name="installation-cdk">
 ## Installation
@@ -162,9 +179,31 @@ pnpm build
 ```
 > **Note:** will only add a sample configuration when `cdk.json` is empty.
 
-Configuration of the stack is possible in `cdk/bin/infrastructure.ts`:
-* custome domain
-* ssl certificate
+Optional properties of the stack `react-server.config`:
+```json
+{
+"adapter": [
+    "@lazarv/react-server-adapter-aws",
+    {
+      "streaming": false,
+      "toolkit": {"cdk":{
+        "stackName": "ReactStackStack-001", 
+        "stackProps": {
+          "description": "Hello World Stack"
+          "domainName": "example.com",
+          "subDomain": "www",
+          "certificate": "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012" //or a certificatemanager.ICertificate
+          "hostedZone": route53.HostedZone.fromLookup(stack, "MyHostedZone", { domainName: "example.com" })
+          env: {
+            account: '123456789012',
+            region: 'us-east-1'
+          },
+        }
+      }}
+    }
+  ]
+}
+```
 
 <Link name="deploy-cdk">
 ## Deploy

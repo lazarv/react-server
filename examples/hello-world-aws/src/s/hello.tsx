@@ -1,21 +1,18 @@
 import { Link } from "@lazarv/react-server/navigation";
 
-export default async function AboutPage() {
+export default async function HelloPage() {
   return (
     <div>
-      <title>About 01</title>
-      <h1 className="text-4xl font-bold tracking-tight">About (static)</h1>
+      <title>Hello 01</title>
+      <h1 className="text-4xl font-bold tracking-tight">Hello</h1>
       <img
         src="/static/images/image-placeholder.svg"
         alt="placeholder"
         className="w-24 h-24"
       />
-      <p>This is placeholder for a Textblock.</p>
+      <p>A This is placeholder for a Textblock. {new Date().toISOString()}</p>
       <Link to="/" className="mt-4 inline-block underline">
         Return home
-      </Link>
-      <Link to="/s/page" className="mt-4 inline-block underline">
-        Page (static/no preload)
       </Link>
       <Link to="/s/hello" className="mt-4 inline-block underline">
         Hello (static)

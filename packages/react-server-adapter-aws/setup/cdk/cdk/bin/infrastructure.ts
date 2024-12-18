@@ -6,6 +6,7 @@ import * as certificatemanager from "aws-cdk-lib/aws-certificatemanager";
 import * as route53 from "aws-cdk-lib/aws-route53";
 
 import { ReactServerStack } from "../lib/react-server-stack";
+import { StackConfig } from "../stack.config"; // load auto generated config from react-server.config
 
 const env: cdk.Environment = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -13,23 +14,23 @@ const env: cdk.Environment = {
 };
 
 export type CustomStackProps = cdk.StackProps & {
+  frameworkOutDir?: string;
   domainName?: string;
   subDomain?: string;
   certificate?: string | certificatemanager.ICertificate;
   hostedZone?: route53.IHostedZone;
-  maxBehaviors?: number;
 };
 
-// Here you can configure the stack:
 const customStackProps: CustomStackProps = {
   domainName: undefined, // e.g. "example.com"
   subDomain: undefined, // e.g. "www"
   certificate: undefined, // e.g. "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012" or a certificatemanager.ICertificate
   hostedZone: undefined, // e.g. route53.HostedZone.fromLookup(stack, "MyHostedZone", { domainName: "example.com" })
+  ...StackConfig?.stackProps,
+  frameworkOutDir: StackConfig?.frameworkOutDir ?? ".aws-react-server",
 };
 
-// change this to give your stack a unique name in your account
-const stackName = "ReactStackStack-001";
+const stackName = StackConfig?.stackName ?? "ReactServerStack-001";
 
 const app = new cdk.App();
 
@@ -60,7 +61,7 @@ customStackProps.certificate = usEast1Stack
 const mainStack = new ReactServerStack(app, stackName, {
   env,
   crossRegionReferences: true,
-  customStackProps,
+  ...customStackProps,
 });
 
 if (usEast1Stack) {
@@ -86,7 +87,7 @@ function loadCertificate(
     return undefined;
   }
 
-  const siteDomainName = `${subDomain?.length ?? 0 > 0 ? `${subDomain}.` : ""}${domainName}`;
+  const siteDomainName = `${(subDomain?.length ?? 0 > 0) ? `${subDomain}.` : ""}${domainName}`;
   return new certificatemanager.Certificate(stack, "Certificate", {
     domainName: siteDomainName,
     //subjectAlternativeNames: props.domainAliases,

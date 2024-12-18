@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +14,8 @@ import {
 } from "@lazarv/react-server-adapter-core";
 
 const cwd = sys.cwd();
-const awsDir = join(cwd, ".aws-react-server");
+const awsDirPath = ".aws-react-server";
+const awsDir = join(cwd, awsDirPath);
 const outDir = join(awsDir, "output");
 const outStaticDir = join(outDir, "static");
 const adapterDir = dirname(fileURLToPath(import.meta.url));
@@ -22,10 +23,10 @@ const adapterDir = dirname(fileURLToPath(import.meta.url));
 export const adapter = createAdapter({
   name: "AWS",
   outDir,
-  outStaticDir,
+  outStaticDir: undefined,
   handler: async ({
     adapterOptions,
-    // files,
+    files,
     copy,
     // config,
     // reactServerDir,
@@ -61,16 +62,43 @@ export const adapter = createAdapter({
     });
     success("index.func serverless function initialized.");
 
+    banner("detect aws deploy toolkit...");
+    const framework = detectFramework(adapterOptions);
+    await writeFrameworkType(framework);
+
+    if (framework === "cdk") {
+      await copy.static(join(outStaticDir, "public"));
+      await copy.assets(join(outStaticDir, "client_assets"));
+      await copy.client(join(outStaticDir, "client_assets"));
+      await copy.public(join(outStaticDir, "public"));
+
+      const cdkConfig = getFrameworkConfig(framework, adapterOptions) ?? {};
+      await writeFrameworkConfig(framework, cdkConfig);
+    } else {
+      await copy.static(outStaticDir);
+      await copy.assets(outStaticDir);
+      await copy.client(outStaticDir);
+      await copy.public(outStaticDir);
+    }
     await copy.server(outServerDir);
     await copy.dependencies(outServerDir, [entryFile]);
 
-    banner("detect aws build tool");
-    await setupFramework();
+    await setupFramework(framework, { files });
   },
   deploy: deployFramework(),
 });
 
-function detectFramework() {
+function detectFramework(adapterOptions) {
+  if (adapterOptions?.toolkitDefault) return adapterOptions.toolkitDefault;
+  const frameworkConfigs = Object.keys(adapterOptions?.toolkit ?? {});
+  if (frameworkConfigs.length === 1) return frameworkConfigs[0];
+  if (frameworkConfigs.length > 1) {
+    message(
+      "Found multiple frameworks!",
+      `Add '"toolkitDefault":"cdk"' to adapter options.`
+    );
+    return null;
+  }
   if (existsSync(join(cwd, ".sst"))) {
     return "sst";
   } else if (existsSync(join(cwd, "cdk.json"))) {
@@ -81,68 +109,140 @@ function detectFramework() {
   return null;
 }
 
-async function setupFramework() {
-  const framework = detectFramework();
+function getFrameworkConfig(framework, adapterOptions) {
   if (framework === "sst") {
-    const reactStackTemplatePath = join(
-      adapterDir,
-      "setup",
-      "sst/sst-react-server.ts.template"
-    );
-    const reactStackTargetPath = join(cwd, "sst-react-server.ts");
-    const reactStackTemplateContent = await readFile(reactStackTemplatePath, {
-      encoding: "utf-8",
-    });
-    const existsReactServerStack = existsSync(join(cwd, "sst-react-server.ts"));
-    const reactStackTemplateVersion = reactStackTemplateContent.match(
-      /\/\/ Version: (\d+\.\d+\.\d+)/
-    )[1];
-    const reactStackTargetVersion = existsReactServerStack
-      ? (await readFile(reactStackTargetPath, { encoding: "utf-8" })).match(
-          /\/\/ Version: (\d+\.\d+\.\d+)/
-        )?.[1] ?? ""
-      : "";
-    if (reactStackTemplateVersion !== reactStackTargetVersion) {
-      await cp(
-        join(adapterDir, "setup", "sst/sst-react-server.ts.template"),
-        join(cwd, "sst-react-server.ts")
-      );
-      message(
-        "found sst framework:",
-        "'./sst-react-server.ts' stack added or replaced."
-      );
-    } else {
-      message("found sst framework:", "sst-react-server.ts stack exists.");
-    }
-    await modifySstConfig(cwd);
-    await sstFixExtentionsContentTypesMap(cwd);
+    return adapterOptions?.toolkit?.sst;
   } else if (framework === "cdk") {
-    if (await fileIsEmpty(join(cwd, "cdk.json"))) {
-      await cp(join(adapterDir, "setup", "cdk"), cwd, {
-        overwrite: true,
-        recursive: true,
-      });
-      message("found cdk framework:", "cdk setup initialized.");
-    } else {
-      message("found cdk framework:", "cdk setup exists.");
-    }
+    return {
+      frameworkOutDir: awsDirPath,
+      ...adapterOptions?.toolkit?.cdk,
+    };
   } else if (framework === "sls") {
-    if (await fileIsEmpty(join(cwd, "serverless.yml"))) {
-      await cp(join(adapterDir, "setup", "sls"), join(cwd), {
-        overwrite: true,
-        recursive: true,
-      });
-      message("found sls framework:", "serverless.yml initialized.");
-    } else {
-      message("found sls framework:", "serverless.yml exists.");
-    }
-  } else {
-    message("no framework detected.");
+    return adapterOptions?.toolkit?.sls;
+  }
+  return null;
+}
+
+async function writeFrameworkConfig(framework, config) {
+  let configPath;
+  if (framework === "sst") {
+    return;
+  } else if (framework === "cdk") {
+    configPath = ["cdk", "stack.config.ts"];
+  } else if (framework === "sls") {
+    return;
+  }
+  if (config) {
+    await writeFile(
+      join(cwd, ...configPath),
+      `// this file is auto generated\nexport const StackConfig = ${JSON.stringify(config)};`,
+      "utf-8"
+    );
   }
 }
 
+async function writeFrameworkType(framework) {
+  return writeFile(
+    join(awsDir, ".toolkit"),
+    JSON.stringify(framework, null, 0),
+    { encoding: "utf-8", flush: true }
+  );
+}
+async function setupFramework(framework, adapter) {
+  if (framework === null) {
+    message("no framework detected.");
+  } else {
+    if (framework === "sst") {
+      const reactStackTemplatePath = join(
+        adapterDir,
+        "setup",
+        "sst/sst-react-server.ts.template"
+      );
+      const reactStackTargetPath = join(cwd, "sst-react-server.ts");
+      const reactStackTemplateContent = await readFile(reactStackTemplatePath, {
+        encoding: "utf-8",
+      });
+      const existsReactServerStack = existsSync(
+        join(cwd, "sst-react-server.ts")
+      );
+      const reactStackTemplateVersion = reactStackTemplateContent.match(
+        /\/\/ Version: (\d+\.\d+\.\d+)/
+      )[1];
+      const reactStackTargetVersion = existsReactServerStack
+        ? ((await readFile(reactStackTargetPath, { encoding: "utf-8" })).match(
+            /\/\/ Version: (\d+\.\d+\.\d+)/
+          )?.[1] ?? "")
+        : "";
+      if (reactStackTemplateVersion !== reactStackTargetVersion) {
+        await cp(
+          join(adapterDir, "setup", "sst/sst-react-server.ts.template"),
+          join(cwd, "sst-react-server.ts")
+        );
+        message(
+          "found sst framework:",
+          "'./sst-react-server.ts' stack added or replaced."
+        );
+      } else {
+        message("found sst framework:", "sst-react-server.ts stack exists.");
+      }
+      await modifySstConfig(cwd);
+      await sstFixExtentionsContentTypesMap(cwd);
+    } else if (framework === "cdk") {
+      if (await fileIsEmpty(join(cwd, "cdk.json"))) {
+        await cp(join(adapterDir, "setup", "cdk"), cwd, {
+          overwrite: true,
+          recursive: true,
+        });
+        message("found cdk framework:", "cdk setup initialized.");
+      } else {
+        message("found cdk framework:", "cdk setup exists.");
+      }
+      const rsFiles = {
+        static: await adapter.files.static(),
+        compressed: await adapter.files.compressed(),
+        assets: await adapter.files.assets(),
+        client: await adapter.files.client(),
+        public: await adapter.files.public(),
+        server: await adapter.files.server(),
+        //dependencies: await files.dependencies(),
+      };
+      await writeFile(
+        join(awsDir, "static_files.json"),
+        JSON.stringify(rsFiles, null, 0),
+        "utf-8"
+      );
+    } else if (framework === "sls") {
+      if (await fileIsEmpty(join(cwd, "serverless.yml"))) {
+        await cp(join(adapterDir, "setup", "sls"), join(cwd), {
+          overwrite: true,
+          recursive: true,
+        });
+        message("found sls framework:", "serverless.yml initialized.");
+      } else {
+        message("found sls framework:", "serverless.yml exists.");
+      }
+    }
+  }
+  return framework;
+}
+
 function deployFramework() {
-  const framework = detectFramework();
+  let framework = null;
+  try {
+    framework = JSON.parse(
+      readFileSync(join(awsDir, ".toolkit"), {
+        encoding: "utf-8",
+      })
+    );
+    // eslint-disable-next-line no-unused-vars
+  } catch (e) {
+    /* empty */
+  }
+  if (framework === null) {
+    return null;
+  }
+
+  console.log("deploying", framework);
   if (framework === "sst") {
     return {
       command: "pnpm",

@@ -8,10 +8,10 @@ import Link from "../../../../components/Link.jsx";
 
 # AWS
 
-To deploy to AWS, use the `@lazarv/react-server-adapter-aws` package. This adapter is specifically designed to work with AWS and it's configuration.
+To deploy to AWS, use the `@lazarv/react-server-adapter-aws` package. This adapter is specifically designed to support the AWS cloud infrastructure and different tookits (AWS CDK, sst, serverless framework).
 
 <Link name="installation">
-## Installation
+### Installation
 </Link>
 
 Add the `@lazarv/react-server-adapter-aws` package to your project:
@@ -37,14 +37,14 @@ export default {
 adapter: [ '@lazarv/react-server-adapter-aws', {streaming: true} ]
 };
 ```
-> **Note:** check if your deployment framework supports streaming!
+> **Note:** check if your deployment toolkit (e.g. AWS CDK) supports streaming!
 
 AWS deployment toolkits:
+* [SST V3 (ion)](#sst-v3-ion)
 * [AWS CDK](#aws-cdk)
 * [Serverless Framework V3](#serverless-framework-v3)
-* [SST V3 (ion)](#sst-v3-ion)
 
-Each toolkit can have a configuration:
+Each toolkit can optional support additional configuration properties:
 ```mjs
 export default {
   adapter: [ '@lazarv/react-server-adapter-aws', {streaming: true,
@@ -60,14 +60,17 @@ export default {
 ```
 When multiple configuration exist the property `"toolkitDefault" : "cdk",` is required!
 
-## SST V3 (ion)
+<Link name="sst-v3-ion">
+## [SST V3 (ion)](https://sst.dev)
+</Link>
 
-**Architecture:**
+### Architecture
+
 * AWS Cloudfront - globals CDN and reverse proxy for the framework and the static assets
-  + path `_server/` origin Lambda - no caching
-  + path `assets/` and `client/` are created by the framework, contain your assets and client code with a cache breaker filename - origin S3
-  + path any other root directory copied from `public` folder or created as a result of static pages - origin S3 (__CloudFront defaults to max. 10 behaviors which allow 8 additional root directories!__)
-  + any url not catched above - origin Lambda - no caching
+  - path `_server/` origin Lambda - no caching
+  - path `assets/` and `client/` are created by the framework, contain your assets and client code with a cache breaker filename - origin S3
+  - path any other root directory copied from `public` folder or created as a result of static pages - origin S3 (__CloudFront defaults to max. 10 behaviors which allow 8 additional root directories!__)
+  - any url not catched above - origin Lambda - no caching
 * AWS Lambda URL Function - provides the react-server framework
 * AWS S3 - static assets
 * Resources from S3 have a `cache-control: public,max-age=0,s-maxage=86400,stale-while-revalidate=86400` header
@@ -75,7 +78,7 @@ When multiple configuration exist the property `"toolkitDefault" : "cdk",` is re
 > **Note:** Currently only deployment is supported, dev mode is not implemented.
 
 <Link name="installation-sst">
-## Installation
+### Installation
 </Link>
 
 1. First you need to initialize your project with sst. You can do this by running the following command:
@@ -85,16 +88,17 @@ pnpm add sst
 pnpm sst init
 ```
 
-```
+```sh
 >  JS project detected. This will...
    - use the JS template
    - create an sst.config.ts
 
 ? Continue:
 ```
+
 **Answers:** Yes
 
-```
+```sh
 ? Where do you want to deploy your app? You can change this later: 
 ```
 
@@ -124,7 +128,7 @@ All possible configuration options are documented here:
 `./sst-react-server.ts`
 
 <Link name="deploy-sst">
-## Deploy
+### Deploy
 </Link>
 
 You can build and deploy your application to AWS using the following command:
@@ -143,11 +147,13 @@ pnpm sst deploy
 pnpm sst remove
 ```
 
-## AWS CDK
+<Link name="aws-cdk">
+## [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html)
+</Link>
 
 > **Note:** Streaming is not supported.
 
-**Architecture:**
+### Architecture
 * AWS Cloudfront - globals CDN and reverse proxy for the framework and the static assets
 * AWS API Gateway - used by AWS Lambda function
 * AWS Lambda Function - provides the react-server framework
@@ -155,7 +161,7 @@ pnpm sst remove
 * AWS S3 Bucket - static assets from public folder and static pages
 
 <Link name="installation-cdk">
-## Installation
+### Installation
 </Link>
 
 First you need to install this packages:
@@ -188,6 +194,7 @@ Optional properties of the stack `react-server.config`:
       "streaming": false,
       "toolkit": {"cdk":{
         "stackName": "ReactStackStack-001", 
+        "cdkFolderPath": "cdk", // default: './cdk'
         "stackProps": {
           "description": "Hello World Stack"
           "domainName": "example.com",
@@ -206,8 +213,10 @@ Optional properties of the stack `react-server.config`:
 ```
 
 <Link name="deploy-cdk">
-## Deploy
+### Deploy
 </Link>
+
+Build the project and deploy with the command from the cdk toolkit.
 
 ```sh
 pnpm build
@@ -215,15 +224,18 @@ pnpm cdk deploy --all
 ```
 
 **remove stack:**
+
 ```sh
 pnpm cdk destroy --all
 ```
 
+<Link name="serverless-framework-v3">
 ## Serverless Framework V3
+</Link>
 
-> **Note:** Streaming is not supported.
+> **Note:** Streaming is not supported and there are no plans to support Version 4.x.
 
-**Architecture:**
+### Architecture
 * AWS Cloudfront - globals CDN and reverse proxy for the framework and the static assets
 * AWS API Gateway - used by AWS Lambda function
 * AWS Lambda Function - provides the react-server framework
@@ -250,8 +262,10 @@ pnpm build
 > **Note:** will only add a sample configuration when `serverless.yml` is empty.
 
 <Link name="deploy-sls">
-## Deploy
+### Deploy
 </Link>
+
+Build the project and deploy with the command from the sls toolkit.
 
 ```sh
 pnpm build

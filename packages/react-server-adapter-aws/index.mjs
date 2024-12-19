@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,8 @@ import {
   success,
   writeJSON,
 } from "@lazarv/react-server-adapter-core";
+
+import mergeDeep from "./utilities/merge.mjs";
 
 const cwd = sys.cwd();
 const awsDirPath = ".aws-react-server";
@@ -63,17 +65,16 @@ export const adapter = createAdapter({
     success("index.func serverless function initialized.");
 
     banner("detect aws deploy toolkit...");
-    const framework = detectFramework(adapterOptions);
-    await writeFrameworkType(framework);
+    const toolkit = detectToolkit(adapterOptions);
+    const toolkitConfig = getToolkitConfig(toolkit, adapterOptions);
 
-    if (framework === "cdk") {
+    if (toolkit === "cdk") {
       await copy.static(join(outStaticDir, "public"));
       await copy.assets(join(outStaticDir, "client_assets"));
       await copy.client(join(outStaticDir, "client_assets"));
       await copy.public(join(outStaticDir, "public"));
 
-      const cdkConfig = getFrameworkConfig(framework, adapterOptions) ?? {};
-      await writeFrameworkConfig(framework, cdkConfig);
+      await writeToolkitConfig(toolkit, toolkitConfig);
     } else {
       await copy.static(outStaticDir);
       await copy.assets(outStaticDir);
@@ -83,19 +84,47 @@ export const adapter = createAdapter({
     await copy.server(outServerDir);
     await copy.dependencies(outServerDir, [entryFile]);
 
-    await setupFramework(framework, { files });
+    await setupToolkit(toolkit, { files }, toolkitConfig);
+
+    return {
+      toolkit,
+    };
   },
-  deploy: deployFramework(),
+  deploy: deployToolkit,
 });
 
-function detectFramework(adapterOptions) {
+async function deployToolkit({ /* adapterOptions , options,*/ handlerResult }) {
+  const { toolkit } = handlerResult;
+
+  switch (toolkit) {
+    case "sst":
+      return {
+        command: "pnpm",
+        args: ["sst", "deploy"],
+      };
+    case "cdk":
+      return {
+        command: "pnpm",
+        args: ["cdk", "deploy", "--all"],
+      };
+    case "sls":
+      return {
+        command: "pnpm",
+        args: ["sls", "deploy"],
+      };
+    default:
+      return null;
+  }
+}
+
+function detectToolkit(adapterOptions) {
   if (adapterOptions?.toolkitDefault) return adapterOptions.toolkitDefault;
-  const frameworkConfigs = Object.keys(adapterOptions?.toolkit ?? {});
-  if (frameworkConfigs.length === 1) return frameworkConfigs[0];
-  if (frameworkConfigs.length > 1) {
+  const toolkitConfigs = Object.keys(adapterOptions?.toolkit ?? {});
+  if (toolkitConfigs.length === 1) return toolkitConfigs[0];
+  if (toolkitConfigs.length > 1) {
     message(
-      "Found multiple frameworks!",
-      `Add '"toolkitDefault":"cdk"' to adapter options.`
+      "Found multiple toolkits!",
+      `Add e.g. '"toolkitDefault":"cdk"' to adapter options.`
     );
     return null;
   }
@@ -109,27 +138,30 @@ function detectFramework(adapterOptions) {
   return null;
 }
 
-function getFrameworkConfig(framework, adapterOptions) {
-  if (framework === "sst") {
-    return adapterOptions?.toolkit?.sst;
-  } else if (framework === "cdk") {
-    return {
-      frameworkOutDir: awsDirPath,
-      ...adapterOptions?.toolkit?.cdk,
-    };
-  } else if (framework === "sls") {
-    return adapterOptions?.toolkit?.sls;
+function getToolkitConfig(toolkit, adapterOptions) {
+  if (toolkit === "sst") {
+    return mergeDeep({}, adapterOptions?.toolkit?.sst);
+  } else if (toolkit === "cdk") {
+    return mergeDeep(
+      {
+        toolkitOutDir: awsDirPath,
+        cdkPath: "cdk",
+      },
+      adapterOptions?.toolkit?.cdk
+    );
+  } else if (toolkit === "sls") {
+    return mergeDeep({}, adapterOptions?.toolkit?.sls);
   }
   return null;
 }
 
-async function writeFrameworkConfig(framework, config) {
+async function writeToolkitConfig(toolkit, config) {
   let configPath;
-  if (framework === "sst") {
+  if (toolkit === "sst") {
     return;
-  } else if (framework === "cdk") {
-    configPath = ["cdk", "stack.config.ts"];
-  } else if (framework === "sls") {
+  } else if (toolkit === "cdk") {
+    configPath = [config.cdkPath, "stack.config.ts"];
+  } else if (toolkit === "sls") {
     return;
   }
   if (config) {
@@ -141,18 +173,11 @@ async function writeFrameworkConfig(framework, config) {
   }
 }
 
-async function writeFrameworkType(framework) {
-  return writeFile(
-    join(awsDir, ".toolkit"),
-    JSON.stringify(framework, null, 0),
-    { encoding: "utf-8", flush: true }
-  );
-}
-async function setupFramework(framework, adapter) {
-  if (framework === null) {
-    message("no framework detected.");
+async function setupToolkit(toolkit, adapter, toolkitConfig) {
+  if (toolkit === null) {
+    message("no toolkit detected.");
   } else {
-    if (framework === "sst") {
+    if (toolkit === "sst") {
       const reactStackTemplatePath = join(
         adapterDir,
         "setup",
@@ -179,23 +204,23 @@ async function setupFramework(framework, adapter) {
           join(cwd, "sst-react-server.ts")
         );
         message(
-          "found sst framework:",
+          "found sst toolkit:",
           "'./sst-react-server.ts' stack added or replaced."
         );
       } else {
-        message("found sst framework:", "sst-react-server.ts stack exists.");
+        message("found sst toolkit:", "sst-react-server.ts stack exists.");
       }
       await modifySstConfig(cwd);
       await sstFixExtentionsContentTypesMap(cwd);
-    } else if (framework === "cdk") {
+    } else if (toolkit === "cdk") {
       if (await fileIsEmpty(join(cwd, "cdk.json"))) {
-        await cp(join(adapterDir, "setup", "cdk"), cwd, {
+        await cp(join(adapterDir, "setup", toolkitConfig.cdkPath), cwd, {
           overwrite: true,
           recursive: true,
         });
-        message("found cdk framework:", "cdk setup initialized.");
+        message("found cdk toolkit:", "cdk setup initialized.");
       } else {
-        message("found cdk framework:", "cdk setup exists.");
+        message("found cdk toolkit:", "cdk setup exists.");
       }
       const rsFiles = {
         static: await adapter.files.static(),
@@ -211,55 +236,19 @@ async function setupFramework(framework, adapter) {
         JSON.stringify(rsFiles, null, 0),
         "utf-8"
       );
-    } else if (framework === "sls") {
+    } else if (toolkit === "sls") {
       if (await fileIsEmpty(join(cwd, "serverless.yml"))) {
         await cp(join(adapterDir, "setup", "sls"), join(cwd), {
           overwrite: true,
           recursive: true,
         });
-        message("found sls framework:", "serverless.yml initialized.");
+        message("found sls toolkit:", "serverless.yml initialized.");
       } else {
-        message("found sls framework:", "serverless.yml exists.");
+        message("found sls toolkit:", "serverless.yml exists.");
       }
     }
   }
-  return framework;
-}
-
-function deployFramework() {
-  let framework = null;
-  try {
-    framework = JSON.parse(
-      readFileSync(join(awsDir, ".toolkit"), {
-        encoding: "utf-8",
-      })
-    );
-    // eslint-disable-next-line no-unused-vars
-  } catch (e) {
-    /* empty */
-  }
-  if (framework === null) {
-    return null;
-  }
-
-  console.log("deploying", framework);
-  if (framework === "sst") {
-    return {
-      command: "pnpm",
-      args: ["sst", "deploy"],
-    };
-  } else if (framework === "cdk") {
-    return {
-      command: "pnpm",
-      args: ["cdk", "deploy", "--all"],
-    };
-  } else if (framework === "sls") {
-    return {
-      command: "pnpm",
-      args: ["sls", "deploy"],
-    };
-  }
-  return null;
+  return toolkit;
 }
 
 async function fileIsEmpty(path) {
@@ -310,7 +299,7 @@ async function modifySstConfig(cwd) {
   if (dirty) {
     await writeFile(path, lines.join("\n"), "utf-8");
     message(
-      "found sst framework:",
+      "found sst toolkit:",
       "fix missing 'new ReactServer()' in './sst.config.ts'."
     );
   }
@@ -339,7 +328,7 @@ async function sstFixExtentionsContentTypesMap(cwd) {
         "utf-8"
       );
       message(
-        "sst framework:",
+        "sst toolkit:",
         "fix missing extention '.x-component' in '.sst/platform/src/components/base/base-site.ts'."
       );
     }

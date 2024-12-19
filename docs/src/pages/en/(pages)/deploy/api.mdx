@@ -55,7 +55,26 @@ You need to pass adapter properties to the `createAdapter` function to configure
 
 `handler`: The adapter handler function.
 
-`deploy`: The deployment command and arguments. This is optional. When provided, the adapter will show what command the developer needs to run to deploy the application after it has been built. If the `--deploy` flag is provided during the build, the adapter will run this command.
+`deploy`: The deployment command and arguments. This is optional. When provided, the adapter will show what command the developer needs to run to deploy the application after it has been built. If the `--deploy` flag is provided during the build, the adapter will run this command. The `deploy` property can also be a function that will be called with the adapter options, CLI options and the handler result. This is useful if you need to customize the deployment command based on the adapter options or the handler result. If you don't provide a result with `command` and `args`, the default deployment handling spawning the command will be skipped. This is useful if you want to implement a custom deployment workflow in the adapter.
+
+```js
+export const adapter = createAdapter({
+  // ...
+  handler: async ({ adapterOptions, files, copy, config, reactServerDir, reactServerOutDir, root, options }) => {
+    // Your adapter handler implementation
+    return {
+      // Your handler result, this will be passed to the deploy function
+    };
+  },
+  async deploy({ adapterOptions, options, handlerResult }) {
+    // customize the deployment command based on the adapter options, CLI options or handler result
+    return {
+      command: "vercel",
+      args: ["deploy", "--prebuilt"],
+    };
+  },
+});
+```
 
 <Link name="adapter-handler">
 ## Adapter handler

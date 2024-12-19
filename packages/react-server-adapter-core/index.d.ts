@@ -3,7 +3,13 @@ declare module "@lazarv/react-server-adapter-core" {
     (adapterOptions: T, root: string, options: any): Promise<void>;
   }
 
-  export function createAdapter<T = any>(options: {
+  export type DeployCommandDescriptor = {
+    command: string;
+    args: string[];
+    message?: string;
+  };
+
+  export function createAdapter<T = any, R = void>(options: {
     name: string;
     outDir: string;
     outStaticDir?: string;
@@ -32,8 +38,19 @@ declare module "@lazarv/react-server-adapter-core" {
       reactServerDir: string;
       reactServerOutDir: string;
       root: string;
-      options: any;
-    }) => Promise<void>;
+      options: Record<string, any>;
+    }) => Promise<R>;
+    deploy:
+      | DeployCommandDescriptor
+      | ((context: {
+          adapterOptions: T;
+          options: Record<string, any>;
+          handlerResult: R;
+        }) =>
+          | DeployCommandDescriptor
+          | Promise<DeployCommandDescriptor>
+          | void
+          | Promise<void>);
   }): Adapter<T>;
 
   export function banner(message: string): void;

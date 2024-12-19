@@ -271,7 +271,6 @@ async function handler(event) {
         s3deploy.CacheControl.sMaxAge(cdk.Duration.days(1)),
         s3deploy.CacheControl.staleWhileRevalidate(cdk.Duration.days(1)),
       ],
-      include: ["*"],
       exclude: ["*.x-component"], // exclude RSC components as they need a different content type
     });
 

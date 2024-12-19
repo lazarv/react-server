@@ -236,7 +236,56 @@ article {
   }
 
   & ul {
-    @apply list-disc list-inside mb-4;
+    @apply list-none list-inside mb-4;
+
+    & li {
+      @apply pl-0 mb-2;
+
+      &:before {
+        content: "";
+        display: inline-block;
+        vertical-align: middle;
+        width: 0.25rem;
+        height: 2px;
+        margin-top: -1px;
+        margin-right: 0.5rem;
+        background-color: currentColor;
+      }
+
+      & ul {
+        @apply list-none pl-4 mb-0 mt-2;
+
+        & li {
+          @apply pl-0 mb-2;
+
+          &:before {
+            content: "";
+            display: inline-block;
+            vertical-align: middle;
+            width: 0.25rem;
+            height: 2px;
+            margin-top: -1px;
+            margin-right: 0.5rem;
+            background-color: currentColor;
+          }
+
+          & ul {
+            @apply list-none pl-4 mb-0 mt-2;
+
+            & li:before {
+              content: "";
+              display: inline-block;
+              vertical-align: middle;
+              width: 0.25rem;
+              height: 2px;
+              margin-top: -1px;
+              margin-right: 0.5rem;
+              background-color: currentColor;
+            }
+          }
+        }
+      }
+    }
   }
 
   & a {
@@ -245,14 +294,6 @@ article {
 
   .contains-task-list {
     @apply list-none;
-
-    & li {
-      @apply flex items-center mb-2;
-    }
-
-    & input {
-      @apply mr-2;
-    }
 
     & code {
       @apply bg-gray-100 dark:bg-gray-500 text-sm p-1 mx-1.5;
@@ -298,18 +339,7 @@ article {
 
   & input[type="checkbox"] {
     width: 0;
-    margin-right: 0.75rem;
-    position: relative;
-
-    &::after {
-      position: absolute;
-      top: 50%;
-      content: "";
-      display: inline-block;
-      width: 0.25rem;
-      height: 2px;
-      background-color: currentColor;
-    }
+    margin: 0;
   }
 }
 

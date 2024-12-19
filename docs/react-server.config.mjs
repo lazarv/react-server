@@ -13,7 +13,7 @@ export default {
   ],
   mdx: {
     remarkPlugins: [remarkGfm],
-    rehypePlugins: [rehypeHighlight, rehypeMdxCodeProps],
+    rehypePlugins: [[rehypeHighlight, { detect: true }], rehypeMdxCodeProps],
     components: "./src/mdx-components.jsx",
   },
   prerender: false,

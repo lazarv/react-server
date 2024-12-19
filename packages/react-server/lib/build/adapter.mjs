@@ -15,7 +15,9 @@ export default async function adapter(root, options) {
   const adapter =
     options?.adapter?.[0] === "false"
       ? null
-      : options.adapter || config.adapter;
+      : typeof options.adapter?.[0] === "string" && options.adapter?.[0]
+        ? options.adapter?.[0]
+        : config.adapter;
   if (adapter) {
     if (typeof adapter === "function") {
       return await adapter({}, root, options);

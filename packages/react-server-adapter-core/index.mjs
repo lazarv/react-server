@@ -446,7 +446,7 @@ export function createAdapter({
       await copy.server();
     }
 
-    await handler({
+    const handlerResult = await handler({
       files,
       copy,
       config,
@@ -458,17 +458,23 @@ export function createAdapter({
     });
 
     success(`${name} deployment successfully created.`);
-    if (deploy && deploy.command && deploy.args) {
-      if (options.deploy) {
-        banner(`deploying to ${name}`);
-        clearProgress();
-        await spawnCommand(deploy.command, deploy.args);
-      } else {
-        console.log(
-          `${colors.gray(`Deploy to ${name} using:`)} ${deploy.command} ${deploy.args.join(" ")}`
-        );
-        if (deploy.message) {
-          console.log(deploy.message);
+    if (deploy) {
+      const { command, args, message } =
+        typeof deploy === "function"
+          ? await deploy({ adapterOptions, options, handlerResult })
+          : deploy;
+      if (command && args) {
+        if (options.deploy) {
+          banner(`deploying to ${name}`);
+          clearProgress();
+          await spawnCommand(command, args);
+        } else {
+          console.log(
+            `${colors.gray(`Deploy to ${name} using:`)} ${command} ${args.join(" ")}`
+          );
+          if (message) {
+            console.log(message);
+          }
         }
       }
     }

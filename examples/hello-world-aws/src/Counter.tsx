@@ -5,7 +5,7 @@ export default function Counter() {
   const [count, setCount] = useState(0);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen">
+    <div className="flex flex-col items-center justify-center">
       <h1 className="text-4xl font-bold">Counter</h1>
       <p className="mt-4 text-center">
         The current count is <span className="font-bold">{count}</span>.

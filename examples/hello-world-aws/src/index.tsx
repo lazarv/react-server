@@ -1,5 +1,3 @@
-import "./index.css";
-
 import { Link } from "@lazarv/react-server/navigation";
 
 import Counter from "./Counter";
@@ -16,6 +14,10 @@ export default function App() {
       |{" "}
       <Link to="/s/page" prefetch>
         Second Page
+      </Link>{" "}
+      |{" "}
+      <Link to="/client/client" className="mt-4 inline-block underline">
+        /client/client (dynamic static overlap)
       </Link>
     </div>
   );

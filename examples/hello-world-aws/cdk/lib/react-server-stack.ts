@@ -46,6 +46,21 @@ export class ReactServerStack extends cdk.Stack {
     const siteDomainName = domainName
       ? `${(subDomain?.length ?? 0 > 0) ? `${subDomain}.` : ""}${domainName}`
       : undefined;
+    const staticRoutes = props?.staticRoutes ?? [];
+
+    if (
+      staticRoutes.filter(
+        (route) => route !== "/client/" && route !== "/assets/"
+      ).length < 1
+    ) {
+      // only used to set the permissions for the origins to be accessed by this CloudFront distribution
+      staticRoutes.push("/___only_for_permissions___/");
+    }
+    if (staticRoutes.length > (props?.maxBehaviors ?? 10))
+      // default max behaviors is 10
+      throw new Error(
+        `The number of static routes exceeds the maximum number of ${props?.maxBehaviors ?? 10} behaviors allowed by CloudFront. Request an increase by AWS.`
+      );
 
     const bucketClientAssets = new s3.Bucket(this, "StaticClientAssetsBucket", {
       /**
@@ -112,8 +127,10 @@ export class ReactServerStack extends cdk.Stack {
 
     const staticDirectory = join(awsOutputDirectory, "static");
 
-    const staticAssetsRoutingTabel =
-      this.loadStaticAssetsRoutingTable(awsDirectory);
+    const staticAssetsRoutingTabel = this.loadStaticAssetsRoutingTable(
+      awsDirectory,
+      staticRoutes
+    );
     const staticAssetsRoutingTabelData = JSON.stringify({
       data: staticAssetsRoutingTabel,
     });
@@ -140,15 +157,19 @@ export class ReactServerStack extends cdk.Stack {
         code: cloudfront.FunctionCode.fromInline(`
 import cf from "cloudfront";
 
-const domainNameOrginStaticAssets = "${bucket.bucketRegionalDomainName}";
+const STATIC_PUBLIC_S3 = "${bucket.bucketRegionalDomainName}";
+const ASSETS_CLIENT_S3 = "${bucketClientAssets.bucketRegionalDomainName}";
+const domainNameOrginStaticAssetsMap = {
+  s: STATIC_PUBLIC_S3,
+  a: ASSETS_CLIENT_S3,
+  c: ASSETS_CLIENT_S3,
+  p: STATIC_PUBLIC_S3,
+};
 const kvsHandle = cf.kvs();
 
 async function handler(event) {
   if (event.request.method === "GET") {
-    let key = event.request.uri
-      .substring(1)
-      .toLowerCase()
-      .replace(/\\/$/, ""); // Slash needs to be escaped in Cloud function creator
+    let key = event.request.uri.substring(1).toLowerCase().replace(/\\/$/, ""); // Slash needs to be escaped in Cloud function creator
     if (
       event.request.headers["accept"] &&
       event.request.headers["accept"]["value"] &&
@@ -158,7 +179,12 @@ async function handler(event) {
       key += (key !== "" ? "/" : "") + "index.html";
     }
     try {
-      await kvsHandle.get(key);
+      const uriType = await kvsHandle.get(key);
+      const domainNameOrginStaticAssets =
+        domainNameOrginStaticAssetsMap[uriType];
+      if (domainNameOrginStaticAssets === undefined) {
+        throw new Error("No origin found for the key");
+      }
       cf.updateRequestOrigin({
         domainName: domainNameOrginStaticAssets,
         originAccessControlConfig: {
@@ -178,7 +204,7 @@ async function handler(event) {
     }
   }
   return event.request;
-}
+};
   `),
         keyValueStore: staticAssetsRoutingTabelKVStore,
       }
@@ -227,24 +253,15 @@ async function handler(event) {
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
     });
 
-    distribution.addBehavior(
-      `/assets/*`,
-      assetClientOrigin,
-      assetBehaviorOptions
-    );
-
-    distribution.addBehavior(
-      `/client/*`,
-      assetClientOrigin,
-      assetBehaviorOptions
-    );
-
-    // only used to set the permissions for the origins to be accessed by this CloudFront distribution
-    distribution.addBehavior(
-      `/___only_for_permissions___/*`,
-      assetOrigin,
-      assetBehaviorOptions
-    );
+    for (const staticRoute of staticRoutes) {
+      distribution.addBehavior(
+        staticRoute + "*",
+        ["/assets/", "/client/"].includes(staticRoute)
+          ? assetClientOrigin
+          : assetOrigin,
+        assetBehaviorOptions
+      );
+    }
 
     // Deploy static client code and assets with cache breakers to the S3 bucket and invalidate the CloudFront cache
     new s3deploy.BucketDeployment(this, "DeployClientAssets", {
@@ -321,7 +338,10 @@ async function handler(event) {
     });
   }
 
-  private loadStaticAssetsRoutingTable(awsDirectory: string) {
+  private loadStaticAssetsRoutingTable(
+    awsDirectory: string,
+    staticRoutes?: string[]
+  ) {
     const staticFiles = JSON.parse(
       readFileSync(join(awsDirectory, "static_files.json"), {
         encoding: "utf8",
@@ -329,18 +349,25 @@ async function handler(event) {
     );
     const fileTypeMap: { [key: string]: string } = {
       static: "s",
-      // assets: "a",
-      // client: "c",
+      assets: "a",
+      client: "c",
       public: "p",
     }; // other types are ignored
+
+    const staticRoutesMatch = staticRoutes?.map((route) => route.substring(1));
 
     const staticAssetsRoutingTabel = Object.keys(staticFiles).flatMap(
       (filetyp: string) => {
         if (fileTypeMap?.[filetyp]) {
-          return staticFiles[filetyp].map((path: string) => ({
-            key: path,
-            value: fileTypeMap[filetyp],
-          }));
+          return staticFiles[filetyp].flatMap((path: string) => {
+            if (staticRoutesMatch?.some((route) => path.startsWith(route))) {
+              return [];
+            }
+            return {
+              key: path,
+              value: fileTypeMap[filetyp],
+            };
+          });
         }
         return [];
       }

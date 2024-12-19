@@ -8,18 +8,21 @@ export default async function AboutPage() {
       <img
         src="/static/images/image-placeholder.svg"
         alt="placeholder"
-        className="w-24 h-24"
+        className="w-full max-w-full h-auto"
       />
       <p>This is placeholder for a Textblock.</p>
       <Link to="/" className="mt-4 inline-block underline">
         Return home
       </Link>
+      |{" "}
       <Link to="/s/page" className="mt-4 inline-block underline">
         Page (static/no preload)
       </Link>
+      |{" "}
       <Link to="/s/hello" className="mt-4 inline-block underline">
         Hello (static)
       </Link>
+      |{" "}
       <Link to="/s/page/hello" className="mt-4 inline-block underline">
         Hello (dynamic)
       </Link>

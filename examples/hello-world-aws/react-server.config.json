@@ -10,6 +10,7 @@
     "@lazarv/react-server-adapter-aws",
     {
       "streaming": false,
+      "toolkitDefault": "cdk",
       "toolkit": {
         "cdk": {
           "stackName": "ReactStackStack-001",

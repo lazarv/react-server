@@ -3,7 +3,7 @@ import { Link } from "@lazarv/react-server/navigation";
 
 export default async function HelloPage() {
   headers({
-    "Cache-Control": "s-maxage=1",
+    "cache-control": "s-maxage=1,must-revalidate",
   });
 
   return (
@@ -15,7 +15,7 @@ export default async function HelloPage() {
       <img
         src="/static/images/image-placeholder.svg"
         alt="placeholder"
-        className="w-24 h-24"
+        className="w-full max-w-full h-auto"
       />
       <p>This is placeholder for a Textblock. {new Date().toISOString()}</p>
       <Link to="/" className="mt-4 inline-block underline">

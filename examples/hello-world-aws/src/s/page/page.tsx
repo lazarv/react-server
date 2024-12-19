@@ -9,8 +9,8 @@ export default async function SecondPage() {
       </h1>
       <img
         src="/static/images/image-placeholder.svg"
-        alt="placegolder"
-        className="w-24 h-24"
+        alt="placeholder"
+        className="w-full max-w-full h-auto"
       />
       <p>This is placeholder for a Textblock.</p>
       <Link to="/" className="mt-4 inline-block underline">

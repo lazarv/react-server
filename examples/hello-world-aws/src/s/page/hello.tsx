@@ -3,7 +3,7 @@ import { Link } from "@lazarv/react-server/navigation";
 
 export default async function HelloPage() {
   headers({
-    "Cache-Control": "proxy-revalidate",
+    "Cache-Control": "s-maxage=1",
   });
 
   return (

@@ -1,4 +1,4 @@
-export function getHandler(cf, kvsHandle, domainNameOrginStaticAssets) {
+export function getHandler(cf, kvsHandle, domainNameOrginStaticAssetsMap) {
   return async function handler(event) {
     if (event.request.method === "GET") {
       let key = event.request.uri.substring(1).toLowerCase().replace(/\/$/, ""); // Slash needs to be escaped in Cloud function creator
@@ -11,7 +11,12 @@ export function getHandler(cf, kvsHandle, domainNameOrginStaticAssets) {
         key += (key !== "" ? "/" : "") + "index.html";
       }
       try {
-        await kvsHandle.get(key);
+        const uriType = await kvsHandle.get(key);
+        const domainNameOrginStaticAssets =
+          domainNameOrginStaticAssetsMap[uriType];
+        if (domainNameOrginStaticAssets === undefined) {
+          throw new Error("No origin found for the key");
+        }
         cf.updateRequestOrigin({
           domainName: domainNameOrginStaticAssets,
           originAccessControlConfig: {

@@ -160,6 +160,9 @@ pnpm sst remove
 * AWS S3 Bucket - browser client code and static assets with cache breakers
 * AWS S3 Bucket - static assets from public folder and static pages
 
+Bei default, all static routes to existing files are uploaded to a Cloudfront KV store and used to directly redirect requests to static items on edge to the s3 bucket.
+As there is a 5MB Limit on the KV store size and only 512Byte for the keys (max. length of url) you can use the property `staticRoutes` to define a list of root directories which are directly handled by cloudfront without the need a lookup in the KV store.
+
 <Link name="installation-cdk">
 ### Installation
 </Link>
@@ -201,6 +204,8 @@ Optional properties of the stack `react-server.config`:
           "subDomain": "www",
           "certificate": "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012" //or a certificatemanager.ICertificate
           "hostedZone": route53.HostedZone.fromLookup(stack, "MyHostedZone", { domainName: "example.com" })
+          "staticRoutes": ["/assets/","/client/"], // (optional) this catch all routes are created as caching behaviors on cloudfront and point to the static assets on S3. Alle Routes need to start with a "/"! 
+          "maxBehaviors": 10, // (optional) defaults to the AWS limit for Cloudfront behaviors
           env: {
             account: '123456789012',
             region: 'us-east-1'

@@ -19,6 +19,8 @@ export type CustomStackProps = cdk.StackProps & {
   subDomain?: string;
   certificate?: string | certificatemanager.ICertificate;
   hostedZone?: route53.IHostedZone;
+  staticRoutes?: string[];
+  maxBehaviors?: number;
 };
 
 const customStackProps: CustomStackProps = {

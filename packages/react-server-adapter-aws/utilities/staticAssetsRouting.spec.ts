@@ -9,10 +9,30 @@ const createKVSMock = (data) => ({
     if (!value) {
       throw new Error(`Key not found: ${key}`);
     }
+    return value;
   }),
 });
+const createOriginChangeRequest = (domainName) => ({
+  domainName,
+  originAccessControlConfig: {
+    enabled: true,
+    signingBehavior: "always",
+    signingProtocol: "sigv4",
+    originType: "s3",
+  },
+  // Empty object resets any header configured on the assigned origin
+  customHeaders: {},
+});
 
-const domainNameOrginStaticAssets = "xxx.s3.eu-west-1.amazonaws.com";
+const STATIC_PUBLIC_S3 = "static_public.s3.eu-west-1.amazonaws.com";
+const ASSETS_CLIENT_S3 = "assets_client.s3.eu-west-1.amazonaws.com";
+
+const domainNameOrginStaticAssets = {
+  s: STATIC_PUBLIC_S3,
+  a: ASSETS_CLIENT_S3,
+  c: ASSETS_CLIENT_S3,
+  p: STATIC_PUBLIC_S3,
+};
 
 const baseImgHeaders = {
   accept: {
@@ -150,5 +170,33 @@ test("unmodified non static uri (/api/image)", async () => {
 
   expect(kvsMock.get).toHaveBeenCalledOnce();
   expect(cfMock.updateRequestOrigin).not.toHaveBeenCalled();
+  expect(result.uri).toBe(uri);
+});
+
+test("change to origin assets and client", async () => {
+  const uri = "/assets/index-abc.css";
+  const kvsMock = createKVSMock({ [uri.substring(1)]: "a" });
+  const cfMock = createcfMock();
+  const originChangeRequest = createOriginChangeRequest(ASSETS_CLIENT_S3);
+  const handler = getHandler(cfMock, kvsMock, domainNameOrginStaticAssets);
+
+  const result = await handler(baseEvent(uri, baseImgHeaders));
+
+  expect(kvsMock.get).toHaveBeenCalledOnce();
+  expect(cfMock.updateRequestOrigin).toHaveBeenCalledWith(originChangeRequest);
+  expect(result.uri).toBe(uri);
+});
+
+test("change to origin static and public", async () => {
+  const uri = "/public/image.svg";
+  const kvsMock = createKVSMock({ [uri.substring(1)]: "p" });
+  const cfMock = createcfMock();
+  const originChangeRequest = createOriginChangeRequest(STATIC_PUBLIC_S3);
+  const handler = getHandler(cfMock, kvsMock, domainNameOrginStaticAssets);
+
+  const result = await handler(baseEvent(uri, baseImgHeaders));
+
+  expect(kvsMock.get).toHaveBeenCalledOnce();
+  expect(cfMock.updateRequestOrigin).toHaveBeenCalledWith(originChangeRequest);
   expect(result.uri).toBe(uri);
 });

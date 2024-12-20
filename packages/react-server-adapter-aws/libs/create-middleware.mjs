@@ -33,6 +33,8 @@ export async function createMiddleware(root, options) {
     options.outDir = ".react-server";
   }
 
+  const serveStaticFiles = options.serveStaticFiles ?? false;
+
   const workerUrl = resolve(
     join(
       options.outDir,
@@ -54,7 +56,7 @@ export async function createMiddleware(root, options) {
   };
   runtime$(
     typeof config.runtime === "function"
-      ? config.runtime(initialRuntime) ?? initialRuntime
+      ? (config.runtime(initialRuntime) ?? initialRuntime)
       : {
           ...initialRuntime,
           ...config.runtime,
@@ -66,18 +68,22 @@ export async function createMiddleware(root, options) {
   const initialHandlers = [
     urlParser,
     async () => PrerenderStorage.enterWith({}),
-    await staticHandler(join(cwd, options.outDir, "dist"), {
-      cwd: join(options.outDir, "dist"),
-    }),
-    await staticHandler("{client,assets}", { cwd: options.outDir }),
-    await staticHandler(join(cwd, options.outDir), {
-      cwd: options.outDir,
-    }),
-    ...(config.public !== false
+    ...(serveStaticFiles
       ? [
-          await staticHandler(join(cwd, publicDir), {
-            cwd: publicDir,
+          await staticHandler(join(cwd, options.outDir, "dist"), {
+            cwd: join(options.outDir, "dist"),
           }),
+          await staticHandler("{client,assets}", { cwd: options.outDir }),
+          await staticHandler(join(cwd, options.outDir), {
+            cwd: options.outDir,
+          }),
+          ...(config.public !== false
+            ? [
+                await staticHandler(join(cwd, publicDir), {
+                  cwd: publicDir,
+                }),
+              ]
+            : []),
         ]
       : []),
     await trailingSlashHandler(),
@@ -94,7 +100,7 @@ export async function createMiddleware(root, options) {
 
   const middleware = compose(
     typeof config.handlers === "function"
-      ? config.handlers(initialHandlers) ?? initialHandlers
+      ? (config.handlers(initialHandlers) ?? initialHandlers)
       : [...initialHandlers, ...(config.handlers ?? [])]
   );
 

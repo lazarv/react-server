@@ -105,10 +105,10 @@ export class ReactServerStack extends cdk.Stack {
       },
 
       architecture: lambda.Architecture.ARM_64,
-      memorySize: 256,
+      memorySize: 512,
       timeout: cdk.Duration.seconds(10),
       logRetention: logs.RetentionDays.THREE_DAYS,
-      tracing: lambda.Tracing.ACTIVE,
+      //tracing: lambda.Tracing.ACTIVE,
     });
 
     const integration = new HttpLambdaIntegration(

@@ -53,6 +53,13 @@ export const adapter = createAdapter({
         "awsLambdaAdapterStreaming"
       );
     }
+    const serveStaticFiles = adapterOptions?.serveStaticFiles ?? false;
+    if (serveStaticFiles) {
+      entryFileContent = entryFileContent.replace(
+        "serveStaticFiles: false",
+        "serveStaticFiles: true"
+      );
+    }
 
     await clearDirectory(outServerDir);
     await mkdir(outServerDir, { recursive: true });

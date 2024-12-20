@@ -1,0 +1,24 @@
+{
+  "root": "src",
+  "public": "src/public",
+  "vite": {
+    "build": {
+      "sourcemap": true
+    }
+  },
+  "adapter": [
+    "@lazarv/react-server-adapter-aws",
+    {
+      "streaming": false,
+      "toolkitDefault": "cdk",
+      "toolkit": {
+        "cdk": {
+          "stackName": "ReactStackStack-001",
+          "stackProps": {
+            "description": "Hello World Stack"
+          }
+        }
+      }
+    }
+  ]
+}

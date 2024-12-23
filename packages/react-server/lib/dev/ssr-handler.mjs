@@ -23,6 +23,7 @@ import {
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
   REDIRECT_CONTEXT,
+  RENDER,
   RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
@@ -109,6 +110,7 @@ export default async function ssrHandler(root) {
 
               const renderContext = createRenderContext(httpContext);
               context$(RENDER_CONTEXT, renderContext);
+              context$(RENDER, render);
 
               try {
                 const middlewares = await root_init$?.();
@@ -132,6 +134,7 @@ export default async function ssrHandler(root) {
               }
 
               const styles = collectStylesheets?.(rootModule) ?? [];
+              styles.unshift(...(getContext(STYLES_CONTEXT) ?? []));
               context$(STYLES_CONTEXT, styles);
 
               await module_loader_init$?.(ssrLoadModule, moduleCacheStorage);

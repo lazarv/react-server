@@ -2,7 +2,11 @@ import { ReadableStream } from "node:stream/web";
 
 import server from "react-server-dom-webpack/server.edge";
 
-import { concat, copyBytesFrom } from "@lazarv/react-server/lib/sys.mjs";
+import {
+  concat,
+  copyBytesFrom,
+  immediate,
+} from "@lazarv/react-server/lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/server/client-reference-map.mjs";
 import {
   context$,
@@ -23,6 +27,7 @@ import {
   HTML_CACHE,
   HTTP_CONTEXT,
   HTTP_HEADERS,
+  HTTP_RESPONSE,
   HTTP_STATUS,
   IMPORT_MAP,
   LOGGER_CONTEXT,
@@ -30,9 +35,10 @@ import {
   POSTPONE_STATE,
   PRELUDE_HTML,
   REDIRECT_CONTEXT,
-  RENDER_CONTEXT,
   RELOAD,
+  RENDER_CONTEXT,
   RENDER_STREAM,
+  RENDER_WAIT,
   STYLES_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 
@@ -297,16 +303,7 @@ export async function render(Component) {
                 new Response(responseFromCache.buffer, {
                   status: responseFromCache.status,
                   statusText: responseFromCache.statusText,
-                  headers: {
-                    "content-type": "text/x-component; charset=utf-8",
-                    "cache-control":
-                      context.request.headers.get("cache-control") ===
-                      "no-cache"
-                        ? "no-cache"
-                        : "must-revalidate",
-                    "last-modified": lastModified,
-                    ...responseFromCache.headers,
-                  },
+                  headers: responseFromCache.headers,
                 })
               );
             }
@@ -315,6 +312,23 @@ export async function render(Component) {
           const stream = new ReadableStream({
             type: "bytes",
             async start(controller) {
+              const prevHeaders = getContext(HTTP_HEADERS);
+              context$(
+                HTTP_HEADERS,
+                new Headers({
+                  "content-type": "text/x-component; charset=utf-8",
+                  "cache-control":
+                    context.request.headers.get("cache-control") === "no-cache"
+                      ? "no-cache"
+                      : "must-revalidate",
+                  "last-modified": lastModified,
+                  ...callServerHeaders,
+                  ...(prevHeaders
+                    ? Object.fromEntries(prevHeaders.entries())
+                    : {}),
+                })
+              );
+
               const flight = server.renderToReadableStream(
                 app,
                 clientReferenceMap({ remote, origin })
@@ -323,9 +337,26 @@ export async function render(Component) {
               const reader = flight.getReader();
               let done = false;
               const payload = [];
-              let breakOnNewLine = false;
+              const interrupt = new Promise((resolve) =>
+                immediate(() => resolve("interrupt"))
+              );
+              let next = null;
               while (!done) {
-                const { value, done: _done } = await reader.read();
+                const read = next ? next : reader.read();
+                const res = await Promise.race([
+                  read,
+                  getContext(RENDER_WAIT) ?? interrupt,
+                ]);
+                if (res === RENDER_WAIT) {
+                  context$(RENDER_WAIT, null);
+                  next = read;
+                  continue;
+                } else if (res === "interrupt") {
+                  next = read;
+                  break;
+                }
+                next = null;
+                const { value, done: _done } = res;
                 done = _done;
                 if (value) {
                   const redirect = getContext(REDIRECT_CONTEXT);
@@ -335,26 +366,6 @@ export async function render(Component) {
                   }
 
                   payload.push(copyBytesFrom(value));
-
-                  const endsWithNewLine = value[value.length - 1] === 0x0a;
-                  if (breakOnNewLine && endsWithNewLine) {
-                    break;
-                  }
-
-                  const lastNewLine = value.lastIndexOf(0x0a);
-                  if (
-                    (value[0] === 0x30 && value[1] === 0x3a) ||
-                    (lastNewLine > 0 &&
-                      lastNewLine < value.length - 2 &&
-                      value[lastNewLine + 1] === 0x30 &&
-                      value[lastNewLine + 2] === 0x3a)
-                  ) {
-                    if (endsWithNewLine) {
-                      break;
-                    } else {
-                      breakOnNewLine = true;
-                    }
-                  }
                 }
               }
 
@@ -364,26 +375,20 @@ export async function render(Component) {
                 status: 200,
                 statusText: "OK",
               };
-              const httpHeaders = getContext(HTTP_HEADERS) ?? {};
-              resolve(
-                new Response(stream, {
-                  ...httpStatus,
-                  headers: {
-                    "content-type": "text/x-component; charset=utf-8",
-                    "cache-control":
-                      context.request.headers.get("cache-control") ===
-                      "no-cache"
-                        ? "no-cache"
-                        : "must-revalidate",
-                    "last-modified": lastModified,
-                    ...(callServer ? callServerHeaders : {}),
-                    ...httpHeaders,
-                  },
-                })
-              );
+              const headers = getContext(HTTP_HEADERS) ?? new Headers();
+
+              const response = new Response(stream, {
+                ...httpStatus,
+                headers,
+              });
+              context$(HTTP_RESPONSE, response);
+              resolve(response);
 
               while (!done) {
-                const { value, done: _done } = await reader.read();
+                const { value, done: _done } = await (next
+                  ? next
+                  : reader.read());
+                next = null;
                 done = _done;
                 if (value) {
                   payload.push(copyBytesFrom(value));
@@ -404,7 +409,7 @@ export async function render(Component) {
                 {
                   ...httpStatus,
                   buffer: concat(payload),
-                  headers: httpHeaders,
+                  headers,
                 }
               );
             },
@@ -429,20 +434,25 @@ export async function render(Component) {
                 new Response(stream, {
                   status: responseFromCache.status,
                   statusText: responseFromCache.statusText,
-                  headers: {
-                    "content-type": "text/html; charset=utf-8",
-                    "cache-control":
-                      context.request.headers.get("cache-control") ===
-                      "no-cache"
-                        ? "no-cache"
-                        : "must-revalidate",
-                    "last-modified": lastModified,
-                    ...responseFromCache.headers,
-                  },
+                  headers: responseFromCache.headers,
                 })
               );
             }
           }
+
+          const prevHeaders = getContext(HTTP_HEADERS);
+          context$(
+            HTTP_HEADERS,
+            new Headers({
+              "content-type": "text/html; charset=utf-8",
+              "cache-control":
+                context.request.headers.get("cache-control") === "no-cache"
+                  ? "no-cache"
+                  : "must-revalidate",
+              "last-modified": lastModified,
+              ...(prevHeaders ? Object.fromEntries(prevHeaders.entries()) : {}),
+            })
+          );
 
           const flight = server.renderToReadableStream(
             app,
@@ -506,7 +516,7 @@ export async function render(Component) {
                   status: 200,
                   statusText: "OK",
                 };
-                const httpHeaders = getContext(HTTP_HEADERS) ?? {};
+                const headers = getContext(HTTP_HEADERS) ?? new Headers();
 
                 const [responseStream, cacheStream] = stream.tee();
                 const payload = [];
@@ -525,27 +535,17 @@ export async function render(Component) {
                     {
                       ...httpStatus,
                       buffer: concat(payload),
-                      headers: httpHeaders,
+                      headers,
                     }
                   );
                 })();
 
-                resolve(
-                  new Response(responseStream, {
-                    ...httpStatus,
-                    headers: {
-                      "content-type": "text/html; charset=utf-8",
-                      "cache-control":
-                        context.request.headers.get("cache-control") ===
-                        "no-cache"
-                          ? "no-cache"
-                          : "must-revalidate",
-                      "last-modified": lastModified,
-                      ...(callServer ? callServerHeaders : {}),
-                      ...httpHeaders,
-                    },
-                  })
-                );
+                const response = new Response(responseStream, {
+                  ...httpStatus,
+                  headers,
+                });
+                context$(HTTP_RESPONSE, response);
+                resolve(response);
               });
             },
             onError(e, digest) {

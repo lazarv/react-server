@@ -101,12 +101,12 @@ function plainResponse(e) {
     status: 500,
     statusText: "Internal Server Error",
   };
+  const headers = getContext(HTTP_HEADERS) ?? new Headers();
+  headers.set("Content-Type", "text/plain; charset=utf-8");
+
   return new Response(e?.stack ?? null, {
     ...httpStatus,
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      ...(getContext(HTTP_HEADERS) ?? {}),
-    },
+    headers,
   });
 }
 
@@ -129,6 +129,9 @@ export default async function errorHandler(err) {
       status: 500,
       statusText: "Internal Server Error",
     };
+
+    const headers = getContext(HTTP_HEADERS) ?? new Headers();
+    headers.set("Content-Type", "text/html; charset=utf-8");
 
     const error = await prepareError(err);
 
@@ -163,10 +166,7 @@ export default async function errorHandler(err) {
     </html>`,
       {
         ...httpStatus,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          ...(getContext(HTTP_HEADERS) ?? {}),
-        },
+        headers,
       }
     );
   } catch (e) {

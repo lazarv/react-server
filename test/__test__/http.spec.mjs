@@ -1,4 +1,4 @@
-import { hostname, page, server } from "playground/utils";
+import { hostname, page, server, serverLogs } from "playground/utils";
 import { expect, test } from "vitest";
 
 test("http context", async () => {
@@ -37,12 +37,48 @@ test("http status", async () => {
   expect(await page.textContent("body")).toContain("Not Found");
 });
 
+test("http response", async () => {
+  await server("fixtures/http-response.jsx");
+  const response = await page.goto(hostname);
+  expect(await response.allHeaders()).toMatchObject({
+    "x-custom": "custom-value",
+  });
+  expect(serverLogs).toContain("x-custom custom-value");
+});
+
 test("http response headers", async () => {
   await server("fixtures/http-headers.jsx");
   const response = await page.goto(hostname);
   expect(await response.allHeaders()).toMatchObject({
     "x-custom-header": "custom-value",
     "x-another-header": "another-value",
+  });
+});
+
+test("http response headers append", async () => {
+  await server("fixtures/http-headers-append.jsx");
+  const response = await page.goto(hostname);
+  expect(await response.allHeaders()).toMatchObject({
+    "x-custom-header": "custom-value, another-value",
+    "cache-control": "must-revalidate, max-age=10",
+  });
+});
+
+test("http response headers set", async () => {
+  await server("fixtures/http-headers-set.jsx");
+  const response = await page.goto(hostname);
+  expect(await response.allHeaders()).toMatchObject({
+    "x-custom-header": "another-value",
+    "cache-control": "max-age=10",
+  });
+});
+
+test("http render lock", async () => {
+  await server("fixtures/render-lock.jsx");
+  const response = await page.goto(hostname);
+  expect(await response.allHeaders()).toMatchObject({
+    "x-wait": "works",
+    "x-suspend-resume": "works",
   });
 });
 

@@ -153,7 +153,11 @@ export default async function serverBuild(root, options) {
           entryFileNames: "[name].mjs",
           chunkFileNames: "server/[name].[hash].mjs",
           manualChunks: (id, ...rest) => {
-            if (id.includes("@lazarv/react-server") && id.endsWith(".mjs")) {
+            if (
+              (id.includes("@lazarv/react-server") ||
+                id.includes(sys.rootDir)) &&
+              id.endsWith(".mjs")
+            ) {
               return "@lazarv/react-server";
             }
             return (

@@ -198,7 +198,37 @@ export function status(status?: number, statusText?: string): void;
  * }
  * ```
  */
-export function headers(headers?: Record<string, string>): void;
+export function headers(
+  headers?: Record<string, string> | Headers | [string, string][]
+): void;
+
+/**
+ * Set a response header in the current request context.
+ *
+ * @param key - The header key
+ * @param value - The header value
+ */
+export function setHeader(key: string, value: string): void;
+
+/**
+ * Append a response header in the current request context.
+ *
+ * @param key - The header key
+ * @param value - The header value
+ */
+export function appendHeader(key: string, value: string): void;
+
+/**
+ * Delete a response header in the current request context.
+ *
+ * @param key - The header key
+ */
+export function deleteHeader(key: string): void;
+
+/**
+ * Clear all response headers in the current request context.
+ */
+export function clearHeaders(): void;
 
 /**
  * Get the active outlet when using client navigation.
@@ -255,3 +285,52 @@ export interface ReactServerCache {
   hasExpiry(keys: string[], ttl: number): Promise<boolean>;
   delete(keys: string[]): Promise<void>;
 }
+
+/**
+ * This function returns an object which contains helper functions to control the render process. `lock()` enables you to lock the render of the current component to wait for the specified task to complete before sending HTTP headers and cookies to the client.
+ *
+ * @returns An object with two methods: `lock(task: () => Promise<void>)` and `lock(): () => void`
+ */
+export function useRender(): {
+  /**
+   * Lock the render of the current component to wait for the specified task to complete before sending HTTP headers and cookies to the client.
+   *
+   * @param task - The task to wait for
+   *
+   * @example
+   *
+   * ```tsx
+   * import { useRender } from '@lazarv/react-server';
+   *
+   * export async function App() {
+   *  const { lock } = useRender();
+   *  await lock(async () => {
+   *    await new Promise((resolve) => setTimeout(resolve, 1000));
+   *  });
+   *  return <p>Render lock</p>;
+   * }
+   * ```
+   */
+  lock(task: () => Promise<void>): Promise<void>;
+  /**
+   * Lock the render process and returns a function to unlock it.
+   *
+   * @returns A function to unlock the render process
+   *
+   * @example
+   *
+   * ```tsx
+   * import { useRender } from '@lazarv/react-server';
+   *
+   * export async function App() {
+   *  const { lock } = useRender();
+   *  const unlock = lock();
+   *  await new Promise((resolve) => setTimeout(resolve, 1000));
+   *  unlock();
+   *
+   *  return <p>Render lock</p>;
+   * }
+   * ```
+   */
+  lock(): () => void;
+};

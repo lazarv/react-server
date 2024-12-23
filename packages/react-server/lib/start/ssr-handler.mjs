@@ -29,6 +29,7 @@ import {
   POSTPONE_STATE,
   PRELUDE_HTML,
   REDIRECT_CONTEXT,
+  RENDER,
   RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
@@ -126,12 +127,13 @@ export default async function ssrHandler(root, options = {}) {
       status: 500,
       statusText: "Internal Server Error",
     };
+
+    const headers = getContext(HTTP_HEADERS) ?? new Headers();
+    headers.set("Content-Type", "text/plain; charset=utf-8");
+
     return new Response(e?.stack ?? null, {
       ...httpStatus,
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        ...(getContext(HTTP_HEADERS) ?? {}),
-      },
+      headers,
     });
   };
 
@@ -176,6 +178,7 @@ export default async function ssrHandler(root, options = {}) {
 
             const renderContext = createRenderContext(httpContext);
             context$(RENDER_CONTEXT, renderContext);
+            context$(RENDER, render);
 
             try {
               const middlewares = await root_init$?.();

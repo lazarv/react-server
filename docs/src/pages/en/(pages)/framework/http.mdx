@@ -60,7 +60,7 @@ export default function MyComponent() {
 ## Response
 </Link>
 
-With `useResponse()` you can get access to the full HTTP response.
+With `useResponse()` you can get access to the full HTTP response. This is only available after the response has been sent to the client, in a React component which was suspended and streamed to the client later than the response was sent.
 
 ```jsx
 import { useResponse } from "@lazarv/react-server";
@@ -143,7 +143,7 @@ export default function MyComponent() {
 };
 ```
 
-You can also modify the headers of the current response.
+You can also modify the headers of the current response by passing an object of key-value pairs:
 
 ```jsx
 import { headers } from "@lazarv/react-server";
@@ -156,6 +156,50 @@ export default function MyComponent() {
   return <p>Headers: {JSON.stringify(headers())}</p>;
 };
 ```
+
+Or by passing a `Headers` object:
+
+```jsx
+import { headers } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  headers(new Headers({
+    "X-My-Header": "My value",
+  }));
+
+  return <p>Headers: {JSON.stringify(headers())}</p>;
+};
+```
+
+Or by passing an array of key-value pairs:
+
+```jsx
+import { headers } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  headers([
+    ["X-My-Header", "My value"],
+  ]);
+
+  return <p>Headers: {JSON.stringify(headers())}</p>;
+};
+```
+
+Modifying the headers with the `headers()` function will override the headers of the current response. If you want to mutate the response headers directly, you can use three addition helper functions to set, append or delete headers. These functions are `setHeader()`, `appendHeader()` and `deleteHeader()`.
+
+```jsx
+import { setHeader, appendHeader, deleteHeader } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  setHeader("X-My-Header", "My first value");
+  appendHeader("X-My-Header", "My second value");
+  deleteHeader("X-My-Header");
+
+  return <p>Check the response headers!</p>;
+}
+```
+
+> **Note:** Keep in mind that HTTP headers are case-insensitive!
 
 <Link name="cookies">
 ## Cookies
@@ -275,5 +319,49 @@ export default function MyComponent() {
   const outlet = useOutlet();
 
   return <p>Outlet: {outlet}</p>;
+}
+```
+
+<Link name="render-lock">
+## Render Lock
+</Link>
+
+With `useRender()` you can get access to the render lock of the current request. This is useful if you want to lock rendering of a React Server Component while the async function is running or until the lock is released, as React Server Components are rendered using streaming by default. This is especially useful for handling HTTP headers and cookies in an async React Server Component. Without locking the rendering, the headers and cookies will be sent to the client before the async function is finished. When a lock is detected in the rendering process, the rendering will wait for the lock to be released before beginning to send the headers and cookies to the client and starting the streaming of the React Server Component.
+
+```jsx
+import { headers, useRender } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const { lock } = useRender();
+
+  await lock(async () => {
+    // Do something async
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    headers({
+      "x-lock": "works",
+    });
+  });
+
+  return <p>Render lock</p>;
+}
+```
+
+You can also use the `lock()` function to get an `unlock()` function to release the lock later.
+
+```jsx
+import { headers, useRender } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const { lock } = useRender();
+
+  const unlock = lock();
+  // Do something async
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  headers({
+    "x-lock": "works",
+  });
+  unlock();
+
+  return <p>Render lock</p>;
 }
 ```

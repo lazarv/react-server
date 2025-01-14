@@ -236,7 +236,7 @@ export async function render(Component) {
           ? (link) => `/${config.base}/${link?.id || link}`.replace(/\/+/g, "/")
           : (link) => link?.id || link;
         const linkHref =
-          remote || host !== origin
+          remote || (origin && host !== origin)
             ? (link) => `${protocol}//${host}${configBaseHref(link)}`
             : configBaseHref;
         const Styles = () => {

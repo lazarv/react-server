@@ -22,7 +22,7 @@ export async function loadConfig(initialConfig, options = {}) {
   const configPatterns = [
     "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
     options.command === "build"
-      ? "**/{react-server,+*,vite}.build.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}"
+      ? "**/{react-server,+*,vite}.{build,production,runtime,server}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}"
       : "**/{react-server,+*,vite}.{development,runtime,server}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
     "!**/node_modules",
     "!*/**/vite.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",

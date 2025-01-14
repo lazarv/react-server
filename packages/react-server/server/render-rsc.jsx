@@ -235,9 +235,10 @@ export async function render(Component) {
         const configBaseHref = config.base
           ? (link) => `/${config.base}/${link?.id || link}`.replace(/\/+/g, "/")
           : (link) => link?.id || link;
-        const linkHref = remote
-          ? (link) => `${protocol}//${host}${configBaseHref(link)}`
-          : configBaseHref;
+        const linkHref =
+          remote || (origin && host !== origin)
+            ? (link) => `${protocol}//${host}${configBaseHref(link)}`
+            : configBaseHref;
         const Styles = () => {
           const styles = getContext(STYLES_CONTEXT);
           return (
@@ -487,7 +488,7 @@ export async function render(Component) {
                     `const moduleCache = new Map();
                     self.__webpack_require__ = function (id) {
                       if (!moduleCache.has(id)) {
-                        const modulePromise = import(("${`/${config.base ?? ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));
+                        const modulePromise = /^https?\\:/.test(id) ? import(id) : import(("${`/${config.base ?? ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));
                         modulePromise.then(
                           (module) => {
                             modulePromise.value = module;

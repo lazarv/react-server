@@ -32,7 +32,7 @@ const cwd = sys.cwd();
 
 function size(bytes) {
   const s = filesize(bytes);
-  return " ".repeat(Math.max(0, 8 - s.length)) + s;
+  return " ".repeat(Math.max(0, 10 - s.length)) + s;
 }
 
 function log(
@@ -49,7 +49,7 @@ function log(
       (dirname(normalizedBasename) === "." ? "" : "/") +
         basename(normalizedBasename)
     )} ${`${" ".repeat(
-      maxFilenameLength - normalizedBasename.length
+      Math.max(0, maxFilenameLength - normalizedBasename.length)
     )}${colors.gray(colors.bold(size(htmlStat.size)))}${colors.dim(
       `${gzipStat.size ? ` │ gzip: ${size(gzipStat.size)}` : ""}${brotliStat.size ? ` │ brotli: ${size(brotliStat.size)}` : ""}${postponedStat.size ? ` │ postponed: ${size(postponedStat.size)}` : ""}`
     )}`}`

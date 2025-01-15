@@ -1,0 +1,50 @@
+{
+  "name": "@lazarv/react-server-adapter-aws",
+  "version": "0.0.0",
+  "description": "React Server Adapter for AWS Lambda",
+  "module": "index.mjs",
+  "type": "module",
+  "sideEffects": true,
+  "exports": {
+    "./create-handler": {
+      "default": "./libs/create-handler.mjs"
+    },
+    "./hono-lambda-adapter": {
+      "default": "./libs/hono-lambda-adapter.mjs"
+    },
+    ".": "./index.mjs"
+  },
+  "scripts": {},
+  "keywords": [
+    "react",
+    "ssr",
+    "esm",
+    "server",
+    "vercel"
+  ],
+  "author": "lazarv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lazarv/react-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
+  "dependencies": {
+    "@hattip/adapter-aws-lambda": "^0.0.49",
+    "@hattip/compose": "^0.0.49",
+    "@hattip/cookie": "^0.0.49",
+    "@hattip/cors": "^0.0.49",
+    "@hattip/multipart": "^0.0.49"
+  },
+  "devDependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-core": "workspace:^",
+    "vitest": "^2.1.3"
+  },
+  "peerDependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-core": "workspace:^"
+  }
+}

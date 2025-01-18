@@ -15,11 +15,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <html lang="en" data-mantine-color-scheme="light">
+    <html lang="en" data-mantine-color-scheme="light" suppressHydrationWarning>
       <head>
         <ColorSchemeScript />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <MantineProvider theme={theme}>
           <ModalsProvider>
             <Notifications />

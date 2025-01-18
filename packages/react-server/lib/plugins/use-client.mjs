@@ -108,8 +108,7 @@ export default function useClient(type, manifest, enforce) {
                 .normalizePath(relative(cwd, id))
                 .replace(/^(?:\.\.\/)+/, (match) =>
                   match.replace(/\.\.\//g, "__/")
-                )
-                .replace(/\/\./g, "/_");
+                );
             }
           : (id) => sys.normalizePath(relative(cwd, id));
 

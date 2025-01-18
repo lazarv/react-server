@@ -63,7 +63,9 @@ export default function useServerInline(profiles) {
                 parent,
                 name: cacheKey(node),
                 identifier:
-                  node.type === "FunctionDeclaration" ? node.id.name : null,
+                  node.type === "FunctionDeclaration"
+                    ? node.id?.name ?? "_default"
+                    : null,
                 params: [],
                 locals: [],
               };
@@ -126,6 +128,18 @@ export default function useServerInline(profiles) {
                     name: param,
                   })),
                 ];
+              } else if (useCache.parent?.type === "ExportNamedDeclaration") {
+                useCache.name = useCache.parent.declaration.id.name;
+                useCache.parent.parent.body =
+                  useCache.parent.parent.body.filter(
+                    (n) => n !== useCache.parent
+                  );
+              } else if (useCache.parent?.type === "ExportDefaultDeclaration") {
+                useCache.name = "_default";
+                useCache.parent.parent.body =
+                  useCache.parent.parent.body.filter(
+                    (n) => n !== useCache.parent
+                  );
               } else {
                 useCacheNode.type = "Identifier";
                 useCacheNode.name = useCache.name;
@@ -265,7 +279,21 @@ export default function useServerInline(profiles) {
                 arguments: [
                   {
                     ...cacheKey,
-                    elements: [...cacheKey.elements, ...cache.node.params],
+                    elements: [
+                      ...cacheKey.elements,
+                      {
+                        type: "ArrayExpression",
+                        elements: cache.node.params,
+                      },
+                      ...(this.environment.mode !== "build"
+                        ? [
+                            {
+                              type: "Literal",
+                              value: id,
+                            },
+                          ]
+                        : []),
+                    ],
                   },
                   {
                     type: "FunctionExpression",
@@ -293,29 +321,26 @@ export default function useServerInline(profiles) {
           ];
           ast.body.push(
             {
-              type: "ExportNamedDeclaration",
-              declaration: {
-                type: "FunctionDeclaration",
-                async: true,
-                id: {
-                  type: "Identifier",
-                  name: cache.name,
-                },
-                params: [
-                  ...(argsName
-                    ? [
-                        {
-                          type: "RestElement",
-                          argument: {
-                            type: "Identifier",
-                            name: argsName,
-                          },
-                        },
-                      ]
-                    : cache.node.params),
-                ],
-                body: cache.node.body,
+              type: "FunctionDeclaration",
+              async: true,
+              id: {
+                type: "Identifier",
+                name: cache.name,
               },
+              params: [
+                ...(argsName
+                  ? [
+                      {
+                        type: "RestElement",
+                        argument: {
+                          type: "Identifier",
+                          name: argsName,
+                        },
+                      },
+                    ]
+                  : cache.node.params),
+              ],
+              body: cache.node.body,
             },
             {
               type: "ExpressionStatement",
@@ -339,6 +364,19 @@ export default function useServerInline(profiles) {
             }
           );
         }
+
+        ast.body.push({
+          type: "ExportNamedDeclaration",
+          declaration: null,
+          specifiers: caches.map((cache) => ({
+            type: "ExportSpecifier",
+            exported: {
+              type: "Identifier",
+              name: cache.name === "_default" ? "default" : cache.name,
+            },
+            local: { type: "Identifier", name: cache.name },
+          })),
+        });
 
         const gen = escodegen.generate(ast, {
           sourceMap: true,

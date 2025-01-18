@@ -14,13 +14,15 @@ import {
   getContext,
 } from "@lazarv/react-server/server/context.mjs";
 import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs";
-import { useOutlet } from "@lazarv/react-server/server/request.mjs";
+import { useOutlet, rewrite } from "@lazarv/react-server/server/request.mjs";
 import {
   ACTION_CONTEXT,
   CACHE_CONTEXT,
   CACHE_MISS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
+  ERROR_BOUNDARY,
+  ERROR_COMPONENT,
   ERROR_CONTEXT,
   FLIGHT_CACHE,
   FORM_DATA_PARSER,
@@ -59,7 +61,7 @@ const serverReferenceMap = new Proxy(
   }
 );
 
-export async function render(Component) {
+export async function render(Component, props = {}, options = {}) {
   const logger = getContext(LOGGER_CONTEXT);
   const renderStream = getContext(RENDER_STREAM);
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
@@ -86,7 +88,9 @@ export async function render(Component) {
         );
         if (
           "POST,PUT,PATCH,DELETE".includes(context.request.method) &&
-          ((serverActionHeader && serverActionHeader !== "null") || isFormData)
+          ((serverActionHeader && serverActionHeader !== "null") ||
+            isFormData) &&
+          !options.skipFunction
         ) {
           let action = async function () {
             throw new Error("Server action not found");
@@ -164,6 +168,12 @@ export async function render(Component) {
             );
           }
 
+          if (typeof action !== "function") {
+            const e = new Error("Server Function Not Found");
+            e.digest = e.message;
+            throw e;
+          }
+
           const { data, actionId, error } = await action();
 
           if (!isFormData) {
@@ -194,7 +204,7 @@ export async function render(Component) {
           }
 
           const redirect = getContext(REDIRECT_CONTEXT);
-          if (redirect?.response) {
+          if (renderContext.flags.isHTML && redirect?.response) {
             return resolve(redirect.response);
           }
 
@@ -231,7 +241,9 @@ export async function render(Component) {
           }
         }
 
-        const precedence = remote ? undefined : "default";
+        const precedence =
+          // when rendering a remote component or the outlet name starts with http or https (escaped remote component outlet name), don't set the precedence
+          remote || /^https?___/.test(outlet) ? undefined : "default";
         const configBaseHref = config.base
           ? (link) => `/${config.base}/${link?.id || link}`.replace(/\/+/g, "/")
           : (link) => link?.id || link;
@@ -261,7 +273,7 @@ export async function render(Component) {
         const ComponentWithStyles = (
           <>
             <Styles />
-            <Component />
+            <Component {...props} />
           </>
         );
 
@@ -272,6 +284,16 @@ export async function render(Component) {
             "React-Server-Render": reload.url.toString(),
             "React-Server-Outlet": reload.outlet,
           };
+        }
+
+        const redirect = getContext(REDIRECT_CONTEXT);
+        if (redirect?.response) {
+          callServerHeaders = {
+            ...callServerHeaders,
+            "React-Server-Render": redirect.location,
+            "React-Server-Outlet": "PAGE_ROOT",
+          };
+          rewrite(redirect.location);
         }
 
         let app = ComponentWithStyles;
@@ -288,6 +310,31 @@ export async function render(Component) {
           ) : (
             <>{[serverFunctionResult]}</>
           );
+        }
+
+        if (
+          !remote &&
+          !callServer &&
+          (!outlet || (outlet && outlet === "PAGE_ROOT"))
+        ) {
+          const ErrorComponent = getContext(ERROR_COMPONENT);
+          if (ErrorComponent) {
+            if (
+              ErrorComponent.$$typeof === Symbol.for("react.client.reference")
+            ) {
+              const ErrorBoundary = getContext(ERROR_BOUNDARY);
+              if (ErrorBoundary) {
+                app = (
+                  <>
+                    <Styles />
+                    <ErrorBoundary component={ErrorComponent}>
+                      <Component {...props} />
+                    </ErrorBoundary>
+                  </>
+                );
+              }
+            }
+          }
         }
 
         const lastModified = new Date().toUTCString();
@@ -310,6 +357,7 @@ export async function render(Component) {
             }
           }
 
+          let hasError = false;
           const stream = new ReadableStream({
             type: "bytes",
             async start(controller) {
@@ -332,7 +380,17 @@ export async function render(Component) {
 
               const flight = server.renderToReadableStream(
                 app,
-                clientReferenceMap({ remote, origin })
+                clientReferenceMap({ remote, origin }),
+                {
+                  onError(e) {
+                    hasError = true;
+                    const redirect = getContext(REDIRECT_CONTEXT);
+                    if (redirect?.response) {
+                      return `Location=${redirect.response.headers.get("location")}`;
+                    }
+                    return e?.message;
+                  },
+                }
               );
 
               const reader = flight.getReader();
@@ -360,12 +418,6 @@ export async function render(Component) {
                 const { value, done: _done } = res;
                 done = _done;
                 if (value) {
-                  const redirect = getContext(REDIRECT_CONTEXT);
-                  if (redirect?.response) {
-                    controller.close();
-                    return resolve(redirect.response);
-                  }
-
                   payload.push(copyBytesFrom(value));
                 }
               }
@@ -399,20 +451,22 @@ export async function render(Component) {
 
               controller.close();
 
-              getContext(CACHE_CONTEXT)?.set(
-                [
-                  context.url,
-                  "text/x-component",
-                  outlet,
-                  FLIGHT_CACHE,
-                  lastModified,
-                ],
-                {
-                  ...httpStatus,
-                  buffer: concat(payload),
-                  headers,
-                }
-              );
+              if (!hasError) {
+                getContext(CACHE_CONTEXT)?.set(
+                  [
+                    context.url,
+                    "text/x-component",
+                    outlet,
+                    FLIGHT_CACHE,
+                    lastModified,
+                  ],
+                  {
+                    ...httpStatus,
+                    buffer: concat(payload),
+                    headers,
+                  }
+                );
+              }
             },
           });
         } else if (renderContext.flags.isHTML || renderContext.flags.isRemote) {
@@ -455,11 +509,13 @@ export async function render(Component) {
             })
           );
 
+          let hasError = false;
           const flight = server.renderToReadableStream(
             app,
             clientReferenceMap({ remote, origin }),
             {
               onError(e) {
+                hasError = true;
                 const redirect = getContext(REDIRECT_CONTEXT);
                 if (redirect?.response) {
                   return resolve(redirect.response);
@@ -505,6 +561,7 @@ export async function render(Component) {
                     };`.replace(/\n/g, ""),
                   ],
             outlet,
+            defer: context.request.headers.get("react-server-defer") === "true",
             start: async () => {
               isStarted = true;
               ContextStorage.run(contextStore, async () => {
@@ -522,23 +579,25 @@ export async function render(Component) {
                 const [responseStream, cacheStream] = stream.tee();
                 const payload = [];
                 (async () => {
-                  for await (const chunk of cacheStream) {
-                    payload.push(copyBytesFrom(chunk));
-                  }
-                  await getContext(CACHE_CONTEXT)?.set(
-                    [
-                      context.url,
-                      "text/html",
-                      outlet,
-                      HTML_CACHE,
-                      lastModified,
-                    ],
-                    {
-                      ...httpStatus,
-                      buffer: concat(payload),
-                      headers,
+                  if (!hasError) {
+                    for await (const chunk of cacheStream) {
+                      payload.push(copyBytesFrom(chunk));
                     }
-                  );
+                    await getContext(CACHE_CONTEXT)?.set(
+                      [
+                        context.url,
+                        "text/html",
+                        outlet,
+                        HTML_CACHE,
+                        lastModified,
+                      ],
+                      {
+                        ...httpStatus,
+                        buffer: concat(payload),
+                        headers,
+                      }
+                    );
+                  }
                 })();
 
                 const response = new Response(responseStream, {
@@ -551,8 +610,16 @@ export async function render(Component) {
             },
             onError(e, digest) {
               logger.error(e, digest);
+              if (digest) {
+                e.digest = digest;
+              }
+              hasError = true;
               if (!isStarted) {
                 ContextStorage.run(contextStore, async () => {
+                  context$(HTTP_STATUS, {
+                    status: 500,
+                    statusText: "Internal Server Error",
+                  });
                   getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
                 });
               }

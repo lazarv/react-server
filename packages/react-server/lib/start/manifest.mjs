@@ -133,8 +133,10 @@ export async function init$(type = "server", options = {}) {
         entry.src?.endsWith(normalizedRootModule)
     );
     const styles = [];
+    const visited = new Set();
     function collectCss(entry) {
-      if (!entry) return styles;
+      if (!entry || visited.has(entry.file)) return styles;
+      visited.add(entry.file);
       if (entry.css) {
         styles.unshift(...entry.css.map((href) => `/${href}`));
       }

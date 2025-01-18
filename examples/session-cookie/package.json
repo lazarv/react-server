@@ -1,0 +1,17 @@
+{
+  "name": "@lazarv/react-server-example-session-cookie",
+  "private": true,
+  "description": "React Server Session Cookie example application",
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "iron-session": "^8.0.4"
+  }
+}

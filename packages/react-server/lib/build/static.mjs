@@ -267,7 +267,7 @@ export default async function staticSiteGenerator(root, options) {
               );
             }
           } catch (e) {
-            console.log(e);
+            console.error(e);
           }
         })
       );
@@ -342,7 +342,7 @@ export default async function staticSiteGenerator(root, options) {
                 maxFilenameLength
               );
             } catch (e) {
-              console.log(e);
+              console.error(e);
             }
           })
       );
@@ -415,7 +415,7 @@ export default async function staticSiteGenerator(root, options) {
                 maxFilenameLength
               );
             } catch (e) {
-              console.log(e);
+              console.error(e);
             }
           })
       );

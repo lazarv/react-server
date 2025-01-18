@@ -1,10 +1,16 @@
 "use client";
 
-import { startTransition, useContext, useEffect, useState } from "react";
+import {
+  startTransition,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
-  ClientContext,
   FlightContext,
+  FlightComponentContext,
   PAGE_ROOT,
   useClient,
 } from "./context.mjs";
@@ -12,9 +18,12 @@ import {
 function FlightComponent({ remote = false, defer = false, request, children }) {
   const { url, outlet } = useContext(FlightContext);
   const client = useClient();
-  const { registerOutlet, subscribe, getFlightResponse } = client;
-  const [Component, setComponent] = useState(
-    children ||
+  const { registerOutlet, subscribe, getFlightResponse, abort } = client;
+  const [{ resourceKey, error, Component }, setComponent] = useState({
+    resourceKey: 0,
+    error: null,
+    Component:
+      children ||
       (outlet === PAGE_ROOT || remote
         ? getFlightResponse?.(url, {
             outlet,
@@ -22,30 +31,80 @@ function FlightComponent({ remote = false, defer = false, request, children }) {
             defer,
             request,
           })
-        : null)
-  );
-  const [error, setError] = useState(null);
+        : null),
+  });
+  const errorRef = useRef(null);
+  const componentPromiseRef = useRef(null);
+  const prevComponent = useRef(Component);
 
   useEffect(() => {
     let mounted = true;
     const unregisterOutlet = registerOutlet(outlet, url);
-    const unsubscribe = subscribe(outlet || url, (to, options, callback) => {
-      const nextComponent = getFlightResponse(to, {
-        outlet,
-        remote,
-        request,
-      });
-      if (!mounted) return;
-      if (options.callServer) {
-        callback(null, nextComponent);
-      } else {
-        startTransition(() => {
-          setError(null);
-          setComponent(nextComponent);
-          callback(null, nextComponent);
+    const unsubscribe = subscribe(
+      outlet || url,
+      async (to, options, callback) => {
+        if (typeof options.Component !== "undefined") {
+          const exception = new DOMException("render", "AbortError");
+
+          abort(outlet, exception);
+          componentPromiseRef.current?.reject(exception);
+
+          setComponent((prev) => ({
+            ...prev,
+            resourceKey: prev.resourceKey + 1,
+            error: errorRef.current,
+            Component: options.Component,
+          }));
+
+          callback(null, options.Component);
+          return;
+        }
+
+        let componentResolve, componentReject;
+        const componentPromise = new Promise((resolve, reject) => {
+          componentResolve = resolve;
+          componentReject = reject;
+          componentPromiseRef.current = { resolve, reject };
         });
+        const nextComponent = getFlightResponse(to, {
+          ...options,
+          outlet,
+          remote,
+          request,
+          onReady: options.callServer ? undefined : componentResolve,
+          onAbort: options.callServer ? undefined : componentReject,
+        });
+        if (options.callServer) {
+          callback(null, nextComponent);
+        } else if (mounted) {
+          if (options.fallback) {
+            startTransition(() => {
+              setComponent((prev) => ({
+                ...prev,
+                resourceKey: prev.resourceKey + 1,
+                error: errorRef.current,
+                Component: options.fallback,
+              }));
+            });
+          }
+          try {
+            const nextComponent = await componentPromise;
+            componentPromiseRef.current = null;
+            startTransition(() => {
+              setComponent((prev) => ({
+                ...prev,
+                resourceKey: prev.resourceKey + 1,
+                error: errorRef.current,
+                Component: nextComponent,
+              }));
+              callback(null, nextComponent);
+            });
+          } catch {
+            componentPromiseRef.current = null;
+          }
+        }
       }
-    });
+    );
     return () => {
       mounted = false;
       unregisterOutlet();
@@ -55,29 +114,70 @@ function FlightComponent({ remote = false, defer = false, request, children }) {
 
   useEffect(() => {
     if (children || (outlet !== PAGE_ROOT && Component)) {
-      setComponent(children);
+      setComponent((prev) => ({
+        ...prev,
+        resourceKey: prev.resourceKey + 1,
+        error: errorRef.current,
+        Component: children,
+      }));
     }
   }, [children]);
 
   useEffect(() => {
     if (remote || defer) {
-      const nextComponent = getFlightResponse(url, {
+      getFlightResponse(url, {
         outlet,
         remote,
         defer,
         request,
         fromScript: defer ? false : true,
+        onReady: (nextComponent) => {
+          if (nextComponent) {
+            startTransition(() =>
+              setComponent((prev) => ({
+                ...prev,
+                resourceKey: prev.resourceKey + 1,
+                error: errorRef.current,
+                Component: nextComponent,
+              }))
+            );
+          }
+        },
       });
-      if (nextComponent) {
-        startTransition(() => setComponent(nextComponent));
-      }
     }
   }, [url, outlet, remote, defer, request, getFlightResponse]);
 
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    window.addEventListener(
+      `__react_server_flight_error_${outlet}__`,
+      (event) => {
+        errorRef.current = event.detail.error;
+      },
+      { signal: abortController.signal }
+    );
+
+    return () => abortController.abort();
+  }, [outlet]);
+
+  if (error) {
+    if (outlet === PAGE_ROOT) {
+      return (
+        <FlightComponentContext.Provider value={{ resourceKey, error }}>
+          {prevComponent.current}
+        </FlightComponentContext.Provider>
+      );
+    }
+    throw error;
+  }
+
+  prevComponent.current = Component;
+
   return (
-    <ClientContext.Provider value={{ ...client, error }}>
+    <FlightComponentContext.Provider value={{ resourceKey, error }}>
       {Component}
-    </ClientContext.Provider>
+    </FlightComponentContext.Provider>
   );
 }
 
@@ -89,8 +189,30 @@ export default function ReactServerComponent({
   request,
   children,
 }) {
+  const { navigate, abort } = useClient();
+
   return (
-    <FlightContext.Provider value={{ url, outlet }}>
+    <FlightContext.Provider
+      value={{
+        url,
+        outlet,
+        refresh(options = {}) {
+          return refresh(outlet, options);
+        },
+        prefetch(url, options = {}) {
+          return prefetch(url, { outlet, ...options });
+        },
+        navigate(to, options = {}) {
+          return navigate(to, { outlet, ...options });
+        },
+        replace(to, options = {}) {
+          return replace(to, { outlet, ...options });
+        },
+        abort(reason) {
+          return abort(outlet, reason);
+        },
+      }}
+    >
       <FlightComponent remote={remote} defer={defer} request={request}>
         {children}
       </FlightComponent>

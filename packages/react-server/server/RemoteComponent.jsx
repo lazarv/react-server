@@ -7,7 +7,13 @@ import { getContext } from "./context.mjs";
 import { useUrl } from "./request.mjs";
 import { LOGGER_CONTEXT } from "./symbols.mjs";
 
-async function RemoteComponentLoader({ url, ttl, request = {}, onError }) {
+async function RemoteComponentLoader({
+  url,
+  ttl,
+  request = {},
+  defer,
+  onError,
+}) {
   const Component = await useCache(
     [url],
     async () => {
@@ -23,7 +29,11 @@ async function RemoteComponentLoader({ url, ttl, request = {}, onError }) {
           headers: {
             Origin: url.origin,
             ...request.headers,
-            Accept: "text/html",
+            ...(defer
+              ? {
+                  "React-Server-Defer": "true",
+                }
+              : {}),
           },
         }).catch((e) => {
           (onError ?? getContext(LOGGER_CONTEXT)?.error)?.(e);
@@ -90,6 +100,7 @@ export default async function RemoteComponent({
         url={remoteUrl}
         ttl={ttl}
         request={request}
+        defer={defer}
         onError={onError}
       />
     </ReactServerComponent>

@@ -52,7 +52,7 @@ remoteTransport.fetchModule = async (id, importer) => {
     try {
       const packageRoot = realpathSync(findPackageRoot(importer));
       let parentPath = join(packageRoot, "..");
-      while (basename(parentPath) !== "node_modules") {
+      while (basename(parentPath) !== "node_modules" && parentPath !== "/") {
         parentPath = join(parentPath, "..");
       }
       parentPath = join(parentPath, "..");

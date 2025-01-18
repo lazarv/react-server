@@ -79,6 +79,37 @@ export default async function clientBuild(_, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
+        {
+          find: /^@lazarv\/react-server\/error-boundary$/,
+          replacement: join(sys.rootDir, "server/error-boundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/client\/ErrorBoundary\.jsx$/,
+          replacement: join(sys.rootDir, "client/ErrorBoundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/file-router$/,
+          replacement: join(
+            sys.rootDir,
+            "lib/plugins/file-router/entrypoint.jsx"
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/router$/,
+          replacement: join(sys.rootDir, "server/router.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/prerender$/,
+          replacement: join(sys.rootDir, "server/prerender.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/remote$/,
+          replacement: join(sys.rootDir, "server/remote.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/navigation$/,
+          replacement: join(sys.rootDir, "client/navigation.jsx"),
+        },
         ...clientAlias(options.dev),
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],

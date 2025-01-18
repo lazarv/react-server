@@ -1,5 +1,4 @@
 import { isIPv6 } from "node:net";
-import { setTimeout } from "node:timers/promises";
 
 import open from "open";
 import colors from "picocolors";

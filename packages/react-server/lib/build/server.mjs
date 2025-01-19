@@ -237,7 +237,7 @@ export default async function serverBuild(root, options) {
             }
             const clientModules = Array.from(clientManifest.values());
             if (clientModules.includes(id) && !id.includes("node_modules")) {
-              const specifier = relative(cwd, id);
+              const specifier = sys.normalizePath(relative(cwd, id));
               return specifier
                 .replaceAll("../", "__/")
                 .replace(extname(specifier), "");

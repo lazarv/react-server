@@ -15,7 +15,7 @@ export const clientReferenceMap = ({ remote, origin }) =>
           const manifest = getContext(MANIFEST);
           if (!manifest) {
             def = {
-              id: remote ? `${origin}/${id}` : id,
+              id,
               chunks: [],
               name,
               async: true,

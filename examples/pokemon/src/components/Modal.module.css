@@ -1,0 +1,20 @@
+.content {
+  @apply block fixed inset-x-8 sm:inset-x-10 md:inset-x-20 lg:inset-x-40 xl:inset-x-1/4 top-20 max-h-[calc(100vh-10rem)] bg-white rounded-lg shadow-lg overflow-auto z-30 transition-all duration-300;
+}
+
+.content:not(:empty)::after {
+  @apply content-[''] block sticky bottom-0 w-full h-8 bg-gradient-to-t from-white;
+}
+
+.content:empty,
+.content.closing {
+  @apply opacity-0 translate-y-[100vh] pointer-events-none;
+}
+
+.overlay {
+  @apply fixed inset-0 z-20 opacity-0 transition-all duration-300 pointer-events-none;
+}
+
+.content:not(:empty):not(.closing) + .overlay {
+  @apply bg-black opacity-50 pointer-events-auto;
+}

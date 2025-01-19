@@ -1,8 +1,9 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { join, relative, extname } from "node:path";
 
 import replace from "@rollup/plugin-replace";
+import glob from "fast-glob";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
@@ -99,6 +100,32 @@ export default async function serverBuild(root, options) {
     return false;
   };
 
+  const globalErrorFiles = await glob(
+    [
+      config.globalErrorComponent ?? "**/react-server.error.{jsx,tsx}",
+      "!node_modules",
+    ],
+    {
+      cwd,
+      absolute: true,
+      onlyFiles: true,
+    }
+  );
+  const globalError =
+    globalErrorFiles?.[0] ??
+    __require.resolve("@lazarv/react-server/server/GlobalError.jsx", {
+      paths: [cwd],
+    });
+
+  let isGlobalErrorClientComponent = false;
+  try {
+    const code = await readFile(globalError, "utf8");
+    isGlobalErrorClientComponent =
+      code.includes(`"use client"`) || code.includes(`'use client'`);
+  } catch {
+    // ignore
+  }
+
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
   const buildConfig = {
@@ -115,6 +142,45 @@ export default async function serverBuild(root, options) {
         {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
+        },
+        {
+          find: /^@lazarv\/react-server\/error-boundary$/,
+          replacement: join(sys.rootDir, "server/error-boundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/client\/ErrorBoundary\.jsx$/,
+          replacement: join(sys.rootDir, "client/ErrorBoundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/file-router$/,
+          replacement: join(
+            sys.rootDir,
+            "lib/plugins/file-router/entrypoint.jsx"
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/router$/,
+          replacement: join(sys.rootDir, "server/router.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/prerender$/,
+          replacement: join(sys.rootDir, "server/prerender.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/remote$/,
+          replacement: join(sys.rootDir, "server/remote.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/navigation$/,
+          replacement: join(sys.rootDir, "client/navigation.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/memory-cache$/,
+          replacement: join(sys.rootDir, "memory-cache"),
+        },
+        {
+          find: /^@lazarv\/react-server\/server\//,
+          replacement: join(sys.rootDir, "server/"),
         },
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],
@@ -147,6 +213,15 @@ export default async function serverBuild(root, options) {
           moduleSideEffects: false,
           ...config.build?.rollupOptions?.treeshake,
         },
+        onwarn(warn) {
+          if (
+            warn.code === "EMPTY_BUNDLE" ||
+            warn.code === "CIRCULAR_DEPENDENCY"
+          ) {
+            return;
+          }
+          console.warn(warn.message);
+        },
         output: {
           dir: options.outDir,
           format: "esm",
@@ -159,6 +234,13 @@ export default async function serverBuild(root, options) {
               id.endsWith(".mjs")
             ) {
               return "@lazarv/react-server";
+            }
+            const clientModules = Array.from(clientManifest.values());
+            if (clientModules.includes(id) && !id.includes("node_modules")) {
+              const specifier = sys.normalizePath(relative(cwd, id));
+              return specifier
+                .replaceAll("../", "__/")
+                .replace(extname(specifier), "");
             }
             return (
               config.build?.rollupOptions?.output?.manualChunks?.(
@@ -188,6 +270,19 @@ export default async function serverBuild(root, options) {
                       paths: [cwd],
                     }
                   ),
+          "server/error": __require.resolve(globalError, {
+            paths: [cwd],
+          }),
+          ...(isGlobalErrorClientComponent
+            ? {
+                "server/error-boundary": __require.resolve(
+                  "@lazarv/react-server/error-boundary",
+                  {
+                    paths: [cwd],
+                  }
+                ),
+              }
+            : {}),
         },
         external(id, parentId, isResolved) {
           return external(id, parentId, isResolved) || rscExternal(id);
@@ -207,6 +302,17 @@ export default async function serverBuild(root, options) {
           rollupUseCacheInline(config.cache?.profiles),
           rootModule(root),
           configPrebuilt(),
+          {
+            name: "suppress-empty-chunks",
+            generateBundle(_, bundle) {
+              Object.keys(bundle).forEach((fileName) => {
+                const chunk = bundle[fileName];
+                if (chunk.code && !chunk.code.trim()) {
+                  delete bundle[fileName];
+                }
+              });
+            },
+          },
           ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },

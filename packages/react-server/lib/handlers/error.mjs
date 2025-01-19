@@ -4,13 +4,21 @@ import colors from "picocolors";
 import strip from "strip-ansi";
 
 import packageJson from "../../package.json" with { type: "json" };
-import { getContext } from "../../server/context.mjs";
+import { context$, getContext } from "../../server/context.mjs";
+import { useErrorComponent } from "../../server/error-handler.mjs";
+import { getRuntime } from "../../server/runtime.mjs";
 import {
+  ERROR_COMPONENT,
+  ERROR_CONTEXT,
   HTTP_HEADERS,
   HTTP_STATUS,
-  RENDER_CONTEXT,
+  LOGGER_CONTEXT,
+  MODULE_LOADER,
+  RENDER,
+  RENDER_HANDLER,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import * as sys from "../sys.mjs";
 import { replaceError } from "../utils/error.mjs";
 
 function cleanStack(stack) {
@@ -111,19 +119,9 @@ function plainResponse(e) {
 }
 
 export default async function errorHandler(err) {
+  const logger = getContext(LOGGER_CONTEXT) ?? console;
   try {
     err = replaceError(err);
-
-    const server = getContext(SERVER_CONTEXT);
-    // TODO: is there a better way to check if this is a vite dev server?
-    if (typeof server?.ssrFixStacktrace !== "function") {
-      return plainResponse(err);
-    }
-
-    const renderContext = getContext(RENDER_CONTEXT);
-    if (renderContext?.flags?.isRSC) {
-      return plainResponse(err);
-    }
 
     const httpStatus = getContext(HTTP_STATUS) ?? {
       status: 500,
@@ -141,35 +139,66 @@ export default async function errorHandler(err) {
         viteDevServer.environments.client.moduleGraph.invalidateAll();
         viteDevServer.environments.ssr.moduleGraph.invalidateAll();
         viteDevServer.environments.rsc.moduleGraph.invalidateAll();
-      } catch {
+      } catch (e) {
+        console.error(e);
         // ignore
       }
     }
 
-    return new Response(
-      `<!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Error</title>
-        <script type="module" src="${`${server.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}"></script>
-        <script type="module" src="${`${server.config.base || "/"}/@hmr`.replace(/\/+/g, "/")}"></script>
-        <script type="module">
-          import { ErrorOverlay } from "${`${server.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}";
-          document.body.appendChild(new ErrorOverlay(${JSON.stringify(
-            error
-          ).replace(/</g, "\\u003c")}))
-        </script>
-      </head>
-      <body>
-      </body>
-    </html>`,
-      {
-        ...httpStatus,
-        headers,
+    try {
+      const prevGlobalErrorComponent = getContext(ERROR_COMPONENT);
+      const ssrLoadModule = getRuntime(MODULE_LOADER);
+      const { default: GlobalErrorComponent } = await ssrLoadModule(
+        `${sys.rootDir}/server/GlobalError.jsx`
+      );
+
+      if (
+        prevGlobalErrorComponent &&
+        prevGlobalErrorComponent !== GlobalErrorComponent
+      ) {
+        context$(ERROR_CONTEXT, errorHandler);
+        useErrorComponent(GlobalErrorComponent);
+        const handler = getContext(RENDER_HANDLER);
+        return handler();
+      } else {
+        context$(ERROR_COMPONENT, null);
+        context$(ERROR_CONTEXT, errorHandler);
+        return getContext(RENDER)(
+          GlobalErrorComponent,
+          { error },
+          { skipFunction: true }
+        );
       }
-    );
+    } catch (e) {
+      logger.error(e);
+      return new Response(
+        `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Error</title>
+    <script type="module" src="${`${viteDevServer.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}"></script>
+    <script type="module" src="${`${viteDevServer.config.base || "/"}/@hmr`.replace(/\/+/g, "/")}"></script>
+    <script type="module">
+      import { ErrorOverlay } from "${`${viteDevServer.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}";
+      document.body.appendChild(new ErrorOverlay(${JSON.stringify(
+        error
+      ).replace(/</g, "\\u003c")}))
+    </script>
+  </head>
+  <body>
+    <h1 style="word-break:break-word;">${error.message}</h1>
+    <pre style="width: 100%;white-space: pre-wrap;word-break:break-word;">${error.stack}</pre>
+  </body>
+</html>`,
+        {
+          ...httpStatus,
+          headers,
+        }
+      );
+    }
   } catch (e) {
+    logger.error(e);
     return plainResponse(e);
   }
 }

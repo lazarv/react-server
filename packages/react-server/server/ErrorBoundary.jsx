@@ -8,8 +8,12 @@ export default async function ReactServerErrorBoundary({
   ...props
 }) {
   return (
-    <Suspense fallback={fallback}>
-      <ErrorBoundary {...props}>{children}</ErrorBoundary>
-    </Suspense>
+    <ErrorBoundary {...props}>
+      {fallback ? (
+        <Suspense fallback={fallback}>{children}</Suspense>
+      ) : (
+        children
+      )}
+    </ErrorBoundary>
   );
 }

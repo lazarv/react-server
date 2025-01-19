@@ -1,21 +1,175 @@
-import { startTransition, StrictMode } from "react";
+import { startTransition, StrictMode, Component } from "react";
 import { hydrateRoot } from "react-dom/client";
 
-import ClientProvider, { PAGE_ROOT, streamOptions } from "./ClientProvider.jsx";
+import ClientProvider, {
+  PAGE_ROOT,
+  ClientContext,
+  streamOptions,
+} from "./ClientProvider.jsx";
 import ReactServerComponent from "./ReactServerComponent.jsx";
 
 self.__react_server_callServer__ = streamOptions(PAGE_ROOT).callServer;
 
+const initialState = { didCatch: false, error: null };
+
+function findRef(ref, value, visited = new Set()) {
+  if (ref === value) {
+    return true;
+  }
+  if (visited.has(value)) {
+    return false;
+  }
+  visited.add(value);
+  if (Array.isArray(value)) {
+    return value.some((v) => findRef(ref, v, visited));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.values(value).some((v) => findRef(ref, v, visited));
+  }
+  return false;
+}
+
+class ErrorBoundary extends Component {
+  static contextType = ClientContext;
+
+  constructor(props) {
+    super(props);
+    this.state = { ...initialState };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { didCatch: true, error, info: null };
+  }
+
+  componentDidCatch(error, info) {
+    for (const [key, value] of this.context.state.cache.entries()) {
+      if (findRef(error, value)) {
+        this.setState({
+          didCatch: true,
+          error,
+          info,
+          outlet: key,
+          url: this.context.state.outlets.get(key) || PAGE_ROOT,
+        });
+        break;
+      }
+    }
+  }
+
+  resetErrorBoundary = async () => {
+    const { error, outlet, url } = this.state;
+    if (typeof error?.digest === "string") {
+      if (outlet !== PAGE_ROOT) {
+        self[`__flightHydration__${PAGE_ROOT}__`] = false;
+      }
+      this.context.invalidate(outlet, { noEmit: true });
+      this.context.getFlightResponse(outlet, {
+        outlet,
+        remote: outlet !== PAGE_ROOT && self[`__flightStream__${outlet}__`],
+        url,
+        onFetch: () => {
+          this.setState(initialState);
+        },
+      });
+    } else {
+      this.setState(initialState);
+    }
+  };
+
+  render() {
+    const { didCatch, error } = this.state;
+
+    if (didCatch) {
+      return (
+        <html lang="en" suppressHydrationWarning>
+          <head>
+            <title>{document.title}</title>
+            <meta
+              name="viewport"
+              content="width=device-width, initial-scale=1"
+            />
+            <meta charSet="utf-8" />
+            <style
+              dangerouslySetInnerHTML={{
+                __html: `
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                padding: 2rem;
+                line-height: 1.5;
+                background: #fff;
+              }
+
+              h1 {
+                font-size: 2rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+                color: #e11d48;
+              }
+
+              pre {
+                margin: 1rem 0;
+                padding: 1rem;
+                background: #f1f5f9;
+                color: #374151;
+                border-radius: 0.5rem;
+                font-size: 0.875rem;
+              }
+
+              button {
+                padding: 0.5rem 1rem;
+                background: #0ea5e9;
+                color: #fff;
+                border: none;
+                border-radius: 0.25rem;
+                cursor: pointer;
+              }
+
+              button:hover {
+                background: #0284c7;
+              }
+            `,
+              }}
+            />
+          </head>
+          <body suppressHydrationWarning>
+            <h1>{error.digest || "Error"}</h1>
+            <pre
+              style={{
+                width: "100%",
+                whiteSpace: "pre-wrap",
+                wordWrap: "break-word",
+              }}
+            >
+              {import.meta.env.DEV ? error.stack : error.message}
+            </pre>
+            <button onClick={this.resetErrorBoundary}>Retry</button>
+          </body>
+        </html>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function ReactServer() {
   return (
     <ClientProvider>
-      <ReactServerComponent outlet={PAGE_ROOT} url={location.href} />
+      <ErrorBoundary>
+        <ReactServerComponent outlet={PAGE_ROOT} url={location.href} />
+      </ErrorBoundary>
     </ClientProvider>
   );
 }
 
 if (import.meta.env.DEV) {
-  var formatRegExp = /%[sdj%]/g;
+  var formatRegExp = /%[oOdisfc%]/g;
   const format = (f, ...args) => {
     let i = 0;
     const len = args.length;
@@ -23,16 +177,27 @@ if (import.meta.env.DEV) {
       if (x === "%%") return "%";
       if (i >= len) return x;
       switch (x) {
-        case "%s":
-          return String(args[i++]);
-        case "%d":
-          return Number(args[i++]);
-        case "%j":
+        case "%o":
+          return args[i++];
+        case "%O":
           try {
             return JSON.stringify(args[i++]);
           } catch (_) {
             return "[Circular]";
           }
+        case "%d":
+        case "%i":
+          return Math.floor(Number(args[i++]));
+        case "%s":
+          return String(args[i++]);
+        case "%f":
+          return Number(args[i++]);
+        case "%c":
+          const style = args[i++];
+          if (style) {
+            return `<span style="${style}">`;
+          }
+          return "</span>";
         default:
           return x;
       }
@@ -160,6 +325,7 @@ if (import.meta.env.DEV) {
   --white: #fff;
 }
 .details pre {
+  min-height: 1rem;
   margin: 2px 0;
   font-size: 12px;
   white-space: pre-wrap;
@@ -196,7 +362,7 @@ if (import.meta.env.DEV) {
   font-weight: 600;
 }`;
         let code;
-        error.details.forEach((d) => {
+        error.details.forEach((d, di) => {
           const content = d.textContent.trim();
           if (!code && content.startsWith("<")) {
             code = document.createElement("code");
@@ -213,28 +379,48 @@ if (import.meta.env.DEV) {
             code.appendChild(d);
           } else {
             const parts = content.split(/`([^`]+)`/);
-            if (parts.length > 1) {
-              d.innerHTML = "";
-              for (let i = 0; i < parts.length; i++) {
-                if (i % 2 === 0) {
-                  // Text outside of backticks
-                  d.appendChild(document.createTextNode(parts[i]));
+            d.innerHTML = "";
+            for (let i = 0; i < parts.length; i++) {
+              if (i % 2 === 0) {
+                const text = parts[i];
+                const textParts = text.split(/<([^>]+)>/);
+
+                if (textParts.length > 1) {
+                  for (let j = 0; j < textParts.length; j++) {
+                    if (j % 2 === 0) {
+                      d.appendChild(document.createTextNode(textParts[j]));
+                    } else {
+                      const codeEl = document.createElement("span");
+                      codeEl.className = "code";
+                      codeEl.textContent = `<${textParts[j]}>`;
+                      d.appendChild(codeEl);
+                    }
+                  }
                 } else {
-                  // Code inside backticks
-                  const codeEl = document.createElement("span");
-                  codeEl.className = "code";
-                  codeEl.textContent = parts[i];
-                  d.appendChild(codeEl);
+                  d.appendChild(document.createTextNode(text));
                 }
+              } else {
+                const codeEl = document.createElement("span");
+                codeEl.className = "code";
+                codeEl.textContent = parts[i];
+                d.appendChild(codeEl);
               }
             }
-            el.appendChild(d);
+
+            if (d.textContent.length > 0 || di < error.details.length - 1) {
+              el.appendChild(d);
+            }
           }
         });
         el.appendChild(styles);
         overlay.shadowRoot
           .querySelector("pre.message")
           .insertAdjacentElement("afterend", el);
+      }
+      if (/<span style="/.test(error.message)) {
+        const messageBody = overlay.shadowRoot.querySelector(".message-body");
+        messageBody.style.colorScheme = "dark";
+        messageBody.innerHTML = messageBody.textContent;
       }
       document.body.appendChild(overlay);
     }
@@ -300,7 +486,7 @@ if (import.meta.env.DEV) {
       el.remove();
     }
     el = new ReactServerErrorIndicator(
-      `${message.slice(0, Math.min(24, message.length))}...`,
+      `${message.replace(/<span style="[^"]+">.*<\/span>/g, "").slice(0, Math.min(24, message.length))}...`,
       callback
     );
     document.body.appendChild(el);
@@ -334,6 +520,10 @@ if (import.meta.env.DEV) {
       )
     );
   };
+
+  window.addEventListener("unhandledrejection", (e) => {
+    errorToast(e.reason.message, () => showErrorOverlay(e.reason));
+  });
 }
 
 startTransition(() => {

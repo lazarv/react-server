@@ -76,6 +76,7 @@ declare module "@lazarv/react-server/navigation" {
   import type {
     LinkProps as OriginalLinkProps,
     RefreshProps as OriginalRefreshProps,
+    ReactServerComponentProps as OriginalReactServerComponentProps,
   } from "@lazarv/react-server/client/navigation.d.ts";
   export * from "@lazarv/react-server/client/navigation.d.ts";
 
@@ -129,11 +130,25 @@ declare module "@lazarv/react-server/navigation" {
    */
   export function Refresh(props: RefreshProps): JSX.Element;
 
-  export function ReactServerComponent(props: {
+  export type ReactServerComponentProps = Omit<
+    OriginalReactServerComponentProps,
+    "url" | "outlet"
+  > & {
     url?: string;
     outlet: __react_server_routing__.Outlet;
-    children?: React.ReactNode;
-  }): JSX.Element;
+  };
+
+  /**
+   * The props for the `ReactServerComponent` component.
+   *
+   * @property url - The URL to fetch the component from
+   * @property outlet - Outlet name to use for the component
+   * @property defer - If true, the component is re-fetched after the initial render on the client side
+   * @property children - The children to render
+   */
+  export function ReactServerComponent(
+    props: ReactServerComponentProps
+  ): JSX.Element;
 }
 
 declare module "@lazarv/react-server/client" {
@@ -158,16 +173,40 @@ declare module "@lazarv/react-server/client" {
         outlet?: __react_server_routing__.Outlet;
         push?: boolean;
         rollback?: number;
+        revalidate?:
+          | boolean
+          | number
+          | ((context: {
+              outlet: string;
+              url: string;
+              timestamp: number;
+            }) => Promise<boolean> | boolean);
+        fallback?: React.ReactNode;
+        Component?: React.ReactNode;
       }
     ): Promise<void>;
     replace<T extends string>(
       url: __react_server_routing__.RouteImpl<T>,
-      options?: { outlet?: __react_server_routing__.Outlet; rollback?: number }
+      options?: {
+        outlet?: __react_server_routing__.Outlet;
+        rollback?: number;
+        revalidate?:
+          | boolean
+          | number
+          | ((context: {
+              outlet: string;
+              url: string;
+              timestamp: number;
+            }) => Promise<boolean> | boolean);
+        fallback?: React.ReactNode;
+        Component?: React.ReactNode;
+      }
     ): Promise<void>;
     prefetch<T extends string>(
       url: __react_server_routing__.RouteImpl<T>,
       options?: { outlet?: __react_server_routing__.Outlet; ttl?: number }
     ): Promise<void>;
+    abort(outlet?: __react_server_routing__.Outlet, reason?: Error): void;
   };
 
   /**

@@ -1,11 +1,14 @@
 import { immediate } from "../lib/sys.mjs";
 import { context$, getContext } from "./context.mjs";
-import { RENDER, RENDER_WAIT } from "./symbols.mjs";
+import { RENDER, RENDER_CONTEXT, RENDER_WAIT } from "./symbols.mjs";
 
 const RENDER_LOCK = Symbol("RENDER_LOCK");
 
 export function useRender() {
   const render = getContext(RENDER);
+  const context = getContext(RENDER_CONTEXT);
+  const isRemote = context?.flags.isRemote;
+  const isFunction = context?.flags.isFunction;
 
   const lock = (fn) => {
     context$(RENDER_LOCK, (getContext(RENDER_LOCK) ?? 0) + 1);
@@ -37,5 +40,5 @@ export function useRender() {
     });
   };
 
-  return { render, lock };
+  return { render, lock, isRemote, isFunction };
 }

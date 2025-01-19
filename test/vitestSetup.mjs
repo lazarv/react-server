@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readdir, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import { afterEach } from "node:test";
@@ -14,6 +15,8 @@ export let server;
 export let hostname;
 export let logs;
 export let serverLogs;
+
+export const testCwd = process.cwd();
 
 console.log = (...args) => {
   logs.push(args.join(" "));
@@ -154,4 +157,15 @@ afterEach(async () => {
 afterAll(async () => {
   await page?.close();
   await browser?.close();
+
+  if (!process.env.CI && testCwd !== process.cwd()) {
+    const files = await readdir(process.cwd(), { withFileTypes: true });
+    await Promise.all(
+      files
+        .filter(
+          (file) => file.isDirectory() && file.name.includes(".react-server")
+        )
+        .map((file) => rm(join(process.cwd(), file.name), { recursive: true }))
+    );
+  }
 });

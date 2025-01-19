@@ -8,15 +8,19 @@ export function useLocation() {
   );
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     const listener = () => {
       setLocation(window.location);
     };
-    window.addEventListener("popstate", listener);
-    window.addEventListener("pushstate", listener);
-    return () => {
-      window.removeEventListener("popstate", listener);
-      window.removeEventListener("pushstate", listener);
-    };
+    window.addEventListener("popstate", listener, {
+      signal: abortController.signal,
+    });
+    window.addEventListener("pushstate", listener, {
+      signal: abortController.signal,
+    });
+
+    return () => abortController.abort();
   }, []);
 
   return location;

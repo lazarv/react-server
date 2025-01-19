@@ -27,6 +27,7 @@ export const createRenderer = ({
     remote,
     origin,
     importMap,
+    defer,
   }) => {
     if (!flight) {
       throw new Error("No flight stream provided.");
@@ -250,15 +251,15 @@ export const createRenderer = ({
 
                       // TODO: bootstrapScripts should be buffers instead of strings, fix script parts should be pre-encoded buffers then yield copy of those buffers
                       const script = encoder.encode(
-                        `<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=()=>${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
-                          ""
-                        )}</script>${
+                        `${
                           importMap
                             ? `<script type="importmap">${JSON.stringify(
                                 importMap
                               )}</script>`
                             : ""
-                        }${
+                        }<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=()=>${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
+                          ""
+                        )}</script>${
                           hmr
                             ? "<script>self.__react_server_hydrate_init__?.();</script>"
                             : bootstrapModules
@@ -332,6 +333,8 @@ export const createRenderer = ({
                 };
 
                 const remoteWorker = async function* () {
+                  let line = 1;
+                  let tokenize = true;
                   while (!(forwardDone && htmlDone)) {
                     for await (const value of forwardWorker()) {
                       if (hydrated) {
@@ -345,9 +348,12 @@ export const createRenderer = ({
 
                     const parser = Parser.getFragmentParser();
                     for await (const value of htmlWorker()) {
-                      const html = decoder.decode(value);
-                      parser.tokenizer.write(html);
+                      if (tokenize) {
+                        const html = decoder.decode(value);
+                        parser.tokenizer.write(html);
+                      }
                     }
+                    tokenize = false;
 
                     if (linkQueue.size > 0) {
                       const links = Array.from(linkQueue);
@@ -362,22 +368,21 @@ export const createRenderer = ({
                       }
                     }
 
-                    parser.tokenizer.write(
-                      hydrated || (!hasClientComponent && !hasServerAction)
-                        ? ""
-                        : `${bootstrapScripts
-                            .map(
-                              (textContent) => `<script>${textContent}</script>`
-                            )
-                            .join("")}`,
-                      true
-                    );
-                    hydrated = true;
+                    if (!defer && (hasClientComponent || hasServerAction)) {
+                      while (bootstrapScripts.length > 0) {
+                        const textContent = bootstrapScripts.shift();
+                        parser.tokenizer.write(
+                          `<script>${textContent}</script>`
+                        );
+                      }
+                    }
 
                     const fragment = parser.getFragment();
                     if (fragment.childNodes.length > 0) {
-                      const tree = dom2flight(fragment, { origin });
-                      yield encoder.encode(`0:${JSON.stringify(tree)}\n`);
+                      const tree = dom2flight(fragment, { origin, defer });
+                      yield encoder.encode(
+                        `${line++}:${JSON.stringify(tree)}\n`
+                      );
                     }
 
                     if (!started) {
@@ -391,6 +396,13 @@ export const createRenderer = ({
                       });
                     }
                   }
+
+                  yield encoder.encode(
+                    `0:[${new Array(line - 1)
+                      .fill(0)
+                      .map((_, i) => `"$${i + 1}"`)
+                      .join(",")}]\n`
+                  );
                 };
 
                 const render = async () => {
@@ -408,6 +420,7 @@ export const createRenderer = ({
                       done: true,
                       error: e.message,
                       stack: e.stack,
+                      digest: e.digest,
                     });
                   }
                 };
@@ -419,6 +432,7 @@ export const createRenderer = ({
                   done: true,
                   error: error.message,
                   stack: error.stack,
+                  digest: error.digest,
                 });
               }
             },
@@ -431,6 +445,7 @@ export const createRenderer = ({
             done: true,
             error: error.message,
             stack: error.stack,
+            digest: error.digest,
           });
         }
       });

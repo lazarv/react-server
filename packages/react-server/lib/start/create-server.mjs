@@ -14,7 +14,6 @@ import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   FORM_DATA_PARSER,
-  LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
@@ -36,7 +35,6 @@ export default async function createServer(root, options) {
   runtime$(WORKER_THREAD, worker);
 
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
-  const logger = getRuntime(LOGGER_CONTEXT);
 
   const initialRuntime = {
     [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
@@ -77,8 +75,14 @@ export default async function createServer(root, options) {
     notFoundHandler(),
   ]);
   if (options.cors) {
-    logger.info("CORS enabled");
-    initialHandlers.unshift(cors());
+    initialHandlers.unshift(
+      cors(
+        config.server?.cors ?? {
+          origin: (ctx) => ctx.request.headers.get("origin"),
+          credentials: true,
+        }
+      )
+    );
   }
 
   const middlewares = createMiddleware(

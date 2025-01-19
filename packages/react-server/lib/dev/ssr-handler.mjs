@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { forChild } from "../../config/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
+import { useErrorComponent } from "../../server/error-handler.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import {
   createRenderContext,
@@ -14,6 +15,7 @@ import {
   ACTION_CONTEXT,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
+  ERROR_BOUNDARY,
   ERROR_CONTEXT,
   FORM_DATA_PARSER,
   HTTP_CONTEXT,
@@ -25,6 +27,7 @@ import {
   REDIRECT_CONTEXT,
   RENDER,
   RENDER_CONTEXT,
+  RENDER_HANDLER,
   RENDER_STREAM,
   SERVER_CONTEXT,
   STYLES_CONTEXT,
@@ -39,13 +42,19 @@ const cwd = sys.cwd();
 globalThis.AsyncLocalStorage = ContextManager;
 
 export default async function ssrHandler(root) {
-  const { entryModule, rootModule, rootName, memoryCacheModule } =
-    getModules(root);
+  const config = getRuntime(CONFIG_CONTEXT);
+  const {
+    entryModule,
+    rootModule,
+    rootName,
+    memoryCacheModule,
+    globalErrorModule,
+  } = await getModules(root, config);
+
   const viteDevServer = getRuntime(SERVER_CONTEXT);
   const ssrLoadModule = getRuntime(MODULE_LOADER);
   const importMap = getRuntime(IMPORT_MAP);
   const logger = getRuntime(LOGGER_CONTEXT);
-  const config = getRuntime(CONFIG_CONTEXT);
   const formDataParser = getRuntime(FORM_DATA_PARSER);
   const memoryCacheContext = getRuntime(MEMORY_CACHE_CONTEXT);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
@@ -85,10 +94,14 @@ export default async function ssrHandler(root) {
               const [
                 { render },
                 { [rootName]: Component, init$: root_init$ },
+                { default: GlobalErrorComponent },
+                { default: ErrorBoundary },
                 { init$: cache_init$ },
               ] = await Promise.all([
                 ssrLoadModule(entryModule),
                 ssrLoadModule(rootModule),
+                ssrLoadModule(globalErrorModule),
+                ssrLoadModule("@lazarv/react-server/error-boundary"),
                 import(
                   cacheModule
                     ? pathToFileURL(
@@ -112,33 +125,45 @@ export default async function ssrHandler(root) {
               context$(RENDER_CONTEXT, renderContext);
               context$(RENDER, render);
 
-              try {
-                const middlewares = await root_init$?.();
-                if (middlewares) {
-                  const response = await middlewares(httpContext);
-                  if (response) {
-                    return resolve(response);
+              context$(ERROR_BOUNDARY, ErrorBoundary);
+              if (!renderContext.flags.isRemote && GlobalErrorComponent) {
+                useErrorComponent(GlobalErrorComponent);
+              }
+
+              const handler = async () => {
+                try {
+                  const middlewares = await root_init$?.();
+                  if (middlewares) {
+                    const response = await middlewares(httpContext);
+                    if (response) {
+                      return typeof response === "function"
+                        ? await response(httpContext)
+                        : response;
+                    }
+                  }
+                } catch (e) {
+                  const redirect = getContext(REDIRECT_CONTEXT);
+                  if (redirect?.response) {
+                    return redirect.response;
+                  } else {
+                    throw e;
                   }
                 }
-              } catch (e) {
-                const redirect = getContext(REDIRECT_CONTEXT);
-                if (redirect?.response) {
-                  return resolve(redirect.response);
-                } else {
-                  throw e;
+
+                if (renderContext.type === RENDER_TYPE.Unknown) {
+                  return;
                 }
-              }
 
-              if (renderContext.type === RENDER_TYPE.Unknown) {
-                return resolve();
-              }
+                const styles = collectStylesheets?.(rootModule) ?? [];
+                styles.unshift(...(getContext(STYLES_CONTEXT) ?? []));
+                context$(STYLES_CONTEXT, styles);
 
-              const styles = collectStylesheets?.(rootModule) ?? [];
-              styles.unshift(...(getContext(STYLES_CONTEXT) ?? []));
-              context$(STYLES_CONTEXT, styles);
+                await module_loader_init$?.(ssrLoadModule, moduleCacheStorage);
+                return render(Component);
+              };
 
-              await module_loader_init$?.(ssrLoadModule, moduleCacheStorage);
-              return resolve(render(Component));
+              context$(RENDER_HANDLER, handler);
+              return resolve(await handler());
             } catch (e) {
               logger.error(e);
               return errorHandler(e).then(resolve, reject);

@@ -81,7 +81,7 @@ export default async function createServer(root, options) {
     server: {
       ...config.server,
       middlewareMode: true,
-      cors: options.cors ?? config.server?.cors,
+      cors: false,
       hmr:
         config.server?.hmr === false
           ? false
@@ -148,6 +148,45 @@ export default async function createServer(root, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
+        {
+          find: /^@lazarv\/react-server\/error-boundary$/,
+          replacement: join(sys.rootDir, "server/error-boundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/client\/ErrorBoundary\.jsx$/,
+          replacement: join(sys.rootDir, "client/ErrorBoundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/file-router$/,
+          replacement: join(
+            sys.rootDir,
+            "lib/plugins/file-router/entrypoint.jsx"
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/router$/,
+          replacement: join(sys.rootDir, "server/router.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/prerender$/,
+          replacement: join(sys.rootDir, "server/prerender.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/remote$/,
+          replacement: join(sys.rootDir, "server/remote.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/navigation$/,
+          replacement: join(sys.rootDir, "client/navigation.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/memory-cache$/,
+          replacement: join(sys.rootDir, "memory-cache"),
+        },
+        {
+          find: /^@lazarv\/react-server\/server\//,
+          replacement: join(sys.rootDir, "server/"),
+        },
         ...makeResolveAlias(config.resolve?.alias),
       ],
       noExternal: [bareImportRE],
@@ -190,6 +229,7 @@ export default async function createServer(root, options) {
             "react-dom/client",
             "react-server-dom-webpack",
             "react-is",
+            "picocolors",
           ],
           conditions: ["default"],
           externalConditions: ["default"],
@@ -250,6 +290,7 @@ export default async function createServer(root, options) {
             "react-dom",
             "react-server-dom-webpack",
             "react-is",
+            "picocolors",
             ...(config.ssr?.external ?? []),
             ...(config.external ?? []),
           ],
@@ -304,7 +345,7 @@ export default async function createServer(root, options) {
   viteDevServer.environments.client.hot = viteDevServer.ws;
   viteDevServer.environments.rsc.watcher = viteDevServer.watcher;
   viteDevServer.environments.rsc.hot = {
-    send: (data) => {
+    send: async (data) => {
       data.triggeredBy = sys
         .normalizePath(
           sys.normalizePath(data.triggeredBy)?.replace(sys.rootDir, cwd + "/")
@@ -316,6 +357,16 @@ export default async function createServer(root, options) {
         )
       ) {
         viteDevServer.environments.client.hot.send(data);
+      }
+
+      const cache = getRuntime(MEMORY_CACHE_CONTEXT);
+      if (await cache.has([data.triggeredBy])) {
+        viteDevServer.environments.rsc.logger.info(
+          `${colors.green("invalidate cache")} ${colors.gray(
+            relative(cwd, data.triggeredBy)
+          )}`
+        );
+        await cache.delete([data.triggeredBy]);
       }
     },
   };
@@ -462,7 +513,14 @@ export default async function createServer(root, options) {
     notFoundHandler(),
   ]);
   if (options.cors) {
-    initialHandlers.unshift(cors());
+    initialHandlers.unshift(
+      cors(
+        config.server?.cors ?? {
+          origin: (ctx) => ctx.request.headers.get("origin"),
+          credentials: true,
+        }
+      )
+    );
   }
 
   viteDevServer.middlewares.use(

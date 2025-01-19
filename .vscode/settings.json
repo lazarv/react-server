@@ -7,5 +7,7 @@
     "editor.codeActionsOnSave": {
       "source.organizeImports": "never"
     }
-  }
+  },
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
 }

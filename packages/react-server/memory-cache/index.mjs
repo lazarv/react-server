@@ -8,6 +8,12 @@ import {
   MEMORY_CACHE_CONTEXT,
 } from "../server/symbols.mjs";
 
+function matchKeys(keys, entryKeys) {
+  return keys.every((key) =>
+    Boolean(entryKeys.find((entryKey) => equals(entryKey, key)))
+  );
+}
+
 export class MemoryCache {
   constructor() {
     this.cache = new Map();
@@ -29,7 +35,7 @@ export class MemoryCache {
 
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
+      if (matchKeys(keys, entryKeys)) {
         return this.cache.get(entryKeys);
       }
     }
@@ -41,7 +47,7 @@ export class MemoryCache {
     if (await this.hasExpiry(keys)) {
       const cacheKeys = this.cache.keys();
       for (const entryKeys of cacheKeys) {
-        if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
+        if (matchKeys(keys, entryKeys)) {
           this.cache.set(entryKeys, value);
           return;
         }
@@ -53,7 +59,7 @@ export class MemoryCache {
   async has(keys) {
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
+      if (matchKeys(keys, entryKeys)) {
         return true;
       }
     }
@@ -61,10 +67,21 @@ export class MemoryCache {
     return false;
   }
 
+  async getExpiry(keys) {
+    const expiryKeys = this.expiry.keys();
+    for (const entryKeys of expiryKeys) {
+      if (matchKeys(keys, entryKeys)) {
+        return this.expiry.get(entryKeys);
+      }
+    }
+
+    return null;
+  }
+
   async setExpiry(keys, expiry) {
     const expiryKeys = this.expiry.keys();
     for (const entryKeys of expiryKeys) {
-      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
+      if (matchKeys(keys, entryKeys)) {
         this.expiry.set(entryKeys, expiry);
         return;
       }
@@ -92,7 +109,7 @@ export class MemoryCache {
   async delete(keys) {
     const cacheKeys = this.cache.keys();
     for (const entryKeys of cacheKeys) {
-      if (keys.every((key, keyIndex) => equals(entryKeys[keyIndex], key))) {
+      if (matchKeys(keys, entryKeys)) {
         this.cache.delete(entryKeys);
       }
     }

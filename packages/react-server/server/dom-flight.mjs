@@ -11,6 +11,9 @@ export default function visit(node, context) {
     case "#comment":
       return null;
     default: {
+      if (node.nodeName === "template" && context.defer) {
+        return null;
+      }
       const childNodes =
         node.childNodes?.map((node) => visit(node, context)) ?? [];
       const children = childNodes.length > 1 ? childNodes : childNodes[0];
@@ -52,7 +55,10 @@ export default function visit(node, context) {
           return props;
         }, {}) ?? {};
       if (typeof children !== "undefined") {
-        props.children = children;
+        props.children =
+          node.nodeName === "script" && children.startsWith("$")
+            ? `$${children}`
+            : children;
       }
       return ["$", node.nodeName, null, props, "", "", 1];
     }

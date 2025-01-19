@@ -6,6 +6,8 @@ import { forChild } from "../../config/context.mjs";
 import { init$ as memory_cache_init$ } from "../../memory-cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
+import { useErrorComponent } from "../../server/error-handler.mjs";
+import { style as errorStyle } from "../../server/error-styles.mjs";
 import { logger } from "../../server/logger.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getPrerender } from "../../server/prerender-storage.mjs";
@@ -15,6 +17,7 @@ import {
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
+  ERROR_BOUNDARY,
   ERROR_CONTEXT,
   FORM_DATA_PARSER,
   HTTP_CONTEXT,
@@ -64,11 +67,30 @@ export default async function ssrHandler(root, options = {}) {
       paths: [cwd],
     }
   );
-  const [{ render }, { default: Component, init$: root_init$ }] =
-    await Promise.all([
-      import(pathToFileURL(entryModule)),
-      import(pathToFileURL(rootModule)),
-    ]);
+  const globalErrorModule = __require.resolve(`./${outDir}/server/error.mjs`, {
+    paths: [cwd],
+  });
+  let errorBoundary;
+  try {
+    errorBoundary = __require.resolve(`./${outDir}/server/error-boundary.mjs`, {
+      paths: [cwd],
+    });
+  } catch {
+    // ignore
+  }
+  const [
+    { render },
+    { default: Component, init$: root_init$ },
+    { default: GlobalErrorComponent },
+    { default: ErrorBoundary },
+  ] = await Promise.all([
+    import(pathToFileURL(entryModule)),
+    import(pathToFileURL(rootModule)),
+    import(pathToFileURL(globalErrorModule)),
+    errorBoundary
+      ? import(pathToFileURL(errorBoundary))
+      : Promise.resolve({ default: null }),
+  ]);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
   const mainModule = getRuntime(MAIN_MODULE)?.map((mod) =>
@@ -129,9 +151,36 @@ export default async function ssrHandler(root, options = {}) {
     };
 
     const headers = getContext(HTTP_HEADERS) ?? new Headers();
+
+    if (getContext(RENDER_CONTEXT)?.flags?.isHTML) {
+      const html = `<html lang="en">
+  <head>
+    <title>Server Error</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      ${errorStyle}
+    </style>
+  </head>
+  <body class="react-server-global-error">
+    <h1>${e?.digest || e?.message}</h1>
+    <pre>${(e?.digest ? e?.message : e?.stack) || "An unexpected error occurred while rendering the page. The specific message is omitted in production builds to avoid leaking sensitive details."}</pre>
+    <a href="${getContext(HTTP_CONTEXT)?.url.pathname}">
+      <button>Retry</button>
+    </a>
+  </body>
+</html>`;
+
+      headers.set("Content-Type", "text/html; charset=utf-8");
+      return new Response(html, {
+        status: httpStatus.status,
+        headers,
+      });
+    }
+
     headers.set("Content-Type", "text/plain; charset=utf-8");
 
-    return new Response(e?.stack ?? null, {
+    return new Response(e?.digest || e?.message, {
       ...httpStatus,
       headers,
     });
@@ -159,6 +208,7 @@ export default async function ssrHandler(root, options = {}) {
             [RENDER_STREAM]: renderStream,
             [PRELUDE_HTML]: getPrerender(PRELUDE_HTML),
             [POSTPONE_STATE]: getPrerender(POSTPONE_STATE),
+            [ERROR_BOUNDARY]: ErrorBoundary,
           },
           async () => {
             const cacheModule = forChild(httpContext.url)?.cache?.module;
@@ -180,12 +230,20 @@ export default async function ssrHandler(root, options = {}) {
             context$(RENDER_CONTEXT, renderContext);
             context$(RENDER, render);
 
+            if (GlobalErrorComponent) {
+              useErrorComponent(GlobalErrorComponent);
+            }
+
             try {
               const middlewares = await root_init$?.();
               if (middlewares) {
                 const response = await middlewares(httpContext);
                 if (response) {
-                  return resolve(response);
+                  return resolve(
+                    typeof response === "function"
+                      ? await response(httpContext)
+                      : response
+                  );
                 }
               }
             } catch {

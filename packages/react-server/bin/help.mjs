@@ -37,18 +37,20 @@ async function detectPackageManager() {
   }
 
   // Check for lock files
-  const [hasYarnLock, hasPnpmLock, hasBunLock, hasNpmLock] = await Promise.all([
-    exists(path.join(cwd, "yarn.lock")),
-    exists(path.join(cwd, "pnpm-lock.yaml")),
-    exists(path.join(cwd, "bun.lockb")),
-    exists(path.join(cwd, "package-lock.json")),
-  ]);
+  const [hasYarnLock, hasPnpmLock, hasBunLock, hasBunbLock, hasNpmLock] =
+    await Promise.all([
+      exists(path.join(cwd, "yarn.lock")),
+      exists(path.join(cwd, "pnpm-lock.yaml")),
+      exists(path.join(cwd, "bun.lock")),
+      exists(path.join(cwd, "bun.lockb")),
+      exists(path.join(cwd, "package-lock.json")),
+    ]);
 
   if (hasYarnLock) {
     return "yarn";
   } else if (hasPnpmLock) {
     return "pnpm";
-  } else if (hasBunLock) {
+  } else if (hasBunLock || hasBunbLock) {
     return "bun";
   } else if (hasNpmLock) {
     return "npm";

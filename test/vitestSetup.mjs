@@ -23,6 +23,7 @@ console.log = (...args) => {
   serverLogs.push(args.join(" "));
 };
 
+const consoleError = console.error;
 console.error = (...args) => {
   logs.push(args.join(" "));
   serverLogs.push(args.join(" "));
@@ -133,10 +134,12 @@ beforeAll(async ({ name, id }) => {
             }
           });
           worker.on("error", (e) => {
+            consoleError(e);
             reject(e);
           });
           worker.on("exit", (code) => {
             if (code !== 0) {
+              consoleError(new Error(`Worker stopped with exit code ${code}`));
               reject(new Error(`Worker stopped with exit code ${code}`));
             }
           });

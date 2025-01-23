@@ -52,7 +52,7 @@ import glob from "fast-glob";
 
 import { argv, exit } from "../lib/sys.mjs";
 import {
-  checkNodejsVersion,
+  checkJSRuntimeVersion,
   checkReactDependencies,
 } from "../lib/utils/check.mjs";
 
@@ -75,7 +75,7 @@ try {
 
   // Check Node.js version
   if (cli.matchedCommand.__react_server_check_node_version__ !== false) {
-    if (checkNodejsVersion()) {
+    if (checkJSRuntimeVersion()) {
       exit(1);
     }
   }

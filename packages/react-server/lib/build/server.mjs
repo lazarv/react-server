@@ -45,6 +45,7 @@ export default async function serverBuild(root, options) {
   const external = (id, parentId, isResolved) => {
     const external = [
       /manifest\.json/,
+      "bun",
       /^bun:/,
       /^node:/,
       "react",

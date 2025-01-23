@@ -86,12 +86,15 @@ export default function TableOfContents() {
       <header className="text-md font-semibold mb-2 whitespace-nowrap">
         On this page
       </header>
-      <ul className="flex flex-col gap-2 w-40">
-        {tableOfContents.map((item) => (
-          <li key={item.href}>
+      <ul className="flex flex-col w-40">
+        {tableOfContents.map((item, i) => (
+          <li
+            key={item.href}
+            className="first:border-none pb-2 last:pb-0 border-l border-gray-300 dark:border-gray-600"
+          >
             <a
               href={item.href}
-              className={`block mb-1 max-w-full !whitespace-normal text-xs${
+              className={`block max-w-full after:mb-[-1px] !whitespace-normal text-xs${
                 (
                   item.href === "#"
                     ? active === "#"
@@ -100,7 +103,9 @@ export default function TableOfContents() {
                   ? " text-indigo-500 dark:text-yellow-600 active"
                   : ""
               } ${item.indent === 0 ? "font-semibold" : ""}`}
-              style={{ marginLeft: `${item.indent / 4}rem` }}
+              style={{
+                paddingLeft: i > 0 ? `${item.indent / 2 + 0.25}rem` : "0",
+              }}
               title={item.label}
               onClick={(e) => {
                 e.preventDefault();

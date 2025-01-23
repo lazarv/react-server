@@ -57,14 +57,14 @@ This file exports a React Server Component that renders an `h1` element with the
 To start the development server, run the following command:
 
 ```sh
-pnpm exec react-server ./App.jsx
+pnpm react-server ./App.jsx
 ```
 
 This command starts the development server and renders the `App` component. Open [http://localhost:3000](http://localhost:3000) in your browser to see the "Hello, World!" message.
 
 The `./App.jsx` argument specifies the entry file for the server. You can replace it with the path to your React Server Component file.
 
-We used the `pnpm exec` command to run the `react-server` script from the `@lazarv/react-server` package. You can also add a `dev` script to your `package.json` file for convenience:
+We used `pnpm` to run the `react-server` script from the `@lazarv/react-server` package. You can also add a `dev` script to your `package.json` file for convenience:
 
 ```json filename="./package.json"
 {
@@ -87,7 +87,7 @@ pnpm dev
 To build your application, run the following command:
 
 ```sh
-pnpm exec react-server build ./App.jsx
+pnpm react-server build ./App.jsx
 ```
 
 This command generates a production build of your application in the `.react-server` directory. You can deploy this build to a server using any Node.js hosting provider or host on your own server.
@@ -110,7 +110,7 @@ You can also add a `build` script to your `package.json` file for convenience:
 To start the production server, run the following command:
 
 ```sh
-pnpm exec react-server start
+pnpm react-server start
 ```
 
 This command starts the production server and serves the built `@lazarv/react-server` application. Open [http://localhost:3000](http://localhost:3000) in your browser to see the "Hello, World!" message.

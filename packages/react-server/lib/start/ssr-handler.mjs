@@ -8,7 +8,6 @@ import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
 import { style as errorStyle } from "../../server/error-styles.mjs";
-import { logger } from "../../server/logger.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getPrerender } from "../../server/prerender-storage.mjs";
 import { createRenderContext } from "../../server/render-context.mjs";
@@ -53,6 +52,7 @@ const cwd = sys.cwd();
 export default async function ssrHandler(root, options = {}) {
   const outDir = options.outDir ?? ".react-server";
   const defaultRoot = join(cwd, outDir, "server/index.mjs");
+  const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 

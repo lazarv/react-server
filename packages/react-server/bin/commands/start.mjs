@@ -18,6 +18,20 @@ export default (cli) => {
       default: ".react-server",
     })
     .action(async (...args) => {
+      if (typeof Bun !== "undefined" && process.env.NODE_ENV !== "production") {
+        const { spawnSync } = await import("bun");
+        spawnSync(process.argv, {
+          env: {
+            ...process.env,
+            NODE_ENV: "production",
+          },
+          stdout: "inherit",
+          stderr: "inherit",
+        });
+
+        process.exit(0);
+      }
+
       setEnv("NODE_ENV", "production");
       return (await import("../../lib/start/action.mjs")).default(...args);
     });

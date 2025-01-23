@@ -1,0 +1,26 @@
+.tab {
+  [id^="tab-"]:checked ~ label:after,
+  label:hover:after {
+    position: absolute;
+    content: "";
+    display: block;
+    width: 100%;
+    height: 2px;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: 200ms both indicator;
+
+    @apply from-rose-400 via-fuchsia-500 to-indigo-500 bg-gradient-to-r;
+
+    @keyframes indicator {
+      from {
+        width: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion) {
+      animation: none;
+    }
+  }
+}

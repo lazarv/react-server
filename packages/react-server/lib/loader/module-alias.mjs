@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 
 import moduleAlias from "module-alias";
 
@@ -80,4 +81,38 @@ export function moduleAliases(condition) {
 
 export function alias(condition) {
   moduleAlias.addAliases(moduleAliases(condition));
+}
+
+export async function reactServerBunAliasPlugin() {
+  if (typeof Bun !== "undefined") {
+    const { plugin } = await import("bun");
+
+    plugin({
+      name: "react-server",
+      setup(build) {
+        build.onResolve({ filter: /\.js$/ }, (args) => {
+          const fullPath = args.path.startsWith(".")
+            ? join(dirname(args.importer), args.path)
+            : args.path;
+          if (/react\.development\.js$/.test(fullPath)) {
+            return {
+              ...args,
+              path: fullPath.replace(
+                /react\.development\.js$/,
+                "react.react-server.development.js"
+              ),
+            };
+          } else if (/react-jsx-dev-runtime\.development\.js$/.test(fullPath)) {
+            return {
+              ...args,
+              path: fullPath.replace(
+                /react-jsx-dev-runtime\.development\.js$/,
+                "react-jsx-dev-runtime.react-server.development.js"
+              ),
+            };
+          }
+        });
+      },
+    });
+  }
 }

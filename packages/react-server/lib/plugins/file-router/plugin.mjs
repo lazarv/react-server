@@ -582,6 +582,7 @@ export default function viteReactServerRouter(options = {}) {
           ],
           {
             cwd: join(cwd, root),
+            ...(typeof Bun !== "undefined" && { useFsEvents: false }),
           }
         );
 

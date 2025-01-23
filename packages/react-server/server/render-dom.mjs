@@ -8,6 +8,9 @@ import { Parser } from "parse5";
 
 import dom2flight from "./dom-flight.mjs";
 
+const streamMap = new Map();
+const preludeMap = new Map();
+
 export const createRenderer = ({
   moduleCacheStorage,
   linkQueueStorage,
@@ -17,21 +20,70 @@ export const createRenderer = ({
   return async ({
     id,
     stream: flight,
+    chunk,
+    done,
     bootstrapModules,
     bootstrapScripts,
     outlet,
     formState,
     isPrerender,
     prelude,
+    preludeChunk,
+    preludeDone,
     postponed,
     remote,
     origin,
     importMap,
     defer,
   }) => {
+    if (!flight && !streamMap.has(id)) {
+      flight = new ReadableStream({
+        type: "bytes",
+        async start(controller) {
+          streamMap.set(id, controller);
+        },
+      });
+    }
+
+    if (chunk || done) {
+      const controller = streamMap.get(id);
+      if (controller) {
+        if (chunk) {
+          controller.enqueue(chunk);
+        } else if (done) {
+          streamMap.delete(id);
+          controller.close();
+        }
+      }
+      return;
+    }
+
+    if (prelude === "chunk" && !preludeMap.has(id)) {
+      prelude = new ReadableStream({
+        type: "bytes",
+        async start(controller) {
+          preludeMap.set(id, controller);
+        },
+      });
+    }
+
+    if (preludeChunk || preludeDone) {
+      const controller = preludeMap.get(id);
+      if (controller) {
+        if (preludeChunk) {
+          controller.enqueue(preludeChunk);
+        } else if (preludeDone) {
+          preludeMap.delete(id);
+          controller.close();
+        }
+      }
+      return;
+    }
+
     if (!flight) {
       throw new Error("No flight stream provided.");
     }
+
     let started = false;
     let error = null;
     moduleCacheStorage.run(new Map(), async () => {
@@ -438,7 +490,22 @@ export const createRenderer = ({
             },
           });
 
-          parentPort.postMessage({ id, stream }, [stream]);
+          try {
+            parentPort.postMessage({ id, stream }, [stream]);
+          } catch {
+            // Send the stream data back via the parent port
+            parentPort.postMessage({ id, stream: true });
+            (async () => {
+              const reader = stream.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                  break;
+                }
+                parentPort.postMessage({ id, stream: true, value });
+              }
+            })();
+          }
         } catch (error) {
           parentPort.postMessage({
             id,

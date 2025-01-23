@@ -9,16 +9,16 @@ contents: false
 
 When you're using the node.js runtime environment, you can start your `@lazarv/react-server` in cluster mode with your production build. In cluster mode, you can utilize all the CPU cores of your machine to achieve blazing fast performance. You can enable cluster mode by setting the `REACT_SERVER_CLUSTER` environment variable to the number of cores you want to use or just provide any non-number value to use all the cores available on your machine.
 
-Starting `@lazarv/react-server` in cluster mode is as simple as setting the `REACT_SERVER_CLUSTER` environment variable to the number of cores you want to use or for example `true`, `enabled`, `yes`, `on` to use all the cores available on your machine. The following example shows how to start `@lazarv/react-server` in cluster mode using the `pnpm exec` command with 8 worker threads.
+Starting `@lazarv/react-server` in cluster mode is as simple as setting the `REACT_SERVER_CLUSTER` environment variable to the number of cores you want to use or for example `true`, `enabled`, `yes`, `on` to use all the cores available on your machine. The following example shows how to start `@lazarv/react-server` in cluster mode using `pnpm` with 8 worker threads.
 
 ```sh
-REACT_SERVER_CLUSTER=8 pnpm exec react-server start
+REACT_SERVER_CLUSTER=8 pnpm react-server start
 ```
 
-The following example shows how to start `@lazarv/react-server` in cluster mode using the `pnpm exec` command with all the cores available on your machine.
+The following example shows how to start `@lazarv/react-server` in cluster mode using `pnpm` with all the cores available on your machine.
 
 ```sh
-REACT_SERVER_CLUSTER="on" pnpm exec react-server start
+REACT_SERVER_CLUSTER="on" pnpm react-server start
 ```
 
 You can also enable cluster mode by setting the `cluster` option in your `react-server.config.json` file.

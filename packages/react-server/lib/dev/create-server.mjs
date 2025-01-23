@@ -35,7 +35,11 @@ import {
 import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
-import { alias, moduleAliases } from "../loader/module-alias.mjs";
+import {
+  alias,
+  moduleAliases,
+  reactServerBunAliasPlugin,
+} from "../loader/module-alias.mjs";
 import { applyAlias } from "../loader/utils.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
@@ -61,6 +65,7 @@ import ssrHandler from "./ssr-handler.mjs";
 
 alias("react-server");
 register("../loader/node-loader.react-server.mjs", import.meta.url);
+await reactServerBunAliasPlugin();
 
 const cwd = sys.cwd();
 const workspaceRoot = findPackageRoot(join(cwd, "..")) ?? cwd;
@@ -99,6 +104,10 @@ export default async function createServer(root, options) {
           ...(config.server?.fs?.allow ?? []),
         ],
       },
+      watch:
+        typeof Bun !== "undefined"
+          ? { useFsEvents: false, ...config.server?.watch }
+          : config.server?.watch,
     },
     publicDir: join(cwd, publicDir),
     root: cwd,

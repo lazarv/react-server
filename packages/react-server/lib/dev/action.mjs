@@ -53,7 +53,7 @@ export default async function dev(root, options) {
 
           let config = await loadConfig(
             {},
-            options.watch ?? true
+            typeof Bun === "undefined" && (options.watch ?? true)
               ? {
                   ...options,
                   onWatch(watcher) {

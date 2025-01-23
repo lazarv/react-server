@@ -106,7 +106,7 @@ export default function Home() {
 ```
 
 <Link name="navigate">
-### Navigate
+## Navigate
 </Link>
 
 To programmatically navigate to a new page you can use the `navigate` function returned by the `useClient` hook. It's recommended to use `navigate` in a React transition to render only the parts of the page that are changing.
@@ -290,7 +290,7 @@ export default function Home() {
 ```
 
 <Link name="fallback">
-### Fallback
+## Fallback
 </Link>
 
 The `fallback` option on the `Link` and `Refresh` components allows you to specify a fallback component to render until the outlet starts to render the React Server Component. This can be useful when you want to render a loading indicator or a skeleton while the React Server Component is being rendered immediately, without waiting for the React Server Component request to reach the server.
@@ -324,7 +324,7 @@ export default function Home() {
 ```
 
 <Link name="component">
-### Component
+## Component
 </Link>
 
 The `Component` option on the `Link` and `Refresh` components allows you to specify a React component to render. This can be useful when you want to render a React component directly in the outlet instead of making a request to the server.
@@ -358,7 +358,7 @@ export default function Home() {
 ```
 
 <Link name="revalidate">
-### Using revalidate
+## Using revalidate
 </Link>
 
 You can use the `revalidate` prop on the `Link`, `Refresh` and `Form` components to control client-side caching of the page or content of the specified outlet. The `revalidate` prop can accept a number which represents the number of milliseconds the page or outlet will be cached for the target URL. After the timeout expires, the page will be removed from the cache and the next time the user navigates to the page, the page will be rendered again by fetching the content from the server rendering the React Server Component.

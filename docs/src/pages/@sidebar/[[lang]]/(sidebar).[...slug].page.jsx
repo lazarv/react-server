@@ -39,7 +39,7 @@ export default function PageSidebar({ lang, slug: [category] }) {
         .map(([category, pages], i) => (
           <div key={category} className="mb-4">
             <div
-              className={`text-md font-semibold mb-2${i > 0 ? " border-t pt-4 dark:border-gray-800" : ""}`}
+              className={`text-md font-semibold mb-2${i > 0 ? " pt-4 dark:border-gray-800" : ""}`}
             >
               {!pages.some(
                 ([, { frontmatter }]) =>
@@ -60,7 +60,7 @@ export default function PageSidebar({ lang, slug: [category] }) {
                 ([, { frontmatter: a }], [, { frontmatter: b }]) =>
                   (a?.order ?? 0) - (b?.order ?? 0)
               )
-              .map(([mod, { frontmatter }]) => {
+              .map(([mod, { frontmatter }], i) => {
                 const href = `${lang !== defaultLanguage ? `/${lang}` : ""}/${
                   frontmatter?.slug ??
                   relative(`../../${lang}`, mod)
@@ -77,7 +77,7 @@ export default function PageSidebar({ lang, slug: [category] }) {
                   <a
                     key={mod}
                     href={href}
-                    className={`block mb-1 text-sm${isActive ? " text-indigo-500 dark:text-yellow-600 active" : ""}`}
+                    className={`block pb-1 last:pb-0 after:mb-1 last:after:mb-0 text-sm pl-3 border-l border-gray-300 dark:border-gray-600${isActive ? " text-indigo-500 dark:text-yellow-600 active" : ""}`}
                   >
                     {frontmatter?.title ?? basename(mod).replace(/\.mdx?$/, "")}
                   </a>

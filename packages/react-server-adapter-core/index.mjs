@@ -182,7 +182,13 @@ export async function getDependencies(adapterFiles, reactServerDir) {
   let lockFile = [];
   while (lockFile.length === 0) {
     lockFile = await glob(
-      ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb"],
+      [
+        "package-lock.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "bun.lockb",
+        "bun.lock",
+      ],
       {
         onlyFiles: true,
         cwd: rootDir,

@@ -6,15 +6,38 @@ import semver from "semver";
 export function checkNodejsVersion() {
   const minNodeVersion = "20.10.0";
   if (
-    semver.lt(process.version, minNodeVersion, {
+    semver.lt(process.versions.node, minNodeVersion, {
       loose: true,
     })
   ) {
-    console.error(`Node.js version ${colors.cyan(`v${minNodeVersion}`)} or higher is required to use ${colors.cyan("@lazarv/react-server")}.
+    console.log(`Node.js version ${colors.cyan(`v${minNodeVersion}`)} or higher is required to use ${colors.cyan("@lazarv/react-server")}.
 You are currently running Node.js ${colors.cyan(process.version)}.
 Please upgrade your Node.js version.
       `);
     return true;
+  }
+}
+
+export function checkBunVersion() {
+  const minBunVersion = "1.1.45";
+  if (
+    semver.lt(process.versions.bun, minBunVersion, {
+      loose: true,
+    })
+  ) {
+    console.log(`Bun version ${colors.cyan(`v${minBunVersion}`)} or higher is required to use ${colors.cyan("@lazarv/react-server")}.
+You are currently running Bun ${colors.cyan(`v${process.versions.bun}`)}.
+Please upgrade your Bun version.
+      `);
+    return true;
+  }
+}
+
+export function checkJSRuntimeVersion() {
+  if (typeof Bun !== "undefined") {
+    return checkBunVersion();
+  } else {
+    return checkNodejsVersion();
   }
 }
 

@@ -609,10 +609,10 @@ export async function render(Component, props = {}, options = {}) {
               });
             },
             onError(e, digest) {
-              logger.error(e, digest);
               if (digest) {
                 e.digest = digest;
               }
+              logger.error(e);
               hasError = true;
               if (!isStarted) {
                 ContextStorage.run(contextStore, async () => {

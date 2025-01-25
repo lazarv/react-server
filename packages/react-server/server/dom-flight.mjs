@@ -60,7 +60,7 @@ export default function visit(node, context) {
             ? `$${children}`
             : children;
       }
-      return ["$", node.nodeName, null, props, "", "", 1];
+      return ["$", node.nodeName, null, props, null, null, 1];
     }
   }
 }

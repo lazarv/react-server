@@ -1,5 +1,5 @@
 export const ssrManifest = {
-  ssrManifest: {
+  serverConsumerManifest: {
     moduleMap: new Proxy(
       {},
       {

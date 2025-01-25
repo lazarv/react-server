@@ -11,6 +11,8 @@ import {
   noContentAction,
   errorAction,
   reloadAction,
+  streamAction,
+  iteratorAction,
 } from "./actions.mjs";
 
 export default function ServerFunctionTypes() {
@@ -69,6 +71,30 @@ export default function ServerFunctionTypes() {
         }
       >
         json-action
+      </button>
+      <button
+        onClick={async () => {
+          const stream = await streamAction();
+          console.log((window.__react_server_result__ = stream));
+          for await (const value of stream) {
+            console.log(value);
+          }
+          console.log("done");
+        }}
+      >
+        stream-action
+      </button>
+      <button
+        onClick={async () => {
+          const iterator = await iteratorAction();
+          console.log((window.__react_server_result__ = iterator));
+          for await (const value of iterator) {
+            console.log(value);
+          }
+          console.log("done");
+        }}
+      >
+        iterator-action
       </button>
       <button
         onClick={async () =>

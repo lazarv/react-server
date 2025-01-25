@@ -1,5 +1,6 @@
 import {
   hostname,
+  logs,
   page,
   server,
   serverLogs,
@@ -31,6 +32,26 @@ const validator = {
   "reload-action": async (page) => {
     expect(await page.content()).toContain("timestamp");
   },
+  "stream-action": async (page) => {
+    expect(
+      await page.evaluate(() => window.__react_server_result__.constructor.name)
+    ).toBe("ReadableStream");
+    await waitForChange(null, () => logs.find((log) => log.includes("done")));
+    expect(logs).toEqual(
+      expect.arrayContaining(["hello 0", "hello 1", "hello 2", "done"])
+    );
+  },
+  "iterator-action": async (page) => {
+    expect(
+      await page.evaluate(
+        () => window.__react_server_result__[Symbol.asyncIterator].name
+      )
+    ).toBe("asyncIterator");
+    await waitForChange(null, () => logs.find((log) => log.includes("done")));
+    expect(logs).toEqual(
+      expect.arrayContaining(["hello 0", "hello 1", "hello 2", "done"])
+    );
+  },
 };
 
 const createTest = (type) =>
@@ -58,4 +79,6 @@ const createTest = (type) =>
   "no-content-action",
   "error-action",
   "reload-action",
+  "stream-action",
+  "iterator-action",
 ].forEach(createTest);

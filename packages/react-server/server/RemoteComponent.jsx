@@ -40,7 +40,7 @@ async function RemoteComponentLoader({
           throw e;
         }),
         {
-          ssrManifest: {
+          serverConsumerManifest: {
             moduleMap: new Proxy(
               {},
               {

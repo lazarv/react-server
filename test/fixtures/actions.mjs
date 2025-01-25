@@ -53,6 +53,27 @@ export async function blobAction() {
   return new Blob(["hello"], { type: "text/plain" });
 }
 
+export async function streamAction() {
+  console.log("submitted stream-action!");
+  return new ReadableStream({
+    async start(controller) {
+      for (let i = 0; i < 3; i++) {
+        controller.enqueue(`hello ${i}`);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      controller.close();
+    },
+  });
+}
+
+export async function* iteratorAction() {
+  console.log("submitted iterator-action!");
+  for (let i = 0; i < 3; i++) {
+    yield `hello ${i}`;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
 export async function textAction() {
   console.log("submitted text-action!");
   return "hello";

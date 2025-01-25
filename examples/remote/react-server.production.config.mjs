@@ -1,15 +1,15 @@
 export default {
   importMap: {
     imports: {
-      react: "https://esm.sh/react@0.0.0-experimental-204a551e-20240926",
+      react: "https://esm.sh/react@0.0.0-experimental-de1eaa26-20250124",
       "react/jsx-runtime":
-        "https://esm.sh/react@0.0.0-experimental-204a551e-20240926/jsx-runtime",
+        "https://esm.sh/react@0.0.0-experimental-de1eaa26-20250124/jsx-runtime",
       "react-dom":
-        "https://esm.sh/react-dom@0.0.0-experimental-204a551e-20240926",
+        "https://esm.sh/react-dom@0.0.0-experimental-de1eaa26-20250124",
       "react-dom/client":
-        "https://esm.sh/react-dom@0.0.0-experimental-204a551e-20240926/client",
+        "https://esm.sh/react-dom@0.0.0-experimental-de1eaa26-20250124/client",
       "react-server-dom-webpack/client.browser":
-        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-204a551e-20240926/client.browser",
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-de1eaa26-20250124/client.browser",
       "http://localhost:3003/client/__/__/packages/react-server/":
         "/client/__/__/packages/react-server/",
     },

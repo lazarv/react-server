@@ -139,41 +139,27 @@ If you want to use these dependencies from the CDN even during development, you 
 
 > **Warning:** You need to use the exact same versions of `react`, `react/jsx-dev-runtime`, `react/jsx-runtime`, `react-dom`, `react-dom/client`, and `react-server-dom-webpack/client.browser` in the hosting application and the micro-frontends, both on the client and the server side. Otherwise, you may encounter compatibility issues.
 
-An example import map that works both in development and production while using React from [esm.sh](https://esm.sh) is shown below:
+To use an import map to work with both development and production environments, you need to create a configuration file for each environments, specifying the import maps. The configuration files below show how to use an import map that uses React from [esm.sh](https://esm.sh).
 
-```mjs
+In development, we can use the hosting application to serve the client components:
+
+```mjs filename="react-server.development.config.json"
 export default {
   importMap: {
     imports: {
-      ...(process.env.NODE_ENV !== "production"
-        ? {
-            react:
-              "https://esm.sh/react@0.0.0-experimental-de1eaa26-20250124?dev",
-            "react/jsx-dev-runtime":
-              "https://esm.sh/react@0.0.0-experimental-de1eaa26-20250124/jsx-dev-runtime?dev",
-            "react-dom":
-              "https://esm.sh/react-dom@0.0.0-experimental-de1eaa26-20250124?dev",
-            "react-dom/client":
-              "https://esm.sh/react-dom@0.0.0-experimental-de1eaa26-20250124/client?dev",
-            "react-server-dom-webpack/client.browser":
-              "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-de1eaa26-20250124/client.browser?dev",
-            "http://localhost:3001/": "/",
-            "http://localhost:3003/": "/",
-          }
-        : {
-            react:
-              "https://esm.sh/react@0.0.0-experimental-de1eaa26-20250124",
-            "react/jsx-runtime":
-              "https://esm.sh/react@0.0.0-experimental-de1eaa26-20250124/jsx-runtime",
-            "react-dom":
-              "https://esm.sh/react-dom@0.0.0-experimental-de1eaa26-20250124",
-            "react-dom/client":
-              "https://esm.sh/react-dom@0.0.0-experimental-de1eaa26-20250124/client",
-            "react-server-dom-webpack/client.browser":
-              "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-de1eaa26-20250124/client.browser",
-            "http://localhost:3003/client/node_modules/@lazarv/react-server/":
-              "/client/node_modules/@lazarv/react-server/",
-          }),
+      react: "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130?dev",
+      "react/jsx-dev-runtime":
+        "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130/jsx-dev-runtime?dev",
+      "react/jsx-runtime":
+        "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130/jsx-runtime?dev",
+      "react-dom":
+        "https://esm.sh/react-dom@0.0.0-experimental-9ff42a87-20250130?dev",
+      "react-dom/client":
+        "https://esm.sh/react-dom@0.0.0-experimental-9ff42a87-20250130/client?dev",
+      "react-server-dom-webpack/client.browser":
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-9ff42a87-20250130/client.browser?dev",
+      "http://[::1]:3001/": "/",
+      "http://localhost:3003/": "/",
     },
   },
   resolve: {
@@ -188,6 +174,56 @@ export default {
   },
 };
 ```
+
+In production, we only map `@lazarv/react-server` modules to share these with each micro-frontend:
+
+```mjs filename="react-server.production.config.json"
+export default {
+  importMap: {
+    imports: {
+      react: "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130",
+      "react/jsx-runtime":
+        "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130/jsx-runtime",
+      "react-dom":
+        "https://esm.sh/react-dom@0.0.0-experimental-9ff42a87-20250130",
+      "react-dom/client":
+        "https://esm.sh/react-dom@0.0.0-experimental-9ff42a87-20250130/client",
+      "react-server-dom-webpack/client.browser":
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-9ff42a87-20250130/client.browser",
+      "http://localhost:3003/client/__/__/packages/react-server/":
+        "/client/__/__/packages/react-server/",
+    },
+  },
+  resolve: {
+    shared: [
+      "react",
+      "react/jsx-runtime",
+      "react-dom",
+      "react-dom/client",
+      "react-server-dom-webpack/client.browser",
+    ],
+  },
+};
+```
+
+Beside the configuration files above, we still specify static exports in the `react-server.config.json` file:
+
+```mjs filename="react-server.config.json"
+export default {
+  export() {
+    return [
+      {
+        path: "/",
+        remote: true,
+      },
+    ];
+  },
+};
+```
+
+<Link name="example">
+## Example
+</Link>
 
 For a fully working example of micro-frontends, check out the [micro-frontends example](https://github.com/lazarv/react-server/tree/main/examples/remote) in the `@lazarv/react-server` repository.
 

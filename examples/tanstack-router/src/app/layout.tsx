@@ -10,12 +10,15 @@ export default async function Layout({
   posts: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <title>@lazarv/react-server</title>
         <meta charSet="utf-8" />
       </head>
-      <body className="flex flex-col h-screen bg-gradient-to-b from-blue-100 to-purple-100">
+      <body
+        className="flex flex-col h-screen bg-gradient-to-b from-blue-100 to-purple-100"
+        suppressHydrationWarning
+      >
         <App outlets={outlets} />
         {children}
       </body>

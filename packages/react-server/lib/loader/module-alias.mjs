@@ -15,6 +15,7 @@ export function moduleAliases(condition) {
     // noop
   }
   let reactDom = __require.resolve("react-dom");
+  const scheduler = __require.resolve("scheduler");
 
   if (condition === "react-server") {
     react = react.replace(/index\.js$/, "react.react-server.js");
@@ -74,6 +75,7 @@ export function moduleAliases(condition) {
     "react-is": reactIs,
     picocolors,
     vite,
+    scheduler,
   };
 
   return moduleAliases;

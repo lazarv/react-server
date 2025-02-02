@@ -80,8 +80,8 @@ export default function Link({
     [transition, fallback, onClick, tryNavigate]
   );
 
-  const handlePrefetch = (handler) => () => {
-    handler?.();
+  const handlePrefetch = (handler) => (e) => {
+    handler?.(e);
     prefetchEnabled === true &&
       prefetch(to, {
         outlet: target || (local ? outlet : root ? "PAGE_ROOT" : undefined),

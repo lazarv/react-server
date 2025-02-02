@@ -11,10 +11,9 @@ import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
 import colors from "picocolors";
 import {
-  createNodeDevEnvironment,
+  createRunnableDevEnvironment,
   createServer as createViteDevServer,
   DevEnvironment,
-  RemoteEnvironmentTransport,
 } from "vite";
 import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
 
@@ -40,7 +39,7 @@ import {
   moduleAliases,
   reactServerBunAliasPlugin,
 } from "../loader/module-alias.mjs";
-import { applyAlias } from "../loader/utils.mjs";
+import aliasPlugin from "../plugins/alias.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
 import optimizeDeps from "../plugins/optimize-deps.mjs";
@@ -55,7 +54,7 @@ import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
-import { bareImportRE, findPackageRoot, tryStat } from "../utils/module.mjs";
+import { findPackageRoot, tryStat } from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
@@ -80,7 +79,23 @@ export default async function createServer(root, options) {
 
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
+  const reactServerAlias = moduleAliases("react-server");
   const resolvedClientAlias = clientAlias(true);
+  const reverseServerAlias = Object.entries(reactServerAlias).reduce(
+    (acc, [id, alias]) => {
+      acc[alias] = id;
+      return acc;
+    },
+    {}
+  );
+  const reverseClientAlias = resolvedClientAlias.reduce(
+    (acc, { id, replacement }) => {
+      acc[replacement] = id;
+      return acc;
+    },
+    {}
+  );
+
   const devServerConfig = {
     ...config,
     server: {
@@ -119,6 +134,9 @@ export default async function createServer(root, options) {
       ...config.optimizeDeps,
       force: options.force || config.optimizeDeps?.force,
       include: [
+        "react",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
         "react-dom",
         "react-dom/client",
         "react-server-dom-webpack/client.browser",
@@ -147,11 +165,11 @@ export default async function createServer(root, options) {
       asset(),
       optimizeDeps(),
     ],
-    cacheDir: join(cwd, "node_modules", options.outDir, ".cache/client"),
+    cacheDir: join(cwd, "node_modules", options.outDir, ".cache"),
     resolve: {
       ...config.resolve,
-      preserveSymlinks: true,
       alias: [
+        ...resolvedClientAlias,
         { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
         {
           find: /^@lazarv\/react-server\/client$/,
@@ -198,7 +216,7 @@ export default async function createServer(root, options) {
         },
         ...makeResolveAlias(config.resolve?.alias),
       ],
-      noExternal: [bareImportRE],
+      noExternal: true,
     },
     customLogger:
       config.customLogger ??
@@ -208,130 +226,43 @@ export default async function createServer(root, options) {
       }),
     environments: {
       client: {
-        resolve: {
-          preserveSymlinks: false,
-        },
         dev: {
-          createEnvironment: (name, config) => {
-            const dev = new DevEnvironment(
-              name,
-              {
-                ...config,
-                resolve: {
-                  ...config.resolve,
-                  alias: [...clientAlias(true), ...config.resolve.alias],
-                },
-              },
-              {}
-            );
-            return dev;
-          },
-        },
-      },
-      ssr: {
-        resolve: {
-          external: [
-            "react",
-            "react/jsx-runtime",
-            "react/jsx-dev-runtime",
-            "react-dom",
-            "react-dom/client",
-            "react-server-dom-webpack",
-            "react-is",
-            "picocolors",
-          ],
-          conditions: ["default"],
-          externalConditions: ["default"],
-          dedupe: [
-            "react",
-            "react-dom",
-            "react-server-dom-webpack",
-            "react-is",
-            "picocolors",
-            "@lazarv/react-server",
-          ],
-        },
-        dev: {
-          createEnvironment: (name, config) => {
-            return createNodeDevEnvironment(
-              name,
-              {
-                ...config,
-                root: sys.rootDir,
-                cacheDir: join(
-                  cwd,
-                  "node_modules",
-                  options.outDir,
-                  ".cache/ssr"
-                ),
-                resolve: {
-                  ...config.resolve,
-                  alias: [
-                    ...clientAlias(true),
-                    ...(config.resolve?.alias ?? []),
-                  ],
-                },
-              },
-              {
-                runner: {
-                  transport: new RemoteEnvironmentTransport({
-                    send: (data) => {
-                      worker.postMessage({ type: "import", data });
-                    },
-                    onMessage: (listener) => {
-                      worker.on("message", (payload) => {
-                        if (payload.type === "import") {
-                          listener(payload.data);
-                        }
-                      });
-                    },
-                  }),
-                },
-              }
-            );
-          },
+          createEnvironment: (name, config, context) =>
+            new DevEnvironment(name, config, context),
         },
       },
       rsc: {
-        resolve: {
-          external: [
-            "react",
-            "react-dom",
-            "react-server-dom-webpack",
-            "react-is",
-            "picocolors",
-            ...(config.ssr?.external ?? []),
-            ...(config.external ?? []),
-          ],
-          conditions: ["react-server"],
-          externalConditions: ["react-server"],
-          dedupe: [
-            "react",
-            "react-dom",
-            "react-server-dom-webpack",
-            "react-is",
-            "picocolors",
-            "@lazarv/react-server",
-          ],
-        },
         dev: {
-          createEnvironment: (name, config) => {
-            const dev = createNodeDevEnvironment(
-              name,
-              {
-                ...config,
-                root: sys.rootDir,
-                cacheDir: join(
-                  cwd,
-                  "node_modules",
-                  options.outDir,
-                  ".cache/rsc"
-                ),
+          createEnvironment: (name, config) =>
+            createRunnableDevEnvironment(name, config, {
+              options: {
+                resolve: {
+                  conditions: ["react-server"],
+                  dedupe: [
+                    "react",
+                    "react-dom",
+                    "react-server-dom-webpack",
+                    "react-is",
+                    "picocolors",
+                    "@lazarv/react-server",
+                  ],
+                  alias: [
+                    {
+                      find: /^react$/,
+                      replacement: reactServerAlias.react,
+                    },
+                    {
+                      find: /^react\/jsx-runtime$/,
+                      replacement: reactServerAlias["react/jsx-runtime"],
+                    },
+                    {
+                      find: /^react\/jsx-dev-runtime$/,
+                      replacement: reactServerAlias["react/jsx-dev-runtime"],
+                    },
+                  ],
+                },
               },
-              {}
-            );
-            return dev;
-          },
+            }),
         },
       },
     },
@@ -351,6 +282,18 @@ export default async function createServer(root, options) {
   }
 
   const viteDevServer = await createViteDevServer(viteConfig);
+
+  Object.assign(
+    viteDevServer.config.plugins.find((p) => p.name === "alias"),
+    aliasPlugin({
+      entries: viteDevServer.config.resolve.alias,
+      customResolver: async function (id, importer, options) {
+        const resolved = await this.resolve(id, importer, options);
+        return resolved || { id, meta: { "vite:alias": { noResolved: true } } };
+      },
+    })
+  );
+
   viteDevServer.environments.client.hot = viteDevServer.ws;
   viteDevServer.environments.rsc.watcher = viteDevServer.watcher;
   viteDevServer.environments.rsc.hot = {
@@ -397,38 +340,97 @@ export default async function createServer(root, options) {
   const moduleRunner = new RSCModuleRunner(
     {
       root: cwd,
-      transport: viteDevServer.environments.rsc,
+      transport: {
+        async invoke({ data: { data } }) {
+          const [specifier, parentId, meta] = data;
+
+          try {
+            const url =
+              specifier.startsWith("/") &&
+              !specifier.startsWith("/@fs") &&
+              !specifier.startsWith("/@id") &&
+              !tryStat(specifier)
+                ? join(cwd, specifier)
+                : specifier.replace("/@fs", "");
+
+            if (reverseServerAlias[url]) {
+              return {
+                result: {
+                  externalize: url,
+                  type: "commonjs",
+                },
+              };
+            }
+
+            const result = await viteDevServer.environments.rsc.fetchModule(
+              url,
+              parentId,
+              meta
+            );
+            return { result };
+          } catch {
+            return {
+              result: {
+                externalize: specifier,
+                type: "module",
+              },
+            };
+          }
+        },
+        connect: () => {},
+      },
+      hot: false,
     },
     new ESModulesEvaluator()
   );
 
-  const reactServerAlias = moduleAliases("react-server");
-  const originalFetchModule = moduleRunner.transport.fetchModule;
-  moduleRunner.transport.fetchModule = async (specifier, parentId, meta) => {
-    const alias = applyAlias(reactServerAlias, specifier);
-    if (alias !== specifier && tryStat(alias)) {
-      return {
-        externalize: specifier,
-        type: "commonjs",
-      };
-    }
-    try {
-      return await originalFetchModule.call(
-        moduleRunner.transport,
-        specifier,
-        parentId,
-        meta
-      );
-    } catch {
-      return {
-        externalize: specifier,
-        type: "module",
-      };
-    }
-  };
+  viteDevServer.environments.ssr.config.resolve.preserveSymlinks = true;
+  viteDevServer.environments.rsc.config.resolve.preserveSymlinks = true;
 
-  worker.on("message", (payload) => {
-    if (payload.type === "logger") {
+  worker.on("message", async (payload) => {
+    if (payload.type === "import") {
+      const {
+        name,
+        id,
+        data: [specifier, parentId, meta],
+      } = payload.data.data;
+
+      let result = {
+        externalize: specifier,
+      };
+
+      try {
+        if (reverseClientAlias[specifier]) {
+          result = {
+            externalize: specifier,
+            type: "commonjs",
+          };
+        } else {
+          result = await viteDevServer.environments.ssr.fetchModule(
+            specifier,
+            parentId,
+            meta
+          );
+        }
+      } catch {
+        // ignore
+      }
+
+      worker.postMessage({
+        type: "import",
+        data: {
+          type: "custom",
+          event: "vite:invoke",
+          data: {
+            name,
+            id: `response:${id.split(":")[1]}`,
+            data: {
+              result,
+            },
+          },
+        },
+      });
+    } else if (payload.type === "logger") {
       // eslint-disable-next-line no-unused-vars
       const { level, ...data } = payload;
       const [msg, ...rest] = data.data;

@@ -18,6 +18,7 @@ const reactServerDomWebpackServerEdge = __require.resolve(
   "react-server-dom-webpack/server.edge"
 );
 const reactIs = __require.resolve("react-is");
+const scheduler = __require.resolve("scheduler");
 
 export {
   react,
@@ -30,4 +31,5 @@ export {
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
   reactIs,
+  scheduler,
 };

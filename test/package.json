@@ -10,14 +10,14 @@
   },
   "dependencies": {
     "@lazarv/react-server": "workspace:*",
-    "esbuild": "^0.21.3",
-    "rollup": "^4.13.0",
-    "vite": "6.0.0-alpha.18"
+    "esbuild": "^0.24.2",
+    "rollup": "^4.34.0",
+    "vite": "6.0.11"
   },
   "devDependencies": {
-    "@vitest/ui": "^2.1.3",
+    "@vitest/ui": "^3.0.4",
     "npm-run-all2": "^6.2.2",
-    "playwright-chromium": "^1.45.1",
-    "vitest": "^2.1.3"
+    "playwright-chromium": "^1.50.1",
+    "vitest": "^3.0.4"
   }
 }

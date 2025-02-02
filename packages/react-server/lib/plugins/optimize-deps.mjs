@@ -53,6 +53,7 @@ export default function optimizeDeps() {
         } else if (
           this.environment.name === "client" &&
           !this.environment.depsOptimizer?.isOptimizedDepFile(specifier) &&
+          !this.environment.depsOptimizer.metadata.discovered[specifier] &&
           path &&
           /\.[cm]?js$/.test(path) &&
           (bareImportRE.test(specifier) ||

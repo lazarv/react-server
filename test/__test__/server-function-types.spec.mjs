@@ -9,15 +9,19 @@ import {
 } from "playground/utils";
 import { expect, test } from "vitest";
 
-const instanceOf = (type) => async (page) =>
+const instanceOf = (type) => async (page) => {
+  await page.waitForTimeout(0);
   expect(
     await page.evaluate(() => window.__react_server_result__.constructor.name)
   ).toBe(type);
+};
 
-const typeOf = (type) => async (page) =>
+const typeOf = (type) => async (page) => {
+  await page.waitForTimeout(0);
   expect(await page.evaluate(() => typeof window.__react_server_result__)).toBe(
     type
   );
+};
 
 const validator = {
   "form-data-action": instanceOf("FormData"),
@@ -30,9 +34,13 @@ const validator = {
   "no-content-action": typeOf("undefined"),
   "error-action": instanceOf("Error"),
   "reload-action": async (page) => {
-    expect(await page.content()).toContain("timestamp");
+    await page.waitForTimeout(0);
+    expect(await page.evaluate(() => document.body.innerHTML)).toContain(
+      "timestamp"
+    );
   },
   "stream-action": async (page) => {
+    await page.waitForTimeout(0);
     expect(
       await page.evaluate(() => window.__react_server_result__.constructor.name)
     ).toBe("ReadableStream");
@@ -42,6 +50,7 @@ const validator = {
     );
   },
   "iterator-action": async (page) => {
+    await page.waitForTimeout(0);
     expect(
       await page.evaluate(
         () => window.__react_server_result__[Symbol.asyncIterator].name

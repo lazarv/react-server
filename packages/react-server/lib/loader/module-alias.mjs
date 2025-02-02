@@ -3,19 +3,23 @@ import { dirname, join } from "node:path";
 
 import moduleAlias from "module-alias";
 
+import { normalizePath } from "../sys.mjs";
+
 const __require = createRequire(import.meta.url);
 
 export function moduleAliases(condition) {
-  let react = __require.resolve("react");
-  let reactJsxRuntime = __require.resolve("react/jsx-runtime");
+  let react = normalizePath(__require.resolve("react"));
+  let reactJsxRuntime = normalizePath(__require.resolve("react/jsx-runtime"));
   let reactJsxDevRuntime;
   try {
-    reactJsxDevRuntime = __require.resolve("react/jsx-dev-runtime");
+    reactJsxDevRuntime = normalizePath(
+      __require.resolve("react/jsx-dev-runtime")
+    );
   } catch {
     // noop
   }
-  let reactDom = __require.resolve("react-dom");
-  const scheduler = __require.resolve("scheduler");
+  let reactDom = normalizePath(__require.resolve("react-dom"));
+  const scheduler = normalizePath(__require.resolve("scheduler"));
 
   if (condition === "react-server") {
     react = react.replace(/index\.js$/, "react.react-server.js");
@@ -41,25 +45,28 @@ export function moduleAliases(condition) {
     reactDom = reactDom.replace(/react-dom\.react-server\.js$/, "index.js");
   }
 
-  const reactDomServerEdge = __require.resolve("react-dom/server.edge");
-  const reactServerDomWebpackClientEdge = __require.resolve(
-    "react-server-dom-webpack/client.edge"
+  const reactDomServerEdge = normalizePath(
+    __require.resolve("react-dom/server.edge")
   );
-  const reactServerDomWebpackServerEdge = __require.resolve(
-    "react-server-dom-webpack/server.edge"
+  const reactServerDomWebpackClientEdge = normalizePath(
+    __require.resolve("react-server-dom-webpack/client.edge")
+  );
+  const reactServerDomWebpackServerEdge = normalizePath(
+    __require.resolve("react-server-dom-webpack/server.edge")
   );
   let reactIs;
   try {
-    reactIs = __require.resolve("react-is");
+    reactIs = normalizePath(__require.resolve("react-is"));
   } catch {
     // noop
   }
-  const picocolors = __require.resolve("picocolors");
+  const picocolors = normalizePath(__require.resolve("picocolors"));
   let vite;
   try {
-    vite = __require
-      .resolve("vite")
-      .replace(/index\.cjs$/, "dist/node/index.js");
+    vite = normalizePath(__require.resolve("vite")).replace(
+      /index\.cjs$/,
+      "dist/node/index.js"
+    );
   } catch {
     // noop
   }

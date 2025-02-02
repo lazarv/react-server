@@ -1,24 +1,30 @@
 import { createRequire } from "node:module";
 
+import { normalizePath } from "../sys.mjs";
+
 const __require = createRequire(import.meta.url);
 
-const react = __require.resolve("react");
-const reactJsxRuntime = __require.resolve("react/jsx-runtime");
-const reactJsxDevRuntime = __require.resolve("react/jsx-dev-runtime");
-const reactDom = __require.resolve("react-dom");
-const reactDomClient = __require.resolve("react-dom/client");
-const reactDomServerEdge = __require.resolve("react-dom/server.edge");
-const reactServerDomWebpackClientBrowser = __require.resolve(
-  "react-server-dom-webpack/client.browser"
+const react = normalizePath(__require.resolve("react"));
+const reactJsxRuntime = normalizePath(__require.resolve("react/jsx-runtime"));
+const reactJsxDevRuntime = normalizePath(
+  __require.resolve("react/jsx-dev-runtime")
 );
-const reactServerDomWebpackClientEdge = __require.resolve(
-  "react-server-dom-webpack/client.edge"
+const reactDom = normalizePath(__require.resolve("react-dom"));
+const reactDomClient = normalizePath(__require.resolve("react-dom/client"));
+const reactDomServerEdge = normalizePath(
+  __require.resolve("react-dom/server.edge")
 );
-const reactServerDomWebpackServerEdge = __require.resolve(
-  "react-server-dom-webpack/server.edge"
+const reactServerDomWebpackClientBrowser = normalizePath(
+  __require.resolve("react-server-dom-webpack/client.browser")
 );
-const reactIs = __require.resolve("react-is");
-const scheduler = __require.resolve("scheduler");
+const reactServerDomWebpackClientEdge = normalizePath(
+  __require.resolve("react-server-dom-webpack/client.edge")
+);
+const reactServerDomWebpackServerEdge = normalizePath(
+  __require.resolve("react-server-dom-webpack/server.edge")
+);
+const reactIs = normalizePath(__require.resolve("react-is"));
+const scheduler = normalizePath(__require.resolve("scheduler"));
 
 export {
   react,

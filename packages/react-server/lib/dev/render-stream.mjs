@@ -10,7 +10,6 @@ import { ContextManager } from "../async-local-storage.mjs";
 import { clientAlias } from "../build/resolve.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
-import { tryStat } from "../utils/module.mjs";
 
 sys.experimentalWarningSilence();
 alias();
@@ -60,10 +59,6 @@ const moduleRunner = new ModuleRunner(
 
             setImmediate(() => runnerOnMessage(payload));
             return;
-          }
-
-          if (tryStat(join(cwd, specifier.replace("/@fs", "")))) {
-            data.data[0] = join(cwd, specifier.replace("/@fs", ""));
           }
 
           parentPort.postMessage({

@@ -173,46 +173,57 @@ export default async function createServer(root, options) {
         { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
         {
           find: /^@lazarv\/react-server\/client$/,
-          replacement: join(sys.rootDir, "client"),
+          replacement: sys.normalizePath(join(sys.rootDir, "client")),
         },
         {
           find: /^@lazarv\/react-server\/error-boundary$/,
-          replacement: join(sys.rootDir, "server/error-boundary.jsx"),
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/error-boundary.jsx")
+          ),
         },
         {
           find: /^@lazarv\/react-server\/client\/ErrorBoundary\.jsx$/,
-          replacement: join(sys.rootDir, "client/ErrorBoundary.jsx"),
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "client/ErrorBoundary.jsx")
+          ),
         },
         {
           find: /^@lazarv\/react-server\/file-router$/,
-          replacement: join(
-            sys.rootDir,
-            "lib/plugins/file-router/entrypoint.jsx"
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "lib/plugins/file-router/entrypoint.jsx")
           ),
         },
         {
           find: /^@lazarv\/react-server\/router$/,
-          replacement: join(sys.rootDir, "server/router.jsx"),
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/router.jsx")
+          ),
         },
         {
           find: /^@lazarv\/react-server\/prerender$/,
-          replacement: join(sys.rootDir, "server/prerender.jsx"),
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/prerender.jsx")
+          ),
         },
         {
           find: /^@lazarv\/react-server\/remote$/,
-          replacement: join(sys.rootDir, "server/remote.jsx"),
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/remote.jsx")
+          ),
         },
         {
           find: /^@lazarv\/react-server\/navigation$/,
-          replacement: join(sys.rootDir, "client/navigation.jsx"),
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "client/navigation.jsx")
+          ),
         },
         {
           find: /^@lazarv\/react-server\/memory-cache$/,
-          replacement: join(sys.rootDir, "memory-cache"),
+          replacement: sys.normalizePath(join(sys.rootDir, "memory-cache")),
         },
         {
           find: /^@lazarv\/react-server\/server\//,
-          replacement: join(sys.rootDir, "server/"),
+          replacement: sys.normalizePath(join(sys.rootDir, "server/")),
         },
         ...makeResolveAlias(config.resolve?.alias),
       ],
@@ -342,7 +353,8 @@ export default async function createServer(root, options) {
       root: cwd,
       transport: {
         async invoke({ data: { data } }) {
-          const [specifier, parentId, meta] = data;
+          const [_specifier, parentId, meta] = data;
+          const specifier = sys.normalizePath(_specifier);
 
           try {
             const url =
@@ -350,20 +362,21 @@ export default async function createServer(root, options) {
               !specifier.startsWith("/@fs") &&
               !specifier.startsWith("/@id") &&
               !tryStat(specifier)
-                ? join(cwd, specifier)
-                : specifier.replace("/@fs", "");
+                ? sys.normalizePath(join(cwd, specifier))
+                : specifier;
 
-            if (reverseServerAlias[url]) {
+            const rawUrl = url.replace(/^\/@fs/, "");
+            if (reverseServerAlias[rawUrl]) {
               return {
                 result: {
-                  externalize: url,
+                  externalize: rawUrl,
                   type: "commonjs",
                 },
               };
             }
 
             const result = await viteDevServer.environments.rsc.fetchModule(
-              url,
+              specifier,
               parentId,
               meta
             );

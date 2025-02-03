@@ -37,8 +37,8 @@ const moduleRunner = new ModuleRunner(
             data: [specifier],
           } = data;
 
-          const aliased = Object.entries(clientAliasEntries).find(([, url]) =>
-            specifier.includes(url)
+          const aliased = Object.entries(clientAliasEntries).find(
+            ([, url]) => specifier.includes(url) || url.includes(specifier)
           )?.[0];
 
           if (aliased) {

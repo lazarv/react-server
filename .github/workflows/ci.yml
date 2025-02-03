@@ -116,11 +116,19 @@ jobs:
 
       - name: Test development
         working-directory: ./test
-        run: pnpm test-dev
+        run: pnpm test-dev --exclude "**/__test__/apps"
 
       - name: Test build and production mode
         working-directory: ./test
-        run: pnpm test-build-start
+        run: pnpm test-build-start --exclude "**/__test__/apps"
+
+      - name: Test development apps
+        working-directory: ./test
+        run: pnpm test-dev --exclude "**/__test__/*.spec.mjs" --no-file-parallelism
+
+      - name: Test build and production mode apps
+        working-directory: ./test
+        run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs" --no-file-parallelism
 
   lint:
     timeout-minutes: 10

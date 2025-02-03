@@ -83,10 +83,10 @@ export default async function createServer(root, options) {
   const resolvedClientAlias = clientAlias(true);
   const reverseServerAlias = Object.entries(reactServerAlias).reduce(
     (acc, [id, alias]) => {
-      acc[alias] = id;
+      acc.push({ id, alias });
       return acc;
     },
-    {}
+    []
   );
   const reverseClientAlias = resolvedClientAlias.reduce(
     (acc, { id, replacement }) => {
@@ -366,10 +366,14 @@ export default async function createServer(root, options) {
                 : specifier;
 
             const rawUrl = url.replace(/^\/@fs/, "");
-            if (reverseServerAlias[rawUrl]) {
+
+            const aliased = reverseServerAlias.find(
+              ({ alias }) => alias.includes(rawUrl) || rawUrl.includes(alias)
+            )?.id;
+            if (aliased) {
               return {
                 result: {
-                  externalize: rawUrl,
+                  externalize: aliased,
                   type: "commonjs",
                 },
               };

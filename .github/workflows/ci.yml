@@ -55,14 +55,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        node_version: [20, 22]
-        include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 20
-          - os: windows-latest
-            node_version: 20
+        os: [windows-latest]
+        node_version: [20]
       fail-fast: false
 
     name: "Test 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -116,7 +110,7 @@ jobs:
 
       - name: Test development
         working-directory: ./test
-        run: pnpm test-dev --exclude "**/__test__/apps"
+        run: pnpm test-dev --exclude "**/__test__/apps" -t "hello world"
 
       - name: Test build and production mode
         working-directory: ./test

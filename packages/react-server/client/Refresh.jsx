@@ -69,8 +69,8 @@ export default function Refresh({
     [transition, fallback, onClick, tryRefresh]
   );
 
-  const handlePrefetch = (handler) => () => {
-    handler?.();
+  const handlePrefetch = (handler) => (e) => {
+    handler?.(e);
     prefetchEnabled === true &&
       prefetch(url || _url, {
         outlet: target || (local ? _outlet : root ? "PAGE_ROOT" : undefined),

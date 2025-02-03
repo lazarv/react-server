@@ -1,71 +1,93 @@
-import { realpathSync } from "node:fs";
 import { register } from "node:module";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parentPort } from "node:worker_threads";
 
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
-import {
-  ESModulesEvaluator,
-  ModuleRunner,
-  RemoteRunnerTransport,
-} from "vite/module-runner";
+import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
 
 import { ContextManager } from "../async-local-storage.mjs";
+import { clientAlias } from "../build/resolve.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
-import { findPackageRoot } from "../utils/module.mjs";
 
 sys.experimentalWarningSilence();
 alias();
 register("../loader/node-loader.mjs", import.meta.url);
 
 const cwd = sys.cwd();
-
-const remoteTransport = new RemoteRunnerTransport({
-  send: (data) => {
-    parentPort.postMessage({ type: "import", data });
+const clientAliasEntries = clientAlias(true).reduce(
+  (acc, { id, replacement }) => {
+    acc[id] = replacement;
+    return acc;
   },
-  onMessage: (listener) =>
-    parentPort.on("message", (payload) => {
-      if (payload.type === "import") {
-        listener(payload.data);
-      }
-    }),
-  timeout: 5000,
-});
-remoteTransport.fetchModule = async (id, importer) => {
-  if (
-    [
-      "react",
-      "react/jsx-runtime",
-      "react/jsx-dev-runtime",
-      "react-dom/client",
-      "react-server-dom-webpack/client.edge",
-    ].includes(id)
-  ) {
-    return { externalize: id };
-  }
-  try {
-    return await remoteTransport.resolve("fetchModule", id, importer);
-  } catch {
-    try {
-      const packageRoot = realpathSync(findPackageRoot(importer));
-      let parentPath = join(packageRoot, "..");
-      while (basename(parentPath) !== "node_modules" && parentPath !== "/") {
-        parentPath = join(parentPath, "..");
-      }
-      parentPath = join(parentPath, "..");
-      return await remoteTransport.resolve("fetchModule", id, parentPath);
-    } catch {
-      return { externalize: id };
-    }
-  }
-};
+  {}
+);
+
+let runnerOnMessage;
 const moduleRunner = new ModuleRunner(
   {
     root: cwd,
-    transport: remoteTransport,
+    transport: {
+      send: async ({ type, event, data }) => {
+        if (type === "custom" && event === "vite:invoke") {
+          const {
+            name,
+            id,
+            data: [specifier],
+          } = data;
+
+          const aliased = Object.entries(clientAliasEntries).find(
+            ([, url]) => specifier.includes(url) || url.includes(specifier)
+          )?.[0];
+
+          if (aliased) {
+            const payload = {
+              type,
+              event,
+              data: {
+                name,
+                id: `response:${id.split(":")[1]}`,
+                data: {
+                  result: {
+                    externalize: aliased,
+                    type: "commonjs",
+                  },
+                },
+              },
+            };
+
+            setImmediate(() => runnerOnMessage(payload));
+            return;
+          }
+
+          parentPort.postMessage({
+            type: "import",
+            data: { type, event, data },
+          });
+        }
+      },
+      connect({ onMessage, onDisconnection }) {
+        runnerOnMessage = onMessage;
+        parentPort.on("message", ({ type, data }) => {
+          if (type === "import") {
+            try {
+              onMessage(data);
+            } catch {
+              onMessage({
+                ...data,
+                data: {
+                  result: {
+                    externalize: data.data.result.externalize,
+                  },
+                },
+              });
+            }
+          }
+        });
+        parentPort.on("close", onDisconnection);
+      },
+    },
   },
   new ESModulesEvaluator()
 );

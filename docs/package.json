@@ -15,7 +15,7 @@
     "@uidotdev/usehooks": "^2.4.1",
     "@vercel/analytics": "^1.4.1",
     "@vercel/speed-insights": "^1.1.0",
-    "@vitejs/plugin-react-swc": "^3.7.0",
+    "@vitejs/plugin-react-swc": "^3.7.2",
     "algoliasearch": "^4.24.0",
     "highlight.js": "^11.9.0",
     "lucide-react": "^0.408.0",

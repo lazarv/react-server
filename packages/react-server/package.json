@@ -89,7 +89,7 @@
     "@rollup/plugin-replace": "^5.0.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "acorn": "^8.10.0",
     "acorn-loose": "^8.4.0",
     "algoliasearch": "^5.10.2",
@@ -109,18 +109,18 @@
     "parse5": "^7.1.2",
     "picocolors": "^1.0.1",
     "pino": "^8.14.1",
-    "react": "0.0.0-experimental-de1eaa26-20250124",
-    "react-dom": "0.0.0-experimental-de1eaa26-20250124",
-    "react-is": "0.0.0-experimental-de1eaa26-20250124",
+    "react": "0.0.0-experimental-9ff42a87-20250130",
+    "react-dom": "0.0.0-experimental-9ff42a87-20250130",
+    "react-is": "0.0.0-experimental-9ff42a87-20250130",
     "react-property": "^2.0.2",
-    "react-server-dom-webpack": "0.0.0-experimental-de1eaa26-20250124",
+    "react-server-dom-webpack": "0.0.0-experimental-9ff42a87-20250130",
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",
     "sass": "^1.63.6",
     "semver": "^7.6.3",
     "strip-ansi": "^7.1.0",
     "style-to-js": "^1.1.12",
-    "vite": "6.0.0-alpha.18"
+    "vite": "6.0.11"
   },
   "engines": {
     "node": ">=20.10.0"

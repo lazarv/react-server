@@ -84,9 +84,9 @@
       "@uidotdev/usehooks>react-dom": "0.0.0-experimental-9ff42a87-20250130",
       "@vercel/analytics>react": "0.0.0-experimental-9ff42a87-20250130",
       "@vercel/speed-insights>react": "0.0.0-experimental-9ff42a87-20250130",
-      "vite-plugin-svgr>vite": "6.0.11",
-      "@vitejs/plugin-react>vite": "6.0.11",
-      "@vitejs/plugin-react-swc>vite": "6.0.11",
+      "vite-plugin-svgr>vite": "6.1.0",
+      "@vitejs/plugin-react>vite": "6.1.0",
+      "@vitejs/plugin-react-swc>vite": "6.1.0",
       "supertest>superagent": "9.0.2"
     }
   },

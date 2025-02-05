@@ -176,6 +176,7 @@ export async function render(Component, props = {}, options = {}) {
 
           const { data, actionId, error } = await action();
 
+          callServer = true;
           if (!isFormData) {
             serverFunctionResult = error
               ? Promise.reject(error)
@@ -185,7 +186,6 @@ export async function render(Component, props = {}, options = {}) {
                     data.byteOffset + data.byteLength
                   )
                 : data;
-            callServer = true;
           } else {
             const formState = await server.decodeFormState(
               data,
@@ -196,10 +196,17 @@ export async function render(Component, props = {}, options = {}) {
             if (formState) {
               const [result, key] = formState;
               serverFunctionResult = result;
-              callServer = true;
               callServerHeaders = {
                 "React-Server-Action-Key": encodeURIComponent(key),
               };
+            } else {
+              serverFunctionResult =
+                data instanceof Buffer
+                  ? data.buffer.slice(
+                      data.byteOffset,
+                      data.byteOffset + data.byteLength
+                    )
+                  : data;
             }
           }
 
@@ -297,19 +304,24 @@ export async function render(Component, props = {}, options = {}) {
         }
 
         let app = ComponentWithStyles;
-        if (callServer) {
+        if (
+          callServer &&
+          renderContext.flags.isRSC &&
+          !renderContext.flags.isRemote
+        ) {
           callServerHeaders = {
             ...callServerHeaders,
             "React-Server-Data": "rsc",
           };
-          app = reload ? (
-            <>
-              {ComponentWithStyles}
-              {serverFunctionResult}
-            </>
-          ) : (
-            <>{[serverFunctionResult]}</>
-          );
+          app =
+            reload || redirect?.response ? (
+              <>
+                {ComponentWithStyles}
+                {serverFunctionResult}
+              </>
+            ) : (
+              <>{[serverFunctionResult]}</>
+            );
         }
 
         if (

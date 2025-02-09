@@ -14,6 +14,7 @@ const { reactServer } = await import(reactServerModule);
 const server = await reactServer(...reactServerArgs);
 app.use("/react-server", async (req, res, next) => {
   const { middlewares } = await server;
+  req.user = { id: "admin" };
   middlewares(req, res, next);
 });
 

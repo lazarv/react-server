@@ -24,7 +24,12 @@ const reactServerDomWebpackServerEdge = normalizePath(
   __require.resolve("react-server-dom-webpack/server.edge")
 );
 const reactIs = normalizePath(__require.resolve("react-is"));
-const scheduler = normalizePath(__require.resolve("scheduler"));
+let scheduler;
+try {
+  scheduler = normalizePath(__require.resolve("scheduler"));
+} catch {
+  // noop
+}
 
 export {
   react,

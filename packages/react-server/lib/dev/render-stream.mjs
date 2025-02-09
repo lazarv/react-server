@@ -18,7 +18,9 @@ register("../loader/node-loader.mjs", import.meta.url);
 const cwd = sys.cwd();
 const clientAliasEntries = clientAlias(true).reduce(
   (acc, { id, replacement }) => {
-    acc[id] = replacement;
+    if (replacement) {
+      acc[id] = replacement;
+    }
     return acc;
   },
   {}

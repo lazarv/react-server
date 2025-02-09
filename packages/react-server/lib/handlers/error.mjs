@@ -148,26 +148,31 @@ export default async function errorHandler(err) {
     try {
       const prevGlobalErrorComponent = getContext(ERROR_COMPONENT);
       const ssrLoadModule = getRuntime(MODULE_LOADER);
-      const { default: GlobalErrorComponent } = await ssrLoadModule(
-        `${sys.rootDir}/server/GlobalError.jsx`
-      );
 
-      if (
-        prevGlobalErrorComponent &&
-        prevGlobalErrorComponent !== GlobalErrorComponent
-      ) {
-        context$(ERROR_CONTEXT, errorHandler);
-        useErrorComponent(GlobalErrorComponent);
-        const handler = getContext(RENDER_HANDLER);
-        return handler();
-      } else {
-        context$(ERROR_COMPONENT, null);
-        context$(ERROR_CONTEXT, errorHandler);
-        return getContext(RENDER)(
-          GlobalErrorComponent,
-          { error },
-          { skipFunction: true }
+      if (typeof ssrLoadModule === "function") {
+        const { default: GlobalErrorComponent } = await ssrLoadModule(
+          `${sys.rootDir}/server/GlobalError.jsx`
         );
+
+        if (
+          prevGlobalErrorComponent &&
+          prevGlobalErrorComponent !== GlobalErrorComponent
+        ) {
+          context$(ERROR_CONTEXT, errorHandler);
+          useErrorComponent(GlobalErrorComponent);
+          const handler = getContext(RENDER_HANDLER);
+          return handler();
+        } else {
+          context$(ERROR_COMPONENT, null);
+          context$(ERROR_CONTEXT, errorHandler);
+          return getContext(RENDER)(
+            GlobalErrorComponent,
+            { error },
+            { skipFunction: true }
+          );
+        }
+      } else {
+        throw err;
       }
     } catch (e) {
       logger.error(e);

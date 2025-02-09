@@ -28,5 +28,13 @@ export const clientAlias = (dev) => [
     id: "react-server-dom-webpack/client.browser",
   },
   { find: /^react-is$/, replacement: dependencies.reactIs, id: "react-is" },
-  { find: /^scheduler$/, replacement: dependencies.scheduler, id: "scheduler" },
+  ...(dependencies.scheduler
+    ? [
+        {
+          find: /^scheduler$/,
+          replacement: dependencies.scheduler,
+          id: "scheduler",
+        },
+      ]
+    : []),
 ];

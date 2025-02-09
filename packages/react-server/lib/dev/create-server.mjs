@@ -83,7 +83,9 @@ export default async function createServer(root, options) {
   const resolvedClientAlias = clientAlias(true);
   const reverseServerAlias = Object.entries(reactServerAlias).reduce(
     (acc, [id, alias]) => {
-      acc.push({ id, alias });
+      if (alias) {
+        acc.push({ id, alias });
+      }
       return acc;
     },
     []

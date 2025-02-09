@@ -19,7 +19,12 @@ export function moduleAliases(condition) {
     // noop
   }
   let reactDom = normalizePath(__require.resolve("react-dom"));
-  const scheduler = normalizePath(__require.resolve("scheduler"));
+  let scheduler;
+  try {
+    scheduler = normalizePath(__require.resolve("scheduler"));
+  } catch {
+    // noop
+  }
 
   if (condition === "react-server") {
     react = react.replace(/index\.js$/, "react.react-server.js");

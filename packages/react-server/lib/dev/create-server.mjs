@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import { register } from "node:module";
+import { isBuiltin, register } from "node:module";
 import { join, relative } from "node:path";
 import { format } from "node:util";
 import { Worker } from "node:worker_threads";
@@ -354,6 +354,15 @@ export default async function createServer(root, options) {
       transport: {
         async invoke({ data: { data } }) {
           const [_specifier, parentId, meta] = data;
+
+          if (isBuiltin(_specifier)) {
+            return {
+              result: {
+                externalize: _specifier,
+              },
+            };
+          }
+
           const specifier = sys.normalizePath(_specifier);
 
           try {
@@ -416,21 +425,23 @@ export default async function createServer(root, options) {
         externalize: specifier,
       };
 
-      try {
-        if (reverseClientAlias[specifier]) {
-          result = {
-            externalize: specifier,
-            type: "commonjs",
-          };
-        } else {
-          result = await viteDevServer.environments.ssr.fetchModule(
-            specifier,
-            parentId,
-            meta
-          );
+      if (!isBuiltin(specifier)) {
+        try {
+          if (reverseClientAlias[specifier]) {
+            result = {
+              externalize: specifier,
+              type: "commonjs",
+            };
+          } else {
+            result = await viteDevServer.environments.ssr.fetchModule(
+              specifier,
+              parentId,
+              meta
+            );
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
       }
 
       worker.postMessage({

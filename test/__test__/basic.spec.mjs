@@ -270,3 +270,11 @@ test("suspense client", async () => {
     expect(await scripts[3].getAttribute("src")).toBe(null);
   }
 });
+
+test("resolve builtin module import", async () => {
+  await server("fixtures/builtin-import.jsx");
+  await page.goto(hostname);
+  expect(await page.textContent("body")).toContain(
+    "react/react.react-server.js"
+  );
+});

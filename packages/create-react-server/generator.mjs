@@ -162,7 +162,10 @@ export async function generate(context) {
     await new Promise((resolve, reject) => {
       const child = spawn(
         context.props.packageManager.name,
-        ["install", ...context.props.packageManager.ciInstallArgs.split(" ")],
+        [
+          "install",
+          ...(context.props.packageManager.ciInstallArgs?.split(" ") ?? []),
+        ],
         {
           cwd: context.env.projectDir,
           encoding: "utf8",

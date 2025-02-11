@@ -32,18 +32,21 @@ export async function launch(context) {
     npm: "npm run dev",
     pnpm: "pnpm dev",
     yarn: "yarn dev",
+    bun: "bun --bun run dev",
   };
 
   const buildCommand = {
     npm: "npm run build",
     pnpm: "pnpm build",
     yarn: "yarn build",
+    bun: "bun --bun run build",
   };
 
   const startCommand = {
     npm: "npm start",
     pnpm: "pnpm start",
     yarn: "yarn start",
+    bun: "bun --bun start",
   };
 
   const instructions = () => {
@@ -85,9 +88,12 @@ ${colors.cyan(`docker run --rm -ti -p ${port}:${port} ${projectName}`)}\n`
     const server = spawn(
       packageManager,
       [
+        ...(packageManager === "bun" ? ["--bun", "run"] : []),
         ...(packageManager === "npm" ? ["run"] : []),
         "dev",
-        ...(packageManager === "pnpm" ? [] : ["--"]),
+        ...(packageManager === "npm" || packageManager === "yarn"
+          ? ["--"]
+          : []),
         "--host",
         context.props.host,
         "--port",

@@ -5,22 +5,42 @@ import colors from "picocolors";
 
 import { theme } from "../lib/theme.mjs";
 
+let _isPnpmInstalled = false;
 const isPnpmInstalled = async () => {
+  if (_isPnpmInstalled) return true;
   try {
     execSync("pnpm --version", {
       stdio: "ignore",
     });
+    _isPnpmInstalled = true;
     return true;
   } catch {
     return false;
   }
 };
 
+let _isYarnInstalled = false;
 const isYarnInstalled = async () => {
+  if (_isYarnInstalled) return true;
   try {
     execSync("yarn --version", {
       stdio: "ignore",
     });
+    _isYarnInstalled = true;
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+let _isBunInstalled = false;
+const isBunInstalled = async () => {
+  if (_isBunInstalled) return true;
+  try {
+    execSync("bun --version", {
+      stdio: "ignore",
+    });
+    _isBunInstalled = true;
     return true;
   } catch {
     return false;
@@ -31,25 +51,39 @@ const lockFilename = {
   npm: "package-lock.json",
   pnpm: "pnpm-lock.yaml",
   yarn: "yarn.lock",
+  bun: "bun.lock",
 };
 
 const displayName = {
   yarn: "Yarn",
+  bun: "Bun",
 };
 
 const ciInstallArgs = {
   npm: "--loglevel notice",
   pnpm: "--reporter=append-only",
   yarn: "--no-progress --inline-builds",
+  bun: "",
+};
+
+const runCommand = {
+  npm: "npm run",
+  bun: "bun --bun run",
+};
+
+const startCommand = {
+  npm: "npm start",
+  bun: "bun --bun start",
 };
 
 export default async (context) => {
   const npmUseragent = process.env.npm_config_user_agent;
-  const defaultPackageManager =
-    npmUseragent?.includes("pnpm") || !context.props.custom
-      ? "pnpm"
-      : npmUseragent?.includes("yarn")
-        ? "yarn"
+  const defaultPackageManager = npmUseragent?.includes("pnpm")
+    ? "pnpm"
+    : npmUseragent?.includes("yarn")
+      ? "yarn"
+      : npmUseragent?.includes("bun")
+        ? "bun"
         : "npm";
   const packageManager = !context.props.custom
     ? defaultPackageManager
@@ -68,6 +102,11 @@ export default async (context) => {
               name: "Yarn",
               value: "yarn",
               disabled: !(await isYarnInstalled()) ? "(not installed)" : false,
+            },
+            {
+              name: "Bun",
+              value: "bun",
+              disabled: !(await isBunInstalled()) ? "(not installed)" : false,
             },
           ],
           theme,
@@ -94,8 +133,8 @@ export default async (context) => {
       packageManager: {
         name: packageManager,
         lock: lockFilename[packageManager],
-        run: packageManager === "npm" ? "npm run" : packageManager,
-        start: packageManager === "npm" ? "npm start" : packageManager,
+        run: runCommand[packageManager] ?? packageManager,
+        start: startCommand[packageManager] ?? packageManager,
         install,
         ciInstallArgs: ciInstallArgs[packageManager],
       },

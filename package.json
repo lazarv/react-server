@@ -38,7 +38,8 @@
     ]
   },
   "dependencies": {
-    "@lazarv/react-server": "link:packages/react-server"
+    "@lazarv/react-server": "link:packages/react-server",
+    "@lazarv/create-react-server": "link:packages/create-react-server"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.25.9",
@@ -90,5 +91,5 @@
       "supertest>superagent": "9.0.2"
     }
   },
-  "packageManager": "pnpm@9.15.5"
+  "packageManager": "pnpm@10.3.0"
 }

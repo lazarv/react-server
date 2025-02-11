@@ -139,6 +139,7 @@ export default async function createServer(root, options) {
         "react",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
+        "react/compiler-runtime",
         "react-dom",
         "react-dom/client",
         "react-server-dom-webpack/client.browser",
@@ -220,6 +221,12 @@ export default async function createServer(root, options) {
           ),
         },
         {
+          find: /^@lazarv\/react-server\/http-context$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "client/http-context.jsx")
+          ),
+        },
+        {
           find: /^@lazarv\/react-server\/memory-cache$/,
           replacement: sys.normalizePath(join(sys.rootDir, "memory-cache")),
         },
@@ -242,6 +249,28 @@ export default async function createServer(root, options) {
         dev: {
           createEnvironment: (name, config, context) =>
             new DevEnvironment(name, config, context),
+        },
+      },
+      ssr: {
+        dev: {
+          createEnvironment: (name, config, context) =>
+            createRunnableDevEnvironment(name, config, {
+              ...context,
+              options: {
+                resolve: {
+                  dedupe: ["picocolors"],
+                  external: ["picocolors"],
+                  alias: [
+                    {
+                      find: /^@lazarv\/react-server\/http-context$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "server/http-context.mjs")
+                      ),
+                    },
+                  ],
+                },
+              },
+            }),
         },
       },
       rsc: {
@@ -271,6 +300,12 @@ export default async function createServer(root, options) {
                     {
                       find: /^react\/jsx-dev-runtime$/,
                       replacement: reactServerAlias["react/jsx-dev-runtime"],
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/http-context$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/http-context.mjs")
+                      ),
                     },
                   ],
                 },

@@ -644,6 +644,33 @@ export async function render(Component, props = {}, options = {}) {
             remote,
             origin,
             importMap,
+            httpContext: {
+              request: {
+                method: context.request.method,
+                url: context.request.url,
+                headers: Array.from(context.request.headers.entries()).reduce(
+                  (headers, [key, value]) => {
+                    headers[key] = value;
+                    return headers;
+                  },
+                  {}
+                ),
+                destination: context.request.destination,
+                referrer: context.request.referrer,
+                referrerPolicy: context.request.referrerPolicy,
+                mode: context.request.mode,
+                credentials: context.request.credentials,
+                cache: context.request.cache,
+                redirect: context.request.redirect,
+                integrity: context.request.integrity,
+                keepalive: context.request.keepalive,
+                isReloadNavigation: context.request.isReloadNavigation,
+                isHistoryNavigation: context.request.isHistoryNavigation,
+              },
+              ip: context.ip,
+              method: context.method,
+              url: context.url.toString(),
+            },
           });
         } else {
           return resolve(

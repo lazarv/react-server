@@ -15,8 +15,8 @@ And more...
 - [x] streaming server-side rendering
 - [x] selective hydration
 
-#### Server Actions
-- [x] server modules and inline server actions with `"use server";`
+#### Server Functions
+- [x] server modules and inline server functions with `"use server";`
 - [x] progressive enhancement
 
 #### File-system based router
@@ -36,6 +36,16 @@ And more...
 - [x] blazing-fast production build using node.js cluster
 
 ## Getting started
+
+#### Quick Start
+
+To bootstrap your `@lazarv/react-server` project, you can use `@lazarv/create-react-server`, the official CLI tool to create a new project and add initial tools, features and third-party integrations to your project with ease, just by answering a few questions. To use the tool, run:
+
+```sh
+npx @lazarv/create-react-server
+```
+
+Completing the wizard, follow the instructions in your terminal to explore your new project and have fun!
 
 #### Install
 

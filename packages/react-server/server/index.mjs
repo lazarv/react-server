@@ -25,3 +25,4 @@ export { revalidate } from "./revalidate.mjs";
 export { invalidate, useCache } from "../memory-cache/index.mjs";
 export { reload } from "./reload.mjs";
 export { useRender } from "./render.mjs";
+export { version } from "./version.mjs";

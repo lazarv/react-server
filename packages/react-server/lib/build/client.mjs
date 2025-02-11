@@ -110,6 +110,12 @@ export default async function clientBuild(_, options) {
           find: /^@lazarv\/react-server\/navigation$/,
           replacement: join(sys.rootDir, "client/navigation.jsx"),
         },
+        {
+          find: /^@lazarv\/react-server\/http-context$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "client/http-context.jsx")
+          ),
+        },
         ...clientAlias(options.dev),
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],

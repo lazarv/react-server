@@ -1,0 +1,5 @@
+**/*
+!react-server.config.*
+!react-server.*.config.*
+!src
+!public

@@ -1,0 +1,49 @@
+# Define build argument for port with default value
+ARG PORT=3000
+
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy source files
+COPY . .
+
+# Install dependencies
+RUN --mount=type=cache,target=/root/.npm \
+  npm ci
+
+# Build the application
+RUN npm run build
+
+# Stage 2: Production
+FROM node:20-alpine AS runner
+
+# Forward the build argument
+ARG PORT
+ENV PORT=$PORT
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json, node_modules and .react-server from builder stage
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.react-server ./.react-server
+
+# Prune dev dependencies
+RUN --mount=type=cache,target=/root/.npm \
+  npm prune --production
+
+# Run as non-root user
+RUN addgroup -g 1001 -S nodejs && \
+  adduser -S nodejs -u 1001 && \
+  chown -R nodejs:nodejs /app
+USER nodejs
+
+# Expose the port your app runs on
+EXPOSE ${PORT}
+
+# Start the application
+CMD ["npm", "start", "--", "--host"]

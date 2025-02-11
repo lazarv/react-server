@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "dev": "react-server ./src/App.tsx",
+    "build": "react-server build ./src/App.tsx"
+  }
+}

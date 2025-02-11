@@ -165,10 +165,18 @@ registerClientReference(${name}, "${workspacePath(id)}", "${name}");`
                 node.type === "ImportDeclaration" ||
                 node.type === "ImportExpression"
               ) {
-                clientReferenceAst.body.unshift({
-                  ...node,
-                  specifiers: [],
-                });
+                const src = node.source?.value;
+                if (
+                  src &&
+                  !["node", "bun", "http", "https", "npm"].includes(
+                    src.split(":")[0]
+                  )
+                ) {
+                  clientReferenceAst.body.unshift({
+                    ...node,
+                    specifiers: [],
+                  });
+                }
               }
             },
           });

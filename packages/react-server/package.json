@@ -27,6 +27,9 @@
       "default": "./client/navigation.jsx",
       "types": "./client/navigation.d.ts"
     },
+    "./http-context": {
+      "default": "./server/http-context.mjs"
+    },
     "./router": {
       "default": "./server/router.jsx",
       "types": "./server/router.d.ts"

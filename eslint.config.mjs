@@ -1,15 +1,16 @@
-import react from "eslint-plugin-react";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
-import prettier from "eslint-plugin-prettier";
-import jsxA11Y from "eslint-plugin-jsx-a11y";
-import globals from "globals";
-import babelParser from "@babel/eslint-parser";
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import js from "@eslint/js";
+
+import babelParser from "@babel/eslint-parser";
 import { FlatCompat } from "@eslint/eslintrc";
+import js from "@eslint/js";
+import typescriptEslint from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
+import jsxA11Y from "eslint-plugin-jsx-a11y";
+import prettier from "eslint-plugin-prettier";
+import react from "eslint-plugin-react";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +23,6 @@ const compat = new FlatCompat({
 export default [
   {
     ignores: [
-      "eslint.config.mjs",
       "**/node_modules/",
       "**/dist/",
       "**/build/",

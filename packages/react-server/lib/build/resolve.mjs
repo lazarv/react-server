@@ -13,6 +13,11 @@ export const clientAlias = (dev) => [
     id: "react/jsx-dev-runtime",
   },
   {
+    find: /^react\/compiler-runtime$/,
+    replacement: dependencies.reactCompilerRuntime,
+    id: "react/compiler-runtime",
+  },
+  {
     find: /^react-dom$/,
     replacement: dependencies.reactDom,
     id: "react-dom",

@@ -278,3 +278,10 @@ test("resolve builtin module import", async () => {
     "react/react.react-server.js"
   );
 });
+
+test("navigation location", async () => {
+  await server("fixtures/navigation-location.jsx");
+  await page.goto(`${hostname}/pathname?foo=bar`);
+  expect(await page.textContent("body")).toContain("/pathname");
+  expect(await page.textContent("body")).toContain(`{"foo":"bar"}`);
+});

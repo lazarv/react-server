@@ -46,8 +46,6 @@
 }
 
 article ~ .root {
-  /* display: none; */
-
   @media screen(lg) {
     @apply ml-16;
   }

@@ -27,6 +27,9 @@
       "default": "./client/navigation.jsx",
       "types": "./client/navigation.d.ts"
     },
+    "./http-context": {
+      "default": "./server/http-context.mjs"
+    },
     "./router": {
       "default": "./server/router.jsx",
       "types": "./server/router.d.ts"
@@ -76,6 +79,9 @@
     "url": "https://github.com/lazarv/react-server/issues"
   },
   "dependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/plugin-transform-react-jsx-self": "^7.25.9",
+    "@babel/plugin-transform-react-jsx-source": "^7.25.9",
     "@hattip/adapter-node": "^0.0.34",
     "@hattip/compose": "^0.0.34",
     "@hattip/cookie": "^0.0.34",
@@ -87,6 +93,7 @@
     "@inquirer/search": "^3.0.0",
     "@mdx-js/rollup": "^3.0.1",
     "@rollup/plugin-replace": "^5.0.2",
+    "@types/babel__core": "^7.20.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.4",
@@ -113,6 +120,7 @@
     "react-dom": "0.0.0-experimental-9ff42a87-20250130",
     "react-is": "0.0.0-experimental-9ff42a87-20250130",
     "react-property": "^2.0.2",
+    "react-refresh": "^0.14.2",
     "react-server-dom-webpack": "0.0.0-experimental-9ff42a87-20250130",
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",

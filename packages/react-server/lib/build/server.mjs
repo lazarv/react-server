@@ -176,6 +176,10 @@ export default async function serverBuild(root, options) {
           replacement: join(sys.rootDir, "client/navigation.jsx"),
         },
         {
+          find: /^@lazarv\/react-server\/http-context$/,
+          replacement: join(sys.rootDir, "server/http-context.mjs"),
+        },
+        {
           find: /^@lazarv\/react-server\/memory-cache$/,
           replacement: join(sys.rootDir, "memory-cache"),
         },
@@ -366,6 +370,21 @@ export default async function serverBuild(root, options) {
   if (clientManifest.size > 0) {
     const viteConfigClientComponents = {
       ...viteConfig,
+      resolve: {
+        ...viteConfig.resolve,
+        alias: [
+          {
+            find: /^@lazarv\/react-server\/http-context$/,
+            replacement: join(sys.rootDir, "server/http-context.mjs"),
+          },
+          ...viteConfig.resolve.alias.filter(
+            (alias) =>
+              !alias.replacement.endsWith(
+                "react-server/client/http-context.jsx"
+              )
+          ),
+        ],
+      },
       build: {
         ...viteConfig.build,
         manifest: "server/client-manifest.json",

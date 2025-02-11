@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["react/experimental", "react-dom/experimental"],
+    "jsx": "preserve",
+    "baseUrl": "./src",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}

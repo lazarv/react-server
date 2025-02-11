@@ -9,6 +9,9 @@ const reactJsxRuntime = normalizePath(__require.resolve("react/jsx-runtime"));
 const reactJsxDevRuntime = normalizePath(
   __require.resolve("react/jsx-dev-runtime")
 );
+const reactCompilerRuntime = normalizePath(
+  __require.resolve("react/compiler-runtime")
+);
 const reactDom = normalizePath(__require.resolve("react-dom"));
 const reactDomClient = normalizePath(__require.resolve("react-dom/client"));
 const reactDomServerEdge = normalizePath(
@@ -38,6 +41,7 @@ export {
   reactDomServerEdge,
   reactJsxDevRuntime,
   reactJsxRuntime,
+  reactCompilerRuntime,
   reactServerDomWebpackClientBrowser,
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,

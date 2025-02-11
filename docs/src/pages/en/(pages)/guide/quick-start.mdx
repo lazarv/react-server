@@ -1,0 +1,32 @@
+---
+title: Quick Start
+order: 0
+---
+
+# Quick Start
+
+Welcome to the `@lazarv/react-server` documentation! To start using this framework, just create a file exporting a React Server Component as default and run the `@lazarv/react-server` command using `npx` with the path to the file. You need nothing else to start your first server-side rendered React application! Painfully simple, right?
+
+```jsx filename="./App.jsx"
+export default function App() {
+  return <h1>Hello, World!</h1>;
+}
+```
+
+```sh
+npx @lazarv/react-server ./App.jsx
+```
+
+Continue your journey by exploring the [guide](/guide) and [tutorials](/tutorials) sections or learn more details about the [framework](/framework), the file-system based [router](/router) or how you can [deploy](/deploy) your app to a cloud provider. If you have any questions or need help, feel free to [open an issue](https://github.com/lazarv/react-server/issues) on GitHub. We are happy to help you!
+
+To bootstrap your `@lazarv/react-server` project, you can also use `@lazarv/create-react-server`, the official CLI tool to create a new project and add initial tools, features and third-party integrations to your project with ease, just by answering a few questions. To use the tool, run:
+
+```sh
+npx @lazarv/create-react-server
+```
+
+Completing the wizard, follow the instructions in your terminal to explore your new project and have fun!
+
+> **Coming soon**: third-party integrations for UI libraries, database providers, state management, authentication, and more — seamlessly available when bootstrapping your project with `@lazarv/create-react-server`. Stay tuned!
+
+In the next chapter, you can find instructions on how to start from scratch with `@lazarv/react-server`.

@@ -334,3 +334,8 @@ export function useRender(): {
    */
   lock(): () => void;
 };
+
+/**
+ * The current version of `@lazarv/react-server`.
+ */
+export const version: string;

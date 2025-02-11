@@ -91,6 +91,20 @@ jobs:
         run: |
           gh release create "v${{ env.VERSION }}" --generate-notes
 
+      - name: Prepare @lazarv/create-react-server
+        id: prepare-create-react-server
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/create-react-server')
+        working-directory: ./packages/create-react-server
+        run: |
+          jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
+
+      - name: Publish @lazarv/create-react-server
+        if: steps.prepare-create-react-server.outcome == 'success'
+        working-directory: ./packages/create-react-server
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+        run: pnpm publish --access=public --no-git-checks
+
       - name: Prepare @lazarv/react-server-adapter-core
         id: prepare-react-server-adapter-core
         if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-core')

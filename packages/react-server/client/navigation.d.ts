@@ -219,20 +219,23 @@ export function ReactServerComponent(
 /**
  * A hook that returns the current location.
  *
+ * @param outlet - which outlet to watch (optional, defaults to root)
  * @returns The current location
  */
-export function useLocation(): Location | null;
+export function useLocation(outlet?: string): Location | null;
 
 /**
  * A hook that returns the current search parameters.
  *
+ * @param outlet - which outlet to watch (optional, defaults to root)
  * @returns The current search parameters
  */
-export function useSearchParams(): URLSearchParams | null;
+export function useSearchParams(outlet?: string): URLSearchParams | null;
 
 /**
  * A hook that returns the current pathname.
  *
+ * @param outlet - which outlet to watch (optional, defaults to root)
  * @returns The current pathname
  */
-export function usePathname(): string | null;
+export function usePathname(outlet?: string): string | null;

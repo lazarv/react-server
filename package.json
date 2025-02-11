@@ -38,7 +38,8 @@
     ]
   },
   "dependencies": {
-    "@lazarv/react-server": "link:packages/react-server"
+    "@lazarv/react-server": "link:packages/react-server",
+    "@lazarv/create-react-server": "link:packages/create-react-server"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.25.9",

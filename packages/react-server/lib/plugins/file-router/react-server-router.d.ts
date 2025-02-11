@@ -149,6 +149,36 @@ declare module "@lazarv/react-server/navigation" {
   export function ReactServerComponent(
     props: ReactServerComponentProps
   ): JSX.Element;
+
+  /**
+   * A hook that returns the current location.
+   *
+   * @param outlet - which outlet to watch (optional, defaults to root)
+   * @returns The current location
+   */
+  export function useLocation(
+    outlet?: __react_server_routing__.Outlet
+  ): Location | null;
+
+  /**
+   * A hook that returns the current search parameters.
+   *
+   * @param outlet - which outlet to watch (optional, defaults to root)
+   * @returns The current search parameters
+   */
+  export function useSearchParams(
+    outlet?: __react_server_routing__.Outlet
+  ): URLSearchParams | null;
+
+  /**
+   * A hook that returns the current pathname.
+   *
+   * @param outlet - which outlet to watch (optional, defaults to root)
+   * @returns The current pathname
+   */
+  export function usePathname(
+    outlet?: __react_server_routing__.Outlet
+  ): string | null;
 }
 
 declare module "@lazarv/react-server/client" {

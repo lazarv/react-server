@@ -184,7 +184,7 @@ export default async function staticSiteGenerator(root, options) {
               url,
               method: method ?? "GET",
               request: {
-                url,
+                url: url.toString(),
                 method: method ?? "GET",
                 headers: new Headers({
                   accept: "text/html",
@@ -283,7 +283,7 @@ export default async function staticSiteGenerator(root, options) {
               const stream = await render({
                 url,
                 request: {
-                  url,
+                  url: url.toString(),
                   headers: new Headers({
                     accept: "text/x-component",
                   }),
@@ -358,7 +358,7 @@ export default async function staticSiteGenerator(root, options) {
               const stream = await render({
                 url,
                 request: {
-                  url,
+                  url: url.toString(),
                   headers: new Headers({
                     accept: "text/x-component",
                     "React-Server-Outlet": "REACT_SERVER_BUILD_OUTLET",

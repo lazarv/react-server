@@ -91,5 +91,5 @@
       "supertest>superagent": "9.0.2"
     }
   },
-  "packageManager": "pnpm@10.3.0"
+  "packageManager": "pnpm@9.15.5"
 }

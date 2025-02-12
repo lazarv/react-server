@@ -30,7 +30,7 @@ jobs:
     name: Get changed files 📂
     runs-on: ubuntu-latest
     outputs:
-      should_skip: ${{ steps.changed-files.outputs.any_changed != 'true' }}
+      all_changed_files: ${{ steps.changed-files.outputs.all_changed_files }}
 
     steps:
       - name: Checkout
@@ -50,7 +50,7 @@ jobs:
 
   test:
     needs: changed
-    if: needs.changed.outputs.should_skip != 'true'
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server')
     timeout-minutes: 20
     runs-on: ${{ matrix.os }}
     strategy:

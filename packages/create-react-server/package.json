@@ -5,6 +5,24 @@
     "create-react-server": "index.mjs"
   },
   "type": "module",
+  "keywords": [
+    "react",
+    "server",
+    "rsc",
+    "ssr",
+    "esm",
+    "vite",
+    "create"
+  ],
+  "author": "lazarv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lazarv/react-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
   "dependencies": {
     "@inquirer/checkbox": "^4.0.1",
     "@inquirer/confirm": "^5.0.1",
@@ -22,5 +40,8 @@
     "picocolors": "^1.1.1",
     "prettier": "^3.0.0",
     "ts-morph": "^24.0.0"
+  },
+  "engines": {
+    "node": ">=20.10.0"
   }
 }

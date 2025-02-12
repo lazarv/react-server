@@ -63,7 +63,7 @@ const ciInstallArgs = {
   npm: "--loglevel notice",
   pnpm: "--reporter=append-only",
   yarn: "--no-progress --inline-builds",
-  bun: "",
+  bun: null,
 };
 
 const runCommand = {

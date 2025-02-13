@@ -2,7 +2,7 @@ import { getPages } from "../../pages.mjs";
 
 const pages = getPages("/", "ja").reduce((paths, { category, pages }) => {
   paths.push({
-    path: `/${category.toLowerCase()}`,
+    path: `/ja/${category.toLowerCase()}`,
   });
   pages.forEach(({ langHref: path }) => paths.push({ path }));
   return paths;

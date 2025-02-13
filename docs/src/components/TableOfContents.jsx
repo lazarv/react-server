@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { scrollHashIntoView } from "./utils.mjs";
 
-export default function TableOfContents() {
+export default function TableOfContents({ title }) {
   const [tableOfContents, setTableOfContents] = useState([]);
   const [active, setActive] = useState("");
 
@@ -84,7 +84,7 @@ export default function TableOfContents() {
   return (
     <>
       <header className="text-md font-semibold mb-2 whitespace-nowrap">
-        On this page
+        {title}
       </header>
       <ul className="flex flex-col w-40">
         {tableOfContents.map((item, i) => (

@@ -44,7 +44,7 @@ export default function CopyToClipboard({ filename }) {
           filename,
         });
       }}
-      className="absolute right-2 bottom-2"
+      className="absolute right-2 bottom-10"
       aria-label="Copy to clipboard"
     >
       <Copy size={24} className="stroke-white" />

@@ -624,7 +624,7 @@ export async function render(Component, props = {}, options = {}) {
               if (digest) {
                 e.digest = digest;
               }
-              logger.error(e);
+              (logger ?? console).error(e);
               hasError = true;
               if (!isStarted) {
                 ContextStorage.run(contextStore, async () => {

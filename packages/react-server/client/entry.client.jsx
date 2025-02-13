@@ -102,7 +102,8 @@ class ErrorBoundary extends Component {
                 font-family: system-ui, -apple-system, sans-serif;
                 padding: 2rem;
                 line-height: 1.5;
-                background: #fff;
+                background: #fff !important;
+                display: block;
               }
 
               h1 {
@@ -441,6 +442,7 @@ if (import.meta.env.DEV) {
   position: fixed;
   left: 16px;
   bottom: 16px;
+  padding: 4px 8px !important;
   z-index: 99999;
   display: flex;
   align-items: center;

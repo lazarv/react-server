@@ -1,16 +1,11 @@
-import { basename, relative } from "node:path";
+import { basename } from "node:path";
 
 import { usePathname } from "@lazarv/react-server";
 
 import Sidebar from "../../../components/Sidebar.jsx";
 import { defaultLanguage } from "../../../const.mjs";
-import { hasCategory, categories } from "../../../pages.mjs";
-
-const pages = Array.from(
-  Object.entries(
-    import.meta.glob("../../../**/\\(pages\\)/**/*.{md,mdx}", { eager: true })
-  )
-);
+import { hasCategory, getPages } from "../../../pages.mjs";
+import { m } from "../../../i18n.mjs";
 
 export default function PageSidebar({ lang, slug: [category] }) {
   const pathname = usePathname();
@@ -19,72 +14,44 @@ export default function PageSidebar({ lang, slug: [category] }) {
     return null;
   }
 
+  const pages = getPages(pathname, lang);
+
   return (
-    <Sidebar id="sidebar" menu="Menu">
-      {Array.from(
-        Object.entries(
-          pages.reduce(
-            (categories, [mod, page]) => ({
-              ...categories,
-              [page.frontmatter?.category ?? "Guide"]: [
-                ...(categories[page.frontmatter?.category ?? "Guide"] ?? []),
-                [mod, page],
-              ],
-            }),
-            {}
-          )
-        )
-      )
-        .sort(([a], [b]) => categories.indexOf(a) - categories.indexOf(b))
-        .map(([category, pages], i) => (
-          <div key={category} className="mb-4">
-            <div
-              className={`text-md font-semibold mb-2${i > 0 ? " pt-4 dark:border-gray-800" : ""}`}
-            >
-              {!pages.some(
-                ([, { frontmatter }]) =>
-                  frontmatter?.slug === category.toLowerCase()
-              ) ? (
-                <a
-                  href={`/${lang === defaultLanguage ? "" : `${lang}/`}${category.toLowerCase()}`}
-                  className={`mb-2${pathname.includes(`/${lang}/${category.toLowerCase()}`) ? " text-indigo-500 dark:text-yellow-600" : ""}`}
-                >
-                  {category}
-                </a>
-              ) : (
-                category
-              )}
-            </div>
-            {pages
-              .sort(
-                ([, { frontmatter: a }], [, { frontmatter: b }]) =>
-                  (a?.order ?? 0) - (b?.order ?? 0)
-              )
-              .map(([mod, { frontmatter }], i) => {
-                const href = `${lang !== defaultLanguage ? `/${lang}` : ""}/${
-                  frontmatter?.slug ??
-                  relative(`../../${lang}`, mod)
-                    .replace(/\(pages\)\//, "")
-                    .replace(/\.mdx?$/, "")
-                    .replace(/[./]page$/, "")
-                }`;
-                const langHref =
-                  lang !== defaultLanguage ? href : `/${lang}${href}`;
-                const isActive =
-                  pathname === langHref ||
-                  (frontmatter?.slug === "" && pathname === `/${lang}/guide`);
-                return (
-                  <a
-                    key={mod}
-                    href={href}
-                    className={`block pb-1 last:pb-0 after:mb-1 last:after:mb-0 text-sm pl-3 border-l border-gray-300 dark:border-gray-600${isActive ? " text-indigo-500 dark:text-yellow-600 active" : ""}`}
-                  >
-                    {frontmatter?.title ?? basename(mod).replace(/\.mdx?$/, "")}
-                  </a>
-                );
-              })}
+    <Sidebar id="sidebar" menu={m.sidebar_title()}>
+      {pages.map(({ category, pages }, i) => (
+        <div key={category} className="mb-4">
+          <div
+            className={`text-md font-semibold mb-2${i > 0 ? " pt-4 dark:border-gray-800" : ""}`}
+          >
+            {!pages.some(
+              ({ frontmatter }) => frontmatter?.slug === category.toLowerCase()
+            ) ? (
+              <a
+                href={`/${lang === defaultLanguage ? "" : `${lang}/`}${category.toLowerCase()}`}
+                className={`mb-2${pathname.includes(`/${lang}/${category.toLowerCase()}`) ? " text-indigo-500 dark:text-yellow-600" : ""}`}
+              >
+                {m[`category_${category.toLowerCase()}`]()}
+              </a>
+            ) : (
+              m[`category_${category.toLowerCase()}`]()
+            )}
           </div>
-        ))}
+          {pages
+            .sort(
+              ({ frontmatter: a }, { frontmatter: b }) =>
+                (a?.order ?? 0) - (b?.order ?? 0)
+            )
+            .map(({ frontmatter, langHref, isActive, src }) => (
+              <a
+                key={src}
+                href={langHref}
+                className={`block pb-1 last:pb-0 after:mb-1 last:after:mb-0 text-sm pl-3 border-l border-gray-300 dark:border-gray-600${isActive ? " text-indigo-500 dark:text-yellow-600 active" : ""}`}
+              >
+                {frontmatter?.title ?? basename(src).replace(/\.mdx?$/, "")}
+              </a>
+            ))}
+        </div>
+      ))}
     </Sidebar>
   );
 }

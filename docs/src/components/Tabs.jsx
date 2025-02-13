@@ -36,7 +36,7 @@ export function Tabs({ name = "tab", children }) {
         {tabs.map((tab, index) => (
           <div
             key={index}
-            className={`w-full min-h-20 [&_code]:!my-0 ${selectedTab === index ? "block" : "hidden"}`}
+            className={`w-full min-h-20 [&_code]:!my-0 ${selectedTab === index ? "block" : "hidden"} [&>pre>code~button]:bottom-2`}
           >
             {tab}
           </div>

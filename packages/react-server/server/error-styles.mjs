@@ -8,7 +8,8 @@ export const remoteStyle = `.react-server-global-error * {
     font-family: system-ui, -apple-system, sans-serif;
     line-height: 1.5;
     padding: 1rem;
-    background: #fff;
+    background: #fff !important;
+    display: block;
   }
   
   .react-server-global-error h1 {

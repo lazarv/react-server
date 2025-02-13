@@ -1,4 +1,4 @@
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 
 import { defaultLanguage } from "./const.mjs";
 
@@ -46,26 +46,60 @@ export function getPages(pathname, lang) {
           ([, { frontmatter: a }], [, { frontmatter: b }]) =>
             (a?.order ?? 0) - (b?.order ?? 0)
         )
-        .map(([mod, { frontmatter }]) => {
-          const href = `${lang !== defaultLanguage ? `/${lang}` : ""}/${
+        .reduce((availablePages, [src, { frontmatter, default: page }]) => {
+          const path = relative(`./pages/${lang}`, src);
+          const href = join(
+            lang !== defaultLanguage ? `/${lang}` : "/",
             frontmatter?.slug ??
-            relative(`./pages/${lang}`, mod)
-              .replace(/\(pages\)\//, "")
-              .replace(/\.mdx?$/, "")
-              .replace(/[./]page$/, "")
-          }`;
-          const langHref = lang !== defaultLanguage ? href : `/${lang}${href}`;
+              path
+                .replace(/\(pages\)\//, "")
+                .replace(/\.mdx?$/, "")
+                .replace(/[./]page$/, "")
+          );
+          const langHref =
+            lang !== defaultLanguage ? href : join(`/${lang}`, href);
           const isActive =
             pathname === langHref ||
             (frontmatter?.slug === "" && pathname === `/${lang}/guide`);
-          return {
+          const data = {
             href,
             langHref,
             isActive,
             frontmatter,
             category,
+            src,
+            page,
           };
-        }),
+
+          if (
+            !path.startsWith("../") ||
+            !pages.find(([src, { frontmatter }]) => {
+              const path = relative(`./pages/${lang}`, src);
+              const href = join(
+                lang !== defaultLanguage ? `/${lang}` : "/",
+                frontmatter?.slug ??
+                  path
+                    .replace(/\(pages\)\//, "")
+                    .replace(/\.mdx?$/, "")
+                    .replace(/[./]page$/, "")
+              );
+              const otherLangHref =
+                lang !== defaultLanguage ? href : join(`/${lang}`, href);
+              return (
+                otherLangHref.startsWith(`/${lang}`) &&
+                langHref.split("/").slice(2).join("/") ===
+                  otherLangHref.split("/").slice(2).join("/")
+              );
+            })
+          ) {
+            data.langHref = data.langHref.replace(/^\/en/, `/${lang}`);
+            if (pathname === data.langHref) {
+              data.isActive = true;
+            }
+            availablePages.push(data);
+          }
+          return availablePages;
+        }, []),
     }));
 }
 

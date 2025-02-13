@@ -1,4 +1,6 @@
 import CopyToClipboard from "./components/CopyToClipboard";
+import { defaultLanguage } from "./const.mjs";
+import { useLanguage } from "./i18n.mjs";
 
 export default function useMDXComponents() {
   return {
@@ -14,6 +16,22 @@ export default function useMDXComponents() {
           {children}
           <CopyToClipboard filename={filename} />
         </pre>
+      );
+    },
+    a: ({ children, href, ...props }) => {
+      const lang = useLanguage();
+      return (
+        <a
+          {...props}
+          href={
+            href.startsWith("http")
+              ? href
+              : `${lang === defaultLanguage ? "" : `/${lang}`}${href}`
+          }
+          hrefLang={lang}
+        >
+          {children}
+        </a>
       );
     },
   };

@@ -13,3 +13,7 @@
 .DocSearch-Footer {
   @apply px-4 py-3 rounded-none;
 }
+
+.DocSearch-Button-Placeholder {
+  @apply text-nowrap;
+}

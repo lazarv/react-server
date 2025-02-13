@@ -1,0 +1,32 @@
+import { status, usePathname, rewrite } from "@lazarv/react-server";
+
+import { useLanguage } from "../../i18n.mjs";
+import { getPages } from "../../pages.mjs";
+
+export async function Fallback({ children }){
+  const pathname = usePathname();
+  const lang = useLanguage();
+  const pages = getPages("/", "en");
+  const to = pages.flatMap(({ pages }) => pages).find(page => pathname === page.langHref.replace(/^\/en/, `/${lang}`));
+  if (to) {
+    return to.page();
+  }
+  return children;
+}
+
+export function NotFound() {
+  status(404);
+  return null;
+}
+
+<Fallback>
+<NotFound />
+
+<div className="flex flex-col gap-4 w-full mt-auto mb-auto justify-center items-center text-center">
+# 見つかりません
+
+申し訳ありませんが、このページは見つかりませんでした。  
+[ホームページ](/) に戻ってください。
+
+</div>
+</Fallback>

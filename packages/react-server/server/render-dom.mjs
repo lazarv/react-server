@@ -12,6 +12,33 @@ import dom2flight from "./dom-flight.mjs";
 const streamMap = new Map();
 const preludeMap = new Map();
 
+function detectSplitUTF8(chunk) {
+  const bytes = new Uint8Array(chunk);
+  let cutIndex = bytes.length;
+
+  // Scan from end to find an incomplete character
+  for (let i = bytes.length - 1; i >= 0; i--) {
+    if ((bytes[i] & 0b11000000) === 0b10000000) {
+      // This is a continuation byte, move backward
+      continue;
+    } else if ((bytes[i] & 0b11100000) === 0b11000000 && bytes.length - i < 2) {
+      cutIndex = i; // Incomplete 2-byte character
+      break;
+    } else if ((bytes[i] & 0b11110000) === 0b11100000 && bytes.length - i < 3) {
+      cutIndex = i; // Incomplete 3-byte character
+      break;
+    } else if ((bytes[i] & 0b11111000) === 0b11110000 && bytes.length - i < 4) {
+      cutIndex = i; // Incomplete 4-byte character
+      break;
+    } else {
+      // Found a complete character, stop checking
+      break;
+    }
+  }
+
+  return cutIndex < bytes.length ? bytes.slice(cutIndex) : null;
+}
+
 export const createRenderer = ({
   moduleCacheStorage,
   linkQueueStorage,
@@ -114,7 +141,7 @@ export const createRenderer = ({
                   try {
                     const [renderStream, forwardStream] = flight.tee();
 
-                    const decoder = new TextDecoder();
+                    const decoder = new TextDecoder("utf-8");
                     const encoder = new TextEncoder();
 
                     const tree = await createFromReadableStream(
@@ -174,6 +201,7 @@ export const createRenderer = ({
 
                     let forwardDone = false;
                     let forwardNext = null;
+                    let splitBuffer = new Uint8Array(0);
                     const forwardWorker = async function* () {
                       await htmlReady;
 
@@ -203,7 +231,7 @@ export const createRenderer = ({
 
                         forwardNext = null;
 
-                        const { value, done: _done } = res;
+                        const { value: _value, done: _done } = res;
                         forwardDone = _done;
 
                         hasClientComponent =
@@ -211,8 +239,28 @@ export const createRenderer = ({
 
                         if (_done) break;
 
-                        if (value) {
-                          const payload = decoder.decode(value);
+                        if (_value) {
+                          let value = _value;
+                          if (splitBuffer.byteLength > 0) {
+                            const merged = new Uint8Array(
+                              splitBuffer.byteLength + value.byteLength
+                            );
+                            merged.set(splitBuffer, 0);
+                            merged.set(value, splitBuffer.byteLength);
+                            value = merged;
+                          }
+
+                          const splitBytes = detectSplitUTF8(value);
+                          if (splitBytes) {
+                            splitBuffer = splitBytes;
+                            value = value.slice(0, -splitBytes.byteLength);
+                          } else {
+                            splitBuffer = new Uint8Array(0);
+                          }
+
+                          const payload = decoder.decode(value, {
+                            stream: true,
+                          });
                           const lines = payload.split("\n");
                           if (remote && !hasServerAction) {
                             hasServerAction ||= lines.some((r) =>

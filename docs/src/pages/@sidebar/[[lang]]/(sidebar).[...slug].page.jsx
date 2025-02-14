@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { usePathname } from "@lazarv/react-server";
 
 import Sidebar from "../../../components/Sidebar.jsx";
-import { defaultLanguage } from "../../../const.mjs";
+import { defaultLanguage, defaultLanguageRE } from "../../../const.mjs";
 import { hasCategory, getPages } from "../../../pages.mjs";
 import { m } from "../../../i18n.mjs";
 
@@ -44,7 +44,7 @@ export default function PageSidebar({ lang, slug: [category] }) {
             .map(({ frontmatter, langHref, isActive, src }) => (
               <a
                 key={src}
-                href={langHref}
+                href={langHref.replace(defaultLanguageRE, "")}
                 className={`block pb-1 last:pb-0 after:mb-1 last:after:mb-0 text-sm pl-3 border-l border-gray-300 dark:border-gray-600${isActive ? " text-indigo-500 dark:text-yellow-600 active" : ""}`}
               >
                 {frontmatter?.title ?? basename(src).replace(/\.mdx?$/, "")}

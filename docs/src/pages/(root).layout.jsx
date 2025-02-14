@@ -33,6 +33,10 @@ export default function Layout({
         lowerCaseCategories.includes(value.trim().toLowerCase()),
     },
   });
+  const canonical = pathname.replace(
+    new RegExp(`^/(${defaultLanguage}|${lang})`),
+    ""
+  );
 
   return (
     <html
@@ -95,15 +99,15 @@ export default function Layout({
             key={hrefLang}
             rel="alternate"
             hrefLang={hrefLang}
-            href={`https://react-server.dev${hrefLang === defaultLanguage ? "" : `/${hrefLang}`}${pathname.replace(new RegExp(`^/(${defaultLanguage}|${lang})`), "")}`}
+            href={`https://react-server.dev${hrefLang === defaultLanguage ? "" : `/${hrefLang}`}${canonical}`}
           />
         ))}
         <link
           rel="alternate"
           hrefLang="x-default"
-          href={`https://react-server.dev${pathname.replace(new RegExp(`^/(${defaultLanguage}|${lang})`), "")}`}
+          href={`https://react-server.dev${canonical}`}
         />
-        <link rel="canonical" href={`https://react-server.dev${pathname}`} />
+        <link rel="canonical" href={`https://react-server.dev${canonical}`} />
       </head>
       <body data-path={pathname} suppressHydrationWarning>
         {header}

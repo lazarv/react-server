@@ -8,7 +8,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import EditPage from "../components/EditPage.jsx";
 import { useLanguage, m } from "../i18n.mjs";
-import { defaultLanguage, languages } from "../const.mjs";
+import { defaultLanguage, defaultLanguageRE, languages } from "../const.mjs";
 import { categories } from "../pages.mjs";
 
 const lowerCaseCategories = categories.map((category) =>
@@ -107,7 +107,10 @@ export default function Layout({
           hrefLang="x-default"
           href={`https://react-server.dev${canonical}`}
         />
-        <link rel="canonical" href={`https://react-server.dev${canonical}`} />
+        <link
+          rel="canonical"
+          href={`https://react-server.dev${pathname.replace(defaultLanguageRE, "")}`}
+        />
       </head>
       <body data-path={pathname} suppressHydrationWarning>
         {header}

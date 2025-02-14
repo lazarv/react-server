@@ -1,4 +1,4 @@
-import { defaultLanguage, languages } from "../const.mjs";
+import { defaultLanguage, defaultLanguageRE, languages } from "../const.mjs";
 import { getPages } from "../pages.mjs";
 
 const pages = languages
@@ -36,7 +36,7 @@ ${site
   .toSorted((a, b) => a.path.split("/").length - b.path.split("/").length)
   .map(({ path }) => {
     return `<url>
-    <loc>https://react-server.dev${path.replace(/\/$/, "")}</loc>
+    <loc>https://react-server.dev${path.replace(defaultLanguageRE, "").replace(/\/$/, "")}</loc>
     <lastmod>${now}</lastmod>
     <changefreq>daily</changefreq>
     <priority>${Math.ceil((1 - (path.replace(/\/$/, "").split("/").length - 1) * 0.2) * 10) / 10}</priority>

@@ -1,3 +1,4 @@
+import { defaultLanguageRE } from "../const.mjs";
 import { m } from "../i18n.mjs";
 
 export default function NavigationLinks({ prev, next }) {
@@ -5,7 +6,7 @@ export default function NavigationLinks({ prev, next }) {
     <div className="w-full flex flex-wrap gap-2 md:flex-row md:justify-between">
       {prev && (
         <a
-          href={prev.langHref}
+          href={prev.langHref.replace(defaultLanguageRE, "")}
           className="text-sm font-semibold whitespace-nowrap hover:underline"
         >
           ←{" "}
@@ -18,7 +19,7 @@ export default function NavigationLinks({ prev, next }) {
 
       {next && (
         <a
-          href={next.langHref}
+          href={next.langHref.replace(defaultLanguageRE, "")}
           className="text-sm font-semibold whitespace-nowrap ml-auto hover:underline"
         >
           {next.category

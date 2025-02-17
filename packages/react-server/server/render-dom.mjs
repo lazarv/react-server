@@ -369,13 +369,7 @@ export const createRenderer = ({
 
                           // TODO: bootstrapScripts should be buffers instead of strings, fix script parts should be pre-encoded buffers then yield copy of those buffers
                           const script = encoder.encode(
-                            `${
-                              importMap
-                                ? `<script type="importmap">${JSON.stringify(
-                                    importMap
-                                  )}</script>`
-                                : ""
-                            }<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=()=>${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
+                            `<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=()=>${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
                               ""
                             )}</script>${
                               hmr
@@ -412,6 +406,33 @@ export const createRenderer = ({
                       _resolve();
                     };
 
+                    let process;
+                    const passThrough = (value) => value;
+
+                    const importMapScript = `<script type="importmap">${JSON.stringify(importMap)}</script>`;
+                    const injectImportMap = (value) => {
+                      const chunk = decoder.decode(value);
+                      if (chunk.includes("<head")) {
+                        process = passThrough;
+                        return encoder.encode(
+                          chunk.replace(
+                            /<head([^<>]*)>/,
+                            `<head$1>${importMapScript}`
+                          )
+                        );
+                      } else if (chunk.startsWith("<!DOCTYPE")) {
+                        return value;
+                      } else {
+                        process = passThrough;
+                        return encoder.encode(importMapScript + chunk);
+                      }
+                    };
+
+                    process =
+                      typeof importMap === "object" && importMap !== null
+                        ? injectImportMap
+                        : passThrough;
+
                     const worker = async function* () {
                       while (!(forwardDone && htmlDone)) {
                         for await (const value of forwardWorker()) {
@@ -421,7 +442,7 @@ export const createRenderer = ({
                         }
 
                         for await (const value of htmlWorker()) {
-                          yield value;
+                          yield process(value);
                         }
 
                         if (linkQueue.size > 0) {

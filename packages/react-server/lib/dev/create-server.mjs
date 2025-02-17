@@ -20,6 +20,7 @@ import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
 import { MemoryCache } from "../../memory-cache/index.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
+  COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
@@ -168,7 +169,8 @@ export default async function createServer(root, options) {
       asset(),
       optimizeDeps(),
     ],
-    cacheDir: join(cwd, "node_modules", options.outDir, ".cache"),
+    cacheDir:
+      config.cacheDir || join(cwd, "node_modules", options.outDir, ".cache"),
     resolve: {
       ...config.resolve,
       alias: [
@@ -568,6 +570,38 @@ export default async function createServer(root, options) {
       }
       collectCss(rootModule);
       return styles;
+    },
+    [COLLECT_CLIENT_MODULES]: function collectClientModules(rootModule) {
+      const modules = [];
+      const visited = new Set();
+      function collectClientModules(moduleId) {
+        if (
+          moduleId &&
+          !visited.has(moduleId) &&
+          !moduleId.startsWith("virtual:")
+        ) {
+          visited.add(moduleId);
+          const mod = viteDevServer.environments.rsc.moduleGraph.getModuleById(
+            sys.normalizePath(moduleId)
+          );
+          if (!mod) return;
+
+          if (mod.__react_server_client_component__) {
+            modules.unshift(`/@fs${moduleId}`);
+          } else {
+            if (/node_modules/.test(moduleId)) return;
+
+            const values = Array.from(mod.importedModules.values());
+            const imports = values.filter(
+              (mod) => !/\.(css|scss|less)/.test(mod.id)
+            );
+
+            imports.forEach((mod) => mod.id && collectClientModules(mod.id));
+          }
+        }
+      }
+      collectClientModules(rootModule);
+      return modules;
     },
   };
 

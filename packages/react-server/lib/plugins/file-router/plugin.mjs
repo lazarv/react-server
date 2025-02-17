@@ -955,7 +955,7 @@ export default function viteReactServerRouter(options = {}) {
           import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
           import { ${
             viteCommand === "build" ? "MANIFEST, " : ""
-          }COLLECT_STYLESHEETS, STYLES_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
+          }COLLECT_STYLESHEETS, STYLES_CONTEXT, COLLECT_CLIENT_MODULES, CLIENT_MODULES_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
           import { useMatch } from "@lazarv/react-server/router";
           ${
             errorBoundaries.length > 0
@@ -1010,8 +1010,12 @@ export default function viteReactServerRouter(options = {}) {
             .join("\n")}
 
           let stylesCache = null;
+          let clientModuleCache = null;
           export function init$() {
-            if (!stylesCache) {
+            if (!stylesCache || !clientModuleCache) {
+              const clientModules = [...(getContext(CLIENT_MODULES_CONTEXT) ?? [])];
+              const collectClientModules = getContext(COLLECT_CLIENT_MODULES);
+
               const pageStyles = [...(getContext(STYLES_CONTEXT) ?? [])];
               const collectStylesheets = getContext(COLLECT_STYLESHEETS);
               ${
@@ -1025,6 +1029,7 @@ export default function viteReactServerRouter(options = {}) {
                   entry.pages.find(({ src: entrySrc }) => entrySrc === src)
                     .module
                 }")))?.file;
+                clientModules.unshift(...collectClientModules?.(pageModule));
                 pageStyles.unshift(...collectStylesheets?.(pageModule));
 
                 ${layouts
@@ -1032,7 +1037,7 @@ export default function viteReactServerRouter(options = {}) {
                     (
                       [layoutSrc],
                       i
-                    ) => `const __react_server_router_layout_css_${i}__ = Object.values(manifest.server).find((entry) => entry.src?.endsWith("${
+                    ) => `const __react_server_router_layout_module_${i}__ = Object.values(manifest.server).find((entry) => entry.src?.endsWith("${
                       entry.layouts.find(
                         ({ src: entrySrc }) => entrySrc === layoutSrc
                       ).module
@@ -1040,7 +1045,8 @@ export default function viteReactServerRouter(options = {}) {
                       entry.pages.find(({ src: entrySrc }) => entrySrc === src)
                         .module
                     }")))?.file;
-                pageStyles.unshift(...collectStylesheets?.(__react_server_router_layout_css_${i}__));`
+                clientModules.unshift(...collectClientModules?.(__react_server_router_layout_module_${i}__));
+                pageStyles.unshift(...collectStylesheets?.(__react_server_router_layout_module_${i}__));`
                   )
                   .join("\n")}
 
@@ -1049,15 +1055,17 @@ export default function viteReactServerRouter(options = {}) {
                     (
                       [src],
                       i
-                    ) => `const __react_server_router_css_${i}__ = Object.values(manifest.server).find((entry) => entry.src?.endsWith("${
+                    ) => `const __react_server_router_module_${i}__ = Object.values(manifest.server).find((entry) => entry.src?.endsWith("${
                       entry.pages.find(({ src: entrySrc }) => entrySrc === src)
                         .module
                     }"))?.file;
-                pageStyles.unshift(...collectStylesheets?.(__react_server_router_css_${i}__));`
+                clientModules.unshift(...collectClientModules?.(__react_server_router_module_${i}__));
+                pageStyles.unshift(...collectStylesheets?.(__react_server_router_module_${i}__));`
                   )
                   .join("\n")}
               }`
                   : `const pageModule = __require.resolve("${src}", { paths: [cwd] });
+              clientModules.unshift(...collectClientModules?.(pageModule));
               pageStyles.unshift(...collectStylesheets?.(pageModule));
 
               ${[
@@ -1071,14 +1079,17 @@ export default function viteReactServerRouter(options = {}) {
                   (
                     [src],
                     i
-                  ) => `const __react_server_router_css_${i}__ = __require.resolve("${src}", { paths: [cwd] });
-              pageStyles.unshift(...collectStylesheets?.(__react_server_router_css_${i}__));`
+                  ) => `const __react_server_router_module_${i}__ = __require.resolve("${src}", { paths: [cwd] });
+              clientModules.unshift(...collectClientModules?.(__react_server_router_module_${i}__));
+              pageStyles.unshift(...collectStylesheets?.(__react_server_router_module_${i}__));`
                 )
                 .join("\n")}`
               }
 
+              clientModuleCache = [...new Set(clientModules)];
               stylesCache = [...new Set(pageStyles)];
             }
+            context$(CLIENT_MODULES_CONTEXT, clientModuleCache);
             context$(STYLES_CONTEXT, stylesCache);
           }
 
@@ -1197,7 +1208,7 @@ export default function viteReactServerRouter(options = {}) {
                 <__react_server_router_layout_${key}_component__ {...props} />
               </Suspense>)
               : ({ key, ...props }) => <__react_server_router_layout_${key}_component__ key={key} {...props} />;
-              
+
             const __react_server_router_layout_${key}_error_boundary__ = typeof errorBoundaryComponents === "object" ? errorBoundaryComponents.get(outletErrors["${outlet}"]?.find(([, errorPath, , ]) => "${path}" === errorPath)?.[0] ?? outletErrors["${outlet}"]?.find(([, errorPath]) => useMatch(errorPath))?.[0] ?? null) ?? null : null;`;
                   })
                   .join("\n")

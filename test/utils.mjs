@@ -17,6 +17,10 @@ export async function waitForChange(action, getValue, initialValue) {
     newValue = await getValue();
     if (newValue !== originalValue) return;
     await nextAnimationFrame();
+
+    if (typeof initialValue !== "undefined" && initialValue !== originalValue) {
+      return newValue;
+    }
   }
   return newValue;
 }

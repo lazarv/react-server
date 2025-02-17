@@ -13,6 +13,8 @@ import { getPrerender } from "../../server/prerender-storage.mjs";
 import { createRenderContext } from "../../server/render-context.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
+  CLIENT_MODULES_CONTEXT,
+  COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
@@ -91,7 +93,9 @@ export default async function ssrHandler(root, options = {}) {
       ? import(pathToFileURL(errorBoundary))
       : Promise.resolve({ default: null }),
   ]);
+  const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
+  const clientModules = getRuntime(COLLECT_CLIENT_MODULES)?.(rootModule) ?? [];
   const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
   const mainModule = getRuntime(MAIN_MODULE)?.map((mod) =>
     `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")
@@ -203,6 +207,8 @@ export default async function ssrHandler(root, options = {}) {
             [MEMORY_CACHE_CONTEXT]: memoryCache,
             [MANIFEST]: manifest,
             [REDIRECT_CONTEXT]: {},
+            [COLLECT_CLIENT_MODULES]: collectClientModules,
+            [CLIENT_MODULES_CONTEXT]: clientModules,
             [COLLECT_STYLESHEETS]: collectStylesheets,
             [STYLES_CONTEXT]: styles,
             [RENDER_STREAM]: renderStream,

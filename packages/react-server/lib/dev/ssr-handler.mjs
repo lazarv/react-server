@@ -13,6 +13,8 @@ import {
 import { getRuntime } from "../../server/runtime.mjs";
 import {
   ACTION_CONTEXT,
+  CLIENT_MODULES_CONTEXT,
+  COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
   ERROR_BOUNDARY,
@@ -57,6 +59,7 @@ export default async function ssrHandler(root) {
   const logger = getRuntime(LOGGER_CONTEXT);
   const formDataParser = getRuntime(FORM_DATA_PARSER);
   const memoryCacheContext = getRuntime(MEMORY_CACHE_CONTEXT);
+  const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const renderStream = createWorker();
   const moduleCacheStorage = new ContextManager();
@@ -83,6 +86,7 @@ export default async function ssrHandler(root) {
             [FORM_DATA_PARSER]: formDataParser,
             [MEMORY_CACHE_CONTEXT]: memoryCacheContext,
             [REDIRECT_CONTEXT]: {},
+            [COLLECT_CLIENT_MODULES]: collectClientModules,
             [COLLECT_STYLESHEETS]: collectStylesheets,
             [ACTION_CONTEXT]: {},
             [RENDER_STREAM]: renderStream,
@@ -153,6 +157,12 @@ export default async function ssrHandler(root) {
                 if (renderContext.type === RENDER_TYPE.Unknown) {
                   return;
                 }
+
+                const clientModules = collectClientModules?.(rootModule) ?? [];
+                clientModules.unshift(
+                  ...(getContext(CLIENT_MODULES_CONTEXT) ?? [])
+                );
+                context$(CLIENT_MODULES_CONTEXT, clientModules);
 
                 const styles = collectStylesheets?.(rootModule) ?? [];
                 styles.unshift(...(getContext(STYLES_CONTEXT) ?? []));

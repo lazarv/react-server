@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { getContext } from "../../server/context.mjs";
 import { runtime$ } from "../../server/runtime.mjs";
 import {
+  COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   HTTP_CONTEXT,
   MAIN_MODULE,
@@ -148,4 +149,34 @@ export async function init$(type = "server", options = {}) {
     return styles;
   }
   runtime$(COLLECT_STYLESHEETS, collectStylesheets);
+
+  function collectClientModules(rootModule) {
+    if (!rootModule) return [];
+    const normalizedRootModule = sys.normalizePath(rootModule);
+    const rootManifest = Array.from(Object.values(manifest.server)).find(
+      (entry) =>
+        normalizedRootModule.endsWith(entry.file) ||
+        entry.src?.endsWith(normalizedRootModule)
+    );
+    const modules = [];
+    const visited = new Set();
+    function collectModules(mod) {
+      if (!mod || visited.has(mod.file)) return modules;
+      visited.add(mod.file);
+      if (mod.imports) {
+        mod.imports.forEach((imported) =>
+          collectModules(manifest.server[imported])
+        );
+      }
+      const clientModule = Object.values(manifest.browser).find(
+        (entry) => entry.name === `client/${mod.name}`
+      );
+      if (clientModule) {
+        modules.push(`/${clientModule.file}`);
+      }
+    }
+    collectModules(rootManifest);
+    return modules;
+  }
+  runtime$(COLLECT_CLIENT_MODULES, collectClientModules);
 }

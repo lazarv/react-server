@@ -195,6 +195,10 @@ registerClientReference(${name}, "${workspacePath(id)}", "${name}");`
           manifest.set(name, id);
         }
 
+        if (this.environment.name === "rsc") {
+          const mod = this.environment.moduleGraph.getModuleById(id);
+          mod.__react_server_client_component__ = true;
+        }
         return {
           code: gen.code,
           map: gen.map.toString(),

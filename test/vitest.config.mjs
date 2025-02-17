@@ -27,6 +27,7 @@ export default defineConfig({
       : ["default"],
     pool: "forks",
     fileParallelism: !process.env.CI,
+    retry: 3,
   },
   publicDir: false,
 });

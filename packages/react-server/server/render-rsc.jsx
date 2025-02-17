@@ -77,7 +77,10 @@ export async function render(Component, props = {}, options = {}) {
         const renderContext = getContext(RENDER_CONTEXT);
         const remote = renderContext.flags.isRemote;
         const outlet = useOutlet();
-        let serverFunctionResult, callServer, callServerHeaders;
+        let serverFunctionResult,
+          callServer,
+          callServerHeaders,
+          callServerComponent;
 
         const isFormData = context.request.headers
           .get("content-type")
@@ -200,6 +203,7 @@ export async function render(Component, props = {}, options = {}) {
                 "React-Server-Action-Key": encodeURIComponent(key),
               };
             } else {
+              callServerComponent = true;
               serverFunctionResult =
                 data instanceof Buffer
                   ? data.buffer.slice(
@@ -314,7 +318,7 @@ export async function render(Component, props = {}, options = {}) {
             "React-Server-Data": "rsc",
           };
           app =
-            reload || redirect?.response ? (
+            reload || redirect?.response || callServerComponent ? (
               <>
                 {ComponentWithStyles}
                 {serverFunctionResult}

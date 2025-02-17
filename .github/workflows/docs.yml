@@ -7,7 +7,7 @@ on:
       - main
     paths:
       - "docs/**"
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
     paths:
       - "docs/**"
@@ -24,8 +24,19 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
+    environment:
+      name: vercel-preview # Requires manual approval for PRs from forks
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository (Main Branch)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/checkout@v4
+
+      - name: Checkout PR Branch (Forks)
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4.0.0
@@ -52,8 +63,8 @@ jobs:
       - name: Build docs
         run: pnpm run docs-build
 
-      - name: Deploy Project Artifacts to Vercel
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Deploy Project Artifacts to Vercel (PR Previews)
+        if: github.event_name == 'pull_request_target'
         working-directory: ./docs
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -62,14 +73,14 @@ jobs:
           echo "VERCEL_URL=${url}" >> $GITHUB_ENV
 
       - uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         with:
           header: pr-docs-preview-url
           message: |
             ✅ Documentation preview deployed to: ${{ env.VERCEL_URL }}
 
-      - name: Deploy Project Artifacts to Vercel Production Environment
-        if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Deploy Project Artifacts to Vercel Production
+        if: github.ref == 'refs/heads/main'
         working-directory: ./docs
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

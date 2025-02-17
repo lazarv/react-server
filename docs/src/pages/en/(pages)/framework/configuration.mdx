@@ -117,3 +117,36 @@ Or the `handlers` option can be an array, where the array of handlers will be us
 </Link>
 
 The public directory is the directory where the static assets are served from. The default value is `public`.
+
+<Link name="module-preload">
+#### Module preload
+</Link>
+
+To disable the automatic module preloading of client components, you can use the `modulePreload` option. The `modulePreload` option can be a boolean value or a function that returns a boolean value. The function can also be an async function. When the `modulePreload` option evaluates to `false`, the modules for the client components will not be preloaded.
+
+```json
+{
+  "modulePreload": false
+}
+```
+
+Using a function to disable the module preloading of client components:
+
+```mjs
+export default {
+  modulePreload: () => false,
+};
+```
+
+As the whole application context is available in the function, you can use all helpers or hooks provided by the framework to determine whether to preload the client components.
+
+```mjs
+import { usePathname } from "@lazarv/react-server";
+
+export default {
+  modulePreload: () => {
+    const pathname = usePathname();
+    return pathname !== "/";
+  },
+};
+```

@@ -63,6 +63,7 @@ beforeAll(async ({ name, id }) => {
               outDir: `.react-server-dev-${id}-${hash}`,
               force: true,
               port,
+              cacheDir: `.reaact-server-dev-${id}-${hash}-vite-cache`,
             },
             {
               server: {

@@ -1,4 +1,9 @@
 export async function getPosts() {
-  const res = await fetch("https://jsonplaceholder.typicode.com/posts");
-  return res.json();
+  if (typeof document === "undefined") {
+    const { default: posts } = await import("../data/posts.json");
+    return posts;
+  } else {
+    const res = await fetch("/api/posts");
+    return res.json();
+  }
 }

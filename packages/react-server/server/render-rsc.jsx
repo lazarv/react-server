@@ -19,6 +19,7 @@ import {
   ACTION_CONTEXT,
   CACHE_CONTEXT,
   CACHE_MISS,
+  CLIENT_MODULES_CONTEXT,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   ERROR_BOUNDARY,
@@ -281,9 +282,33 @@ export async function render(Component, props = {}, options = {}) {
             </>
           );
         };
+        let configModulePreload = config.modulePreload ?? true;
+
+        if (typeof configModulePreload === "function") {
+          configModulePreload = await configModulePreload();
+        }
+
+        const ModulePreloads =
+          configModulePreload !== false
+            ? () => {
+                const modules = getContext(CLIENT_MODULES_CONTEXT);
+                return (
+                  <>
+                    {modules.map((mod) => (
+                      <link
+                        key={mod}
+                        rel="modulepreload"
+                        href={import.meta.env.DEV ? mod : linkHref(mod)}
+                      />
+                    ))}
+                  </>
+                );
+              }
+            : () => null;
         const ComponentWithStyles = (
           <>
             <Styles />
+            <ModulePreloads />
             <Component {...props} />
           </>
         );
@@ -343,6 +368,7 @@ export async function render(Component, props = {}, options = {}) {
                 app = (
                   <>
                     <Styles />
+                    <ModulePreloads />
                     <ErrorBoundary component={ErrorComponent}>
                       <Component {...props} />
                     </ErrorBoundary>

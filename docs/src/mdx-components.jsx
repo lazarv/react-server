@@ -29,6 +29,7 @@ export default function useMDXComponents() {
               : `${lang === defaultLanguage ? "" : `/${lang}`}${href}`
           }
           hrefLang={lang}
+          target={href.startsWith("http") ? "_blank" : undefined}
         >
           {children}
         </a>

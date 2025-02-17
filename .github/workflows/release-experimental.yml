@@ -91,6 +91,13 @@ jobs:
         run: |
           gh release create "v${{ env.VERSION }}" --generate-notes
 
+      - name: Get latest experimental @lazarv/react-server version
+        id: get-latest-experimental-react-server-version
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/create-react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-core') || contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-vercel')
+        working-directory: ./packages/react-server
+        run: |
+          jq --arg new_version $(npm view @lazarv/react-server version) '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
+
       - name: Prepare @lazarv/create-react-server
         id: prepare-create-react-server
         if: contains(needs.changed.outputs.all_changed_files, 'packages/create-react-server')

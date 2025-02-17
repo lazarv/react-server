@@ -7,6 +7,10 @@ on:
       - main
     paths:
       - "docs/**"
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "docs/**"
   pull_request_target:
     types: [opened, synchronize, reopened]
     paths:
@@ -27,16 +31,11 @@ jobs:
     environment:
       name: vercel-preview # Requires manual approval for PRs from forks
     steps:
-      - name: Checkout Repository (Main Branch)
-        if: github.ref == 'refs/heads/main'
-        uses: actions/checkout@v4
-
-      - name: Checkout PR Branch (Forks)
-        if: github.event_name == 'pull_request_target'
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4.0.0
@@ -63,8 +62,8 @@ jobs:
       - name: Build docs
         run: pnpm run docs-build
 
-      - name: Deploy Project Artifacts to Vercel (PR Previews)
-        if: github.event_name == 'pull_request_target'
+      - name: Deploy to Vercel (PR Previews)
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         working-directory: ./docs
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -73,13 +72,13 @@ jobs:
           echo "VERCEL_URL=${url}" >> $GITHUB_ENV
 
       - uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         with:
           header: pr-docs-preview-url
           message: |
             ✅ Documentation preview deployed to: ${{ env.VERCEL_URL }}
 
-      - name: Deploy Project Artifacts to Vercel Production
+      - name: Deploy to Vercel Production
         if: github.ref == 'refs/heads/main'
         working-directory: ./docs
         env:

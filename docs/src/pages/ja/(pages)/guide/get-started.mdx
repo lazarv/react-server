@@ -12,18 +12,18 @@ import Deno from "../../../../components/Deno.jsx";
 
 # はじめよう
 
-React Server Componentsを使い始めるのに、`@lazarv/react-server`ほど簡単なものはありません。node.js と同じように `react-server` CLI を使うことができます。React Server Componentをexport default構文を使ってエクスポートしたファイルがあれば、すぐに`react-server`を使って実行することが出来ます。アプリケーションは、ひとつのファイルを使ってマイクロアプリケーションを作ることもできますし、ファイルシステムベースのルーターを使用して本格的で複雑なアプリケーションを作成することもできます。
+React Server Componentsを使い始めるのに、`@lazarv/react-server`ほど簡単なものはありません。node.js と同じように `react-server` CLI を使うことができます。Server Component をエクスポートしたファイルがあれば、`react-server` をつかって実行することができます。ひとつのファイルを使ってマイクロアプリケーションを作ることもできますし、ファイルシステムベースのルーターを使用して本格的で複雑なアプリケーションを作成することもできます。
 
 <Link name="prerequisites">
 ## 前提条件
 </Link>
 
-node.jsとパッケージ・マネージャーさえあれば始めることができます。最新のnode.jsランタイムとpnpmをパッケージ・マネージャーとして推奨しますが、どのパッケージ・マネージャーを使っても構いません。
+`@lazarv/react-server`はnode.jsとパッケージ・マネージャーさえあれば始めることができます。最新のnode.jsランタイムとpnpmをパッケージ・マネージャーとして推奨しますが、どのパッケージ・マネージャーを使っても構いません。
 
 - [Node.js](https://nodejs.org) v20.10.0 以降
 - [pnpm](https://pnpm.io)
 
-またはJavaScriptランタイムとしてBunを使用する場合は、他に何も必要ありません。Bunを使用するだけです。
+JavaScriptランタイムとしてBunを使用する場合は、他に何も必要ありません。Bunを使用するだけです。
 
 - [Bun](https://bun.sh) v1.1.45 以降
 
@@ -73,7 +73,7 @@ bun add @lazarv/react-server
 ## 初めてのアプリケーション
 </Link>
 
-`App.jsx`を作成してください。React Server Componentをexport default構文を使ってエクスポートするとアプリケーションを実行することが出来ます。
+`App.jsx`を作成してください。React Server Componentをエクスポートするとアプリケーションを立ち上げることが出来ます。
 
 ```jsx
 export default function App() {
@@ -121,13 +121,13 @@ bun --bun react-server ./App.jsx
 
 </Tabs>
 
-> **Note:** デフォルトブラウザでアプリケーションにアクセスするには、`--open` オプションを使うことができます。
+> **Note:** もし デフォルトブラウザでアプリケーションにアクセスしたい場合は、`--open` オプションを使うことができます。
 
 <Link name="build">
 ## プロダクションビルド
 </Link>
 
-アプリケーションの開発が終われば、プロダクションビルドをすることも出来ます。プロダクションビルドをすると `.react-server` ディレクトリの中にプロダクションモードでの実行に必要なファイルを作成します。
+アプリケーションの開発が終われば、プロダクションモードでビルドすることも出来ます。プロダクションビルドをすると `.react-server` ディレクトリの中にプロダクションモードでの実行に必要なファイルを作成します。
 
 <Tabs name="build">
 
@@ -203,17 +203,17 @@ bun --bun react-server start
 
 </Tabs>
 
-> **Note:** `@lazarv/react-server`をインストールしたくない場合、`npx`を使って`react-server` CLIを実行することができます。JavaScriptを使用する場合、このようにすれば他のものをインストールする必要はありません。export default構文を使ってエクスポートした`.jsx`を実行するには十分です。`npx @lazarv/react-server ./App.jsx` とすればディベロップメントモードでアプリケーションを実行することが出来ます。Bunを使っている場合、`bunx --bun @lazarv/react-server`とすると`react-server` CLIを実行することが出来ます。
+> **Note:** `@lazarv/react-server`をインストールせず高速にアプリを実行したい場合、`npx`を使って`react-server` CLIを実行することができます。JavaScriptを使用する場合、このようにすれば他のものをインストールする必要はありません。アプリの実行にはReact Server Componentをエクスポートした`.jsx`ファイルがあれば十分です。`npx @lazarv/react-server ./App.jsx` を実行すればディベロップメントモードでアプリケーションを立ち上げることが出来ます。Bunを使っている場合、`bunx --bun @lazarv/react-server`を実行すれば`react-server`CLIを実行することが出来ます。
 
 <Link name="next-steps">
-## 次の段階
+## 次のステップ
 </Link>
 
-成功！`@lazarv/react-server`を使って初めてのアプリケーションを作成しました。
+おめでとうございます！`@lazarv/react-server`を使って初めてのアプリケーションを作成しました。
 
-より深く学ぶためのおすすめトピックをいくつかご紹介します。これらのトピックは、好きな順番で読むことができます。また、今はアプリケーションの構築を開始し、問題に遭遇したり質問があるときに戻ってくることもできます。
+より深く学ぶためのおすすめトピックをいくつかご紹介します。これらのトピックは、好きな順番で読むことができます。また、今はこのガイドを離れてアプリの開発を始めることもできますし、問題に遭遇したり質問があるときに戻ってくることもできます。
 
-> 質問や助けが必要な場合は[GitHub Discussions](https://github.com/lazarv/react-server/discussions)に参加出来ることを忘れないでください。
+> 質問や助けが必要な場合は[GitHub Discussions](https://github.com/lazarv/react-server/discussions)に参加できます。
 
 <div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
   <Card>
@@ -256,7 +256,7 @@ HTTPリクエストとレスポンスオブジェクトへのアクセス方法�
   </Card>
 </div>
 
-また、以下のチュートリアルを読むことで、フレームワークについてより深く学ぶことができます。これらは開始するために必須ではありませんが、いくつかの概念や機能を理解するのに役立ちます。
+また、以下のチュートリアルを読むことで、フレームワークについてより深く学ぶことができます。これらはreact-serverに初めて触れる人にとって必須ではありませんが、いくつかの概念や機能を理解するのに役立ちます。
 
 <div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
   <Card>
@@ -278,7 +278,7 @@ HTTPリクエストとレスポンスオブジェクトへのアクセス方法�
 
 ##### サーバー関数を使う
 
-サーバー関数を使用してシンプルなTodoアプリケーションを構築します。コンポーネントからサーバーと対話し、サーバー側の操作を効率的に管理する方法を学びましょう。
+サーバー関数を使用してシンプルなTodoアプリケーションを構築します。サーバーコンポーネントを用いて、サーバー側の操作を効率的に管理する方法を学びましょう。
 
     <Pill href="/tutorials/todo-app">
       チュートリアルを読む

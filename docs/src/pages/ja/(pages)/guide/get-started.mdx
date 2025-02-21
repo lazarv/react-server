@@ -1,0 +1,300 @@
+---
+title: はじめよう
+order: 1
+---
+
+import Link from "../../../../components/Link.jsx";
+import Card from "../../../../components/Card.jsx";
+import Pill from "../../../../components/Pill.jsx";
+import { Tabs, Tab } from "../../../../components/Tabs.jsx";
+import Pnpm from "../../../../components/pnpm.jsx";
+import Deno from "../../../../components/Deno.jsx";
+
+# はじめよう
+
+React Server Componentsを使い始めるのに、`@lazarv/react-server`ほど簡単なものはありません。node.js と同じように `react-server` CLI を使うことができます。Server Component をエクスポートしたファイルがあれば、`react-server` をつかって実行することができます。ひとつのファイルを使ってマイクロアプリケーションを作ることもできますし、ファイルシステムベースのルーターを使用して本格的で複雑なアプリケーションを作成することもできます。
+
+<Link name="prerequisites">
+## 前提条件
+</Link>
+
+`@lazarv/react-server`はnode.jsとパッケージ・マネージャーさえあれば始めることができます。最新のnode.jsランタイムとpnpmをパッケージ・マネージャーとして推奨しますが、どのパッケージ・マネージャーを使っても構いません。
+
+- [Node.js](https://nodejs.org) v20.10.0 以降
+- [pnpm](https://pnpm.io)
+
+JavaScriptランタイムとしてBunを使用する場合は、他に何も必要ありません。Bunを使用するだけです。
+
+- [Bun](https://bun.sh) v1.1.45 以降
+
+> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
+
+<Link name="install">
+## インストール
+</Link>
+
+`@lazarv/react-server`をプロジェクトに追加するだけでインストールすることができます。マイクロアプリケーションを始めるのに、他に必要なものはありません。
+
+<Tabs name="install">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
+```sh
+pnpm add @lazarv/react-server
+```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npm install @lazarv/react-server
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn add @lazarv/react-server
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bun add @lazarv/react-server
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
+
+</Tab>
+
+</Tabs>
+
+<Link name="our-first-application">
+## 初めてのアプリケーション
+</Link>
+
+`App.jsx`を作成してください。React Server Componentをエクスポートするとアプリケーションを立ち上げることが出来ます。
+
+```jsx
+export default function App() {
+  return <h1>Hello World</h1>;
+}
+```
+
+<Link name="development-mode">
+## ディベロップメントモード
+</Link>
+
+アプリケーションのエントリーファイルのパスを`react-server` CLIに渡すことでアプリケーションをディベロップメントモードで動かすことが出来ます。`--open` オプションを使うとデフォルトブラウザで http://localhost:3000 にアクセスしてくれます。
+
+<Tabs name="development-mode">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
+```sh
+pnpm react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npx react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bun --bun react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
+
+</Tab>
+
+</Tabs>
+
+> **Note:** もし デフォルトブラウザでアプリケーションにアクセスしたい場合は、`--open` オプションを使うことができます。
+
+<Link name="build">
+## プロダクションビルド
+</Link>
+
+アプリケーションの開発が終われば、プロダクションモードでビルドすることも出来ます。プロダクションビルドをすると `.react-server` ディレクトリの中にプロダクションモードでの実行に必要なファイルを作成します。
+
+<Tabs name="build">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
+```sh
+pnpm react-server build ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npx react-server build ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn react-server build ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bun --bun react-server build ./App.jsx
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
+
+</Tab>
+
+</Tabs>
+
+<Link name="production-mode">
+## プロダクションモード
+</Link>
+
+プロダクションモードでアプリケーションを実行するには`start`コマンドを実行してください。
+
+<Tabs name="production-mode">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
+```sh
+pnpm react-server start
+```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npx react-server start
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn react-server start
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bun --bun react-server start
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
+
+</Tab>
+
+</Tabs>
+
+> **Note:** `@lazarv/react-server`をインストールせず高速にアプリを実行したい場合、`npx`を使って`react-server` CLIを実行することができます。JavaScriptを使用する場合、このようにすれば他のものをインストールする必要はありません。アプリの実行にはReact Server Componentをエクスポートした`.jsx`ファイルがあれば十分です。`npx @lazarv/react-server ./App.jsx` を実行すればディベロップメントモードでアプリケーションを立ち上げることが出来ます。Bunを使っている場合、`bunx --bun @lazarv/react-server`を実行すれば`react-server`CLIを実行することが出来ます。
+
+<Link name="next-steps">
+## 次のステップ
+</Link>
+
+おめでとうございます！`@lazarv/react-server`を使って初めてのアプリケーションを作成しました。
+
+より深く学ぶためのおすすめトピックをいくつかご紹介します。これらのトピックは、好きな順番で読むことができます。また、今はこのガイドを離れてアプリの開発を始めることもできますし、問題に遭遇したり質問があるときに戻ってくることもできます。
+
+> 質問や助けが必要な場合は[GitHub Discussions](https://github.com/lazarv/react-server/discussions)に参加できます。
+
+<div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+  <Card>
+
+#### 統合
+
+##### 他のライブラリとの統合方法
+
+他のライブラリとの統合方法や、フレームワークがVite、TypeScript、Tailwind CSSなどのツールとどのように連携するかを学びましょう。
+
+    <Pill href="/integrations">
+      さらに詳しく
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### フレームワーク
+
+##### 高度な機能
+
+HTTPリクエストとレスポンスオブジェクトへのアクセス方法、キャッシュの使用方法、マイクロフロントエンドアプリケーションの構築方法など、フレームワークの高度な機能について学びましょう。
+
+    <Pill href="/framework">
+      さらに詳しく
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### ルーター
+
+##### ファイルシステムベースのルーター
+
+ファイルシステムベースのルーターを使用して、ネストされたルート、動的ルートなどを含む本格的なアプリケーションを作成する方法を学びましょう。
+
+    <Pill href="/router">
+      さらに詳しく
+    </Pill>
+  </Card>
+</div>
+
+また、以下のチュートリアルを読むことで、フレームワークについてより深く学ぶことができます。これらはreact-serverに初めて触れる人にとって必須ではありませんが、いくつかの概念や機能を理解するのに役立ちます。
+
+<div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+  <Card>
+
+#### Hello World!
+
+##### 初めてのアプリケーション
+
+わずか数ステップでサーバーサイドレンダリングを備えた新しいReactアプリケーションを作成します。React Server Componentsを使用してアプリの構築を開始し、初期ページの読み込みを高速化しましょう。
+
+    <Pill href="/tutorials/hello-world">
+      チュートリアルを読む
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### Todoアプリケーション
+
+##### サーバー関数を使う
+
+サーバー関数を使用してシンプルなTodoアプリケーションを構築します。サーバーコンポーネントを用いて、サーバー側の操作を効率的に管理する方法を学びましょう。
+
+    <Pill href="/tutorials/todo-app">
+      チュートリアルを読む
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### フォトギャラリーアプリケーション
+
+##### クライアントコンポーネントの使用
+
+クライアントコンポーネントを使用して、アプリケーション内にインタラクティブな要素を作成する方法を学びましょう。クライアントサイドレンダリングと動的なコンテンツ更新によって、ユーザーエクスペリエンスを向上させます。
+
+    <Pill href="/tutorials/photos">
+      チュートリアルを読む
+    </Pill>
+  </Card>
+</div>

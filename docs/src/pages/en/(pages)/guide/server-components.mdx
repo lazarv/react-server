@@ -5,17 +5,17 @@ order: 3
 
 import Link from "../../../../components/Link.jsx";
 
-# Server components
+# サーバーコンポーネント
 
-React Server Components are the main building blocks of your application. They are React components that are rendered on the server and streamed to the client as HTML or as a JSON serialized React component tree. The source code of these components will not be sent to the client, only the rendered HTML or JSON.
+React Server Componentは今回作成するアプリにおいて核となる部分です。React Server Componentはサーバー上でレンダリングされ、HTMLまたはJSONでシリアライズされたReactコンポーネントツリーとしてクライアント側に送信されるReactコンポーネントです。React Server Componentのソースコードはクライアント側に直接送信されるのではなく、レンダリングされたHTMLまたはJSONのみが送信されます。
 
-You can't use stateful React hooks in server components as server components are stateless. To use state for server components, you can use query parameters or cookies.
+サーバーコンポーネントはステートレスなので、ステートフルなReactフックは扱えません。サーバーコンポーネントでステートを使用する場合は、クエリパラメータかcookieを使用してください。
 
 <Link name="async-server-components">
-## Async server components
+## 非同期サーバーコンポーネント
 </Link>
 
-Server components can be asynchronous. This means that they can fetch data from a database or an API, and then render the result. The rendering will wait for the data to be fetched before sending the HTML or JSON to the client.
+サーバーコンポーネントは非同期で扱うことができます。 つまり、データベースやAPIからデータを取得し、その結果をレンダリングします。 レンダリングではクライアント側にHTML/JSONを送信する前に、データの取得を待機します。
 
 ```jsx
 export default async function AsyncServerComponent() {
@@ -24,7 +24,8 @@ export default async function AsyncServerComponent() {
 }
 ```
 
-You can also wrap async server components in a `Suspense` component to show a loading indicator while the data is being fetched. Content outside of the `Suspense` component will be rendered immediately, and the async server component will be rendered when the data is ready and then streamed to the client. This type of streaming rendering requires JavaScript enabled on the client.
+さらに、非同期サーバーコンポーネントを`Suspense`コンポーネントでラップすることで、データの待機中にローディングを表示できます。`Suspense`コンポーネントでラップされていないコンテンツは即座にレンダリングが走ります。非同期サーバーコンポーネントはデータの準備ができたときにレンダリングされ、その後クライアントに送信されます。 今回のようなレンダリングは、クライアント側でJavaScriptを使う必要があります。
+
 
 ```jsx
 async function AsyncServerComponent() {

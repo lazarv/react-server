@@ -8,13 +8,13 @@ import Link from "../../../../components/Link.jsx";
 
 # Vite
 
-`lazarv/react-server`はViteと互換性があるだけでなく、Vite Environment API の上に構築されています。つまり`@lazarv/react-server`でViteのすべての機能と多くのViteプラグインを問題なく使用することができます。
+`@lazarv/react-server`はViteと互換性があるだけでなく、Vite Environment API の上に構築されています。つまり`@lazarv/react-server`でViteのすべての機能と多くのViteプラグインを問題なく使用することができます。
 
 <Link name="configuration">
 ## 設定
 </Link>
 
-Viteのすべての設定は`vite.config.js`、`vite.config.ts`、`vite.config.mjs`、または`vite.config.cjs`ファイルに保存することができます。[Vite設定ガイド](https://ja.vitejs.dev/config/)に従ってViteを設定することができます。
+Viteのすべての設定は`vite.config.js`、`vite.config.ts`、`vite.config.mjs`、または`vite.config.cjs`ファイルに保存することができます。Viteの設定方法については、公式の[Vite設定ガイド](https://ja.vitejs.dev/config/)を参照してください。
 
 <Link name="plugins">
 ## プラグイン
@@ -24,7 +24,7 @@ Viteのすべての設定は`vite.config.js`、`vite.config.ts`、`vite.config.m
 
 Viteプラグインを使用する場合、以下の3つの環境を想定しています:
 
-- `rsc` - プラグインが React Server Components (RSC ペイロード) で使用される場合
+- `rsc` - プラグインが React Server Components (RSCペイロード) で使用される場合
 - `ssr` - プラグインがサーバーサイドレンダリング（HTML出力）で使用される場合
 - `client` - プラグインがクライアントコンポーネントで使用される場合
 
@@ -50,12 +50,11 @@ pnpm install
 pnpm dev
 ```
 
-うまくいきました!
+これだけで動作します!
 
 ### React Server Components
 
-RSCを使いたいので、`index.html`からすべてを`src/main.jsx`に移動し、クライアントサイドで`App`をレンダリングするのではなく、このRSCレイアウトでコンポーネントとして使うようにしましょう:
-
+RSCsを使用したい場合は、まず`index.html`内のすべてを`src/main.jsx`に移動します。そして、クライアントサイドで`App`をレンダリングする代わりに、このRSCレイアウトでコンポーネントとして使用します:
 ```jsx
 import App from "./App.jsx";
 import "./index.css";
@@ -81,9 +80,9 @@ export default function Html() {
 
 `charSet`はJSXで使われるときとHTMLで使われるときで大文字と小文字が異なるので修正する必要があります！
 
-とりあえずApp.jsxに`"use client";`を追加するだけで、Appコンポーネントが`useState` Reactフックを含んでいるのですぐに動作するようになります。
+とりあえず、`App.jsx`に`"use client";`を追加するだけで、Appコンポーネントが`useState` Reactフックを含んでいるのですぐに動作するようになります。
 
-では`react`と`react-dom`をアンインストールしましょう。これらはReact 18だったのでもう必要ありません。代わりに`@lazarv/react-server`をインストールする必要があります:
+ここで`react`と`react-dom`をアンインストールしましょう。これらはReact 18だったのでもう必要ありません。代わりに`@lazarv/react-server`をインストールする必要があります:
 
 ```sh
 pnpm add @lazarv/react-server@latest
@@ -126,7 +125,7 @@ function Counter() {
 export default Counter;
 ```
 
-`App`コンポーネントから`"use client";`を削除し、`App.css`のインポートとカウンターコンポーネントの一部だけだったコードを削除します。その代わりに`Counter`コンポーネントをインポートしましょう:
+`App`コンポーネントから`"use client";`を削除し、`App.css`のインポートと`Counter`コンポーネントの一部だったコードを削除します。その代わりに`Counter`コンポーネントをインポートしましょう:
 
 ```jsx
 import reactLogo from "./assets/react.svg";
@@ -173,4 +172,4 @@ export default function Html() {
 }
 ```
 
-これで両方のCSSファイルはページ読み込み時にすぐに読み込まれ、ちらつきがなくなります。カウンターボタンは以前と同様に動作し、クライアントコンポーネントとして新しくリファクタリングしたためです。`App`コンポーネントの他の部分は静的であり、RSCに含めるのが最適です。また2つのCSSファイルを1つに統合することもできます。2つある理由はないので、`main.jsx`でCSSのインポートを修正してください
+これで両方のCSSファイルはページ読み込み時にすぐに読み込まれ、ちらつきがなくなります。カウンターボタンは以前と同様に動作し、クライアントコンポーネントとして新しくリファクタリングしたためです。`App`コンポーネントの他の部分は静的であり、RSCsに含めるのが最適です。また2つのCSSファイルを1つに統合することもできます。2つある理由はないので、`main.jsx`でCSSのインポートを修正してください。

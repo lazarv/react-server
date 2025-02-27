@@ -221,6 +221,10 @@ article {
     @apply rounded-lg my-8 text-sm leading-5 border border-gray-500 shadow-xl shadow-gray-500 dark:shadow-[rgba(255,255,255,0.1)] dark:shadow-lg;
   }
 
+  & p ~ pre code {
+    @apply mt-0;
+  }
+
   & > code {
     @apply whitespace-nowrap;
   }

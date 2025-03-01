@@ -31,7 +31,9 @@ const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
 export default async function serverBuild(root, options) {
-  root ||= "@lazarv/react-server/file-router";
+  if (!options.eval) {
+    root ||= "@lazarv/react-server/file-router";
+  }
 
   banner("rsc", options.dev);
   const config = forRoot();
@@ -262,10 +264,7 @@ export default async function serverBuild(root, options) {
             { paths: [cwd] }
           ),
           "server/index":
-            !root &&
-            (!reactServerRouterModule ||
-              options.eval ||
-              (!process.stdin.isTTY && !process.env.CI))
+            !root && (options.eval || (!process.stdin.isTTY && !process.env.CI))
               ? "virtual:react-server-eval.jsx"
               : root?.startsWith("virtual:")
                 ? root

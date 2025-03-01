@@ -18,6 +18,7 @@ import {
 } from "../../server/symbols.mjs";
 import { getEnv } from "../sys.mjs";
 import banner from "../utils/banner.mjs";
+import { clearScreen } from "../utils/clear-screen.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
 import { command } from "./command.mjs";
@@ -25,6 +26,10 @@ import createServer from "./create-server.mjs";
 
 export default async function dev(root, options) {
   try {
+    if (options.clearScreen) {
+      clearScreen();
+    }
+
     await logo();
     banner("starting development server");
 

@@ -19,7 +19,7 @@ export default function Search() {
           type="text"
           name="search"
           placeholder="Search"
-          className="w-full p-2 border border-gray-300 rounded-md peer"
+          className="w-full p-2 bg-white border border-gray-300 rounded-md peer"
           defaultValue={search as string}
           tabIndex={0}
           autoComplete="off"

@@ -1,3 +1,5 @@
+@reference "tailwindcss";
+
 .content {
   @apply block fixed inset-x-8 sm:inset-x-10 md:inset-x-20 lg:inset-x-40 xl:inset-x-1/4 top-20 max-h-[calc(100vh-10rem)] bg-white rounded-lg shadow-lg overflow-auto z-30 transition-all duration-300;
 }

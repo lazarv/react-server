@@ -30,10 +30,17 @@ export default async (context) => {
       checked: context.props.preset?.features.includes("prettier"),
     },
     {
-      name: "Tailwind CSS",
+      name: "Tailwind CSS v3",
       value: "tailwind",
-      description: "Add Tailwind CSS support",
+      description:
+        "Add Tailwind CSS v3 support (using PostCSS and Autoprefixer)",
       checked: context.props.preset?.features.includes("tailwind"),
+    },
+    {
+      name: "Tailwind CSS v4",
+      value: "tailwind-v4",
+      description: "Add Tailwind CSS support (using the official Vite plugin)",
+      checked: context.props.preset?.features.includes("tailwind-v4"),
     },
     {
       name: "Lightning CSS",
@@ -234,17 +241,63 @@ import tsParser from "@typescript-eslint/parser";`,
   }
 
   if (answer.includes("tailwind")) {
+    if (!answer.includes("tailwind-v4")) {
+      partials["package.json"] = {
+        ...partials["package.json"],
+        merge: [
+          ...partials["package.json"].merge,
+          await json(context.env.templateDir, "package.tailwind.json"),
+        ],
+      };
+      partials["src/global.css"] = {
+        content: `@tailwind base;
+@tailwind components;
+@tailwind utilities;`,
+      };
+      files.push(
+        join(context.env.templateDir, "tailwind.config.mjs"),
+        join(context.env.templateDir, "postcss.config.mjs")
+      );
+    } else {
+      context.env.logger.warn(
+        "You should not use different Tailwind CSS versions at the same time. Tailwind CSS v3 will not be installed."
+      );
+    }
+  }
+
+  if (answer.includes("tailwind-v4")) {
     partials["package.json"] = {
       ...partials["package.json"],
       merge: [
         ...partials["package.json"].merge,
-        await json(context.env.templateDir, "package.tailwind.json"),
+        await json(context.env.templateDir, "package.tailwind-v4.json"),
       ],
     };
-    files.push(
-      join(context.env.templateDir, "tailwind.config.mjs"),
-      join(context.env.templateDir, "postcss.config.mjs")
-    );
+    partials["src/global.css"] = {
+      content: `@import "tailwindcss";`,
+    };
+    if (answer.includes("ts")) {
+      partials["vite.config.ts"] = {
+        ...partials["vite.config.ts"],
+        merge: [
+          await readFile(
+            join(context.env.templateDir, "vite.config.tailwind-v4.ts"),
+            "utf8"
+          ),
+        ],
+      };
+    } else {
+      partials["vite.config.mjs"] = {
+        ...partials["vite.config.mjs"],
+        type: "code",
+        merge: [
+          await readFile(
+            join(context.env.templateDir, "vite.config.tailwind-v4.mjs"),
+            "utf8"
+          ),
+        ],
+      };
+    }
   }
 
   if (answer.includes("css-modules")) {

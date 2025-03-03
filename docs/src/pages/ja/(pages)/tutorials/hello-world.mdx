@@ -1,0 +1,153 @@
+---
+title: 最初のアプリケーション
+order: 0
+category: Tutorials
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# 最初のアプリケーション
+
+`@lazarv/react-server`を使用した最初のアプリケーションへようこそ！このチュートリアルでは"Hello World!"を表示するだけのシンプルなアプリケーションを作ります。
+
+<Link name="prerequisites">
+## 前提条件
+</Link>
+
+始める前に以下がインストールされている必要があります:
+
+- [Node.js](https://nodejs.org/)
+- [npm](https://www.npmjs.com/), [Yarn](https://yarnpkg.com/), or [pnpm](https://pnpm.io/ja)
+
+このチュートリアルでは`pnpm`を使用します。
+
+<Link name="install">
+## インストール
+</Link>
+
+新しいアプリケーションを初期化して作成するために、ターミナルで次のコマンドを実行します:
+
+```sh
+mkdir my-first-application
+cd my-first-application
+pnpm init
+pnpm add @lazarv/react-server
+```
+
+このコマンドで`my-first-application`という新しいディレクトリを作成し、`pnpm`プロジェクトを初期化、`@lazarv/react-server`パッケージをインストールします。また`react`や`react-dom`を個別にインストールする必要はありません。それらはフレームワークが正しく動作するために特定のバージョンを必要とするため、`@lazarv/react-server`の依存関係としてすでに含まれているからです。
+
+<Link name="create">
+## React Server Componentを作成する
+</Link>
+
+次に`App.jsx`を作成します:
+
+```jsx filename="./App.jsx"
+export default function App() {
+  return <h1>Hello, World!</h1>;
+}
+```
+
+ここでは"Hello World!"を`h1`要素としてレンダリングするReact Server Componentをエクスポートしています。
+
+<Link name="development">
+## 開発
+</Link>
+
+開発サーバーを起動するには、次のコマンドを実行します:
+
+```sh
+pnpm react-server ./App.jsx
+```
+
+このコマンドは開発サーバーを起動し、`App` コンポーネントをレンダリングします。ブラウザで [http://localhost:3000](http://localhost:3000) を開くと、"Hello, World!"というメッセージが表示されます。
+
+引数の`./App.jsx`は、サーバーのエントリーファイルを指定します。これをReact Server Componentファイルへのパスに置き換えることができます。
+
+`pnpm`を使って`@lazarv/react-server`パッケージの`react-server`スクリプトを実行しましたが、`package.json`ファイルに`dev`スクリプトを追加しておくと便利です:
+
+```json filename="./package.json"
+{
+  "scripts": {
+    "dev": "react-server ./App.jsx"
+  }
+}
+```
+
+以下のコマンドで開発サーバーを起動できるようになりました:
+
+```sh
+pnpm dev
+```
+
+<Link name="build">
+## ビルド
+</Link>
+
+アプリケーションをビルドするには、以下のコマンドを実行します:
+
+```sh
+pnpm react-server build ./App.jsx
+```
+
+このコマンドは`.react-server`ディレクトリにアプリケーションの本番ビルドを生成します。このビルドは任意のNode.jsホスティングプロバイダを使用してサーバーにデプロイするか、独自のサーバーでホストすることができます。
+
+`build`スクリプトも`package.json`ファイルに追加することができます:
+
+```json filename="./package.json"
+{
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx"
+  }
+}
+```
+
+<Link name="production">
+## 本番環境
+</Link>
+
+本番環境のサーバーを立ち上げるには、以下のコマンドを実行します:
+
+```sh
+pnpm react-server start
+```
+
+このコマンドは本番サーバーを起動し、ビルドされた`@lazarv/react-server`アプリケーションを提供します。ブラウザで [http://localhost:3000](http://localhost:3000) を開くと、"Hello, World!"というメッセージが表示されます。
+
+ビルド出力は既にアプリケーションを提供するように構成されているため、サーバーのエントリーファイルを指定する必要はありません。
+
+`start`スクリプトも`package.json`ファイルに追加します:
+
+```json filename="./package.json"
+{
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx",
+    "start": "react-server start"
+  }
+}
+```
+
+<Link name="npx">
+## npxを使う
+</Link>
+
+小さなプロジェクトで`@lazarv/react-server`をインストールしたくない場合は、依存関係をインストールしなくても`npx`を使用してアプリケーションを動かすことができます。依存関係はアプリケーションに直接必要なものだけをインストールし、フレームワーク自体やReactはインストールしません。以下のコマンドで`npx`を使って開発サーバーを起動することができます:
+
+```sh
+npx @lazarv/react-server ./App.jsx
+```
+
+このモードは迅速なプロトタイピングやアプリケーションを、他のユーザーと共有する場合に便利です。`npx`を使って`build`や`start`コマンドを実行することもできます:
+
+```sh
+npx @lazarv/react-server build ./App.jsx
+npx @lazarv/react-server start
+```
+
+<Link name="conclusion">
+## まとめ
+</Link>
+
+おめでとうございます！`@lazarv/react-server`を使用した最初のアプリケーションを作成することができました。これでReact Server Componentsやclient components、そしてserver functionsを使用してより複雑なアプリケーションを構築できるようになります。

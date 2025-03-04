@@ -57,3 +57,7 @@ declare module "lightningcss" {
     browsers: string[]
   ): Record<string, string>;
 }
+
+declare module "@tailwindcss/vite" {
+  export default function tailwindcssVitePlugin(): VitePlugin;
+}

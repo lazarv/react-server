@@ -130,7 +130,6 @@ export default async function createServer(root, options) {
     publicDir: join(cwd, publicDir),
     root: cwd,
     appType: "custom",
-    clearScreen: options.clearScreen,
     configFile: false,
     optimizeDeps: {
       holdUntilCrawlEnd: true,

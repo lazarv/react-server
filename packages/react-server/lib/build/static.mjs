@@ -125,6 +125,7 @@ export default async function staticSiteGenerator(root, options) {
 
       if (paths.length === 0) {
         console.log(colors.yellow("warning: no paths to export, skipping..."));
+        getRuntime(WORKER_THREAD)?.terminate();
         return;
       }
 
@@ -420,10 +421,7 @@ export default async function staticSiteGenerator(root, options) {
           })
       );
 
-      const worker = getRuntime(WORKER_THREAD);
-      if (worker) {
-        worker.terminate();
-      }
+      getRuntime(WORKER_THREAD)?.terminate();
     }
   });
 }

@@ -104,6 +104,8 @@ You can enable compression if you want to compress your static build. Compressio
 **deploy:** Deploy using adapter. Default is `false`.
 If you use an adapter in your `react-server.config.mjs` file, the adapter will pre-build your app for deployment and when you use this argument, the adapter will also deploy your app at the end of the build process.
 
+**eval:** Evaluate the server entrypoint from the argument, like `node -e`. You can also use _stdin_ as the entrypoint. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+
 **outDir:** Output directory for the build. Default is `.react-server`.
 
 <Link name="start-options">
@@ -122,8 +124,5 @@ See more details about `origin` and `trust-proxy` at the Hattip documentation at
 
 **build:**
 Runs the build command before starting the server using the provided entrypoint.
-
-**dev:**
-Start the server in development mode to use React development packages, like `react/jsx-dev-runtime`.
 
 **outDir:** Output directory for the build. Default is `.react-server`. You need to specify this option if you used a different output directory in the build command than the default.

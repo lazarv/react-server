@@ -1,3 +1,47 @@
-import Page from "../en/tutorials.(index).mdx";
+import Card from '../../components/Card';
+import Pill from '../../components/Pill';
 
-<Page />
+# チュートリアル
+
+React Server Componentsを使用して、サーバーサイドレンダリングを備えたReactアプリケーションを構築する方法を学びます。チュートリアルに従って最初のアプリケーションを作成し、サーバ関数を統合するなどしてください。
+
+<div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+  <Card>
+
+#### Hello World!
+
+##### 最初のアプリケーション
+
+わずか数ステップでサーバーサイドレンダリングを備えたReactアプリケーションを作成できます。React Server Componentsを使用してアプリの構築を開始し、高速な初期ページ読み込みをお楽しみください。
+
+    <Pill href="/tutorials/hello-world">
+      チュートリアルを読む
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### Todoアプリ
+
+##### サーバ関数を使う
+
+サーバ関数を備えたシンプルなTodoアプリケーションを構築します。コンポーネントからサーバーと連携し、サーバー側の操作を効率的に管理する方法を学びます。
+
+    <Pill href="/tutorials/todo-app">
+      チュートリアルを読む
+    </Pill>
+  </Card>
+
+  <Card>
+
+#### フォトギャラリー
+
+##### クライアントコンポーネントを使う
+
+クライアントコンポーネントを使用してアプリケーションにインタラクティブな要素を作成する方法を学びます。クライアントサイドのレンダリングと動的なコンテンツ更新により、ユーザーエクスペリエンスを向上させます。
+
+    <Pill href="/tutorials/photos">
+      チュートリアルを読む
+    </Pill>
+  </Card>
+</div>

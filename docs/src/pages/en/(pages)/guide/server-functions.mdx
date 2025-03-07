@@ -9,7 +9,7 @@ import Link from "../../../../components/Link.jsx";
 
 Server functions are async functions that can be called from the client-side. You don't have to implement API endpoints for these functions to be callable as the client can call these functions like a direct reference to the function itself. Server functions are usable on forms, buttons, submit inputs, and as props to client components. React and the framework will manage calling these functions on the server-side.
 
-You can expose any `"use server";` marked function as a server function. Server functions can be called from the client using the `action` prop on a `<form>` element, `formAction` on a `<button>` or `<input>` element, or from a client component passing down the server function function as a prop to the client component.
+You can expose any `"use server";` marked function as a server function. Server functions can be called from the client using the `action` prop on a `<form>` element, `formAction` on a `<button>` or `<input>` element, or from a client component passing down the server function as a prop to the client component.
 
 > If you use TypeScript, all of your server functions are type-safe and you will get type errors if you pass the wrong parameters to a server function or if you try to access a property on the response object that doesn't exist.
 
@@ -53,7 +53,7 @@ export default function App() {
 }
 ```
 
-> Server functions are able to access all variables in scope, including references to props and any variables available in the scope of the server function function from the last render of the component as server function functions are mapped on each render of the server component.
+> Server functions are able to access all variables in scope, including references to props and any variables available in the scope of the server function from the last render of the component as server functions are mapped on each render of the server component.
 
 <Link name="server-function-modules">
 ## Server function modules
@@ -73,7 +73,7 @@ export async function action() {
 ## Server function parameters
 </Link>
 
-You will get all form data as an object as the first parameter to your server function function.
+You will get all form data as an object as the first parameter to your server function.
 
 ```jsx
 export default function App() {
@@ -116,7 +116,7 @@ export default function App() {
 }
 ```
 
-To access the action state, you can use the `useActionState` hook. The `useActionState` hook takes the server function function as the first parameter and returns an object with the following properties:
+To access the action state, you can use the `useActionState` hook. The `useActionState` hook takes the server function as the first parameter and returns an object with the following properties:
 
 - `formData`: the form data object
 - `data`: the data object returned by the server function
@@ -127,7 +127,7 @@ To access the action state, you can use the `useActionState` hook. The `useActio
 ## Server functions with client components
 </Link>
 
-You can also pass server function function references to client components as props and call them from the client component as any other async function.
+You can also pass server function references to client components as props and call them from the client component as any other async function.
 
 ```jsx
 "use client";

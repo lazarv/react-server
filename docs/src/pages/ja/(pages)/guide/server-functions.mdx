@@ -1,0 +1,202 @@
+---
+title: サーバ関数
+order: 5
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# サーバ関数
+
+サーバ関数はクライアント側から呼び出すことができる非同期関数です。これらの関数を呼び出すためにAPIエンドポイントを実装する必要はなく、クライアントは関数自体への直接参照のようにこれらの関数を呼び出すことができます。サーバ関数はフォーム、ボタン、送信入力、およびクライアントコンポーネントへのpropsとして使用できます。Reactとフレームワークはこれらの関数をサーバ側で呼び出すことを管理します。
+
+任意の `"use server";` とマークされた関数をサーバ関数として公開することができます。サーバ関数は、`<form>` 要素の `action` prop、`<button>` または `<input>` 要素の `formAction`、またはクライアントコンポーネントにサーバ関数をpropとして渡すことでクライアントから呼び出すことができます。
+
+> TypeScriptを使用している場合、すべてのサーバ関数は型安全であり、サーバ関数に間違ったパラメータを渡したり、存在しないプロパティにアクセスしようとした場合に型エラーが発生します。
+
+<Link name="inline-server-functions">
+## インラインサーバ関数
+</Link>
+
+サーバ関数は、他のReactコンポーネントのイベントハンドラと同様に、コンポーネント内でインラインで定義することができます。
+
+```jsx
+export default function App() {
+  async function action() {
+    "use server";
+    console.log("Server function called!");
+  }
+
+  return (
+    <form action={action}>
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+> **プログレッシブエンハンスメント:** JavaScriptが有効になっている場合、サーバ関数は`fetch` APIを使用して呼び出され、その応答はReactのトランジションでDOMを更新するために使用されます。JavaScriptが無効になっている場合、サーバ関数は通常のHTTPリクエストを使用して呼び出されます。
+
+サーバ関数をJSX内でインラインで定義することもできます。
+
+```jsx
+export default function App() {
+  return (
+    <form
+      action={async () => {
+        "use server";
+        console.log("Server function called!");
+      }}
+    >
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+> サーバ関数はスコープ内のすべての変数にアクセスできます。これには、propsへの参照や、サーバコンポーネントの最後のレンダリングからサーバ関数のスコープ内で利用可能な変数が含まれます。これは、サーバコンポーネントがレンダーされるたびにサーバー関数がマッピングされるためです。
+
+<Link name="server-function-modules">
+## サーバ関数モジュール
+</Link>
+
+サーバ関数を別のモジュールに分けて管理したい場合は、モジュールの先頭に `"use server";` プラグマを使用することで実現できます。サーバ関数モジュールからエクスポートされたすべての関数は、サーバ関数として使用可能になります。
+
+```js
+"use server";
+
+export async function action() {
+  console.log("Server function called!");
+}
+```
+
+<Link name="server-function-parameters">
+## サーバ関数のパラメータ
+</Link>
+
+サーバ関数は、第一パラメータにオブジェクトとしてすべてのフォームデータを取得します。
+
+```jsx
+export default function App() {
+  async function action(formData) {
+    "use server";
+    console.log(`Server function called by ${formData.get("name")}!`);
+  }
+
+  return (
+    <form action={action}>
+      Your name: <input name="name" />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+<Link name="action-state">
+## アクション state
+</Link>
+
+```jsx
+import { useActionState } from "@lazarv/react-server/router";
+
+export default function App() {
+  async function action(formData) {
+    "use server";
+    console.log(`Server function called by ${formData.get("name")}!`);
+  }
+
+  const { error } = useActionState(action);
+
+  return (
+    <form action={action}>
+      Your name: <input name="name" />
+      <button type="submit">Submit</button>
+      {error && <p>{error.message}</p>}
+    </form>
+  );
+}
+```
+
+アクションの状態にアクセスするには、`useActionState` フックを使用できます。`useActionState` フックは、サーバ関数を第一パラメータとして受け取り、以下のプロパティを持つオブジェクトを返します：
+
+- `formData`: フォームデータオブジェクト
+- `data`: サーバ関数から返されたデータオブジェクト
+- `error`: アクションが失敗した場合のエラーオブジェクト
+- `actionId`: 現在のアクションのアクションID
+
+<Link name="server-functions-with-client-components">
+## クライアントコンポーネントとサーバ関数
+</Link>
+
+サーバ関数への参照をクライアントコンポーネントにpropsとして渡し、他の非同期関数と同様にクライアントコンポーネントから呼び出すこともできます。
+
+```jsx
+"use client";
+
+export default function MyClientComponent({ action }) {
+  const handleClick = () => {
+    action({ name: "John" });
+  };
+
+  return <button onClick={handleClick}>Click me!</button>;
+}
+```
+
+```jsx
+import MyClientComponent from "./MyClientComponent";
+
+export default function App() {
+  async function action({ name }) {
+    "use server";
+    console.log(`Server function called by ${name}!`);
+  }
+
+  return (
+    <div>
+      <MyClientComponent action={action} />
+    </div>
+  );
+}
+```
+
+<Link name="server-function-response-to-client-component-calls">
+## クライアントコンポーネントから呼び出しに対するのサーバ関数の応答
+</Link>
+
+クライアントコンポーネントから呼び出されたサーバ関数は、直接クライアントコンポーネントにデータを返すことができます。これは、サーバ関数が完了した後にユーザーにメッセージを表示したり、サーバ関数が失敗した場合にエラーメッセージを表示したりする場合に便利です。
+
+```jsx
+"use client";
+
+export default function MyClientComponent({ action }) {
+  const [response, setResponse] = useState(null);
+
+  const handleClick = async () => {
+    const response = await action({ name: "John" });
+    setResponse(response);
+  };
+
+  return (
+    <>
+      <button onClick={handleClick}>Click me!</button>
+      {response && <p>{response.message}</p>}
+    </>
+  );
+}
+```
+
+```jsx
+import MyClientComponent from "./MyClientComponent";
+
+export default function App() {
+  async function action({ name }) {
+    "use server";
+    console.log(`Server function called by ${name}!`);
+    return { message: `Hello ${name}!` };
+  }
+
+  return (
+    <div>
+      <MyClientComponent action={action} />
+    </div>
+  );
+}

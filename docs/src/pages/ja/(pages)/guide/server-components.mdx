@@ -19,7 +19,8 @@ React Server Componentは今回作成するアプリにおいて核となる部�
 
 ```jsx
 export default async function AsyncServerComponent() {
-@@ -24,7 +24,8 @@ export default async function AsyncServerComponent() {
+  const data = await getData();
+  return <div>{data}</div>;
 }
 ```
 

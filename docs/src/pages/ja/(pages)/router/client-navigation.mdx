@@ -34,7 +34,7 @@ export default function Home() {
 
 
 <Link name="prefetch">
-### Prefetch
+### プリフェッチ
 </Link>
 
 `Link`コンポーネントに`prefetch` propsを渡すことで、ページのプリフェッチを有効にすることができます。これにより、ユーザーがリンクにホバーした時にページがプリフェッチされます。
@@ -86,7 +86,7 @@ export default function Home() {
 ```
 
 <Link name="rollback">
-### Rollback
+### ロールバック
 </Link>
 
 ユーザーがページから離れると、`Link`コンポーネントに`rollback` propsを指定すると、ルーターは最後のページをキャッシュします。これにより、ユーザーはサーバがページを再度レンダリングするのを待つことなく、前のページに戻ることができます。提供された値は、ページがキャッシュされるミリ秒数を表します。タイムアウトが経過すると、ページはキャッシュから削除され、次にユーザーがページに戻ると、ページはサーバによって再度レンダリングされます。
@@ -106,7 +106,7 @@ export default function Home() {
 ```
 
 <Link name="navigate">
-## Navigate
+## ナビゲート
 </Link>
 
 プログラムで新しいページに移動するには、`useClient`フックが返す`navigate`関数を使用できます。変更されている部分のみをレンダリングするために、Reactトランジションで`navigate`を使用することをお勧めします。
@@ -129,7 +129,7 @@ export default function Home() {
 ```
 
 <Link name="refresh">
-## Refresh
+## リフレッシュ
 </Link>
 
 `@lazarv/react-server/navigation`モジュールからエクスポートされた`<Refresh>`クライアントコンポーネントを使用するか、`@lazarv/react-server/client`モジュールの`useClient`フックが返す`refresh`関数を使用して、現在のページを更新することができます。
@@ -166,7 +166,7 @@ export default function Home() {
 ```
 
 <Link name="form">
-## Form
+## フォーム
 </Link>
 
 `@lazarv/react-server/navigation`モジュールからエクスポートされた`Form`クライアントコンポーネントを使用して、新しいページに移動することができます。このコンポーネントは、フォーム送信時にフォームデータをクエリパラメータとして使用し、現在のルートに移動します。
@@ -185,10 +185,10 @@ export default function Home() {
 ```
 
 <Link name="outlet">
-## Outlet
+## アウトレット
 </Link>
 
-`ReactServerComponent`を使用して、サブページナビゲーションに使用できるアウトレットを作成できます。これは、`<iframe>`要素のモダンなReact Server Componentバージョンです。`Link`または`Refresh`コンポーネントを使用するか、`navigate`または`replace`関数を使用してプログラムで移動する場合、クライアントサイドルーターはアウトレットのコンテンツを自動的に更新し、サーバサイドレンダリングのアウトレットの結果をレンダリングします。サーバサイドルーティングと[useOutlet](/framework/http#outlet)ヘルパー関数を使用して、アウトレットのサーバサイドレンダリングを自分で処理する必要があります。
+`ReactServerComponent`を使用して、サブページナビゲーションに使用できるアウトレットを作成できます。これは、`<iframe>`要素のモダンなReact Server Componentバージョンです。`Link`または`Refresh`コンポーネントを使用するか、`navigate`または`replace`関数を使用してプログラムで移動する場合、クライアントサイドルーターはアウトレットのコンテンツを自動的に更新し、サーバサイドレンダリングのアウトレットの結果をレンダリングします。サーバサイドルーティングと[useOutlet](/ja/framework/http#outlet)ヘルパー関数を使用して、アウトレットのサーバサイドレンダリングを自分で処理する必要があります。
 
 ```jsx
 "use client";
@@ -291,7 +291,7 @@ export default function Home() {
 ```
 
 <Link name="fallback">
-## Fallback
+## フォールバック
 </Link>
 
 `Link`と`Refresh`コンポーネントの`fallback`オプションを使用すると、アウトレットがReact Server Componentのレンダリングを開始するまでレンダリングするフォールバックコンポーネントを指定できます。これは、React Server Componentリクエストがサーバに到達するのを待たずに、React Server Componentがレンダリングされている間にローディングインジケーターやスケルトンをすぐにレンダリングしたい場合に役立ちます。
@@ -325,7 +325,7 @@ export default function Home() {
 ```
 
 <Link name="component">
-## Component
+## コンポーネント
 </Link>
 
 `Link`および`Refresh`コンポーネントの`Component`オプションを使用すると、レンダリングするReactコンポーネントを指定できます。これは、サーバにリクエストを送信する代わりに、Reactコンポーネントをアウトレットに直接レンダリングしたい場合に役立ちます。
@@ -359,7 +359,7 @@ export default function Home() {
 ```
 
 <Link name="revalidate">
-## Using revalidate
+## revalidateの使用
 </Link>
 
 `Link`、`Refresh`、`Form`コンポーネントの`revalidate` propsを使用して、ページまたは指定したアウトレットのコンテンツのクライアントサイドキャッシングを制御できます。`revalidate` propsは、ターゲットURLのページまたはアウトレットがキャッシュされるミリ秒数を表す数値を受け入れることができます。タイムアウトが経過すると、ページはキャッシュから削除され、次にユーザーがページに移動すると、サーバからコンテンツをフェッチしてReact Server Componentをレンダリングすることで、ページが再度レンダリングされます。

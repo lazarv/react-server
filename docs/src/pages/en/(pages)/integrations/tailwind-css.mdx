@@ -26,7 +26,7 @@ Add the plugin to your `vite.config.js` file:
 
 ```js filename="vite.config.js"
 import { defineConfig } from "vite";
-import tailwindcss from "tailwindcss";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [
@@ -69,7 +69,7 @@ pnpm dlx tailwindcss@3 init
 Add Tailwind CSS to your `postcss.config.js` file:
 
 ```js filename="./postcss.config.js"
-module.exports = {
+export default {
   plugins: {
     tailwindcss: {},
     autoprefixer: {},
@@ -80,10 +80,8 @@ module.exports = {
 Configure your template paths in the `tailwind.config.js` file:
 
 ```js filename="./tailwind.config.js"
-module.exports = {
-  content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
-  ],
+export default {
+  content: ["./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {},
   },

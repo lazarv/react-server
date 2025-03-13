@@ -10,9 +10,9 @@ import {
   CONFIG_ROOT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
-import { getEnv } from "../sys.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
+import { getServerConfig } from "../utils/server-config.mjs";
 import createLogger from "./create-logger.mjs";
 import createServer from "./create-server.mjs";
 
@@ -42,11 +42,7 @@ async function worker(root, options, config) {
     runtime$(CONFIG_CONTEXT, config);
     const logger = await createLogger(configRoot);
     const server = await createServer(root, options);
-
-    const port = options.port ?? getEnv("PORT") ?? configRoot.port ?? 3000;
-    const host =
-      options.host ?? getEnv("HOST") ?? configRoot.host ?? "localhost";
-    const listenerHost = host === true ? undefined : host;
+    const { port, listenerHost } = getServerConfig(configRoot, options);
 
     const listener = server.listen(port, listenerHost);
     runtime$(SERVER_CONTEXT, listener);

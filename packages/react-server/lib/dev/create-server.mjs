@@ -60,6 +60,7 @@ import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
 } from "../utils/plugins.mjs";
+import { getServerCors } from "../utils/server-config.mjs";
 import createLogger from "./create-logger.mjs";
 import ssrHandler from "./ssr-handler.mjs";
 
@@ -104,7 +105,7 @@ export default async function createServer(root, options) {
     server: {
       ...config.server,
       middlewareMode: true,
-      cors: false,
+      cors: options.cors ?? config.server?.cors ?? config?.cors ?? false,
       hmr:
         config.server?.hmr === false
           ? false
@@ -621,15 +622,8 @@ export default async function createServer(root, options) {
     ...(config.handlers?.post ?? []),
     notFoundHandler(),
   ]);
-  if (options.cors) {
-    initialHandlers.unshift(
-      cors(
-        config.server?.cors ?? {
-          origin: (ctx) => ctx.request.headers.get("origin"),
-          credentials: true,
-        }
-      )
-    );
+  if (options.cors || config.server?.cors || config.cors) {
+    initialHandlers.unshift(cors(getServerCors(config)));
   }
 
   viteDevServer.middlewares.use(

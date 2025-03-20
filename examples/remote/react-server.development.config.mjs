@@ -26,4 +26,5 @@ export default {
       "react-server-dom-webpack/client.browser",
     ],
   },
+  cors: true,
 };

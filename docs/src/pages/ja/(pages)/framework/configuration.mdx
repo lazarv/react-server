@@ -1,0 +1,152 @@
+---
+title: 設定
+category: Framework
+order: -1
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# 設定
+
+フレームワークの動作を設定するには、プロジェクトのルートに `react-server.config.*` または `+*.config.*` ファイルを作成する必要があります。このファイルはサーバーとビルドプロセスを設定するために使用します。ファイルタイプは `.js`、`.mjs`、`.ts`、`.mts` または `.json` です。
+
+フレームワークの設定を拡張するには、`+*.config.*` ファイルを使用します。`+*.config.*` ファイルは `react-server.config.*` ファイルとマージされます。
+
+`+*.config.*` ファイルはフレームワークの設定を拡張したい場合に便利です。`+*.config.*`ファイルはいくつでも使うことができます。すべての設定ファイルは読み込まれた順にマージされます。
+
+プロダクションモードでフレームワークを実行するときに使用する設定のみを追加したい場合は、`.production.config.*` 拡張子を使用します。これらの設定ファイルはプロダクションモードでのみ読み込まれます。
+
+同じように、`.development.config.*`という拡張子で設定ファイルを作ると、開発モード用に別の設定を使うことができます。
+
+ビルドプロセスに設定を追加するには、`.build.config.*` ファイルを作成し、これらの設定ファイルはプロダクションビルド時にのみ使用されます。
+
+拡張子が `.runtime.config.*` または `.server.config.*` の設定ファイルは、ビルドプロセスでは使用されません。
+
+デフォルトとしてエクスポートする必要がある設定オブジェクトは、Vite configオブジェクトの拡張です。オプションの完全なリストは[こちら](http://ja.vite.dev/config/)にあります。
+
+<Link name="vite-configuration">
+## Viteの設定
+</Link>
+
+Viteの設定を完全に制御するために、`vite`オプションを使用してViteサーバとビルドプロセスを設定することができます。`vite`オプションはVite configオブジェクトを拡張したオブジェクト、または新しいVite configオブジェクトを返す関数です。関数として、Viteのデフォルト設定を発見したり変更したりすることができます。
+
+また、`vite.config.*` ファイルを使用して、Vite プロジェクトで行うような Vite の設定を行うこともできます。`vite.config.*` ファイルは `react-server.config.*` ファイルとマージされます。
+
+ベストプラクティスは、`vite.config.*`ファイルを使用してViteプロジェクトで行うようにViteを設定し、`react-server.config.*`ファイルを使用してフレームワーク固有のオプションを設定することです。
+
+<Link name="additional-configuration">
+## 追加の設定
+</Link>
+
+以下のオプションは `@lazarv/react-server` フレームワーク固有のものです。
+
+<Link name="runtime">
+#### ランタイム
+</Link>
+
+ランタイム・コンテクストに新しいエントリーを追加します。ランタイム・コンテクストはシングルトン・ストアであり、アプリケーションでstateを共有することが出来ます。
+
+```json
+{
+  "runtime": {
+    "myEntry": "myValue"
+  }
+}
+```
+
+`runtime` オプションはランタイム・コンテクストオブジェクトを返す関数を指定することも出来ます。これはランタイム・コンテクストを変更するときに便利です。
+
+```mjs
+export default {
+  runtime: (runtime) => {
+    return {
+      ...runtime,
+      myEntry: "myValue",
+    };
+  },
+};
+```
+
+<Link name="cookies">
+#### クッキー
+</Link>
+
+クッキーの設定を提供します。利用可能なオプションは[こちら](https://www.npmjs.com/package/cookie#options-1)を参照してください。
+
+```mjs
+export default {
+  cookies: {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+    secure: true,
+    httpOnly: true,
+    sameSite: "lax",
+  },
+};
+```
+
+<Link name="handlers">
+#### ハンドラ
+</Link>
+
+Hattip ミドルウェアスタックには `pre` と `post` ハンドラを追加することが出来ます。`pre` と `post` の両方のオプションに対して、非同期ハンドラ関数を配列で定義することが出来ます。Hattip ハンドラの詳細は [こちら](https://github.com/hattipjs/hattip) を参照してください。
+
+```mjs
+export default {
+  handlers: {
+    pre: [async () { ... }],
+    post: [async () { ... }]
+  }
+}
+```
+
+`handlers`オプションには、ハンドラの配列を返す関数を指定することも出来ます。これは、使用するミドルウェアを変更したい場合に便利です。
+
+```mjs
+export default {
+  handlers: (handlers) => {
+    return [...handlers, async () { ... }];
+  }
+}
+```
+
+`handlers`オプションは配列を指定することも出来ます。その配列は`post`ハンドラとすることも出来ます。
+
+<Link name="public">
+#### 公開ディレクトリ
+</Link>
+
+公開ディレクトリは静的アセットを提供するディレクトリです。デフォルトのディレクトリは`public`です。
+
+<Link name="module-preload">
+#### モジュールのプリロード
+</Link>
+
+クライアントコンポーネントのモジュールの自動プリロードを無効にするには、 `modulePreload` オプションを使用します。`modulePreload` オプションにはBoolean値またはBoolean値を返す関数を指定することが出来ます。関数には非同期関数を指定することも出来ます。`modulePreload` オプションの値が `false` の場合、クライアントコンポーネントのモジュールはプリロードされません。
+
+```json
+{
+  "modulePreload": false
+}
+```
+
+クライアント・コンポーネントのモジュールのプリロードを無効にする関数を使用する場合
+
+```mjs
+export default {
+  modulePreload: () => false,
+};
+```
+
+アプリケーションコンテクスト全体が関数の中で利用可能なので、クライアントコンポーネントをプリロードするかどうかを決定するために、フレームワークによって提供されるすべてのヘルパーやフックを使用することが出来ます。
+
+```mjs
+import { usePathname } from "@lazarv/react-server";
+
+export default {
+  modulePreload: () => {
+    const pathname = usePathname();
+    return pathname !== "/";
+  },
+};
+```

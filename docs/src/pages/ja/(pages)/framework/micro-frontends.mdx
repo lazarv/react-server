@@ -1,0 +1,235 @@
+---
+title: マイクロフロントエンド
+category: Framework
+order: 12
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# マイクロフロントエンド
+
+マイクロフロントエンドは、アプリケーションをより小さく、より管理しやすい単位に分割する方法です。各マイクロフロントエンドは独立したアプリケーションであり、独立して開発、テスト、デプロイすることができます。これにより、開発チームやインフラをより簡単に拡張することができます。
+
+<Link name="なぜマイクロフロントエンドなのか？">
+## なぜマイクロフロントエンドなのか?
+</Link>
+
+マイクロフロントエンドは、アプリケーション開発をスケールさせる素晴らしい方法です。マイクロフロントエンドを使用することで次のことが可能になります。
+
+- **開発チームのスケール:** 各チームは別々のマイクロフロントエンドで作業することができ、独立して開発、テスト、デプロイを行うことができます。
+- **インフラの拡張:** 各マイクロフロントエンドは独立してデプロイできるため、インフラをより簡単に拡張できます。
+- **パフォーマンスの向上:** マイクロフロントエンドはオンデマンドでロードできるため、アプリケーションの初期ロード時間を短縮できます。
+- **保守性の向上:** 各マイクロフロントエンドは独立したアプリケーションであるため、保守や更新が簡単です。
+
+<Link name="マイクロ・フロントエンドの実装方法">
+## マイクロ・フロントエンドの実装方法
+</Link>
+
+> **注意:** この機能は現在実験的に提供されているものです。
+
+`lazarv/react-server`でビルドされたアプリはマイクロフロントエンドとして使うことができます。アプリ内のどの場所でもマイクロフロントエンドを使用することができます。ただし、マイクロフロントエンドのルートがアウトレットとして動作するように実装する必要があります。`HTML`ドキュメントを使用することはできません。HTMLフラグメントをレンダリングするだけです。最も簡単な例として段落をレンダリングしてみます。
+
+```jsx
+export default function MicroFrontend() {
+  return (
+    <p>
+      This is a micro-frontend!
+    </p>
+  );
+}
+```
+
+ホスティングするアプリケーションは`html`タグ、`head`タグ、`body`タグを複数レンダリングできないのでマイクロフロントエンドの中では`html`タグ、`head`タグ、`body`タグを含めないようにしてください。
+
+> **Note:** React Server Components、クライアントコンポーネント、サーバ関数は、サーバサイドレンダリングを使用して@lazarv/react-serverフレームワークを使用する場合、マイクロフロントエンドですべてサポートされています。
+
+`@lazarv/react-server` はアプリケーションにマイクロフロントエンドを実装するためのツールセットを提供しています。RemoteComponent` コンポーネントを使うと、リモートURLからマイクロフロントエンドをロードすることができます。これにより、オンデマンドでマイクロフロントエンドをロードし、サーバーサイドレンダリングを使ってアプリケーションでレンダリングすることができます。
+
+`RemoteComponent` コンポーネントは `src` プロパティを受け取り、マイクロフロントエンドのURLを指定します。このコンポーネントを使うことで、それぞれが独立して開発・デプロイされた複数のマイクロフロントエンドからアプリケーションを構成することができます。
+
+```jsx
+import RemoteComponent from "@lazarv/react-server/remote";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Hosting application</h1>
+      <RemoteComponent src="http://localhost:3001" />
+    </div>
+  );
+}
+```
+
+ビルド時に `remote` フラグを使用して `RemoteComponent` のソースを static としてエクスポートした場合でも、コンポーネントは正しく動作します。`RemoteComponent` はマイクロフロントエンドの静的なコンテンツに置き換えられます。静的なマイクロフロントエンドコンテンツをエクスポートする方法については、ドキュメントの [静的生成](/ja/router/static#remote) セクションを参照してください。
+
+また、ビルド時に `RemoteComponent` を静的コンテンツとして使用しながら、ホスティングアプリケーションをエクスポートすることもできます。`RemoteComponent`はマイクロフロントエンドの静的コンテンツに置き換えられます。このように、マイクロフロントエンドアプリケーションとホスティングアプリケーションの両方をビルド時に静的に生成することで、マイクロフロントエンドアーキテクチャで静的コンテンツを使用する場合にも最高のパフォーマンスを実現できます。
+
+マイクロフロントエンドでストリーミングレスポンスを動作させるには、`RemoteComponent` に `defer` を prop として渡す必要があります。最初のコンテンツはサーバサイドレンダリング中にレンダリングされ、残りのコンテンツは最初のコンテンツがレンダリングされて `RemoteComponent` がハイドレートされた後にマイクロフロントエンドからストリーミングされます。
+
+```jsx
+import RemoteComponent from "@lazarv/react-server/remote";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Hosting application</h1>
+      <RemoteComponent src="http://localhost:3001" defer />
+    </div>
+  );
+}
+```
+
+また、`ReactServerComponent`コンポーネントを `url` と `defer` props と共に使用して、リモートURLからマイクロフロントエンドをロードすることも可能です。このコンポーネントは `RemoteComponent` コンポーネントに似ていますが、クライアント側でマイクロフロントエンドをレンダリングするだけです。これは、Astroサーバーアイランドが `server:defer` 属性で動作するのとよく似ています。[outlets](/ja/router/client-navigation#outlet)がどのように動作するかについては、クライアントサイドナビゲーションに関するドキュメントのルーターのセクションを参照してください。
+
+```jsx
+import { ReactServerComponent } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Hosting application</h1>
+      <ReactServerComponent url="http://localhost:3001" defer />
+    </div>
+  );
+}
+```
+
+<Link name="依存関係の共有">
+## 依存関係の共有
+</Link>
+
+マイクロフロントエンドを使用する場合、ホスティングアプリケーションとマイクロフロントエンド間で依存関係を共有する必要があります。インポートマップを使用して、ホスティングアプリケーションとマイクロフロントエンド間で共有される依存関係を指定できます。
+
+インポートマップは、インポート指定子とモジュールのURLの対応を指定するJSONファイルです。`react-server.config.json`ファイルの `importMap` オプションを使って、アプリケーションのインポートマップを指定することができます。
+
+```json
+{
+  "importMap": {
+    "imports": {
+      // ...
+    }
+  }
+}
+```
+
+各アプリの `react-server.config.json` ファイルでインポートマップを指定すると、ホスティングアプリケーションとマイクロフロントエンドは指定された依存関係を共有します。
+
+共有依存関係を外部から読み込むには、`react-server.config.json` ファイルで `resolve.shared` オプションを使用します。このオプションを使うと、リモートURLから読み込むべき共有依存関係を指定することができます。
+
+```json
+{
+  "resolve": {
+    "shared": [
+      "react",
+      "react/jsx-dev-runtime",
+      "react/jsx-runtime",
+      "react-dom",
+      "react-dom/client",
+      "react-server-dom-webpack/client.browser",
+    ]
+  }
+}
+```
+
+`react-server.config.json`ファイルで共有依存関係を指定すると、ホスティングアプリケーションとマイクロフロントエンドは指定したリモートURLから共有依存関係をロードします。
+
+`lazarv/react-server`がインポートマップで正しく動作するためには、インポートマップで `react`、`react-jsx/runtime`（または `react/jsx-dev-runtime`）、`react-dom`、`react-dom/client`、`react-server-dom-webpack/client.browser` のソースを指定する必要があります。
+
+CDNから開発中の依存関係を使用したい場合は、インポートマップでこれらの依存関係のソースを指定できます。しかし、これらの依存関係の開発バージョンが必要であることには注意してください。
+
+> **注意:** ホスティングアプリケーションとマイクロフロントエンドでは、クライアント側とサーバー側の両方で、まったく同じバージョンの `react`、`react/jsx-dev-runtime`、`react/jsx-runtime`、`react-dom`、`react-dom/client`、`react-server-dom-webpack/client.browser` を使用する必要があります。そうしないと、互換性の問題が発生する可能性があります。
+
+インポートマップを開発環境と本番環境の両方で使用するには、それぞれの環境用の設定ファイルを作成し、インポートマップを指定する必要があります。以下の設定ファイルは、[esm.sh](https://esm.sh)からReactを使用するインポートマップを使用する方法の例です。
+
+開発では、ホスティング・アプリケーションを使ってクライアント・コンポーネントを提供することができます。
+
+```mjs filename="react-server.development.config.json"
+export default {
+  importMap: {
+    imports: {
+      react: "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130?dev",
+      "react/jsx-dev-runtime":
+        "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130/jsx-dev-runtime?dev",
+      "react/jsx-runtime":
+        "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130/jsx-runtime?dev",
+      "react-dom":
+        "https://esm.sh/react-dom@0.0.0-experimental-9ff42a87-20250130?dev",
+      "react-dom/client":
+        "https://esm.sh/react-dom@0.0.0-experimental-9ff42a87-20250130/client?dev",
+      "react-server-dom-webpack/client.browser":
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-9ff42a87-20250130/client.browser?dev",
+      "http://[::1]:3001/": "/",
+      "http://localhost:3003/": "/",
+    },
+  },
+  resolve: {
+    shared: [
+      "react",
+      "react/jsx-dev-runtime",
+      "react/jsx-runtime",
+      "react-dom",
+      "react-dom/client",
+      "react-server-dom-webpack/client.browser",
+    ],
+  },
+};
+```
+
+本番環境では、`@lazarv/react-server`モジュールだけをマッピングして、各マイクロフロントエンドと共有します。
+
+```mjs filename="react-server.production.config.json"
+export default {
+  importMap: {
+    imports: {
+      react: "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130",
+      "react/jsx-runtime":
+        "https://esm.sh/react@0.0.0-experimental-9ff42a87-20250130/jsx-runtime",
+      "react-dom":
+        "https://esm.sh/react-dom@0.0.0-experimental-9ff42a87-20250130",
+      "react-dom/client":
+        "https://esm.sh/react-dom@0.0.0-experimental-9ff42a87-20250130/client",
+      "react-server-dom-webpack/client.browser":
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-9ff42a87-20250130/client.browser",
+      "http://localhost:3003/client/__/__/packages/react-server/":
+        "/client/__/__/packages/react-server/",
+    },
+  },
+  resolve: {
+    shared: [
+      "react",
+      "react/jsx-runtime",
+      "react-dom",
+      "react-dom/client",
+      "react-server-dom-webpack/client.browser",
+    ],
+  },
+};
+```
+
+上記の設定ファイルの他に、静的なエクスポートを `react-server.config.json` ファイルで指定します。
+
+```mjs filename="react-server.config.json"
+export default {
+  export() {
+    return [
+      {
+        path: "/",
+        remote: true,
+      },
+    ];
+  },
+};
+```
+
+<Link name="例">
+## 例
+</Link>
+
+マイクロフロントエンドの例については、`@lazarv/react-server`リポジトリの[micro-frontends example](https://github.com/lazarv/react-server/tree/main/examples/remote)をチェックしてください。
+
+サンプルを実行するには、`@lazarv/react-server`リポジトリをクローンし、ルートディレクトリで以下のコマンドを実行してください。
+
+```sh
+pnpm install
+pnpm --filter ./examples/remote dev
+```

@@ -1,0 +1,122 @@
+---
+title: Tailwind CSS
+category: Integrations
+order: 2
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Tailwind CSS
+
+`@lazarv/react-server`は、Tailwind CSS v3とv4の両方と互換性があります。Tailwind CSS v3を使用する場合はPostCSSおよびAutoprefixerプラグインを使用し、Tailwind CSS v4を使用する場合は公式のTailwind CSSプラグインを使用して、Viteを使用した標準のReactプロジェクトで使用するのと同じようにTailwind CSSを使用できます。
+
+<Link name="v4">
+## v4
+</Link>
+
+Tailwind CSS v4をプロジェクトにインストールするには、Tailwind CSSの公式ドキュメント[Get started with Tailwind CSS Using Vite](https://tailwindcss.com/docs/installation/using-vite)に従ってください。
+
+依存関係をインストールします:
+
+```sh
+pnpm add -D tailwindcss @tailwindcss/vite
+```
+
+`vite.config.js`ファイルにプラグインを追加します:
+
+```js filename="vite.config.js"
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  plugins: [
+    tailwindcss(),
+  ],
+});
+```
+
+`styles.css`ファイルでTailwind CSSをインポートする必要があります:
+
+```css filename="styles.css"
+@import "tailwindcss";
+```
+
+公式の手順との唯一の違いは、HTMLファイルではなくサーバーコンポーネントに`styles.css`ファイルをインポートすることです:
+
+```tsx filename="src/pages/index.tsx"
+import "./styles.css";
+
+export default function HomePage() {
+  return <h1 className="text-2xl font-bold">Hello World</h1>;
+}
+```
+
+これでReact Server ComponentsまたはクライアントコンポーネントでTailwind CSSを使用できるようになりました。
+
+> `@lazarv/react-server`でTailwind CSS v4を使用する完全な例を確認するには、更新された[Pokémon example](https://github.com/lazarv/react-server/tree/main/examples/pokemon)を確認してください。
+
+<Link name="v3">
+## v3
+</Link>
+
+次のコマンドを実行すると、プロジェクトにTailwind CSS v3をインストールできます:
+
+```sh
+pnpm add -D tailwindcss@3 postcss autoprefixer
+pnpm dlx tailwindcss@3 init
+```
+
+Tailwind CSSを`postcss.config.js`ファイルに追加します:
+
+```js filename="./postcss.config.js"
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  }
+};
+```
+
+`tailwind.config.js`ファイルでテンプレートパスを設定します:
+
+```js filename="./tailwind.config.js"
+export default {
+  content: ["./src/**/*.{js,jsx,ts,tsx}"],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+```
+
+`tailwind.config.js`ファイル内の`content`を更新または拡張して、コンポーネント、ページ、およびTailwind CSSクラスを含むその他のファイルへのパスを含めます。
+
+`main.css`ファイルに次の行を追加します:
+
+```css filename="./main.css"
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+これでReact Server ComponentsまたはクライアントコンポーネントでTailwind CSSを使用できるようになりました。
+
+```tsx filename="./src/pages/index.tsx"
+import "./main.css";
+
+export default function HomePage() {
+  return <h1 className="text-2xl font-bold">Hello World</h1>;
+}
+```
+
+これ以上何もする必要はありません。開発サーバーを起動すると、適用されたスタイルを確認できます。
+
+```sh
+pnpm react-server
+```
+
+スタイルは本番ビルド時にも適用されます。
+
+```sh
+pnpm react-server build
+```

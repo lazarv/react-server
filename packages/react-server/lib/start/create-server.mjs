@@ -21,6 +21,7 @@ import notFoundHandler from "../handlers/not-found.mjs";
 import staticHandler from "../handlers/static.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import * as sys from "../sys.mjs";
+import { getServerCors } from "../utils/server-config.mjs";
 import ssrHandler from "./ssr-handler.mjs";
 
 const cwd = sys.cwd();
@@ -74,15 +75,8 @@ export default async function createServer(root, options) {
     ...(config.handlers?.post ?? []),
     notFoundHandler(),
   ]);
-  if (options.cors) {
-    initialHandlers.unshift(
-      cors(
-        config.server?.cors ?? {
-          origin: (ctx) => ctx.request.headers.get("origin"),
-          credentials: true,
-        }
-      )
-    );
+  if (options.cors || config.server?.cors || config.cors) {
+    initialHandlers.unshift(cors(getServerCors(config)));
   }
 
   const middlewares = createMiddleware(

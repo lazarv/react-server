@@ -105,7 +105,7 @@ export default async function createServer(root, options) {
     server: {
       ...config.server,
       middlewareMode: true,
-      cors: options.cors ?? config.server?.cors ?? config?.cors ?? false,
+      cors: false,
       hmr:
         config.server?.hmr === false
           ? false

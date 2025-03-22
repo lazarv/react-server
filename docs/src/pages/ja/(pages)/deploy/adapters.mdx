@@ -1,0 +1,64 @@
+---
+title: アダプタ
+category: Deploy
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# アダプタ
+
+アダプタを使用すると、さまざまなデプロイ環境用にアプリを設定できます。利用可能なアダプタとその設定方法の一覧です。
+
+<Link name="available-adapters">
+### 利用可能なアダプタ
+</Link>
+
+- [x] `@lazarv/react-server-adapter-vercel` Vercel へのデプロイ
+
+
+<Link name="adapters-in-development">
+#### 開発中のアダプタ
+</Link>
+
+- [x] `@lazarv/react-server-adapter-netlify` Netlify へのデプロイ
+- [x] `@lazarv/react-server-adapter-cloudflare-pages` Cloudflare Pages へのデプロイ
+- [x] `@lazarv/react-server-adapter-cloudflare-workers` Cloudflare Workers へのデプロイ
+- [x] `@lazarv/react-server-adapter-sst` Serverless Stack へのデプロイ
+
+<Link name="configuration">
+## 設定
+</Link>
+
+`react-server.config.mjs`ファイルに `adapter` エントリを追加します。アダプタ名は文字列で指定できます。そうすることで、アダプタパッケージはプロジェクトの依存関係から解決されます。
+
+```mjs
+export default {
+  adapter: '@lazarv/react-server-adapter-vercel',
+};
+```
+
+すべてのアダプタに対してカスタムオプションを指定することもできます。設定オプションはアダプタごとに異なります。詳細については、アダプタのページを確認してください。
+
+```mjs
+export default {
+  adapter: [
+    '@lazarv/react-server-adapter-vercel',
+    {
+      // Custom options
+    },
+  ],
+};
+```
+
+パッケージやファイルからアダプタをインポートすることもできます。
+
+```mjs
+import adapter from '@lazarv/react-server-adapter-vercel';
+
+export default {
+  adapter: adapter({
+    // Custom options
+  }),
+};
+```

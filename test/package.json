@@ -12,13 +12,13 @@
     "@lazarv/react-server": "workspace:*",
     "esbuild": "^0.24.2",
     "rollup": "^4.34.0",
-    "vite": "6.1.0"
+    "vite": "6.2.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.1",
-    "@vitest/ui": "^3.0.4",
+    "@playwright/test": "^1.51.1",
+    "@vitest/ui": "^3.0.9",
     "npm-run-all2": "^6.2.2",
-    "playwright-chromium": "^1.50.1",
-    "vitest": "^3.0.4"
+    "playwright-chromium": "^1.51.1",
+    "vitest": "^3.0.9"
   }
 }

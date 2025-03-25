@@ -1,0 +1,40 @@
+---
+title: クラスタモード
+category: Framework
+order: 10
+contents: false
+---
+
+# クラスタモード
+
+node.js実行環境を使用している場合、 `@lazarv/react-server` 本番ビルド時にクラスタモードで起動することができます。 クラスタモードでは、マシンのすべてのCPUコアを利用して、高速なパフォーマンスを実現できます。 クラスタモードを有効にするには、 `REACT_SERVER_CLUSTER` 環境変数に使用したいコア数を設定するか、数値以外の値を指定してマシンで利用可能なすべてのコアを使用します。
+
+クラスタモードで `@lazarv/react-server` を起動するには、 `REACT_SERVER_CLUSTER` 環境変数に使用したいコア数を設定するか、 `true`, `enabled`, `yes`, `on` のように設定をすることで、マシンで利用可能なすべてのコアを使用できます。 以下の例では、クラスタモードで `pnpm` を使って`@lazarv/react-server` を8ワーカースレッドで起動しています。
+
+```sh
+REACT_SERVER_CLUSTER=8 pnpm react-server start
+```
+
+次の例では、 `@lazarv/react-server` をクラスタモードで `pnpm` を使って起動することで、全てのコアが利用可能になります。
+
+```sh
+REACT_SERVER_CLUSTER="on" pnpm react-server start
+```
+
+また `react-server.config.json` ファイルに `cluster`オプションを設定することで、クラスタモードを有効にすることができます。
+
+```json
+{
+  "cluster": 8
+  ...
+}
+```
+
+```json
+{
+  "cluster": "on"
+  ...
+}
+```
+
+> **Note:** マシンで使用可能なCPUコア数よりも多くのクラスタワーカーを使用しない方がよいでしょう。

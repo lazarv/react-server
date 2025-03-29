@@ -1,0 +1,89 @@
+---
+title: エラーハンドリング
+category: Framework
+order: 2
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# エラーハンドリング
+
+`ErrorBoundary` コンポーネントを使用すると、サーバコンポーネントの内部でアプリケーションのエラーをキャッチすることができます。エラー処理中にレンダリングされるフォールバックコンポーネントと、エラー発生時にレンダリングされるクライアントコンポーネントを定義できます。
+
+これはアプリの異なる部分のエラー処理を細かく調整したい場合に便利です。アプリ内で `ErrorBoundary` コンポーネントをいくつでも使用することができ、それぞれの `ErrorBoundary` は独自のフォールバックコンポーネントを持つことができます。
+
+```jsx filename="App.jsx"
+import { ErrorBoundary } from "@lazarv/react-server/error-boundary";
+
+export default function MyComponent() {
+  return (
+    <ErrorBoundary fallback={"Loading..."} component={ErrorMessage}>
+      <MaybeAnError />
+    </ErrorBoundary>
+  );
+}
+```
+
+`fallback` プロパティは、エラーが処理されている間に表示される React ノードです。`component` プロパティは、エラーが発生した時に表示される React コンポーネントです。`fallback` プロパティは内部的に `Suspense` コンポーネントと連携しているため、`fallback` プロパティには、あなたが普段 `Suspense` コンポーネントで使用しているのと同じタイプのローディング表示を設定するとよいでしょう。
+
+```jsx filename="ErrorMessage.jsx"
+"use client";
+
+export default function ErrorMessage({ error }) {
+  return (
+    <>
+      <h1>Error</h1>
+      <p>{error.message}</p>
+      <pre>{error.stack}</pre>
+    </>
+  );
+}
+```
+
+エラーを検知して処理するためのコンポーネント（Error Boundary）の component プロパティに指定したエラー表示用コンポーネントは、エラーが発生した場合、問題のある部分の代わりに表示されます。このエラー表示用コンポーネントでは、エラーの詳細情報や「問題が発生しました」などのメッセージを自由に表示できます。
+
+<Link name="reset-error">
+## リセットエラー
+</Link>
+
+クライアントでエラーが発生した場合は、エラークライアントコンポーネントから `resetErrorBoundary()` 関数を呼び出してエラーをリセットすることができます。
+
+```jsx filename="ErrorMessage.jsx"
+"use client";
+
+export default function ErrorMessage({ error, resetErrorBoundary }) {
+  return (
+    <>
+      <h1>Error</h1>
+      <p>{error.message}</p>
+      <pre>{error.stack}</pre>
+      <button onClick={resetErrorBoundary}>Retry</button>
+    </>
+  );
+}
+```
+
+サーバでエラーが発生した場合、クライアントでエラーが発生したわけではないので、エラーをリセットすることはできません。しかし、`Refresh`コンポーネントを使用することで、ページを再読み込みすることができます。詳しくは[ルーター](/router)セクションの[クライアントサイドナビゲーション](/router/client-navigation)ページを参照してください。
+
+```jsx filename="ErrorMessage.jsx"
+"use client";
+
+import { Refresh } from "@lazarv/react-server/navigation";
+
+export default function ErrorMessage({ error }) {
+  return (
+    <>
+      <h1>Error</h1>
+      <p>{error.message}</p>
+      <pre>{error.stack}</pre>
+      <Refresh>Retry</Refresh>
+    </>
+  );
+}
+```
+
+<Link name="file-system-based-error-handling">
+## ファイルシステムベースのエラーハンドリング
+</Link>
+
+ファイルシステムベースのルーティングを使用する際のエラー処理方法については、[ルーター](/router)セクションの[エラーハンドリング](/router/error-handling)ページで詳しく説明されています。

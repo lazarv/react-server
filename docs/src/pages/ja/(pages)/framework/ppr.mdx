@@ -1,0 +1,57 @@
+---
+title: Partial pre-rendering
+category: Framework
+order: 5
+contents: false
+---
+
+# Partial pre-rendering
+
+静的なレイアウトと動的コンテンツを含むページがある場合、Partial pre-renderingを使用して静的コンテンツのみをプリレンダリングできます。その後、フレームワークはプリレンダリングされたコンテンツと JSON ファイルに保存された状態を使用して、オンデマンドでの動的コンテンツのレンダリングを続行します。
+
+Suspense を使用して JSX を静的コンテンツと動的コンテンツに分割し、`usePrerender` フックまたは `withPrerender` 高階コンポーネントヘルパー関数を使用して動的コンポーネントをマークすることができます。マークされたコンポーネントのレンダリングは、事前にレンダリングされた HTML コンテンツと JSON の状態を使用して、本番サーバーで実行時にレンダリングするために 「延期」 されます。
+
+```jsx
+import { Suspense } from "react";
+import { usePrerender } from "@lazarv/react-server/prerender";
+
+async function DynamicComponent() {
+  usePrerender();
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  return <div>Dynamic content</div>;
+}
+
+export default function App() {
+  return (
+    <div>
+      <h1>Static content</h1>
+      <Suspense fallback={<div>Loading...</div>}>
+        <DynamicComponent data={data} />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+Partial pre-renderingを有効にするには、プリレンダリングしたページを静的ページとしてエクスポートする必要があります。そのためには、`react-server.config.mjs`に`export`を追加してください。静的エクスポートの詳細については、[静的生成](/router/static)を参照してください。
+
+```js
+export default {
+  export(paths) {
+    return [
+      ...paths,
+      { path: "/" }
+    ]
+  }
+};
+```
+
+`build` コマンドを実行すると、フレームワークはエクスポートしたページをプリレンダリングし、プリレンダリングしたコンテンツをプロジェクトの `.react-server` フォルダに格納します。プリレンダリングされたコンテンツは本番サーバーで使用され、ページのレンダリングが高速化されます。
+
+Partial pre-renderingを無効にするには、`react-server.config.mjs`に `prerender: false` を追加します。
+
+```js
+export default {
+  prerender: false
+};
+```

@@ -1,8 +1,10 @@
-import RemoteComponent from "@lazarv/react-server/remote";
+import Remote from "http://[::1]:3001" with { type: "remote" };
+import Static from "http://localhost:3002" with { type: "remote" };
+import Streaming from "http://localhost:3003" with { type: "remote" };
 
 import HostButton from "./HostButton.jsx";
 
-export default function Remote() {
+export default function App() {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -30,7 +32,7 @@ export default function Remote() {
             }}
           >
             <h2>Remote</h2>
-            <RemoteComponent src="http://[::1]:3001" ttl={0} />
+            <Remote ttl={0} />
           </div>
           <div
             style={{
@@ -40,7 +42,7 @@ export default function Remote() {
             }}
           >
             <h2>Static</h2>
-            <RemoteComponent src="http://localhost:3002" />
+            <Static ttl={0} />
           </div>
           <div
             style={{
@@ -50,7 +52,7 @@ export default function Remote() {
             }}
           >
             <h2>Streaming</h2>
-            <RemoteComponent src="http://localhost:3003" ttl={0} defer />
+            <Streaming ttl={0} defer />
           </div>
         </div>
       </body>

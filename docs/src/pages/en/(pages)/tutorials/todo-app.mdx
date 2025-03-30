@@ -21,8 +21,8 @@ mkdir todo
 cd todo
 pnpm init
 pnpm add @lazarv/react-server better-sqlite3 zod
-pnpm add -D @types/better-sqlite3 @types/react @types/react-dom autoprefixer postcss tailwindcss typescript
-pnpx tailwindcss init -p
+pnpm add -D @types/better-sqlite3 @types/react @types/react-dom autoprefixer postcss tailwindcss@3 typescript
+pnpx tailwindcss@3 init -p
 ```
 
 To store our Todo items, we will use a local Sqlite database. For validation, we will use Zod and for styling we will use Tailwind CSS. To include all our source code as Tailwind content, change the **tailwind.config.js** to this:

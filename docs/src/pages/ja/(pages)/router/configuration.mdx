@@ -1,0 +1,101 @@
+---
+title: 設定
+category: Router
+order: 11
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# 設定
+
+ルーターを設定するには、プロジェクトのルートに `react-server.config.mjs` または `react-server.config.json` ファイルを作成します。設定ファイルは設定オブジェクトをエクスポートし、ルートのための `root` パスを含める必要があります。静的ファイルのための `public` パスも指定できます。ファイルシステムベースのルーターは、ルートディレクトリにあるファイルをルーティングのために自動的にスキャフォールドし、ルートディレクトリにあるファイルに基づいてルーティングを準備およびビルドします。
+
+```js filename="react-server.config.mjs"
+export default {
+  root: "src/pages",
+  public: "public",
+};
+```
+
+<Link name="private-files-and-directories">
+## プライベートファイルとディレクトリ
+</Link>
+
+設定で `router(config)` 関数を使うことで、ルーティングからファイルとディレクトリを除外するようにルーターを設定することができます。この関数は `excludes` プロパティにルーティングから除外するファイル名とディレクトリ名の配列を含む設定オブジェクトを返す必要があります。グロブパターンを使って複数のファイルやディレクトリを除外することができます。
+
+```js filename="react-server.config.mjs"
+export default {
+  root: "src/pages",
+  public: "public",
+  router(config) {
+    return {
+      ...config,
+      excludes: ["_*"],
+    };
+  },
+};
+```
+
+異なるタイプのルートに対しても、タイプ固有の設定関数を定義することで同様の機能を使用できます。すべてのタイプのルートに対して `router` 関数が呼び出されますが、異なるタイプのルートに対してルーティングを設定するために `layout`、`page`、`middleware`、`api` 関数を定義することができます。
+
+```js filename="react-server.config.mjs"
+export default {
+  root: "src/pages",
+  public: "public",
+  router(config) {
+    return {
+      ...config,
+      // Exclude all files and directories starting with an underscore
+      excludes: ["_*"],
+    };
+  },
+  layout(config) {
+    return {
+      ...config,
+      // Exclude all layout files including the word "private"
+      excludes: ["*private*"],
+    };
+  },
+  page(config) {
+    return {
+      ...config,
+      // Exclude all page files starting with "hidden-"
+      excludes: ["hidden-*"],
+    };
+  },
+  middleware(config) {
+    return {
+      ...config,
+      // Exclude all middleware files starting with "disabled-"
+      excludes: ["disabled-*"],
+    };
+  },
+  api(config) {
+    return {
+      ...config,
+      // Exclude all API files containing the word "PATCH"
+      excludes: ["*PATCH*"],
+    };
+  },
+};
+```
+
+<Link name="include-files-and-directories">
+## 特定のファイルとディレクトリを含める
+</Link>
+
+ルーティングに特定のファイルとディレクトリのみを含めるようにルーターを設定するには、設定内の`router(config)` 関数を使用します。この関数は、ルーティングに含めるファイル名とディレクトリ名の配列を含む `includes` プロパティを持つ設定オブジェクトを返す必要があります。グロブパターンを使うことで、複数のファイルやディレクトリを含めることができます。
+
+```js filename="react-server.config.mjs"
+export default {
+  root: "src/pages",
+  public: "public",
+  router(config) {
+    return {
+      ...config,
+      // Include only the about page
+      includes: ["about.page.jsx"],
+    };
+  },
+};
+```

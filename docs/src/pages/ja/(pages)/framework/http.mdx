@@ -1,5 +1,5 @@
 ---
-title: HTTP context
+title: HTTP コンテクスト
 category: Framework
 order: 0
 ---
@@ -8,13 +8,13 @@ import Link from "../../../../components/Link.jsx";
 
 # HTTP コンテクスト
 
-`@lazarv/react-server` を使用すると、サーバーサイドレンダリングのコンテキストに関連するすべてにアクセスできます。このガイドでは、HTTPコンテキストにアクセスする方法について説明します。
+`@lazarv/react-server` を使用すると、サーバーサイドレンダリングのコンテクストに関連するすべてにアクセスできます。このガイドでは、HTTPコンテクストにアクセスする方法について説明します。
 
-これから紹介するものは、HTTPコンテキストにアクセスして操作するためのフックまたは関数です。
+これから紹介するものは、HTTPコンテクストにアクセスして操作するためのフックまたは関数です。
 
 これらの関数はすべて、ミドルウェアやファイルシステムベースのルーターを使用したルートハンドラーでも利用可能です。これらはフレームワーク固有であり、Reactとは関係ありません。
 
-`useHttpContext()` を使用すると、完全なHTTPコンテキストにアクセスできます。
+`useHttpContext()` を使用すると、完全なHTTPコンテクストにアクセスできます。
 ```jsx
 import { useHttpContext } from "@lazarv/react-server";
 
@@ -33,7 +33,7 @@ export default function MyComponent() {
 ```
 
 <Link name="request">
-## Request
+## リクエスト
 </Link>
 
 `useRequest()` を使用すると、完全なHTTPリクエストにアクセスできます。
@@ -56,7 +56,7 @@ export default function MyComponent() {
 ```
 
 <Link name="response">
-## Response
+## レスポンス
 </Link>
 
 `useResponse()` を使用すると、完全なHTTPレスポンスにアクセスできます。これは、レスポンスがクライアントに送信された後、サスペンドされ、後でクライアントにストリーミングされたReactコンポーネント内でのみ利用可能です。
@@ -93,7 +93,7 @@ export default function MyComponent() {
 ```
 
 <Link name="pathname">
-## Pathname
+## パス名
 </Link>
 
 `usePathname()` を使用すると、現在のリクエストのパス名にアクセスできます。
@@ -109,7 +109,7 @@ export default function MyComponent() {
 ```
 
 <Link name="search-params">
-## Search Params
+## 検索パラメータ
 </Link>
 
 `useSearchParams()` を使用すると、現在のリクエストの検索パラメータにアクセスできます。これは、検索パラメータのキーと値のペアを持つオブジェクトです。同じキーに複数の値がある場合、その値は配列になります。
@@ -127,7 +127,7 @@ export default function MyComponent() {
 ```
 
 <Link name="headers">
-## Headers
+## ヘッダー
 </Link>
 
 `headers()` を使用すると、現在のリクエストのヘッダーにアクセスできます。
@@ -201,7 +201,7 @@ export default function MyComponent() {
 > **注意:** HTTPヘッダーは大文字と小文字を区別しないことに注意してください！
 
 <Link name="cookies">
-## Cookies
+## クッキー
 </Link>
 
 `cookie()` を使用すると、現在のリクエストのクッキーにアクセスできます。
@@ -216,7 +216,7 @@ export default function MyComponent() {
 };
 ```
 
-また、現在のレスポンスのコンテキストでクッキーを設定または削除することもできます。
+また、現在のレスポンスのコンテクストでクッキーを設定または削除することもできます。
 
 ```jsx
 import { setCookie, deleteCookie } from "@lazarv/react-server";
@@ -230,7 +230,7 @@ export default function MyComponent() {
 ```
 
 <Link name="status">
-## Status
+## ステータス
 </Link>
 
 `status()` を使用すると、現在のレスポンスのステータスコードとテキストを設定できます。
@@ -246,7 +246,7 @@ export default function MyComponent() {
 ```
 
 <Link name="form-data">
-## Form Data
+## フォームデータ
 </Link>
 
 `useFormData()` を使用すると、現在のリクエストのフォームデータにアクセスできます。
@@ -264,7 +264,7 @@ export default function MyComponent() {
 ```
 
 <Link name="redirect">
-## Redirect
+## リダイレクト
 </Link>
 
 `redirect()` を使用すると、現在のリクエストを別のURLにリダイレクトできます。
@@ -280,10 +280,10 @@ export default function MyComponent() {
 ```
 
 <Link name="rewrite">
-## Rewrite
+## リライト
 </Link>
 
-`rewrite()` を使用すると、現在のリクエストを別のURLに書き換えることができます。これは、ミドルウェア関数内で現在のリクエストのURLパス名を変更するのに便利です。
+`rewrite()` を使用すると、現在のリクエストを別のURLにリライトできます。これは、ミドルウェア関数内で現在のリクエストのURLパス名を変更するのに便利です。
 
 ```jsx
 import { rewrite, useUrl } from "@lazarv/react-server";
@@ -306,7 +306,7 @@ export default function MyComponent() {
 ```
 
 <Link name="outlet">
-## Outlet
+## アウトレット
 </Link>
 
 `useOutlet()` を使用すると、現在のリクエストのアウトレットにアクセスできます。これは、現在のリクエストがレンダリングされているアウトレットの名前を取得するのに便利です。
@@ -322,10 +322,10 @@ export default function MyComponent() {
 ```
 
 <Link name="render-lock">
-## Render Lock
+## レンダーロック
 </Link>
 
-`useRender()` を使用すると、現在のリクエストのレンダーロックにアクセスできます。これは、非同期関数が実行されている間、またはロックが解除されるまで、Reactサーバーコンポーネントのレンダリングをロックしたい場合に便利です。Reactサーバーコンポーネントはデフォルトでストリーミングを使用してレンダリングされるからです。特にHTTPヘッダーやクッキーを非同期のReactサーバーコンポーネントで処理する場合に役立ちます。レンダリングをロックしないと、非同期関数が終了する前にヘッダーやクッキーがクライアントに送信されてしまいます。レンダリングプロセスでロックが検出されると、レンダリングはロックが解除されるまで待機し、ヘッダーやクッキーの送信を開始してからReactサーバーコンポーネントのストリーミングを開始します。
+`useRender()` を使用すると、現在のリクエストのレンダーロックにアクセスできます。これは、非同期関数が実行されている間、またはロックが解除されるまで、React Server Componentのレンダリングをロックしたい場合に便利です。なぜならReact Server Componentはデフォルトでストリーミングを使用してレンダリングされるからです。特にHTTPヘッダーやクッキーを非同期のReact Server Componentで処理する場合に役立ちます。レンダリングをロックしないと、非同期関数が終了する前にヘッダーやクッキーがクライアントに送信されてしまいます。レンダリングプロセスでロックが検出されると、レンダリングはロックが解除されるまで待機し、ヘッダーやクッキーの送信を開始してからReact Server Componentのストリーミングを開始します。
 
 ```jsx
 import { headers, useRender } from "@lazarv/react-server";

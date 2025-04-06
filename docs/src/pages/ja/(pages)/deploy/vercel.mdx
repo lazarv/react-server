@@ -8,7 +8,7 @@ import Link from "../../../../components/Link.jsx";
 
 # Vercel
 
-Vercel にデプロイするには、`@lazarv/react-server-adapter-vercel` パッケージを使用します。Vercel およびその設定と連携するために特化して設計されています。
+Vercel にデプロイするには、`@lazarv/react-server-adapter-vercel` パッケージを使用します。このアダプタはVercel およびその設定と連携するために特化して設計されています。
 
 <Link name="installation">
 ## インストール
@@ -29,7 +29,7 @@ vercel link --yes --project <project-name>
 pnpm add -D @lazarv/react-server-adapter-vercel
 ```
 
-次に、このアダプターを `react-server.config.mjs` ファイルに追加する必要があります:
+次に、このアダプタを `react-server.config.mjs` ファイルに追加する必要があります:
 
 ```mjs
 export default {
@@ -38,12 +38,12 @@ export default {
 ```
 
 <Link name="configuration">
-## コンフィグレーション
+## 設定
 </Link>
 
-このアダプターの設定は、Vercel の `config.json` ファイルに追加されます。これにより、ヘッダー、リダイレクト、リライトなど、すべての利用可能な Vercel 設定オプションを使用できます。
+このアダプタの設定は、Vercel の `config.json` ファイルに追加されます。これにより、ヘッダー、リダイレクト、リライトなど、すべての利用可能な Vercel 設定オプションを使用できます。
 
-また、以下のアダプターオプションを使用して、すべてのサーバサイドレンダリングを処理する `index` 関数の Serverless Function 設定を上書きすることもできます:
+また、以下のアダプタオプションを使用して、すべてのサーバサイドレンダリングを処理する `index` 関数の Serverless Function 設定を上書きすることもできます:
 
 ```mjs
 export default {
@@ -65,7 +65,7 @@ export default {
 ## デプロイ
 </Link>
 
-`@lazarv/react-server` を Vercel アダプターと共に使用する場合、以下のコマンドを使用してアプリケーションを Vercel にデプロイできます:
+`@lazarv/react-server` を Vercel アダプタと共に使用する場合、以下のコマンドを使用してアプリケーションを Vercel にデプロイできます:
 
 ```sh
 pnpm react-server build [root] # [root] is the entry point of your application

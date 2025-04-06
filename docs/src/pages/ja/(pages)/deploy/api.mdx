@@ -83,7 +83,7 @@ export const adapter = createAdapter({
 アダプタハンドラ関数は以下のプロパティを受け取ります
 
 - [ ] `adapterOptions`: `react-server.config.js` ファイルから渡されるアダプタオプション
-- [ ] `files`: 静的ファイル、アセット、クライアントファイル、公開ファイル、サーバーファイル、依存関係を含むファイルオブジェクト
+- [ ] `files`: 静的ファイル、アセット、クライアントファイル、公開ファイル、サーバファイル、依存関係を含むファイルオブジェクト
 - [ ] `copy`: ファイルを出力ディレクトリにコピーするための関数を含むコピーオブジェクト
 - [ ] `config`: アプリケーションの設定オブジェクト
 - [ ] `reactServerDir`: ビルド出力が配置されるディレクトリへのパス
@@ -98,9 +98,9 @@ export const adapter = createAdapter({
 - [ ] `assets`: アセットファイルを取得する関数
 - [ ] `client`: クライアントファイルを取得する関数
 - [ ] `public`: 公開ファイルを取得する関数
-- [ ] `server`: サーバーファイルを取得する関数
+- [ ] `server`: サーバファイルを取得する関数
 - [ ] `dependencies`: 依存関係を取得する関数
-- [ ] `all`: すべての静的ファイル（静的 + アセット + クライアント + 公開）を取得する関数
+- [ ] `all`: すべての静的ファイル（static + assets + client + public）を取得する関数
 
 ```js
 const staticFiles = await files.static();
@@ -113,7 +113,7 @@ const staticFiles = await files.static();
 - [ ] `assets`: アセットファイルをコピーする関数
 - [ ] `client`: クライアントファイルをコピーする関数
 - [ ] `public`: 公開ファイルをコピーする関数
-- [ ] `server`: サーバーファイルをコピーする関数
+- [ ] `server`: サーバファイルをコピーする関数
 - [ ] `dependencies`: 依存関係をコピーする関数
 
 ```js

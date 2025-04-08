@@ -1,10 +1,7 @@
 import { extname, relative } from "node:path";
 
-import * as acorn from "acorn";
-import * as escodegen from "escodegen";
-import * as estraverse from "estraverse";
-
 import * as sys from "../sys.mjs";
+import { codegen, parse, walk } from "../utils/ast.mjs";
 
 const cwd = sys.cwd();
 
@@ -14,12 +11,7 @@ export default function useServerInline(manifest) {
     async transform(code, id) {
       if (!code.includes("use server")) return null;
 
-      const ast = acorn.parse(code, {
-        sourceType: "module",
-        ecmaVersion: 2021,
-        sourceFile: id,
-        locations: true,
-      });
+      const ast = await parse(code, id);
 
       const directives = ast.body
         .filter((node) => node.type === "ExpressionStatement")
@@ -39,7 +31,7 @@ export default function useServerInline(manifest) {
       const actionKey = (node) =>
         `__react_server_action__line${node.loc.start.line}_col${node.loc.start.column}__`;
 
-      estraverse.replace(ast, {
+      walk(ast, {
         enter(node) {
           node.parent = parent;
 
@@ -265,11 +257,6 @@ export default function useServerInline(manifest) {
         );
       }
 
-      const gen = escodegen.generate(ast, {
-        sourceMap: true,
-        sourceMapWithCode: true,
-      });
-
       if (manifest) {
         const specifier = relative(cwd, id);
         const name = specifier.replace(extname(specifier), "");
@@ -282,10 +269,7 @@ export default function useServerInline(manifest) {
         });
       }
 
-      return {
-        code: gen.code,
-        map: gen.map.toString(),
-      };
+      return codegen(ast, id);
     },
   };
 }

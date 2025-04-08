@@ -21,8 +21,8 @@ mkdir todo
 cd todo
 pnpm init
 pnpm add @lazarv/react-server better-sqlite3 zod
-pnpm add -D @types/better-sqlite3 @types/react @types/react-dom autoprefixer postcss tailwindcss typescript
-pnpx tailwindcss init -p
+pnpm add -D @types/better-sqlite3 @types/react @types/react-dom autoprefixer postcss tailwindcss@3 typescript
+pnpx tailwindcss@3 init -p
 ```
 
 To store our Todo items, we will use a local Sqlite database. For validation, we will use Zod and for styling we will use Tailwind CSS. To include all our source code as Tailwind content, change the **tailwind.config.js** to this:
@@ -167,7 +167,9 @@ The Item component will render our Todo item using an `id` and `title` prop. But
 
 The framework will resolve this `$ACTION_ID_` prefixed path to the server function and it will call our server function function!
 
+<Link name="server-functions">
 ## Server functions
+</Link>
 
 We will use server functions to implement all functionality of our Todo app. This is the most complex part of the app, but don’t shy away, it’s still really very simple, let’s create **src/actions.ts**:
 

@@ -1,9 +1,7 @@
 import { extname, relative } from "node:path";
 
-import * as acorn from "acorn";
-import * as escodegen from "escodegen";
-
 import * as sys from "../sys.mjs";
+import { codegen, parse } from "../utils/ast.mjs";
 
 const cwd = sys.cwd();
 
@@ -14,12 +12,7 @@ export default function useServer(type, manifest) {
       const mode = this.environment.mode;
       if (!code.includes("use server")) return null;
 
-      const ast = acorn.parse(code, {
-        sourceType: "module",
-        ecmaVersion: 2021,
-        sourceFile: id,
-        locations: true,
-      });
+      const ast = await parse(code, id);
 
       const directives = ast.body
         .filter((node) => node.type === "ExpressionStatement")
@@ -249,11 +242,6 @@ export default function useServer(type, manifest) {
         });
       }
 
-      const gen = escodegen.generate(ast, {
-        sourceMap: true,
-        sourceMapWithCode: true,
-      });
-
       const specifier = relative(cwd, id);
       const name = specifier.replace(extname(specifier), "");
 
@@ -269,10 +257,7 @@ export default function useServer(type, manifest) {
         });
       }
 
-      return {
-        code: gen.code,
-        map: gen.map.toString(),
-      };
+      return codegen(ast, id);
     },
   };
 }

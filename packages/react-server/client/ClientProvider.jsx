@@ -312,6 +312,13 @@ window.addEventListener("popstate", () => {
 });
 
 export const streamOptions = (outlet, remote, defer) => ({
+  findSourceMapURL: import.meta.env.DEV
+    ? (filename, environment) =>
+        new URL(
+          `/__react_server_source_map__?filename=${new URL(filename, location).pathname}&environment=${environment}`,
+          location
+        ).href
+    : null,
   async callServer(id, args) {
     return new Promise(async (resolve, reject) => {
       try {

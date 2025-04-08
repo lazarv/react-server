@@ -1,10 +1,7 @@
 import { extname, relative } from "node:path";
 
-import * as acorn from "acorn";
-import * as escodegen from "escodegen";
-import * as estraverse from "estraverse";
-
 import * as sys from "../sys.mjs";
+import { codegen, parse, walk } from "../utils/ast.mjs";
 import { hasClientComponents, isModule } from "../utils/module.mjs";
 
 const cwd = sys.cwd();
@@ -23,17 +20,10 @@ export default function useClient(type, manifest, enforce) {
 
       if (!/\.m?[jt]sx?$/.test(id)) return;
 
-      let ast;
-      try {
-        ast = acorn.parse(code, {
-          sourceType: "module",
-          ecmaVersion: 2021,
-          sourceFile: id,
-          locations: true,
-        });
-      } catch {
-        return null;
-      }
+      const ast = await parse(code, id, {
+        lang: /\.m?tsx?$/.test(id) ? "ts" : "js",
+      });
+      if (!ast) return null;
 
       try {
         if (
@@ -48,7 +38,7 @@ export default function useClient(type, manifest, enforce) {
 
           const depsOptimizer = this.environment?.depsOptimizer;
           if (depsOptimizer) {
-            estraverse.traverse(ast, {
+            walk(ast, {
               enter(node) {
                 if (
                   node.type === "ImportDeclaration" ||
@@ -73,21 +63,14 @@ export default function useClient(type, manifest, enforce) {
                     isModule(optimized.src)
                   ) {
                     node.source.value = optimized.src;
+                    node.source.raw = `"${optimized.src}"`;
                   }
                 }
               },
             });
           }
 
-          const gen = escodegen.generate(ast, {
-            sourceMap: true,
-            sourceMapWithCode: true,
-          });
-
-          return {
-            code: gen.code,
-            map: gen.map.toString(),
-          };
+          return codegen(ast, id);
         }
 
         if (!code.includes("use client")) return;
@@ -151,15 +134,10 @@ registerClientReference(${name}, "${workspacePath(id)}", "${name}");`
           defaultExport ? `${namedExports}\n\n${defaultExport}` : namedExports
         }`;
 
-        const clientReferenceAst = acorn.parse(clientReferenceCode, {
-          sourceType: "module",
-          ecmaVersion: 2021,
-          sourceFile: id,
-          locations: true,
-        });
+        const clientReferenceAst = await parse(clientReferenceCode, id);
 
         if (mode === "build") {
-          estraverse.traverse(ast, {
+          walk(ast, {
             enter(node) {
               if (
                 node.type === "ImportDeclaration" ||
@@ -182,11 +160,6 @@ registerClientReference(${name}, "${workspacePath(id)}", "${name}");`
           });
         }
 
-        const gen = escodegen.generate(clientReferenceAst, {
-          sourceMap: true,
-          sourceMapWithCode: true,
-        });
-
         if (manifest) {
           const specifier = relative(cwd, id);
           const name = workspacePath(specifier)
@@ -199,10 +172,8 @@ registerClientReference(${name}, "${workspacePath(id)}", "${name}");`
           const mod = this.environment.moduleGraph.getModuleById(id);
           mod.__react_server_client_component__ = true;
         }
-        return {
-          code: gen.code,
-          map: gen.map.toString(),
-        };
+
+        return codegen(clientReferenceAst, id);
       } catch (e) {
         config?.logger?.error(e);
       }

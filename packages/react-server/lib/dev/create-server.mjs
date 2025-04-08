@@ -1,6 +1,6 @@
 import { rm } from "node:fs/promises";
 import { isBuiltin, register } from "node:module";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { format } from "node:util";
 import { Worker } from "node:worker_threads";
 
@@ -43,6 +43,7 @@ import {
 import aliasPlugin from "../plugins/alias.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
+import importRemote from "../plugins/import-remote.mjs";
 import optimizeDeps from "../plugins/optimize-deps.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
@@ -156,6 +157,7 @@ export default async function createServer(root, options) {
       !root || root === "@lazarv/react-server/file-router"
         ? fileRouter(options)
         : [],
+      importRemote(),
       resolveWorkspace(),
       reactServerEval(options),
       reactServerRuntime(),
@@ -615,6 +617,26 @@ export default async function createServer(root, options) {
   );
 
   const initialHandlers = await Promise.all([
+    async (context) => {
+      if (context.url.pathname === "/__react_server_source_map__") {
+        const filename = context.url.searchParams.get("filename");
+        const mod =
+          viteDevServer.environments.rsc.moduleGraph.getModuleById(filename);
+        if (mod) {
+          return new Response(
+            JSON.stringify({
+              ...mod.transformResult.map,
+              sourceRoot: dirname(relative(cwd, filename)),
+            }),
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+        }
+      }
+    },
     trailingSlashHandler(),
     cookie(config.cookies),
     ...(config.handlers?.pre ?? []),

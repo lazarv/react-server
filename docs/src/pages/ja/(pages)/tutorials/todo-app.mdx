@@ -1,0 +1,319 @@
+---
+title: サーバ関数を使う
+order: 1
+category: Tutorials
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# サーバ関数を使う
+
+このチュートリアルの目標は、クライアント側のJavaScriptとReactハイドレーションを一切使用しないことです。React Server Componentsとサーバ関数のみを使用します。これは可能でしょうか？もちろん可能です！
+
+<Link name="project-setup">
+## セットアップ
+</Link>
+
+新しいフォルダを作成してpnpmを初期化し、必要な依存関係をすべてインストールして、新しいプロジェクトを作成しましょう。
+
+```bash
+mkdir todo
+cd todo
+pnpm init
+pnpm add @lazarv/react-server better-sqlite3 zod
+pnpm add -D @types/better-sqlite3 @types/react @types/react-dom autoprefixer postcss tailwindcss@3 typescript
+pnpx tailwindcss@3 init -p
+```
+
+Todo項目を保存するには、ローカルのSqliteデータベースを使用します。検証にはZodを使用し、スタイル設定にはTailwind CSSを使用します。すべてのソースコードをTailwindコンテンツとして含めるには、**tailwind.config.js**を次のように変更します:
+
+```jsx filename="./tailwind.config.js"
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ["./src/**/*.tsx"],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+```
+
+今回は特別凝ったTailwindでのスタイリングは行わないので、通常の3行のTailwind設定を**src/index.css**に配置します:
+
+```css filename="./src/index.css"
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+<Link name="hello-world">
+## Hello World!
+</Link>
+
+さて、何よりも良いのは古典的な"Hello World!"アプリです。Todoアプリのエントリーポイントを作成しましょう！以下のコードを**src/index.tsx**に入れてください:
+
+```jsx filename="./src/index.tsx"
+export default function Index() {
+  return (
+	  <h1>Hello World!</h1>
+  );
+}
+```
+
+このマイクロアプリを実行するには、`pnpm react-server ./src/index.tsx`を使用するだけです。作業を簡単にするために、**package.json**にnpmスクリプトをいくつか追加しましょう:
+
+```jsx filename="./package.json"
+"scripts": {
+  "dev": "react-server ./src/index.tsx",
+  "build": "react-server build ./src/index.tsx",
+  "start": "react-server start"
+},
+```
+
+`pnpm dev`を使用して開発サーバを起動します。開発サーバが起動したら、[http://localhost:3000](http://localhost:3000)を開いて、Hello World!アプリを起動してください。`pnpm dev --open`を使用しても実行できます。
+
+<Link name="layout">
+## レイアウト
+</Link>
+
+Todoアプリにはレイアウトが必要なので、**src/Layout.tsx**を作成しましょう:
+
+```jsx filename="./src/Layout.tsx"
+export default function Layout({ children }: React.PropsWithChildren) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Todo</title>
+      </head>
+      <body>
+        <div className="p-4">
+          <h1 className="text-4xl font-bold mb-4">
+            <a href="/">Todo</a>
+          </h1>
+          {children}
+        </div>
+      </body>
+    </html>
+  );
+}
+```
+
+特別なことは何もなく、通常のHTMLドキュメントテンプレートです。このレイアウトコンポーネントをアプリのラッパーとして使用します。
+
+<Link name="page">
+## ページ
+</Link>
+
+メインページはTodoアプリです。ここで、すべての構成要素を使用してアプリを作成します。Hello World!に別れを告げて、コンポーネントを次のように変更します:
+
+```jsx filename="./src/index.tsx"
+import "./index.css";
+
+import { allTodos } from "./actions";
+import AddTodo from "./AddTodo";
+import Item from "./Item";
+import Layout from "./Layout";
+
+export default function Index() {
+  const todos = allTodos();
+
+  return (
+    <Layout>
+      <AddTodo />
+      {todos.length === 0 && <p className="text-gray-500">No todos yet!</p>}
+      {todos.map((todo) => (
+        <Item key={todo.id} title={todo.title} id={todo.id} />
+      ))}
+    </Layout>
+  );
+}
+```
+
+このReact Server Componentでは、`allTodos()`を呼び出して保存されているすべてのTodo項目を取得し、その結果を使用してJSXをレンダリングします。レイアウトコンポーネントを使用して、コンテンツをHTMLドキュメントにラップします。
+
+<Link name="item">
+## アイテム
+</Link>
+
+アイテムをレンダリングするには、**src/Item.tsx** にItemコンポーネントを作成しましょう:
+
+```jsx filename="./src/Item.tsx"
+import { deleteTodo } from "./actions";
+
+type Props = {
+  id: number;
+  title: string;
+};
+export default function Item({ id, title }: Props) {
+  return (
+    <div className="flex row items-center justify-between py-1 px-4 my-1 rounded-lg text-lg border bg-gray-100 text-gray-600 mb-2">
+      <p className="flex-1">{title}</p>
+      <form action={deleteTodo}>
+        <input type="hidden" name="id" value={id} />
+        <button className="font-medium">Delete</button>
+      </form>
+    </div>
+  );
+}
+```
+
+Itemコンポーネントは、`id`と`title`プロパティを使用してTodoアイテムをレンダリングします。しかし、`<form action={deleteTodo}>`はどうでしょうか？これはサーバ関数です。ユーザーが"削除"ボタンをクリックしてフォームを送信すると、ブラウザはサーバ関数を呼び出します。Reactはサーバ関数のプログレッシブエンハンスメントをサポートしており、最初のフォームアクションはフォームに非表示の入力フィールドを含めることでサーバ関数を呼び出すため、フロントエンドにJavaScriptがなくてもこれが可能です。
+
+```jsx filename="./src/Item.tsx"
+<input type="hidden" name="$ACTION_ID_/Users/lazarv/Projects/tutorials/todo/src/actions.ts#deleteTodo">
+```
+
+フレームワークは、この`$ACTION_ID_`プレフィックス付きパスをサーバ関数に解決し、サーバ関数を呼び出します！
+
+<Link name="server-functions">
+## サーバ関数
+</Link>
+
+
+Todoアプリのすべての機能を実装します。これはアプリの中で最も複雑な部分ですが、怖がることはありません。とてもシンプルなので安心してください。それでは、src/actions.tsを作成しましょう。
+
+```jsx filename="./src/actions.ts"
+"use server";
+
+import { redirect } from "@lazarv/react-server";
+import Database from "better-sqlite3";
+import * as zod from "zod";
+
+const db = new Database("db.sqlite");
+db.exec(
+  "CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT)"
+);
+
+type Todo = {
+  id: number;
+  title: string;
+};
+
+const addTodoSchema = zod.object({
+  title: zod
+    .string()
+    .min(3, "Title must be at least 3 characters")
+    .max(100, "Title must be at most 100 characters")
+    .refine((value) => value.length > 0, "Title is required")
+    .transform((value) => value.trim()),
+});
+
+const deleteTodoSchema = zod.object({
+  id: zod.string().transform((value) => parseInt(value.trim(), 10)),
+});
+
+export async function addTodo(formData: FormData) {
+  const result = addTodoSchema.safeParse(Object.fromEntries(formData));
+
+  if (!result.success) {
+    throw result.error.issues;
+  }
+
+  const { title } = result.data;
+  db.prepare("INSERT INTO todos(title) VALUES (?)").run(title);
+  redirect("/");
+}
+
+export function allTodos() {
+  return db.prepare("SELECT * FROM todos").all() as Todo[];
+}
+
+export async function deleteTodo(formData: FormData) {
+  const result = deleteTodoSchema.safeParse(Object.fromEntries(formData));
+
+  if (!result.success) {
+    throw result.error.issues;
+  }
+
+  const { id } = result.data;
+  db.prepare("DELETE FROM todos WHERE id = ?").run(id);
+  redirect("/");
+}
+```
+
+このファイルの最初の行では、`“use server”;`ディレクティブを使用して、このファイルをサーバ関数モジュールとして扱うようにフレームワークをインストールします。エクスポートされたすべての非同期関数は、サーバ関数として使用できるようになります。
+
+モジュールのインポート時にSqliteデータベースを初期化し、アイテムの追加および削除操作用のZodスキーマを作成します。
+
+すべてのサーバ関数では、フォームで定義したすべてのフィールドを含む`FormData`インスタンスを受け取ります。`Object.fromEntries`を使用してJavaScriptオブジェクトに変換した後、これらを`safeParse`します。
+
+Zodの検証が失敗した場合、検証の問題をエラーとしてスローします。
+
+成功した場合は、データベースコマンドを実行して、Todo項目をINSERTまたはDELETEします。
+
+最後に、`redirect`を使用して、ユーザーをサーバ関数呼び出しから戻します。これは、ユーザーがブラウザページを更新してTodo項目を再度作成または削除し、フォームの送信を再利用することを望まないために必要です。
+
+また、ここでは`allTodos`関数も実装し、ストレージ関連のコードすべてを1つのファイルにまとめました。
+
+<Link name="add-new-item">
+## 新しいアイテムを追加する
+</Link>
+
+AddTodoコンポーネントを実装するには、次の内容の**src/AddTodo.tsx**ファイルを作成します:
+
+```jsx filename="./src/AddTodo.tsx"
+import { useActionState } from "@lazarv/react-server/router";
+import type { ZodIssue } from "zod";
+
+import { addTodo } from "./actions";
+
+export default function AddTodo() {
+  const { formData, error } = useActionState<
+    typeof addTodo,
+    string & Error & ZodIssue[]
+  >(addTodo);
+
+  return (
+    <form action={addTodo} className="mb-4">
+      <div className="mb-2">
+        <input
+          name="title"
+          type="text"
+          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5"
+          defaultValue={formData?.get?.("title") as string}
+          autoFocus
+        />
+      </div>
+      <button
+        className="text-white bg-blue-700 hover:bg-blue-800 rounded-lg px-5 py-2 mb-2 text-center"
+        type="submit"
+      >
+        Submit
+      </button>
+      {error?.map?.(({ message }, i) => (
+        <p
+          key={i}
+          className="bg-red-50 border rounded-lg border-red-500 text-red-500 p-2.5 mb-2"
+        >
+          {message}
+        </p>
+      )) ??
+        (error && (
+          <p className="bg-red-50 border rounded-lg border-red-500 text-red-500 p-2.5">
+            {error}
+          </p>
+        ))}
+    </form>
+  );
+}
+```
+
+`<form>`からサーバ関数を使用する方法は既にわかっています。しかし、サーバ関数呼び出しの結果はどうでしょうか? `useActionState`が役に立ちます！
+
+`addTodo`サーバ関数の関数参照を`useActionState`に渡すことで、この特定のサーバー関数が呼び出されたときのサーバ関数呼び出しの結果を取得できるため、`error`結果を収集できます。これは、addサーバ関数でスローしたZodエラーの問題になります。したがって、ここですべてのZod検証の問題を反復処理し、サーバ側で検証エラーメッセージをレンダリングできます。
+
+<Link name="production-build">
+## プロダクションビルド
+</Link>
+
+開発サーバの使用中、ページがブラウザにいくつかのJavaScriptモジュールをロードしたことに気付くでしょう。これはホットモジュール置換にのみ使用されます。実稼働ビルドでは、ドキュメントとCSSアセットのみがブラウザにロードされます。
+
+本番環境用にビルドするには、`pnpm build`を実行し、その後`pnpm start`を使用して本番サーバーを起動できます。
+
+<Link name="final-words">
+## 最後に
+</Link>
+
+これで小さなTodoアプリが完成しました。例は[GitHub](https://github.com/lazarv/react-server/tree/main/examples/todo)でも見つかります。上記のアプローチを使用すると、Todo項目の更新機能を簡単に追加し、項目を完了としてマークできます。ここではクライアントコンポーネントは使用していません。これは別のチュートリアルで説明します。

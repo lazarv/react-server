@@ -165,6 +165,10 @@ export default async function errorHandler(err) {
         } else {
           context$(ERROR_COMPONENT, null);
           context$(ERROR_CONTEXT, errorHandler);
+          const render = getContext(RENDER);
+          if (typeof render !== "function") {
+            throw error;
+          }
           return getContext(RENDER)(
             GlobalErrorComponent,
             { error },

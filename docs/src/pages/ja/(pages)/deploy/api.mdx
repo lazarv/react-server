@@ -1,0 +1,172 @@
+---
+title: アダプタ API
+category: Deploy
+order: 100
+---
+
+import Link from "../../../../components/Link"
+
+# アダプタ API
+
+`@lazarv/react-server-adapter-core` パッケージで利用可能なアダプタ API を使用することで、任意のデプロイ先に対応したデプロイアダプタを簡単に作成できます。
+
+<Link name="define-the-adapter-handler">
+## アダプタハンドラを定義する
+</Link>
+
+アダプタハンドラは、アプリケーションのデプロイを処理するために実装する必要がある関数です。この関数はビルドプロセスによって呼び出され、デプロイの準備に必要な情報を受け取ります。
+
+アダプタハンドラの実装例は、[Vercel アダプタの実装](https://github.com/lazarv/react-server/blob/main/packages/react-server-adapter-vercel/index.mjs)にあります。
+
+まず、Vercel アダプタの実装をコピーし、それを必要に応じて変更することで始めることができます。
+
+アダプタハンドラ関数をファイルからエクスポートし、その後 `createAdapter` 関数を使用してアダプタインスタンスを作成する必要があります。
+
+また、ユーザーが `react-server.config.js` ファイルでアダプタオプションを指定した場合にアダプタインスタンスを作成するための関数をデフォルトエクスポートする必要があります。
+
+```js
+import { createAdapter } from "@lazarv/react-server-adapter-core";
+
+export const adapter = createAdapter({
+  name: "Vercel",
+  outDir: ".vercel",
+  outStaticDir: "static",
+  handler: async ({ adapterOptions, files, copy, config, reactServerDir, reactServerOutDir, root, options }) => {
+    // アダプタハンドラの実装
+  },
+  deploy: {
+    command: "vercel",
+    args: ["deploy", "--prebuilt"],
+  },
+});
+
+export default function defineConfig(adapterOptions) {
+  return async (_, root, options) => adapter(adapterOptions, root, options);
+}
+```
+
+`createAdapter` 関数にアダプタのプロパティを渡してアダプタを設定する必要があります。これらのプロパティは以下の通りです。
+
+`name`: アダプタの名前
+
+`outDir`: アダプタがデプロイ構成を出力するディレクトリ
+
+`outStaticDir`: 静的ファイルを出力するディレクトリ。これはオプションです。指定された場合、アダプタは静的ファイルを出力ディレクトリにコピーします。
+
+`handler`: アダプタハンドラ関数
+
+`deploy`: デプロイコマンドと引数。これはオプションです。指定された場合、アプリケーションをデプロイするために、ビルド後に開発者が実行する必要のあるコマンドを表示します。ビルド中に `--deploy` フラグが指定された場合、アダプタはこのコマンドを実行します。`deploy` プロパティは関数としても指定でき、アダプタオプション、CLI オプション、およびハンドラの結果を使用して呼び出されます。アダプタオプションやハンドラの結果に基づいてデプロイコマンドをカスタマイズする必要がある場合に便利です。`command` と `args` を含む結果を提供しない場合、デフォルトのデプロイ処理（コマンドの実行）はスキップされます。これは、アダプタ内でカスタムデプロイワークフローを実装したい場合に役立ちます。
+
+```js
+export const adapter = createAdapter({
+  // ...
+  handler: async ({ adapterOptions, files, copy, config, reactServerDir, reactServerOutDir, root, options }) => {
+      // アダプタハンドラの実装
+    return {
+      // ハンドラの結果をここに記述します。この結果は deploy 関数に渡されます。
+    };
+  },
+  async deploy({ adapterOptions, options, handlerResult }) {
+    // アダプタオプション、CLIオプション、またはハンドラの結果に基づいてデプロイコマンドをカスタマイズします
+    return {
+      command: "vercel",
+      args: ["deploy", "--prebuilt"],
+    };
+  },
+});
+```
+
+<Link name="adapter-handler">
+## アダプタハンドラ
+</Link>
+
+アダプタハンドラ関数は以下のプロパティを受け取ります
+
+- [ ] `adapterOptions`: `react-server.config.js` ファイルから渡されるアダプタオプション
+- [ ] `files`: 静的ファイル、アセット、クライアントファイル、公開ファイル、サーバファイル、依存関係を含むファイルオブジェクト
+- [ ] `copy`: ファイルを出力ディレクトリにコピーするための関数を含むコピーオブジェクト
+- [ ] `config`: アプリケーションの設定オブジェクト
+- [ ] `reactServerDir`: ビルド出力が配置されるディレクトリへのパス
+- [ ] `reactServerOutDir`: ビルド出力が配置されるディレクトリ名
+- [ ] `root`: アプリケーションのエントリーポイント
+- [ ] `options`: CLI から渡されるオプションを含むオプションオブジェクト
+
+`files` オブジェクトには以下の関数が含まれます：
+
+- [ ] `static`: 静的ファイルを取得する関数
+- [ ] `compressed`: 圧縮された静的ファイルを取得する関数
+- [ ] `assets`: アセットファイルを取得する関数
+- [ ] `client`: クライアントファイルを取得する関数
+- [ ] `public`: 公開ファイルを取得する関数
+- [ ] `server`: サーバファイルを取得する関数
+- [ ] `dependencies`: 依存関係を取得する関数
+- [ ] `all`: すべての静的ファイル（static + assets + client + public）を取得する関数
+
+```js
+const staticFiles = await files.static();
+```
+
+`copy` オブジェクトには以下の関数が含まれます
+
+- [ ] `static`: 静的ファイルをコピーする関数
+- [ ] `compressed`: 圧縮された静的ファイルをコピーする関数
+- [ ] `assets`: アセットファイルをコピーする関数
+- [ ] `client`: クライアントファイルをコピーする関数
+- [ ] `public`: 公開ファイルをコピーする関数
+- [ ] `server`: サーバファイルをコピーする関数
+- [ ] `dependencies`: 依存関係をコピーする関数
+
+```js
+await copy.server(outServerDir);
+```
+
+<Link name="helper-functions">
+## ヘルパー関数
+</Link>
+
+### banner
+
+コンソールにバナーを表示します。
+
+```js
+banner("building serverless functions");
+```
+
+### message
+
+コンソールにメッセージを表示します。アクションとメッセージを示すために、主要色と補助色が使用されます。
+
+```js
+message("creating", "index.func module");
+```
+
+### success
+
+コンソールに成功メッセージを表示します。
+
+```js
+success("index.func serverless function initialized.");
+```
+
+### clearDirectory
+
+ディレクトリをクリアします。
+
+```js
+await clearDirectory(outServerDir);
+```
+
+### writeJSON
+
+JSON ファイルを書き込みます。
+
+```js
+await writeJSON(join(outServerDir, ".vc-config.json"), {
+  runtime: "nodejs20.x",
+  handler: "index.mjs",
+  launcherType: "Nodejs",
+  shouldAddHelpers: true,
+  supportsResponseStreaming: true,
+  ...adapterOptions?.serverlessFunctions?.index,
+});
+```

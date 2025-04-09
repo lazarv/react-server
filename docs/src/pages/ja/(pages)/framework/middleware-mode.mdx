@@ -1,0 +1,55 @@
+---
+title: ミドルウェアモード
+category: Framework
+order: 11
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# ミドルウェアモード
+
+`@lazarv/react-server`の開発サーバや本番サーバをミドルウェアモードで実行することもできます。これにより、既存のサーバやフレームワークに`@lazarv/react-server`を統合することが可能になります。ミドルウェアモードでは、`@lazarv/react-server`はHTTPサーバを起動せず、既存のサーバ内で使用できるミドルウェア関数を提供します。
+
+<Link name="development">
+## 開発環境について
+</Link>
+
+開発サーバを使用するには、`@lazarv/react-server/dev`から`reactServer`をインポートし、エントリーポイントへのパスを渡す必要があります。このパスは、`react-server` CLIに渡すものと同じです。パスは作業ディレクトリから解決可能である必要があり、`reactServer`を呼び出すファイルからの相対パスではありません。
+
+```mjs
+import { reactServer } from '@lazarv/react-server/dev';
+
+const server = reactServer("./src/App.tsx");
+app.use("/react-server", async (req, res, next) => {
+  const { middlewares } = await server;
+  middlewares(req, res, next);
+});
+```
+
+<Link name="production">
+## 本番環境について
+</Link>
+
+本番環境では、インポート元を`@lazarv/react-server/node`に変更し、`reactServer`関数に`origin`オプションを渡すだけです。
+
+```mjs
+import { reactServer } from '@lazarv/react-server/node';
+
+const server = reactServer({
+  origin: 'http://localhost:3000',
+});
+app.use("/react-server", async (req, res, next) => {
+  const { middlewares } = await server;
+  middlewares(req, res, next);
+});
+```
+
+> **注意:** `reactServer`関数は、`middlewares`関数を含むオブジェクトを解決するPromiseを返します。`middlewares`関数を使用する前に、このPromiseを`await`する必要があります。
+
+`@lazarv/react-server`のミドルウェアをサーバに追加する際、通常はパスを指定します。このパスがルートパスでない場合、アプリのベースURLを定義する必要があります。これはサーバがアセットのパスを正しく解決するために必要です。ベースURLを定義するには、`react-server.config.json`ファイルに`base`オプションを追加します。
+
+```json
+{
+  "base": "/react-server/"
+}
+```

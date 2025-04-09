@@ -33,6 +33,16 @@ export default async function dev(root, options) {
     await logo();
     banner("starting development server");
 
+    process.on("unhandledRejection", (err) => {
+      const logger = getRuntime(LOGGER_CONTEXT);
+      logger?.error?.(
+        `${colors.red("✖")} ${colors.bold("Unhandled Rejection:")} ${err?.message ?? err}`
+      );
+      if (err?.stack) {
+        logger?.error?.(colors.red(err.stack));
+      }
+    });
+
     let server;
     let configWatcher;
     let showHelp = true;

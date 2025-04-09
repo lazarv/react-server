@@ -4,10 +4,15 @@ import { isIPv6 } from "node:net";
 import { availableParallelism } from "node:os";
 
 import { loadConfig } from "../../config/prebuilt.mjs";
-import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
+import {
+  getRuntime,
+  init$ as runtime_init$,
+  runtime$,
+} from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
+  LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
 import { formatDuration } from "../utils/format.mjs";
@@ -98,6 +103,10 @@ export default async function start(root, options) {
         });
         process.on("SIGTERM", () => {
           process.exit(0);
+        });
+        process.on("unhandledRejection", (reason) => {
+          const logger = getRuntime(LOGGER_CONTEXT);
+          logger.error(reason);
         });
 
         worker(root, options, config);

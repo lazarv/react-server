@@ -43,7 +43,9 @@ import {
   RENDER_STREAM,
   RENDER_WAIT,
   STYLES_CONTEXT,
+  SERVER_FUNCTION_NOT_FOUND,
 } from "@lazarv/react-server/server/symbols.mjs";
+import { ServerFunctionNotFoundError } from "./action-state.mjs";
 
 const serverReferenceMap = new Proxy(
   {},
@@ -97,7 +99,7 @@ export async function render(Component, props = {}, options = {}) {
           !options.skipFunction
         ) {
           let action = async function () {
-            throw new Error("Server action not found");
+            throw new ServerFunctionNotFoundError();
           };
           let input = [];
           if (isFormData) {
@@ -149,9 +151,15 @@ export async function render(Component, props = {}, options = {}) {
               serverActionHeader.split("#");
             action = async () => {
               try {
-                const data = await (
-                  await globalThis.__webpack_require__(serverReferenceModule)
-                )[serverReferenceName].bind(null, ...input)();
+                const mod = await globalThis.__webpack_require__(
+                  serverReferenceModule
+                );
+                const fn = mod[serverReferenceName];
+                if (typeof fn !== "function") {
+                  throw new ServerFunctionNotFoundError();
+                }
+                const boundFn = fn.bind(null, ...input);
+                const data = await boundFn();
                 return {
                   data,
                   actionId: serverActionHeader,
@@ -179,6 +187,12 @@ export async function render(Component, props = {}, options = {}) {
           }
 
           const { data, actionId, error } = await action();
+
+          if (error?.name === SERVER_FUNCTION_NOT_FOUND) {
+            const e = new Error("Server Function Not Found");
+            e.digest = e.message;
+            throw e;
+          }
 
           callServer = true;
           if (!isFormData) {
@@ -223,7 +237,7 @@ export async function render(Component, props = {}, options = {}) {
           context$(ACTION_CONTEXT, {
             formData: input[input.length - 1] ?? input,
             data,
-            error,
+            error: redirect?.response ? null : error,
             actionId,
           });
         }

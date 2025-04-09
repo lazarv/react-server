@@ -1,7 +1,6 @@
 import { createRequire } from "node:module";
 
-import { redirect } from "./redirects.mjs";
-import { useUrl } from "./request.mjs";
+import { ServerFunctionNotFoundError } from "./action-state.mjs";
 
 const __require = createRequire(import.meta.url);
 
@@ -28,7 +27,9 @@ export async function init$(
               const action = (await mod)[prop];
               try {
                 if (!action) {
-                  redirect(useUrl().pathname);
+                  return {
+                    error: new ServerFunctionNotFoundError(),
+                  };
                 }
                 return { data: await action(...args), actionId: action.$$id };
               } catch (e) {

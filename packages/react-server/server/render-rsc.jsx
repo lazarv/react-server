@@ -188,7 +188,7 @@ export async function render(Component, props = {}, options = {}) {
 
           const { data, actionId, error } = await action();
 
-          if (error.name === SERVER_FUNCTION_NOT_FOUND) {
+          if (error?.name === SERVER_FUNCTION_NOT_FOUND) {
             const e = new Error("Server Function Not Found");
             e.digest = e.message;
             throw e;

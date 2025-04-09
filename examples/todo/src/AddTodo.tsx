@@ -37,7 +37,7 @@ export default function AddTodo() {
       )) ??
         (error && (
           <p className="bg-red-50 border rounded-lg border-red-500 text-red-500 p-2.5">
-            {error}
+            {error?.toString()}
           </p>
         ))}
     </form>

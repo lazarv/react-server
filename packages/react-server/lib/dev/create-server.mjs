@@ -622,7 +622,7 @@ export default async function createServer(root, options) {
         const filename = context.url.searchParams.get("filename");
         const mod =
           viteDevServer.environments.rsc.moduleGraph.getModuleById(filename);
-        if (mod) {
+        if (mod?.transformResult?.map) {
           return new Response(
             JSON.stringify({
               ...mod.transformResult.map,

@@ -40,3 +40,6 @@ export const POSTPONE_STATE = Symbol.for("POSTPONE_STATE");
 export const IMPORT_MAP = Symbol.for("IMPORT_MAP");
 export const CACHE_MISS = Symbol.for("CACHE_MISS");
 export const CACHE_KEY = Symbol.for("CACHE_KEY");
+export const SERVER_FUNCTION_NOT_FOUND = Symbol.for(
+  "SERVER_FUNCTION_NOT_FOUND"
+);

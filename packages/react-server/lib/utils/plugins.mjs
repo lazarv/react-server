@@ -1,4 +1,4 @@
-import viteReact from "../plugins/vite-plugin-react.mjs";
+import viteReact from "@vitejs/plugin-react";
 
 export function userOrBuiltInVitePluginReact(plugins, options) {
   if (!plugins) return [viteReact(options)];

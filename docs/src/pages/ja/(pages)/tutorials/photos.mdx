@@ -1,0 +1,429 @@
+---
+title: クライアントコンポーネントを使う
+order: 2
+category: Tutorials
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# クライアントコンポーネントを使う
+
+このチュートリアルでは、クライアントコンポーネントを使用してアプリケーションにインタラクティブな要素を作成する方法を学びます。クライアントサイドレンダリングと動的なコンテンツ更新により、ユーザーエクスペリエンスを向上させましょう。
+
+ナビゲーションと画像表示にクライアントコンポーネントを使用するシンプルなフォトギャラリーアプリケーションを構築します。クライアントコンポーネントの作成方法とユーザーインタラクションを扱う方法を学びます。
+
+また、フレームワークが提供するファイルシステムベースのルーティングソリューションを使用して、アプリケーションのルートを作成します。これによりページ遷移を実現し、適切なコンテンツを表示できるようになります。
+
+<Link name="project-setup">
+## セットアップ
+</Link>
+
+以下のコマンドを使用して新しいReactアプリケーションを作成します:
+
+```sh
+mkdir photos
+cd photos
+pnpm init
+pnpm add @lazarv/react-server react-click-away-listener @faker-js/faker
+pnpm add -D @types/react @types/react-dom autoprefixer postcss tailwindcss@3 typescript typescript-plugin-css-modules
+pnpx tailwindcss@3 init -p
+mkdir src
+mkdir src/app
+mkdir src/components
+```
+
+以下のように`tailwind.config.js`を変更する必要があります:
+
+```js filename="tailwind.config.js"
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/components/**/*.{js,ts,jsx,tsx}",
+    "./src/app/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "gradient-conic":
+          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+      },
+    },
+  },
+  plugins: [],
+};
+```
+
+これらの変更により、Tailwind CSSがcomponentsとappディレクトリをスキャンして最終ビルドに含めるスタイルを検索できるようになり、放射状グラデーションと円錐グラデーションのサポートが追加されました。
+
+`src/app`ディレクトリにTailwind CSSスタイルをインポートするために必要な`global.css`ファイルを作成します:
+
+```css filename="src/app/global.css"
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+`tsconfig.json`は以下のようになります:
+
+```json filename="tsconfig.json"
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "jsx": "preserve",
+    "strict": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["react/experimental", "react-dom/experimental"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "plugins": [{ "name": "typescript-plugin-css-modules" }]
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}
+```
+
+プロジェクトでCSSモジュールを使えるようにするために、`typescript-plugin-css-modules`プラグインを有効にしています。また、組み込みの`Link`コンポーネントとファイルシステムベースのルーターを使った型付きルーティングを有効にするために、`.react-server/**/*.ts`のファイルもプロジェクトに含めています。
+
+ファイルシステムベースのルーターを使用する場合、`react-server.config.json`ファイルでルートのディレクトリを指定することができます。これにより、ルーターはプロジェクト全体のディレクトリツリーをクロールすることなく、どこを探索すればよいかを明確にできます。特にディレクトリやファイルが多い大規模なプロジェクトでこの設定が役立ちます。プロジェクトのルートディレクトリに以下の内容で`react-server.config.json`ファイルを作成してください:
+
+```json filename="react-server.config.json"
+{
+  "root": "src/app"
+}
+```
+
+<Link name="generating-random-photos">
+## ランダムに写真を生成する
+</Link>
+
+以下のように`src/photos.ts`という新しいファイルを作成しましょう:
+
+```ts filename="src/photos.ts"
+import { faker } from "@faker-js/faker";
+
+export type Photo = {
+  id: string;
+  username: string;
+  imageSrc: string;
+};
+
+const photos: Photo[] = new Array(9).fill(null).map((_, index) => ({
+  id: `${index}`,
+  username: faker.internet.userName(),
+  imageSrc: faker.image.urlPicsumPhotos(),
+}));
+
+export default photos;
+```
+
+このファイルは、`@faker-js/faker`パッケージを使用して、ランダムに選ばれた9枚の写真を生成し配列に格納します。各写真には`id`、`username`、`imageSrc`プロパティが付与されます。これがギャラリー用のランダム写真セットとなり、アプリケーションのデータソースとなります。
+
+<Link name="routes">
+## ルート
+</Link>
+
+このシンプルなフォトギャラリーには、ギャラリーを表示するためのメインルートが1つと、写真1枚をモーダルで表示するためのルーターアウトレットが1つだけ存在します。
+
+<Link name="layout">
+### レイアウト
+</Link>
+
+すべてのページをHTMLドキュメントレイアウトにラップしたいので、以下のように`src/app/(root).layout.tsx`ファイルを作成する必要があります:
+
+```tsx filename="src/app/(root).layout.tsx"
+import "./global.css";
+
+export default function Layout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <title>Photos</title>
+        <meta
+          name="description"
+          content="A sample app showing dynamic routing with modals as a route."
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body>
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+このレイアウトは、アプリケーション内のすべてのルートで使用されます。グローバルCSSスタイルが含まれ、ページのタイトルと説明を設定します。これはReact Server Componentであり、サーバー側でのみレンダリングされます。
+
+レイアウトファイルの名前を`(root).layout.tsx`にしているのは、アプリ全体のルートレイアウトとして使うためです。`(root)`はあくまで識別のための名前で、ルーターは括弧で囲まれた部分を無視します。また、`.layout.tsx`という拡張子を付けることで、ルーターはこのファイルをレイアウトとして認識し、以降すべてのルートに適用します。
+
+<Link name="gallery">
+### ギャラリー
+</Link>
+
+メインのギャラリービューとインデックスページを作成するために、以下の`src/app/page.tsx`ファイルを作成する必要があります:
+
+```tsx filename="src/app/page.tsx"
+import { Link } from "@lazarv/react-server/navigation";
+
+import swagPhotos from "../photos";
+
+export const ttl = 30000;
+
+export default function Home() {
+  const photos = swagPhotos;
+
+  return (
+    <main className="container mx-auto">
+      <h1 className="text-center text-4xl font-bold m-10">Photos</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 auto-rows-max	 gap-6 m-10">
+        {photos.map(({ id, imageSrc }) => (
+          <Link
+            key={id}
+            to={`/photos/${id}`}
+            prefetch
+            ttl={30000}
+            rollback={30000}
+          >
+            <img
+              alt=""
+              src={imageSrc}
+              height={500}
+              width={500}
+              className="w-full object-cover aspect-square"
+            />
+          </Link>
+        ))}
+      </div>
+    </main>
+  );
+}
+```
+
+このページにはフォトギャラリーが表示されます。ギャラリー内の各写真へのリンクは、`@lazarv/react-server/navigation`モジュールを使用して作成しています。`prefetch`、`ttl`、`rollback`プロパティは、写真データをプリロードして一定時間キャッシュすることで、ナビゲーションエクスペリエンスの最適化に役立ちます。
+
+`Link`コンポーネントの`to`プロパティが`/photos/${id}`に設定されていることにお気づきでしょうか。これは、ルーターがこのパスを基にルートをマッチングし、対応する写真を表示するためのコンポーネントをレンダリングするために使用されます。さらに、この`to`プロパティは型安全であり、`src/app`ディレクトリに定義されたルートと照合されるため、安心して使用できます。
+
+デフォルトでエクスポートされる関数`Home`は、サーバーサイドでレンダリングされるReact Server Componentです。一方、`Link`コンポーネントはクライアントサイドコンポーネントであり、サーバーサイドでレンダリングされた後、クライアントサイドでハイドレートされます。これにより、アプリケーション内でサーバーコンポーネントとクライアントコンポーネントを簡単に組み合わせることができます。また、`Link`コンポーネントの子要素として使用される画像要素は、サーバーサイドでのみレンダリングされます。クライアントサイドで使用される機能や状態を利用するためには、`"use client";`ディレクティブでアノテーションされたコンポーネントのみがクライアントサイドに読み込まれます。
+
+`Link`コンポーネントを使用すると、新しいページはクライアントサイドナビゲーションを利用して読み込まれ、写真間を移動する際にブラウザはページをリロードしません。ユーザーが移動するページのペイロードは、HTMLドキュメント全体ではなく、ページのレンダリングに必要なReact Server Componentのペイロードのみになります。これによりナビゲーションの速度と応答性が向上します。
+
+<Link name="modal">
+## モーダル
+</Link>
+
+1枚の写真のモーダルビューを表示する最初のクライアントコンポーネントを作成しましょう。以下の内容で`src/components/modal/Modal.tsx`ファイルを作成してください:
+
+```tsx filename="src/components/modal/Modal.tsx"
+"use client";
+
+import { useEffect } from "react";
+import ClickAwayListener from "react-click-away-listener";
+
+export default function Modal({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    document.body.classList.add("overflow-hidden");
+    return () => document.body.classList.remove("overflow-hidden");
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        history.back();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  return (
+    <div className="fixed z-10 left-0 right-0 top-0 bottom-0 mx-auto bg-black/60">
+      <ClickAwayListener onClickAway={() => history.back()}>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl sm:w-10/12 md:w-8/12 lg:w-1/2 p-6">
+          {children}
+        </div>
+      </ClickAwayListener>
+    </div>
+  );
+}
+```
+
+最も重要な部分はファイルの最初の行に記述する`"use client";`ディレクティブです。このディレクティブは、フレームワークに対してこのコンポーネントをクライアントサイドでロードするように指示します。これがクライアントコンポーネントを作成する方法です。ファイルの残りの部分は、モーダルビューで写真を表示するシンプルなモーダルコンポーネントです。モーダルが開いているときにページのスクロールを防ぐため、`body`要素に`overflow-hidden`クラスを追加または削除するために`useEffect`フックを使用します。また、キーボードナビゲーションをサポートするために別の`useEffect`フックを使用します。さらに、ユーザーがモーダルの外側をクリックした際にモーダルを閉じるために、`react-click-away-listener`パッケージの`ClickAwayListener`コンポーネントを使用します。`ClickAwayListener`は既にクライアントサイドコンポーネントである`Modal`コンポーネント内でインポートされるため、`"use client";`ディレクティブを再度指定する必要はありません。
+
+クライアントコンポーネントでは、ブラウザイベントを処理する`useEffect`フックなど、クライアント側でのみ機能するすべてのReactフックを使用できます。また、`react-click-away-listener`パッケージの`ClickAwayListener`コンポーネントなど、ブラウザーのクライアント側で実行する必要があるReactコンポーネントも使用できます。
+
+`children`プロパティは、Reactコンポーネントであればどのようなタイプでも構いません。React Server Componentでも、他のクライアントコンポーネントでも構いません。今回はモーダルビューに写真を表示するために使用します。
+
+すべてのクライアントコンポーネントはサーバー側でレンダリングされ、その後クライアント側でハイドレートされます。つまり、サーバーがコンポーネントをレンダリングしてクライアントに送信し、クライアント側で再レンダリングされてクライアント側のロジックが適用されます。
+
+<Link name="photo">
+## 写真
+</Link>
+
+モーダルビューに1枚の写真を表示するためのルートを作成します。以下のように`src/app/@modal/photos/[id].page.tsx`ファイルを作成します。
+
+```tsx filename="src/app/@modal/photos/[id].page.tsx"
+import Frame from "../../../components/frame/Frame";
+import Modal from "../../../components/modal/Modal";
+import photos from "../../../photos";
+
+export default function PhotoModal({ id: photoId }: { id: string }) {
+  const photo = photos.find((p) => p.id === photoId);
+
+  return (
+    <Modal>{!photo ? <p>Photo not found!</p> : <Frame photo={photo} />}</Modal>
+  );
+}
+```
+
+このページでは、モーダルビューに1枚の写真を表示します。ディレクトリ名に`@modal`パターンを使用することで、このルートを`modal`という名前のアウトレットとしてレンダリングすることをルーターに指示し、メインのギャラリーページ上で使用できるようにします。`photos`配列は`src/photos.ts`ファイルからインポートされ、`photoId`パラメータを使用して一致する`id`を持つ写真を探します。
+
+`Frame`コンポーネントは、モーダルビューに写真を表示するシンプルなコンポーネントです。以下のように`src/components/frame/Frame.tsx`ファイルを作成してください:
+
+```tsx filename="src/components/frame/Frame.tsx"
+import { Photo } from "../../photos";
+
+export default function Frame({ photo }: { photo: Photo }) {
+  return (
+    <>
+      <img
+        alt=""
+        src={photo.imageSrc}
+        height={600}
+        width={600}
+        className="w-full object-cover aspect-square col-span-2"
+      />
+
+      <div className="bg-white p-4 px-6">
+        <p>Taken by {photo.username}</p>
+      </div>
+    </>
+  );
+}
+```
+
+このコンポーネントはReact Server Componentです。写真と写真を撮影したユーザーのユーザー名を表示します。
+
+アウトレットルートに戻ると、`Frame`コンポーネントを使用して、`Modal`クライアントコンポーネントを利用してモーダルビューに写真を表示していることがわかります。アプリケーション内でReact Server Componentsとクライアントコンポーネントを組み合わせることで、動的でインタラクティブなユーザーインターフェースを作成し、レンダリングプロセスを最適化できます。クライアントコンポーネントは、モーダル、ポップアップ、JavaScript駆動型アニメーション、その他のクライアントサイド機能など、アプリケーションのインタラクティブまたは動的な部分にのみ使用するべきです。
+
+レイアウトコンポーネントに戻り、ルートが`/photos/[id]`パターンに一致したときにモーダルをレンダリングする新しいアウトレットを追加します。`src/app/(root).layout.tsx`ファイルを以下の内容で更新します:
+
+```tsx filename="src/app/(root).layout.tsx"
+import "./global.css";
+
+export default function Layout({
+  modal,
+  children,
+}: React.PropsWithChildren<{
+  modal: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <title>Photos</title>
+        <meta
+          name="description"
+          content="A sample app showing dynamic routing with modals as a route."
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body>
+        {children}
+        {modal}
+      </body>
+    </html>
+  );
+}
+```
+
+ファイルシステムベースのルーターを使用するレイアウトでは、後続のすべてのアウトレットをpropsとして受け取ります。`modal` propには、ルートが一致した場合にモーダルアウトレットによってレンダリングされるコンポーネントが含まれます。このpropを使用して、レイアウトコンポーネント内のモーダルビューをギャラリービュー上でレンダリングできます。
+
+<Link name="outlet">
+## ナビゲーションの最適化
+</Link>
+
+また、`ReactServerComponent`コンポーネントを使用してモーダルビューのクライアント側ナビゲーションを有効にすることで、ナビゲーションを最適化することもできます。ページ更新時の初期コンテンツには、outletプロパティを使用できます。`ReactServerComponent`を`Link`コンポーネントと併用すると、リンクがモーダルアウトレットを更新する際、サーバー側でのみRSCペイロードとしてアウトレットをレンダリングするため、ネットワークペイロードが小さくなります。ペイロードのサイズは、ページ全体をRSCとして再レンダリングした場合の0.1 倍に縮小され、約15kから約1.5kに縮小されます。より複雑なアプリケーションでは、これがどれほど大きな影響を与えるか想像してみてください。`src/app/(root).layout.tsx`ファイルを以下のように更新します:
+
+```tsx filename="src/app/(root).layout.tsx"
+import { ReactServerComponent } from "@lazarv/react-server/navigation";
+
+import "./global.css";
+
+export default function Layout({
+  modal,
+  children,
+}: React.PropsWithChildren<{
+  modal: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <title>Photos</title>
+        <meta
+          name="description"
+          content="A sample app showing dynamic routing with modals as a route."
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body>
+        {children}
+        <ReactServerComponent outlet="modal">
+          {modal}
+        </ReactServerComponent>
+      </body>
+    </html>
+  );
+}
+```
+
+<Link name="running-the-application">
+## アプリケーションを実行する
+</Link>
+
+アプリケーションを実行するには、以下のスクリプトを`package.json`ファイルに追加します:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "react-server",
+    "build": "react-server build",
+    "start": "react-server start"
+  }
+}
+```
+
+ファイルシステムベースのルーターを使用することで、アプリケーションのエントリポイントを指定する必要がなくなります。ルーターは`src/app`ディレクトリ内のルートを自動的に検出し、各ルートに適したコンポーネントをレンダリングします。
+
+これで以下のコマンドでアプリケーションを実行できます:
+
+```sh
+pnpm dev
+```
+
+ブラウザを開き、`http://localhost:3000`にアクセスしてフォトギャラリーアプリケーションを起動します。写真をクリックするとモーダルビューが開き、拡大表示されます。
+
+アプリケーションを本番環境用にビルドするには以下のコマンドを実行します:
+
+```sh
+pnpm build
+```
+
+以下のコマンドを使用して本番サーバーを起動できます:
+
+```sh
+pnpm start
+```
+
+<Link name="conclusion">
+## まとめ
+</Link>
+
+このチュートリアルでは、クライアントコンポーネントを使用してアプリケーションにインタラクティブな要素を追加する方法を学びました。ナビゲーションと画像表示にクライアントコンポーネントを活用したシンプルなフォトギャラリーアプリケーションを構築しました。また、フレームワークが提供するファイルシステムベースのルーティングを使用して、アプリケーションのルートを作成する方法も学びました。このサンプルアプリケーションは[GitHubリポジトリ](https://github.com/lazarv/react-server/tree/main/examples/photos)に公開されています。リポジトリをクローンし、`pnpm install`を実行して依存関係をインストールした後、`pnpm --filter ./examples/photos dev`コマンドでアプリケーションを実行できます。

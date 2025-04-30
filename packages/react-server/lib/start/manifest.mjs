@@ -108,7 +108,10 @@ export async function init$(type = "server", options = {}) {
                 realpathSync(join(cwd, browserEntry?.src))
           )
         : Object.values(manifest.server).find(
-            (entry) => entry.src && join(cwd, entry.src) === `/${id}`
+            (entry) =>
+              entry.src &&
+              (join(cwd, entry.src) === `/${id}` ||
+                sys.normalizePath(join(cwd, entry.src)) === id)
           );
     if (!entry) {
       throw new Error(`Module not found: ${$$id}`);

@@ -11,10 +11,13 @@ export default {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("@emotion")) {
-            return "vendor";
-          }
+        advancedChunks: {
+          groups: [
+            {
+              name: "vendor",
+              test: /@emotion/,
+            },
+          ],
         },
       },
     },

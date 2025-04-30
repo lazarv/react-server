@@ -96,7 +96,7 @@
     "@types/babel__core": "^7.20.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.4.1",
+    "@vitejs/plugin-react-oxc": "^0.1.1",
     "acorn-loose": "^8.4.0",
     "algoliasearch": "^5.10.2",
     "ansi-regex": "^6.0.1",
@@ -104,7 +104,6 @@
     "cac": "^6.7.14",
     "chokidar": "^3.5.3",
     "deep-eql": "^5.0.2",
-    "esbuild": "^0.19.3",
     "escodegen": "^2.1.0",
     "estraverse": "^5.3.0",
     "fast-glob": "^3.2.12",
@@ -125,12 +124,13 @@
     "react-server-dom-webpack": "0.0.0-experimental-740a4f7a-20250325",
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",
+    "rolldown": "1.0.0-beta.8-commit.2686eb1",
+    "rolldown-vite": "^6.3.5",
     "sass": "^1.86.0",
     "semver": "^7.6.3",
     "source-map": "^0.7.4",
     "strip-ansi": "^7.1.0",
-    "style-to-js": "^1.1.12",
-    "vite": "6.2.3"
+    "style-to-js": "^1.1.12"
   },
   "engines": {
     "node": ">=20.10.0"

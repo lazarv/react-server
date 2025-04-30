@@ -5,7 +5,8 @@ import { ReactServerComponent } from "@lazarv/react-server/navigation";
 
 import { getContext } from "./context.mjs";
 import { useUrl } from "./request.mjs";
-import { LOGGER_CONTEXT } from "./symbols.mjs";
+import { LOGGER_CONTEXT, MANIFEST } from "./symbols.mjs";
+import { forRoot } from "../config";
 
 async function RemoteComponentLoader({
   url,
@@ -77,6 +78,23 @@ async function RemoteComponentLoader({
   return Component;
 }
 
+function matchList(list, name) {
+  if (list.length === 0) {
+    return false;
+  }
+
+  for (const entry of list) {
+    if (
+      (typeof entry === "string" && name === entry) ||
+      (entry instanceof RegExp && entry.test(name))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export default async function RemoteComponent({
   src,
   ttl,
@@ -88,21 +106,74 @@ export default async function RemoteComponent({
   const remoteUrl = new URL(src, url);
   const remoteUrlString = remoteUrl.toString();
 
+  const manifest = getContext(MANIFEST);
+
+  let remoteImportMap = null;
+  if (manifest) {
+    remoteImportMap = await useCache(
+      [remoteUrl],
+      async () => {
+        const config = forRoot();
+        const shared = [
+          "rolldown-runtime",
+          "jsx-runtime",
+          "react-server/client/context",
+          /react-server\/client\/navigation$/,
+          /react-server\/client\/location$/,
+          /react-server\/client\/Form$/,
+          /react-server\/client\/Link$/,
+          /react-server\/client\/Refresh$/,
+          /react-server\/client\/ReactServerComponent$/,
+          /react-server\/client\/ErrorBoundary$/,
+          /react-server\/client\/context$/,
+          ...(config.resolve?.shared ?? []),
+        ];
+
+        const remoteManifest = await fetch(
+          new URL("/client/browser-manifest.json", remoteUrl)
+        );
+        const remoteManifestJson = await remoteManifest.json();
+
+        const imports = {};
+        for (const remote of Object.values(remoteManifestJson)) {
+          if (!matchList(shared, remote.name)) {
+            continue;
+          }
+
+          const host = Object.values(manifest.browser).find(
+            (entry) => entry.name === remote.name
+          );
+          if (host) {
+            const hostEntryUrl = `/${host.file}`;
+            const remoteEntryUrl = new URL(`/${remote.file}`, remoteUrl).href;
+            imports[remoteEntryUrl] = hostEntryUrl;
+          }
+        }
+
+        return <script type="importmap">{JSON.stringify({ imports })}</script>;
+      },
+      ttl
+    );
+  }
+
   return (
-    <ReactServerComponent
-      remote
-      defer={defer}
-      url={remoteUrlString}
-      outlet={remoteUrlString.replace(/[^a-zA-Z0-9_]/g, "_")}
-      request={request}
-    >
-      <RemoteComponentLoader
-        url={remoteUrl}
-        ttl={ttl}
-        request={request}
+    <>
+      {remoteImportMap}
+      <ReactServerComponent
+        remote
         defer={defer}
-        onError={onError}
-      />
-    </ReactServerComponent>
+        url={remoteUrlString}
+        outlet={remoteUrlString.replace(/[^a-zA-Z0-9_]/g, "_")}
+        request={request}
+      >
+        <RemoteComponentLoader
+          url={remoteUrl}
+          ttl={ttl}
+          request={request}
+          defer={defer}
+          onError={onError}
+        />
+      </ReactServerComponent>
+    </>
   );
 }

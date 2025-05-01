@@ -65,8 +65,8 @@ With `useResponse()` you can get access to the full HTTP response. This is only 
 ```jsx
 import { useResponse } from "@lazarv/react-server";
 
-export default function MyComponent() {
-  const response = useResponse();
+export default async function MyComponent() {
+  const response = await useResponse();
 
   return (
     <div>

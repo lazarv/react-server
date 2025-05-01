@@ -64,8 +64,8 @@ export default function MyComponent() {
 ```jsx
 import { useResponse } from "@lazarv/react-server";
 
-export default function MyComponent() {
-  const response = useResponse();
+export default async function MyComponent() {
+  const response = await useResponse();
 
   return (
     <div>

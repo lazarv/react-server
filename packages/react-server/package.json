@@ -125,7 +125,7 @@
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",
     "rolldown": "1.0.0-beta.8-commit.2686eb1",
-    "rolldown-vite": "^6.3.5",
+    "rolldown-vite": "6.3.5",
     "sass": "^1.86.0",
     "semver": "^7.6.3",
     "source-map": "^0.7.4",

@@ -1,4 +1,6 @@
+import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { getContext } from "../../server/context.mjs";
@@ -97,25 +99,24 @@ export async function init$(type = "server", options = {}) {
     const browserEntry = Object.values(manifest.browser).find(
       (entry) => entry.file === id
     );
-    const clientEntry = Object.values(manifest.client).find(
-      browserEntry
-        ? (entry) => entry.src?.endsWith(browserEntry?.src)
-        : (entry) => entry.src && id.endsWith(entry.src)
-    );
-    const serverEntry = Object.values(manifest.server).find(
-      browserEntry
-        ? (entry) => entry.src?.endsWith(browserEntry?.src)
-        : (entry) => entry.src && id.endsWith(entry.src)
-    );
-    if (!clientEntry && !serverEntry) {
+    const entry =
+      type === "client" && browserEntry
+        ? Object.values(manifest.client).find(
+            (entry) =>
+              entry.src &&
+              realpathSync(join(cwd, entry.src)) ===
+                realpathSync(join(cwd, browserEntry?.src))
+          )
+        : Object.values(manifest.server).find(
+            (entry) =>
+              entry.src &&
+              (join(cwd, entry.src) === `/${id}` ||
+                sys.normalizePath(join(cwd, entry.src)) === id)
+          );
+    if (!entry) {
       throw new Error(`Module not found: ${$$id}`);
     }
-    const specifier = __require.resolve(
-      `./${outDir}/${(type === "client" ? clientEntry : serverEntry)?.file}`,
-      {
-        paths: [cwd],
-      }
-    );
+    const specifier = join(cwd, outDir, entry.file);
     const links = collectStylesheets(specifier, manifest.client) ?? [];
     entryCache.set(id, { specifier, links });
     if (links.length > 0) {

@@ -1,5 +1,5 @@
 import colors from "picocolors";
-import { createLogger as createViteLogger } from "vite";
+import { createLogger as createViteLogger } from "rolldown-vite";
 
 import { deleteLastXLines, replaceError } from "../utils/error.mjs";
 
@@ -16,8 +16,8 @@ export default function createLogger(level = "info", options) {
     if (!process.stdout.isTTY) return msg;
     if (msg === prevMessage) {
       repeatCount++;
-      deleteLastXLines(msg.split("\n").length);
-      return msg + colors.gray(` (x${repeatCount + 1})`);
+      deleteLastXLines(prevMessage.split("\n").length);
+      return msg + colors.gray(` (x${repeatCount + 1})`) + "\x1b[K";
     } else {
       repeatCount = 0;
       prevMessage = msg;

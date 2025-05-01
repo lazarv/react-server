@@ -120,12 +120,8 @@ export default function Home() {
 {
   "resolve": {
     "shared": [
-      "react",
-      "react/jsx-dev-runtime",
-      "react/jsx-runtime",
-      "react-dom",
-      "react-dom/client",
-      "react-server-dom-webpack/client.browser",
+      "my-shared-dependency",
+      /another-shared-dependency/
     ]
   }
 }
@@ -158,19 +154,7 @@ export default {
         "https://esm.sh/react-dom@0.0.0-experimental-740a4f7a-20250325/client?dev",
       "react-server-dom-webpack/client.browser":
         "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-740a4f7a-20250325/client.browser?dev",
-      "http://[::1]:3001/": "/",
-      "http://localhost:3003/": "/",
     },
-  },
-  resolve: {
-    shared: [
-      "react",
-      "react/jsx-dev-runtime",
-      "react/jsx-runtime",
-      "react-dom",
-      "react-dom/client",
-      "react-server-dom-webpack/client.browser",
-    ],
   },
 };
 ```
@@ -190,18 +174,7 @@ export default {
         "https://esm.sh/react-dom@0.0.0-experimental-740a4f7a-20250325/client",
       "react-server-dom-webpack/client.browser":
         "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-740a4f7a-20250325/client.browser",
-      "http://localhost:3003/client/__/__/packages/react-server/":
-        "/client/__/__/packages/react-server/",
     },
-  },
-  resolve: {
-    shared: [
-      "react",
-      "react/jsx-runtime",
-      "react-dom",
-      "react-dom/client",
-      "react-server-dom-webpack/client.browser",
-    ],
   },
 };
 ```

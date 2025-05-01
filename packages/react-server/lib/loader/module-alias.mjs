@@ -68,7 +68,7 @@ export function moduleAliases(condition) {
   const picocolors = normalizePath(__require.resolve("picocolors"));
   let vite;
   try {
-    vite = normalizePath(__require.resolve("vite")).replace(
+    vite = normalizePath(__require.resolve("rolldown-vite")).replace(
       /index\.cjs$/,
       "dist/node/index.js"
     );

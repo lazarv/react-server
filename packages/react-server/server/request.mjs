@@ -40,7 +40,7 @@ export function useRequest() {
   return getContext(HTTP_CONTEXT).request;
 }
 
-export function useResponse() {
+export async function useResponse() {
   return getContext(HTTP_RESPONSE);
 }
 

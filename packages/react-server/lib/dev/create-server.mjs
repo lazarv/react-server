@@ -14,8 +14,8 @@ import {
   createRunnableDevEnvironment,
   createServer as createViteDevServer,
   DevEnvironment,
-} from "vite";
-import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
+} from "rolldown-vite";
+import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
 
 import { MemoryCache } from "../../memory-cache/index.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";

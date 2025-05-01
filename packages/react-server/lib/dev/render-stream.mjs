@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { parentPort } from "node:worker_threads";
 
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
-import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
+import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
 
 import { ContextManager } from "../async-local-storage.mjs";
 import { clientAlias } from "../build/resolve.mjs";

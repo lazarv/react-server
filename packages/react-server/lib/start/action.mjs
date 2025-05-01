@@ -106,7 +106,8 @@ export default async function start(root, options) {
         });
         process.on("unhandledRejection", (reason) => {
           const logger = getRuntime(LOGGER_CONTEXT);
-          logger.error(reason);
+          (logger ?? console).error(reason);
+          process.exit(1);
         });
 
         worker(root, options, config);

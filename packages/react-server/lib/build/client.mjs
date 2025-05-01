@@ -5,10 +5,11 @@ import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
 import colors from "picocolors";
-import { build as viteBuild } from "vite";
+import { build as viteBuild } from "rolldown-vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
+import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
@@ -22,6 +23,7 @@ import banner from "./banner.mjs";
 import { chunks } from "./chunks.mjs";
 import customLogger from "./custom-logger.mjs";
 import { clientAlias } from "./resolve.mjs";
+import { bareImportRE } from "../utils/module.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -131,12 +133,14 @@ export default async function clientBuild(_, options) {
       sourcemap: options.sourcemap,
       rollupOptions: {
         ...config.build?.rollupOptions,
-        preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: false,
           ...config.build?.rollupOptions?.treeshake,
         },
         external: [
+          ...(Object.keys(config.importMap?.imports ?? {}) ?? []).filter(
+            (key) => bareImportRE.test(key)
+          ),
           ...(config.resolve?.shared ?? []),
           ...(config.build?.rollupOptions?.external ?? []),
         ],
@@ -146,17 +150,15 @@ export default async function clientBuild(_, options) {
           format: "esm",
           entryFileNames: "[name].[hash].mjs",
           chunkFileNames: "client/[name].[hash].mjs",
-          manualChunks: (id, ...rest) => {
-            if (id in chunks) return chunks[id];
-            if (id.includes("react-server/client/context")) {
-              return "react-server/client/context";
-            }
-            return (
-              config.build?.rollupOptions?.output?.manualChunks?.(
-                id,
-                ...rest
-              ) ?? undefined
-            );
+          advancedChunks: {
+            groups: [
+              {
+                name: "react-server/client/context",
+                test: /react-server\/client\/context/,
+              },
+              ...(config.build?.rollupOptions?.output?.advancedChunks?.groups ??
+                []),
+            ],
           },
         },
         input: {
@@ -198,6 +200,7 @@ export default async function clientBuild(_, options) {
     plugins: [
       ...userOrBuiltInVitePluginReact(config.plugins),
       ...filterOutVitePluginReact(config.plugins),
+      fixEsbuildOptionsPlugin(),
     ],
     css: {
       ...config.css,

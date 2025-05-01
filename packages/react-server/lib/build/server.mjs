@@ -1,14 +1,15 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { join, relative, extname } from "node:path";
+import { join } from "node:path";
 
 import replace from "@rollup/plugin-replace";
 import glob from "fast-glob";
-import { build as viteBuild } from "vite";
+import { build as viteBuild } from "rolldown-vite";
 
 import { forRoot } from "../../config/index.mjs";
 import configPrebuilt from "../plugins/config-prebuilt.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
+import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
@@ -216,7 +217,6 @@ export default async function serverBuild(root, options) {
       sourcemap: options.sourcemap,
       rollupOptions: {
         ...config.build?.rollupOptions,
-        preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: false,
           ...config.build?.rollupOptions?.treeshake,
@@ -235,28 +235,6 @@ export default async function serverBuild(root, options) {
           format: "esm",
           entryFileNames: "[name].mjs",
           chunkFileNames: "server/[name].[hash].mjs",
-          manualChunks: (id, ...rest) => {
-            if (
-              (id.includes("@lazarv/react-server") ||
-                id.includes(sys.rootDir)) &&
-              id.endsWith(".mjs")
-            ) {
-              return "@lazarv/react-server";
-            }
-            const clientModules = Array.from(clientManifest.values());
-            if (clientModules.includes(id) && !id.includes("node_modules")) {
-              const specifier = sys.normalizePath(relative(cwd, id));
-              return specifier
-                .replaceAll("../", "__/")
-                .replace(extname(specifier), "");
-            }
-            return (
-              config.build?.rollupOptions?.output?.manualChunks?.(
-                id,
-                ...rest
-              ) ?? undefined
-            );
-          },
         },
         input: {
           "server/__react_server_config__/prebuilt": "virtual:config/prebuilt",
@@ -329,6 +307,7 @@ export default async function serverBuild(root, options) {
       importRemotePlugin(),
       reactServerEval(options),
       ...buildPlugins,
+      fixEsbuildOptionsPlugin(),
     ],
     css: {
       ...config.css,
@@ -414,7 +393,7 @@ export default async function serverBuild(root, options) {
           ],
         },
       },
-      plugins: [...buildPlugins],
+      plugins: [...buildPlugins, fixEsbuildOptionsPlugin()],
       ssr: {
         ...config.ssr,
       },

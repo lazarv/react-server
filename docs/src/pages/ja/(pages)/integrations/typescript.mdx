@@ -8,7 +8,7 @@ import Link from "../../../../components/Link.jsx";
 
 # TypeScript
 
-`lazarv/react-server` はTypeScriptと互換性があり、他のReactプロジェクトと同じようにTypeScriptを使うことができます。ViteとEsbuildを利用してコードをトランスパイルしているため、TypeScriptはこのフレームワークでも動作します。
+`lazarv/react-server` はTypeScriptと互換性があり、他のReactプロジェクトと同じようにTypeScriptを使うことができます。ViteとRolldownを利用してコードをトランスパイルしているため、TypeScriptはこのフレームワークでも動作します。
 
 <Link name="configuration">
 ## 設定
@@ -24,6 +24,7 @@ TypeScriptの設定はすべて `tsconfig.json` ファイルに保存するこ�
     "strict": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "target": "ESNext",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "jsx": "preserve",
     "types": ["react/experimental", "react-dom/experimental"],

@@ -10,10 +10,13 @@ export default {
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("@tanstack/react-query")) {
-            return "@tanstack/react-query";
-          }
+        advancedChunks: {
+          groups: [
+            {
+              name: "@tanstack/react-query",
+              test: /@tanstack\/react-query\//,
+            },
+          ],
         },
       },
     },

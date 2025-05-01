@@ -564,6 +564,11 @@ export async function render(Component, props = {}, options = {}) {
               ...(prevHeaders ? Object.fromEntries(prevHeaders.entries()) : {}),
             })
           );
+          let resolveResponse;
+          const responsePromise = new Promise(
+            (resolve) => (resolveResponse = resolve)
+          );
+          context$(HTTP_RESPONSE, responsePromise);
 
           let hasError = false;
           const flight = server.renderToReadableStream(
@@ -660,7 +665,7 @@ export async function render(Component, props = {}, options = {}) {
                   ...httpStatus,
                   headers,
                 });
-                context$(HTTP_RESPONSE, response);
+                resolveResponse(response);
                 resolve(response);
               });
             },

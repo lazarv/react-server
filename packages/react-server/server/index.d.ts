@@ -87,7 +87,7 @@ export function useRequest(): Request;
  *
  * @returns The current response object
  */
-export function useResponse(): Response;
+export function useResponse(): Promise<Response>;
 
 /**
  * This hook returns the current URL object.

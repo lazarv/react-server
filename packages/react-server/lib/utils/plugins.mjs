@@ -1,4 +1,4 @@
-import viteReact from "@vitejs/plugin-react";
+import viteReact from "@vitejs/plugin-react-oxc";
 
 export function userOrBuiltInVitePluginReact(plugins, options) {
   if (!plugins) return [viteReact(options)];

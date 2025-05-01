@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, rm, stat } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 
 import { watch } from "chokidar";
 import glob from "fast-glob";
@@ -57,24 +57,24 @@ export async function loadConfig(initialConfig, options = {}) {
         try {
           await stat(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
         } catch {
-          const { build } = await import("esbuild");
+          const { build } = await import("rolldown");
           await build({
-            absWorkingDir: join(fileURLToPath(import.meta.url), "../.."),
-            entryPoints: [src],
-            outfile: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
-            bundle: true,
-            platform: "node",
-            format: "esm",
-            external: ["*"],
-            minify: true,
-            tsconfig: join(cwd, "tsconfig.json"),
+            input: src,
+            output: {
+              file: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
+              minify: true,
+            },
+            external: () => true,
+            resolve: {
+              tsconfigFilename: join(cwd, "tsconfig.json"),
+            },
           });
         }
         try {
           const src = `${join(cwd, outDir, key, filename)}.${hash}.mjs`;
           configModule = (
             await import(
-              `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`
+              /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`
             )
           ).default;
         } catch (e) {
@@ -84,7 +84,7 @@ export async function loadConfig(initialConfig, options = {}) {
       } else {
         configModule = (
           await import(
-            `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`,
+            /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`,
             filename.endsWith(".json") ? { with: { type: "json" } } : undefined
           )
         ).default;

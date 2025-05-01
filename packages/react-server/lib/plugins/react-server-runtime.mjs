@@ -26,9 +26,13 @@ export default function viteReactServerRuntime() {
     configResolved(resolvedConfig) {
       config = resolvedConfig;
     },
-    load(id) {
-      if (id.endsWith("/@hmr")) {
-        return `
+    load: {
+      filter: {
+        id: /\/@hmr|\/@__webpack_require__|/,
+      },
+      handler(id) {
+        if (id.endsWith("/@hmr")) {
+          return `
           import RefreshRuntime from "/@react-refresh";
           RefreshRuntime.injectIntoGlobalHook(window);
           window.$RefreshReg$ = () => {};
@@ -41,8 +45,8 @@ export default function viteReactServerRuntime() {
             }
           };
           self.__react_server_hydrate_init__();`;
-      } else if (id.endsWith("/@__webpack_require__")) {
-        return `
+        } else if (id.endsWith("/@__webpack_require__")) {
+          return `
           const moduleCache = new Map();
           self.__webpack_require__ = function (id) {
           if (!moduleCache.has(id)) {
@@ -67,7 +71,8 @@ export default function viteReactServerRuntime() {
           }
           return moduleCache.get(id);
           };`;
-      }
+        }
+      },
     },
   };
 }

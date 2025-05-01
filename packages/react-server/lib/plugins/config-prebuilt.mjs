@@ -9,13 +9,19 @@ const cwd = sys.cwd();
 export default function configPrebuilt() {
   return {
     name: "react-server:config-prebuilt",
-    resolveId(id) {
-      if (id === "virtual:config/prebuilt") {
+    resolveId: {
+      filter: {
+        id: /^virtual:config\/prebuilt$/,
+      },
+      handler(id) {
         return id;
-      }
+      },
     },
-    async load(id) {
-      if (id === "virtual:config/prebuilt") {
+    load: {
+      filter: {
+        id: /^virtual:config\/prebuilt$/,
+      },
+      async handler() {
         const configFiles = (
           await glob(
             [
@@ -56,7 +62,7 @@ export default {
         : ""
     }
 };`;
-      }
+      },
     },
   };
 }

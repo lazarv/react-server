@@ -1,0 +1,69 @@
+---
+title: エラー処理
+category: Router
+order: 5
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# エラー処理
+
+エラー処理は、どのアプリケーションにおいても重要な要素です。ファイルシステムベースのルーターでは、アプリの各レイアウトごとにカスタムエラーコンポーネントを定義できます。ページのレンダリングに失敗した場合は、代わりにそのエラーコンポーネントが表示されます。また、エラー発生時に対応するエラーコンポーネントが存在しない場合に備えて、フォールバックコンポーネントを定義することも可能です。
+
+<Link name="implementation">
+## 実装
+</Link>
+
+`error.jsx`という名前のルート定義ファイルを任意のパスに作成することで、カスタムエラーコンポーネントを定義できます。このファイルは、ページのレンダリング中にエラーが発生した際に、エラーコンポーネントとして表示されます。
+
+```jsx
+// (root).error.jsx
+
+export default function Error({ error }) {
+  return <div>{error.message}</div>;
+}
+```
+
+<Link name="fallback">
+## フォールバック
+</Link>
+
+`fallback.jsx`という名前で、通常のルートファイルと同じルールに従って任意のパスにルート定義ファイルを作成することで、フォールバックコンポーネントを定義できます。このファイルは、ページのレンダリング中にエラーが発生し、そのエラーに対応するエラーコンポーネントが定義されていない場合に表示されます。
+
+```jsx
+// (root).fallback.jsx
+
+export default function FallbackError({ error }) {
+  return <div>{error.message}</div>;
+}
+```
+
+> **警告:** エラーバウンダリ、エラーフォールバック、またはローディングコンポーネントは、レイアウトに対してのみ定義でき、ページに対しては定義できません。
+
+<Link name="global">
+## グローバルエラーコンポーネント
+</Link>
+
+デフォルトでは、グローバルエラーコンポーネントとして、アプリのルートから最初に見つかった`react-server.error.jsx`または`react-server.error.tsx`ファイルが使用されます。このコンポーネントは、ページのレンダリング中にエラーが発生し、そのエラーに対応するエラーコンポーネントが定義されていない場合に表示されます。
+
+グローバルエラーコンポーネントは、特定のエラーコンポーネントで処理されないすべてのエラーに対して使用されます。エラーコンポーネントには、errorがpropsとして渡されます。
+
+```jsx
+// src/app/react-server.error.tsx
+export default function GlobalError({ error }: { error: Error }) {
+  return <div>{error.message}</div>;
+}
+```
+
+オプションで、`react-server.config.json`ファイルにグローバルエラーコンポーネントを指定することができます。ファイルのパスを明示的に指定する必要があるのは、たとえば`global-error.tsx`のように`react-server.error.jsx`や`react-server.error.tsx`という標準の名前ではないファイルを使用する場合や、フレームワークが最初に検出するファイルではなく、グローバルエラーコンポーネント専用のファイルを使いたい場合です。
+
+```jsx
+// react-server.config.json
+{
+  "globalErrorComponent": "src/app/react-server.error.tsx"
+}
+```
+
+グローバルエラーコンポーネントは、React Server Componentでもクライアントコンポーネントでも使用できます。クライアントコンポーネントの場合は、Reactエラーバウンダリを使用してクライアント側でレンダリングされ、React Server Componentの場合は、サーバー側のみでレンダリングされます。
+
+> **警告:** グローバルエラーバウンダリをリセットすることはできません！エラーバウンダリをリセットするには、ページをリロードする必要があります。React Server Componentのペイロードを使用してページをリロードするには、`Refresh`コンポーネントを使用します。キャッシュの問題を避けるために、`Refresh`コンポーネントに`noCache`プロパティを使用することを推奨します。

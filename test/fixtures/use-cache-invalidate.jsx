@@ -16,7 +16,7 @@ export default async function App() {
     <form
       action={async () => {
         "use server";
-        invalidate(getTodos);
+        await invalidate(getTodos);
       }}
     >
       <button type="submit">Refresh</button>

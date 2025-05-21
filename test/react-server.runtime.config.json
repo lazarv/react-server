@@ -1,7 +1,4 @@
 {
-  "server": {
-    "hmr": false
-  },
   "cache": {
     "providers": {
       "indexedb": {

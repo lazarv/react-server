@@ -32,12 +32,6 @@ export default function useClient(type, manifest, enforce) {
             type === "client" ||
             (mode !== "build" && (viteEnv === "client" || viteEnv === "ssr"))
           ) {
-            ast.body = ast.body.filter(
-              (node) =>
-                node.type !== "ExpressionStatement" ||
-                node.directive !== "use client"
-            );
-
             const depsOptimizer = this.environment?.depsOptimizer;
             if (depsOptimizer) {
               walk(ast, {

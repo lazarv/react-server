@@ -13,7 +13,8 @@
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "unstorage": "^1.16.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.9",

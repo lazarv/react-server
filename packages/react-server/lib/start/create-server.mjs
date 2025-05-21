@@ -7,7 +7,7 @@ import { cookie } from "@hattip/cookie";
 import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
 
-import { MemoryCache } from "../../memory-cache/index.mjs";
+import memoryDriver, { StorageCache } from "../../cache/index.mjs";
 import { PrerenderStorage } from "../../server/prerender-storage.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
@@ -38,7 +38,7 @@ export default async function createServer(root, options) {
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
 
   const initialRuntime = {
-    [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
+    [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
     [FORM_DATA_PARSER]: parseMultipartFormData,
   };
   runtime$(

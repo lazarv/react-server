@@ -16,8 +16,9 @@ import {
   DevEnvironment,
 } from "rolldown-vite";
 import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
+import memoryDriver from "unstorage/drivers/memory";
 
-import { MemoryCache } from "../../memory-cache/index.mjs";
+import StorageCache from "../../cache/storage-cache.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   COLLECT_CLIENT_MODULES,
@@ -166,7 +167,7 @@ export default async function createServer(root, options) {
       useClient(),
       useServer(),
       useServerInline(),
-      useCacheInline(config.cache?.profiles),
+      useCacheInline(config.cache?.profiles, config.cache?.providers),
       ...filterOutVitePluginReact(config.plugins),
       asset(),
       optimizeDeps(),
@@ -232,11 +233,17 @@ export default async function createServer(root, options) {
         },
         {
           find: /^@lazarv\/react-server\/memory-cache$/,
-          replacement: sys.normalizePath(join(sys.rootDir, "memory-cache")),
+          replacement: sys.normalizePath(join(sys.rootDir, "cache/client.mjs")),
         },
         {
           find: /^@lazarv\/react-server\/server\//,
           replacement: sys.normalizePath(join(sys.rootDir, "server/")),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "cache/crypto-browser.mjs")
+          ),
         },
         ...makeResolveAlias(config.resolve?.alias),
       ],
@@ -271,6 +278,18 @@ export default async function createServer(root, options) {
                         join(sys.rootDir, "server/http-context.mjs")
                       ),
                     },
+                    {
+                      find: /^@lazarv\/react-server\/memory-cache$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/index.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/crypto.mjs")
+                      ),
+                    },
                   ],
                 },
               },
@@ -292,6 +311,7 @@ export default async function createServer(root, options) {
                     "picocolors",
                     "@lazarv/react-server",
                   ],
+                  external: ["unstorage"],
                   alias: [
                     {
                       find: /^react$/,
@@ -309,6 +329,24 @@ export default async function createServer(root, options) {
                       find: /^@lazarv\/react-server\/http-context$/,
                       replacement: sys.normalizePath(
                         join(sys.rootDir, "client/http-context.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/memory-cache$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/index.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/crypto.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/rsc$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/rsc.mjs")
                       ),
                     },
                   ],
@@ -400,6 +438,15 @@ export default async function createServer(root, options) {
             return {
               result: {
                 externalize: _specifier,
+              },
+            };
+          }
+
+          if (_specifier.startsWith("react-client-reference:")) {
+            return {
+              result: {
+                id: _specifier,
+                type: "module",
               },
             };
           }
@@ -542,7 +589,7 @@ export default async function createServer(root, options) {
         }
       : null,
     [FORM_DATA_PARSER]: parseMultipartFormData,
-    [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
+    [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
     [COLLECT_STYLESHEETS]: function collectCss(rootModule) {
       const styles = [];
       const visited = new Set();

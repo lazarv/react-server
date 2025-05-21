@@ -1,7 +1,3 @@
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
-
-import { forChild } from "../../config/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
@@ -36,22 +32,14 @@ import {
 } from "../../server/symbols.mjs";
 import { ContextManager } from "../async-local-storage.mjs";
 import errorHandler from "../handlers/error.mjs";
-import * as sys from "../sys.mjs";
 import getModules from "./modules.mjs";
 
-const __require = createRequire(import.meta.url);
-const cwd = sys.cwd();
 globalThis.AsyncLocalStorage = ContextManager;
 
 export default async function ssrHandler(root) {
   const config = getRuntime(CONFIG_CONTEXT);
-  const {
-    entryModule,
-    rootModule,
-    rootName,
-    memoryCacheModule,
-    globalErrorModule,
-  } = await getModules(root, config);
+  const { entryModule, rootModule, rootName, globalErrorModule } =
+    await getModules(root, config);
 
   const viteDevServer = getRuntime(SERVER_CONTEXT);
   const ssrLoadModule = getRuntime(MODULE_LOADER);
@@ -67,6 +55,9 @@ export default async function ssrHandler(root) {
   return async (httpContext) => {
     return new Promise((resolve, reject) => {
       try {
+        const noCache =
+          httpContext.request.headers.get("cache-control") === "no-cache";
+
         ContextStorage.run(
           {
             [SERVER_CONTEXT]: viteDevServer,
@@ -84,7 +75,7 @@ export default async function ssrHandler(root) {
                 )
             ),
             [FORM_DATA_PARSER]: formDataParser,
-            [MEMORY_CACHE_CONTEXT]: memoryCacheContext,
+            [MEMORY_CACHE_CONTEXT]: noCache ? null : memoryCacheContext,
             [REDIRECT_CONTEXT]: {},
             [COLLECT_CLIENT_MODULES]: collectClientModules,
             [COLLECT_STYLESHEETS]: collectStylesheets,
@@ -93,28 +84,18 @@ export default async function ssrHandler(root) {
           },
           async () => {
             try {
-              const cacheModule = forChild(httpContext.url)?.cache?.module;
-
               const [
                 { render },
                 { [rootName]: Component, init$: root_init$ },
                 { default: GlobalErrorComponent },
                 { default: ErrorBoundary },
-                { init$: cache_init$ },
+                { dispose$: cache_dispose$, init$: cache_init$ },
               ] = await Promise.all([
                 ssrLoadModule(entryModule),
                 ssrLoadModule(rootModule),
                 ssrLoadModule(globalErrorModule),
                 ssrLoadModule("@lazarv/react-server/error-boundary"),
-                import(
-                  cacheModule
-                    ? pathToFileURL(
-                        __require.resolve(cacheModule, {
-                          paths: [cwd],
-                        })
-                      )
-                    : memoryCacheModule
-                ),
+                ssrLoadModule("@lazarv/react-server/memory-cache"),
               ]);
 
               if (!Component) {
@@ -123,7 +104,10 @@ export default async function ssrHandler(root) {
                 );
               }
 
-              await cache_init$?.();
+              if (!noCache) {
+                await cache_init$?.();
+              }
+              cache_dispose$("request");
 
               const renderContext = createRenderContext(httpContext);
               context$(RENDER_CONTEXT, renderContext);

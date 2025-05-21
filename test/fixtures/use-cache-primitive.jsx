@@ -9,7 +9,7 @@ export default async function App() {
   const { force } = useSearchParams();
 
   if (typeof force !== "undefined") {
-    invalidate(getTime);
+    await invalidate(getTime);
   }
 
   return <div>{getTime()}</div>;

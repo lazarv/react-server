@@ -1,13 +1,4 @@
-import type { ReactServerCache } from "../server/index.d.ts";
-
-export class MemoryCache implements ReactServerCache {
-  get<T = unknown>(keys: string[]): Promise<T | undefined>;
-  set<T = unknown>(keys: string[], value: T): Promise<void>;
-  has(keys: string[]): Promise<boolean>;
-  setExpiry(keys: string[], ttl: number): Promise<void>;
-  hasExpiry(keys: string[], ttl: number): Promise<boolean>;
-  delete(keys: string[]): Promise<void>;
-}
+export type StorageCache = import("./storage-cache").default;
 
 /**
  * Get from cache or set the value in the cache with the given keys for the given time to live.
@@ -40,3 +31,11 @@ export function useCache<T>(
   ttl?: number,
   force?: boolean
 ): Promise<T>;
+
+/**
+ * Invalidate the cache for the given keys.
+ *
+ * @param keys - The keys to invalidate
+ * @returns A promise that resolves when the cache is invalidated
+ */
+export function invalidate(keys: string[]): Promise<void>;

@@ -3,7 +3,6 @@ import {
   logs,
   page,
   server,
-  serverLogs,
   waitForChange,
   waitForConsole,
   waitForHydration,
@@ -160,86 +159,6 @@ test("style assets with base url", async () => {
     () => getComputedStyle(document.body).backgroundColor
   );
   expect(background).toBe("rgb(0, 0, 255)");
-});
-
-test("use cache primitive", async () => {
-  await server("fixtures/use-cache-primitive.jsx");
-  await page.goto(hostname);
-  const time = await page.textContent("body");
-
-  await page.reload();
-  expect(await page.textContent("body")).toBe(time);
-
-  await page.waitForTimeout(500);
-  await page.reload();
-  const newTime = await page.textContent("body");
-  expect(newTime).not.toBe(time);
-
-  await page.reload();
-  expect(await page.textContent("body")).toBe(newTime);
-
-  await page.goto(hostname + "?force=true");
-  expect(await page.textContent("body")).not.toBe(newTime);
-});
-
-test("use cache element", async () => {
-  await server("fixtures/use-cache-element.jsx");
-  await page.goto(hostname);
-  const time = await page.textContent("body");
-
-  await page.reload();
-  expect(await page.textContent("body")).toBe(time);
-});
-
-test("use cache invalidate", async () => {
-  await server("fixtures/use-cache-invalidate.jsx");
-
-  const start = Date.now();
-  await page.goto(hostname);
-
-  const payload = JSON.parse(await page.textContent("pre"));
-  await page.reload();
-  expect(await page.textContent("pre")).toContain(payload.timestamp);
-
-  await waitForChange(
-    () => page.reload(),
-    () => page.textContent("pre")
-  );
-  const end = Date.now();
-  expect(end - start).toBeGreaterThan(5000);
-
-  const newPayload = JSON.parse(await page.textContent("pre"));
-  expect(newPayload).not.toContain(payload.timestamp);
-
-  const button = await page.getByRole("button");
-  await button.click();
-
-  expect(await page.textContent("pre")).not.toContain(payload.timestamp);
-});
-
-test("use cache concurrency", async () => {
-  await server("fixtures/use-cache-concurrency.jsx");
-
-  await Promise.all([
-    fetch(hostname, { headers: { accept: "text/html" } }),
-    fetch(hostname, { headers: { accept: "text/html" } }),
-  ]);
-  expect(JSON.stringify(serverLogs)).toBe(`["getTodos"]`);
-});
-
-test("use cache dynamic", async () => {
-  await server("fixtures/use-cache-dynamic.jsx");
-  await page.goto(hostname + "?id=1");
-  const time = await page.textContent("body");
-
-  await page.reload();
-  expect(await page.textContent("body")).toBe(time);
-
-  await page.goto(hostname + "?id=2");
-  expect(await page.textContent("body")).not.toBe(time);
-
-  await page.goto(hostname + "?id=1");
-  expect(await page.textContent("body")).toBe(time);
 });
 
 test("suspense client", async () => {

@@ -2,8 +2,7 @@ import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { forChild } from "../../config/context.mjs";
-import { init$ as memory_cache_init$ } from "../../memory-cache/index.mjs";
+import { init$ as cache_init$ } from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
@@ -191,6 +190,9 @@ export default async function ssrHandler(root, options = {}) {
   };
 
   return async (httpContext) => {
+    const noCache =
+      httpContext.request.headers.get("cache-control") === "no-cache";
+
     return new Promise((resolve, reject) => {
       try {
         ContextStorage.run(
@@ -217,19 +219,8 @@ export default async function ssrHandler(root, options = {}) {
             [ERROR_BOUNDARY]: ErrorBoundary,
           },
           async () => {
-            const cacheModule = forChild(httpContext.url)?.cache?.module;
-
-            if (cacheModule) {
-              const { init$: cache_init$ } = await import(
-                pathToFileURL(
-                  __require.resolve(cacheModule, {
-                    paths: [cwd],
-                  })
-                )
-              );
+            if (!noCache) {
               await cache_init$?.();
-            } else {
-              await memory_cache_init$?.();
             }
 
             const renderContext = createRenderContext(httpContext);
@@ -252,11 +243,12 @@ export default async function ssrHandler(root, options = {}) {
                   );
                 }
               }
-            } catch {
+            } catch (e) {
               const redirect = getContext(REDIRECT_CONTEXT);
               if (redirect?.response) {
                 return resolve(redirect.response);
               }
+              logger.error(e);
             }
 
             if (renderContext.flags.isUnknown) {

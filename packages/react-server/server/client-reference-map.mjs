@@ -4,7 +4,7 @@ import { MANIFEST } from "@lazarv/react-server/server/symbols.mjs";
 export const clientCache = (globalThis.__react_server_client_components__ =
   globalThis.__react_server_client_components__ || new Map());
 
-export const clientReferenceMap = ({ remote, origin }) =>
+export const clientReferenceMap = ({ remote, origin } = {}) =>
   new Proxy(
     {},
     {
@@ -21,12 +21,12 @@ export const clientReferenceMap = ({ remote, origin }) =>
               async: true,
             };
           } else {
-            const file = Object.values(manifest.browser).find((entry) =>
-              entry.src?.includes(
-                id.replace(/^(?:__\/)+/, (match) =>
-                  match.replace(/__\//g, "../")
-                )
-              )
+            const rawId = id.replace(/^(?:__\/)+/, (match) =>
+              match.replace(/__\//g, "../")
+            );
+            const file = Object.values(manifest.browser).find(
+              (entry) =>
+                entry.src?.includes(rawId) || rawId.includes(entry.file)
             )?.file;
             if (!file) {
               throw new Error(

@@ -11,7 +11,7 @@ import { filesize } from "filesize";
 import colors from "picocolors";
 
 import { forRoot } from "../../config/index.mjs";
-import { MemoryCache } from "../../memory-cache/index.mjs";
+import memoryDriver, { StorageCache } from "../../cache/index.mjs";
 import { getContext } from "../../server/context.mjs";
 import {
   getRuntime,
@@ -74,7 +74,7 @@ export default async function staticSiteGenerator(root, options) {
     runtime$(CONFIG_CONTEXT, config);
 
     const initialRuntime = {
-      [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
+      [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
       [FORM_DATA_PARSER]: parseMultipartFormData,
     };
     runtime$(

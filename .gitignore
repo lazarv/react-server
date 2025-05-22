@@ -2,6 +2,7 @@ node_modules
 .DS_Store
 .react-server
 .react-server-*
+.cache
 .vercel
 *.pem
 *.sqlite

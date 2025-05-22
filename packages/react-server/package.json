@@ -8,58 +8,74 @@
   "bin": "bin/cli.mjs",
   "exports": {
     "./client": {
-      "default": "./client/index.jsx",
-      "types": "./client/index.d.ts"
+      "types": "./client/index.d.ts",
+      "default": "./client/index.jsx"
     },
     "./config": {
-      "default": "./config/index.mjs",
-      "types": "./config/index.d.ts"
+      "types": "./config/index.d.ts",
+      "default": "./config/index.mjs"
     },
     "./error-boundary": {
-      "default": "./server/error-boundary.jsx",
-      "types": "./server/error-boundary.d.ts"
+      "types": "./server/error-boundary.d.ts",
+      "default": "./server/error-boundary.jsx"
+    },
+    "./memory-cache/client": {
+      "types": "./cache/client.d.ts",
+      "default": "./cache/client.mjs"
     },
     "./memory-cache": {
-      "default": "./memory-cache/index.mjs",
-      "types": "./memory-cache/index.d.ts"
+      "types": "./cache/index.d.ts",
+      "default": "./cache/index.mjs"
+    },
+    "./storage-cache": {
+      "types": "./cache/storage-cache.d.ts",
+      "default": "./cache/storage-cache.mjs"
+    },
+    "./storage-cache/crypto": {
+      "default": "./cache/crypto.mjs"
+    },
+    "./rsc": {
+      "types": "./cache/rsc.d.ts",
+      "default": "./cache/rsc.mjs"
     },
     "./navigation": {
-      "default": "./client/navigation.jsx",
-      "types": "./client/navigation.d.ts"
+      "types": "./client/navigation.d.ts",
+      "default": "./client/navigation.jsx"
     },
     "./http-context": {
       "default": "./server/http-context.mjs"
     },
     "./router": {
-      "default": "./server/router.jsx",
-      "types": "./server/router.d.ts"
+      "types": "./server/router.d.ts",
+      "default": "./server/router.jsx"
     },
     "./remote": {
-      "default": "./server/remote.jsx",
-      "types": "./server/remote.d.ts"
+      "types": "./server/remote.d.ts",
+      "default": "./server/remote.jsx"
     },
     "./prerender": {
-      "default": "./server/prerender.jsx",
-      "types": "./server/prerender.d.ts"
+      "types": "./server/prerender.d.ts",
+      "default": "./server/prerender.jsx"
     },
     "./dev": {
-      "default": "./lib/dev/index.mjs",
-      "types": "./lib/dev/index.d.ts"
+      "types": "./lib/dev/index.d.ts",
+      "default": "./lib/dev/index.mjs"
     },
     "./node": {
-      "default": "./lib/start/node.mjs",
-      "types": "./lib/start/node.d.ts"
+      "types": "./lib/start/node.d.ts",
+      "default": "./lib/start/node.mjs"
     },
     "./file-router": {
       "default": "./lib/plugins/file-router/entrypoint.jsx"
     },
+    "./cache/*": "./cache/*",
     "./client/*": "./client/*",
     "./server/*": "./server/*",
     "./lib/*": "./lib/*",
     "./*": "./*",
     ".": {
-      "default": "./server/index.mjs",
-      "types": "./server/index.d.ts"
+      "types": "./server/index.d.ts",
+      "default": "./server/index.mjs"
     }
   },
   "scripts": {},
@@ -73,7 +89,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lazarv/react-server.git"
+    "url": "git+https://github.com/lazarv/react-server.git"
   },
   "bugs": {
     "url": "https://github.com/lazarv/react-server/issues"
@@ -89,6 +105,7 @@
     "@hattip/cors": "^0.0.49",
     "@hattip/headers": "^0.0.49",
     "@hattip/multipart": "^0.0.49",
+    "@hono/node-server": "^1.14.1",
     "@inquirer/prompts": "^7.0.0",
     "@inquirer/search": "^3.0.0",
     "@mdx-js/rollup": "^3.0.1",
@@ -130,7 +147,8 @@
     "semver": "^7.6.3",
     "source-map": "^0.7.4",
     "strip-ansi": "^7.1.0",
-    "style-to-js": "^1.1.12"
+    "style-to-js": "^1.1.12",
+    "unstorage": "^1.16.0"
   },
   "engines": {
     "node": ">=20.10.0"

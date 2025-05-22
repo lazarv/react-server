@@ -42,4 +42,24 @@ export const clientAlias = (dev) => [
         },
       ]
     : []),
+  {
+    find: /^unstorage$/,
+    replacement: dependencies.unstorage,
+    id: "unstorage",
+  },
+  {
+    find: /^unstorage\/drivers\/memory$/,
+    replacement: dependencies.unstorageDriversMemory,
+    id: "unstorage/drivers/memory",
+  },
+  {
+    find: /^unstorage\/drivers\/localstorage$/,
+    replacement: dependencies.unstorageDriversLocalStorage,
+    id: "unstorage/drivers/localstorage",
+  },
+  {
+    find: /^unstorage\/drivers\/session-storage$/,
+    replacement: dependencies.unstorageDriversSessionStorage,
+    id: "unstorage/drivers/session-storage",
+  },
 ];

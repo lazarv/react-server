@@ -62,6 +62,8 @@ export default async function serverBuild(root, options) {
       "react-server-dom-webpack/server.edge",
       "react-is",
       "picocolors",
+      "unstorage",
+      /^unstorage\/drivers\//,
       ...(Array.isArray(config.build?.rollupOptions?.external)
         ? config.build?.rollupOptions?.external
         : []),
@@ -185,7 +187,19 @@ export default async function serverBuild(root, options) {
         },
         {
           find: /^@lazarv\/react-server\/memory-cache$/,
-          replacement: join(sys.rootDir, "memory-cache"),
+          replacement: join(sys.rootDir, "cache/index.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache$/,
+          replacement: join(sys.rootDir, "cache/storage-cache.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+          replacement: sys.normalizePath(join(sys.rootDir, "cache/crypto.mjs")),
+        },
+        {
+          find: /^@lazarv\/react-server\/rsc$/,
+          replacement: sys.normalizePath(join(sys.rootDir, "cache/rsc.mjs")),
         },
         {
           find: /^@lazarv\/react-server\/server\//,
@@ -282,7 +296,11 @@ export default async function serverBuild(root, options) {
           rollupUseClient("server", clientManifest),
           rollupUseServer("rsc", serverManifest),
           rollupUseServerInline(serverManifest),
-          rollupUseCacheInline(config.cache?.profiles),
+          rollupUseCacheInline(
+            config.cache?.profiles,
+            config.cache?.providers,
+            "server"
+          ),
           rootModule(root),
           configPrebuilt(),
           {
@@ -357,11 +375,15 @@ export default async function serverBuild(root, options) {
             find: /^@lazarv\/react-server\/http-context$/,
             replacement: join(sys.rootDir, "server/http-context.mjs"),
           },
+          {
+            find: /^@lazarv\/react-server\/memory-cache$/,
+            replacement: join(sys.rootDir, "cache/client.mjs"),
+          },
           ...viteConfig.resolve.alias.filter(
             (alias) =>
               !alias.replacement.endsWith(
                 "react-server/client/http-context.jsx"
-              )
+              ) && !alias.replacement.endsWith("react-server/cache/index.mjs")
           ),
         ],
       },
@@ -389,6 +411,11 @@ export default async function serverBuild(root, options) {
             rollupUseClient("client", undefined, "pre"),
             rollupUseClient("client"),
             rollupUseServer("ssr"),
+            rollupUseCacheInline(
+              config.cache?.profiles,
+              config.cache?.providers,
+              "client"
+            ),
             ...(config.build?.rollupOptions?.plugins ?? []),
           ],
         },

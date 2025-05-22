@@ -66,6 +66,16 @@ export function moduleAliases(condition) {
     // noop
   }
   const picocolors = normalizePath(__require.resolve("picocolors"));
+  const unstorage = normalizePath(__require.resolve("unstorage"));
+  const unstorageDriversMemory = normalizePath(
+    __require.resolve("unstorage/drivers/memory")
+  );
+  const unstorageDriversLocalStorage = normalizePath(
+    __require.resolve("unstorage/drivers/localstorage")
+  );
+  const unstorageDriversSessionStorage = normalizePath(
+    __require.resolve("unstorage/drivers/session-storage")
+  );
   let vite;
   try {
     vite = normalizePath(__require.resolve("rolldown-vite")).replace(
@@ -86,6 +96,10 @@ export function moduleAliases(condition) {
     "react-server-dom-webpack/server.edge": reactServerDomWebpackServerEdge,
     "react-is": reactIs,
     picocolors,
+    unstorage,
+    "unstorage/drivers/memory": unstorageDriversMemory,
+    "unstorage/drivers/localstorage": unstorageDriversLocalStorage,
+    "unstorage/drivers/session-storage": unstorageDriversSessionStorage,
     vite,
     scheduler,
   };

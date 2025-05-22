@@ -110,7 +110,7 @@ export default async function App() {
     <form
       action={async () => {
         "use server";
-        invalidate(getTodos);
+        await invalidate(getTodos);
       }}
     >
       <button type="submit">Refresh</button>
@@ -119,10 +119,6 @@ export default async function App() {
   );
 }
 ```
-
-You can use both `"use cache"` and `"use server"` directives in the same file as both directives are server-only, but you cannot use the `"use cache"` directive in a client component.
-
-While `invalidate` is an async function to support any cache implementation in the future, the `"use cache"` directive is using the in-memory cache by default right now and so you don't need to await the `invalidate` function as the in-memory cache is synchronous.
 
 Cache profiles are defined in the server configuration. You can specify any number of cache profiles and reference them by name in the `"use cache"` directive. The cache profile can include the `ttl` and `tags` options which will be used when the `"use cache"` directive does not specify them.
 
@@ -149,18 +145,179 @@ async function getTodos() {
 }
 ```
 
-The `"use cache"` directive currently will use the in-memory cache. Custom cache adapters are not yet supported for the `"use cache"` directive.
-
-<Link name="cache-adapters">
-## Cache adapters
+<Link name="cache-providers">
+## Cache providers
 </Link>
 
-You can specify a cache adapter to use instead of the default in-memory cache. The default cache adapter is `@lazarv/react-server/memory-cache`. You can specify a different cache adapter by using the `cache` option in the server configuration. The cache adapter should be a module that exports an `init$` function that returns a cache instance. The cache should implement the `ReactServerCache` interface from `@lazarv/react-server`. The example implementation of a cache adapter is the `@lazarv/react-server/memory-cache` module which you can find at [packages/react-server/memory-cache/index.mjs](https://github.com/lazarv/react-server/blob/main/packages/react-server/memory-cache/index.mjs).
+You can use different cache providers to store the cached data. The default cache provider is an in-memory cache, but you can also use file-based caching or any other custom cache provider.
+
+To use a specific cache provider with the `"use cache"` directive, you can specify provider by using the `"use cache: <provider>;"` syntax. This allows you to use different cache providers for different parts of your application.
+
+```jsx
+async function getTodos() {
+  "use cache: file; tags=todos";
+  const res = await fetch("https://jsonplaceholder.typicode.com/todos");
+  return {
+    timestamp: Date.now(),
+    data: await res.json(),
+  };
+}
+```
+
+`@lazarv/react-server` uses the [Unstorage](https://github.com/unstorage/unstorage) library to provide a unified API for different storage backends. You can use any of the available drivers, such as `fs`, `localStorage`, `memory`, or any custom driver you create.
+
+With cache providers, you can use the `"use cache"` directive even with `"use client"` components. This allows you to cache data on the client side and use it in your client components. You can use the built-in `local` or `session` cache providers to store the cached data in the browser's local storage or session storage, while you can use an existing or implement a new custom cache driver to store the cached data in a different storage backend, like the `indexedb` driver from Unstorage.
+
+To define the cache provider, you can use the `cache.providers` option in the server configuration. The `driver` option specifies the driver using the module path, and the `options` option specifies the options for the driver.
 
 ```mjs
 export default {
   cache: {
-    module: "./src/custom-cache",
+    providers: {
+      file: {
+        driver: "unstorage/drivers/fs",
+        options: {
+          base: ".cache",
+        },
+      }
+    }
   },
 };
 ```
+
+You can also set a special option for your provider, called `type`, to indicate the type of the cache provider. This is useful for `@lazarv/react-server` to know how to handle the cached value. Set `type` to `"raw"` to use `setItemRaw` from Unstorage when storing the cache value. This is useful for caching memory structs, like a React tree, without encoding them to a string when using an in-memory cache driver, like LRU.
+
+```mjs
+export default {
+  cache: {
+    providers: {
+      file: {
+        driver: "unstorage/drivers/lru",
+        options: {
+          type: "raw",
+        },
+      }
+    }
+  },
+};
+```
+
+You can also use the `cache.provider` option to set the default cache provider for the server. This will be used when no specific cache provider is specified in the `"use cache"` directive.
+
+```mjs
+export default {
+  cache: {
+    provider: {
+      default: "unstorage/drivers/lru",
+    },
+  },
+};
+```
+
+You can also specify cache provider aliases in the server configuration. This allows you to route cache requests to different providers based on the alias used in the `"use cache"` directive. You can also override the default cache provider for specific aliases.
+
+```mjs
+export default {
+  cache: {
+    provider: {
+      default: "lru",
+      lru: "unstorage/drivers/lru",
+    },
+  },
+};
+```
+
+Using cache provider aliases allows you to easily switch between different cache providers without changing the code in your application. This allows you to switch between different caching strategies, such as in-memory caching, file-based caching, or any other custom caching solution, without modifying the code that uses the cache, or cache provider configurations using the same storage driver.
+
+```mjs
+export default {
+  cache: {
+    provider: {
+      default: "smallLRU",
+      smallLRU: {
+        driver: "unstorage/drivers/lru",
+        options: {
+          maxSize: 1000, // Set a smaller size for this alias
+          type: "raw",
+        },
+      },
+      largeLRU: {
+        driver: "unstorage/drivers/lru",
+        options: {
+          maxSize: 10000, // Set a larger size for this alias
+          type: "raw",
+        },
+      },
+    },
+  },
+};
+```
+
+<Link name="built-in-cache-providers">
+## Built-in cache providers
+</Link>
+
+`@lazarv/react-server` provides a few built-in cache providers that you can use out of the box without any configuration. These are:
+
+- `memory`: A simple in-memory cache provider. This is the default cache provider.
+- `request`: A cache provider that only lives for the duration of the request. This is useful for caching data that is only needed for the current request.
+- `null`: A cache provider that does not store any data. This is useful for disabling caching in specific parts of your application. Useful with a cache provider alias.
+- `local`: A cache provider that uses the browser's local storage. This is useful for caching data that needs to persist across page reloads.
+- `session`: A cache provider that uses the browser's session storage. This is useful for caching data that needs to persist across page reloads, but only for the current session.
+
+<Link name="rsc-serialization">
+## RSC serialization
+</Link>
+
+Storing a React component with a cache provider which is not an in-memory caching solution needs the component to be serialized. You can use the RSC format to save the component state. To use the RSC serialization in a cache provider, you can set the `type` option to `rsc` in the cache provider configuration. This will use the RSC serialization format when storing the component in the cache.
+
+```mjs
+export default {
+  cache: {
+    providers: {
+      file: {
+        driver: "unstorage/drivers/fs",
+        options: {
+          base: ".cache",
+          type: "rsc",
+        },
+      }
+    }
+  },
+};
+```
+
+You can also specify the encoding for the stored RSC data, which is `base64` by default. You can set any standard Node.js buffer encoding, such as `utf8`, `hex`, or `binary`. This is useful for storing the RSC data in a specific format that is compatible with your storage backend. To specify the encoding, you can set the `type` option to `rsc;<encoding>` or the `encoding` option in the cache provider configuration. You can use the `encoding` option for your cache driver when necessary, by specifying the `encoding` with the `type` option. This is useful for storing your cached data with different encodings when the cache driver supports it's own `encoding` option.
+
+```mjs
+export default {
+  cache: {
+    providers: {
+      file: {
+        driver: "unstorage/drivers/fs",
+        options: {
+          base: ".cache",
+          type: "rsc;utf8",
+          // or
+          type: "rsc",
+          encoding: "utf8",
+        },
+      }
+    }
+  },
+};
+```
+
+The RSC serializer is available for you to use for your own needs. You can use the `@lazarv/react-server/rsc` module to convert a React tree to a buffer or stream and back. The buffer is an `Uint8Array` instance and the stream is a `ReadableStream` instance. You can use the `toBuffer` and `fromBuffer` functions to convert a React tree to a buffer and back, or the `toStream` and `fromStream` functions to convert a React tree to a stream and back.
+
+```jsx
+import { toBuffer, fromBuffer } from "@lazarv/react-server/rsc";
+
+const buffer = await toBuffer(<div>Hello world</div>);
+const tree = await fromBuffer(buffer);
+
+const stream = await toStream(<div>Hello world</div>);
+const tree = await fromStream(stream);
+```
+
+> You can only access RSC serialization in server components for now, but it might be available in the future in a browser environment. Stay tuned for updates!

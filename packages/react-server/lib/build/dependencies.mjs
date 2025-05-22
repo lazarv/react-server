@@ -33,6 +33,16 @@ try {
 } catch {
   // noop
 }
+const unstorage = normalizePath(__require.resolve("unstorage"));
+const unstorageDriversMemory = normalizePath(
+  __require.resolve("unstorage/drivers/memory")
+);
+const unstorageDriversLocalStorage = normalizePath(
+  __require.resolve("unstorage/drivers/localstorage")
+);
+const unstorageDriversSessionStorage = normalizePath(
+  __require.resolve("unstorage/drivers/session-storage")
+);
 
 export {
   react,
@@ -47,4 +57,8 @@ export {
   reactServerDomWebpackServerEdge,
   reactIs,
   scheduler,
+  unstorage,
+  unstorageDriversMemory,
+  unstorageDriversLocalStorage,
+  unstorageDriversSessionStorage,
 };

@@ -121,3 +121,29 @@ export function codegen(ast, id) {
     map: map.toJSON(),
   };
 }
+
+export function toAST(obj) {
+  if (typeof obj !== "object" || obj === null) {
+    return { type: "Literal", value: obj };
+  }
+
+  if (Array.isArray(obj)) {
+    return {
+      type: "ArrayExpression",
+      elements: obj.map((item) => toAST(item)),
+    };
+  }
+
+  return {
+    type: "ObjectExpression",
+    properties: Object.entries(obj).map(([key, value]) => ({
+      type: "Property",
+      kind: "init",
+      key: { type: "Identifier", name: key },
+      value: toAST(value),
+      computed: false,
+      method: false,
+      shorthand: false,
+    })),
+  };
+}

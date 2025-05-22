@@ -13,6 +13,7 @@ import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
+import rollupUseCacheInline from "../plugins/use-cache-inline.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import {
@@ -118,6 +119,22 @@ export default async function clientBuild(_, options) {
             join(sys.rootDir, "client/http-context.jsx")
           ),
         },
+        {
+          find: /^@lazarv\/react-server\/memory-cache$/,
+          replacement: join(sys.rootDir, "cache/client.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "cache/storage-cache.mjs")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "cache/crypto-browser.mjs")
+          ),
+        },
         ...clientAlias(options.dev),
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],
@@ -193,6 +210,11 @@ export default async function clientBuild(_, options) {
           rollupUseClient("client", undefined, "pre"),
           rollupUseClient("client"),
           rollupUseServer("client"),
+          rollupUseCacheInline(
+            config.cache?.profiles,
+            config.cache?.providers,
+            "client"
+          ),
           ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },

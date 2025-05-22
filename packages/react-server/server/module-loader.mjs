@@ -13,12 +13,32 @@ export async function init$(
     return __require(id);
   };
 
-  globalThis.__webpack_require__ = function (id) {
+  globalThis.__webpack_require__ = function (specifier) {
     const moduleCache = moduleCacheStorage.getStore() ?? new Map();
-    if (!moduleCache.has(id)) {
-      if (id.startsWith("server://")) {
+    if (!moduleCache.has(specifier)) {
+      if (/^react-client-reference:/.test(specifier)) {
+        const match = /^react-client-reference:(?<id>.+)::(?<name>.+)$/.exec(
+          specifier
+        );
+        const { id, name } = match?.groups ?? {};
+        if (id && name) {
+          const implementation = function () {
+            throw new Error(
+              `Attempted to call ${id}() from the server but ${id} is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.`
+            );
+          };
+          Object.defineProperties(implementation, {
+            $$typeof: { value: Symbol.for("react.client.reference") },
+            $$id: { value: `${id}#${name}` },
+            $$async: { value: false },
+          });
+          return {
+            [name]: implementation,
+          };
+        }
+      } else if (specifier.startsWith("server://")) {
         const mod = ssrLoadModule(
-          id.replace("server://", ""),
+          specifier.replace("server://", ""),
           linkQueueStorage
         );
         const proxy = new Proxy(mod, {
@@ -38,10 +58,10 @@ export async function init$(
             };
           },
         });
-        moduleCache.set(id, proxy);
+        moduleCache.set(specifier, proxy);
         return proxy;
       } else {
-        const modulePromise = ssrLoadModule(id, linkQueueStorage);
+        const modulePromise = ssrLoadModule(specifier, linkQueueStorage);
         modulePromise.then(
           () => {
             modulePromise.value = modulePromise;
@@ -52,9 +72,9 @@ export async function init$(
             modulePromise.status = "rejected";
           }
         );
-        moduleCache.set(id, modulePromise);
+        moduleCache.set(specifier, modulePromise);
       }
     }
-    return moduleCache.get(id);
+    return moduleCache.get(specifier);
   };
 }

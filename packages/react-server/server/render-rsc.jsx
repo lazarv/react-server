@@ -19,6 +19,7 @@ import {
   ACTION_CONTEXT,
   CACHE_CONTEXT,
   CACHE_MISS,
+  CACHE_RESPONSE_TTL,
   CLIENT_MODULES_CONTEXT,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
@@ -396,13 +397,11 @@ export async function render(Component, props = {}, options = {}) {
         const lastModified = new Date().toUTCString();
         if (renderContext.flags.isRSC && !renderContext.flags.isRemote) {
           if (!noCache && !callServer) {
-            const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
-              context.url,
-              "text/x-component",
-              outlet,
-              FLIGHT_CACHE,
-            ]);
-            if (responseFromCache !== CACHE_MISS) {
+            const responseFromCacheEntries = await getContext(
+              CACHE_CONTEXT
+            )?.get([context.url, "text/x-component", outlet, FLIGHT_CACHE]);
+            if (responseFromCacheEntries !== CACHE_MISS) {
+              const [responseFromCache] = responseFromCacheEntries;
               return resolve(
                 new Response(responseFromCache.buffer, {
                   status: responseFromCache.status,
@@ -507,7 +506,8 @@ export async function render(Component, props = {}, options = {}) {
 
               controller.close();
 
-              if (!hasError) {
+              const ttl = getContext(CACHE_RESPONSE_TTL);
+              if (!hasError && ttl && !noCache) {
                 getContext(CACHE_CONTEXT)?.set(
                   [
                     context.url,
@@ -520,20 +520,19 @@ export async function render(Component, props = {}, options = {}) {
                     ...httpStatus,
                     buffer: concat(payload),
                     headers,
-                  }
+                  },
+                  ttl
                 );
               }
             },
           });
         } else if (renderContext.flags.isHTML || renderContext.flags.isRemote) {
           if (!noCache && !callServer) {
-            const responseFromCache = await getContext(CACHE_CONTEXT)?.get([
-              context.url,
-              "text/html",
-              outlet,
-              HTML_CACHE,
-            ]);
-            if (responseFromCache !== CACHE_MISS) {
+            const responseFromCacheEntries = await getContext(
+              CACHE_CONTEXT
+            )?.get([context.url, "text/html", outlet, HTML_CACHE]);
+            if (responseFromCacheEntries !== CACHE_MISS) {
+              const [responseFromCache] = responseFromCacheEntries;
               const stream = new ReadableStream({
                 type: "bytes",
                 async start(controller) {
@@ -644,20 +643,25 @@ export async function render(Component, props = {}, options = {}) {
                     for await (const chunk of cacheStream) {
                       payload.push(copyBytesFrom(chunk));
                     }
-                    await getContext(CACHE_CONTEXT)?.set(
-                      [
-                        context.url,
-                        "text/html",
-                        outlet,
-                        HTML_CACHE,
-                        lastModified,
-                      ],
-                      {
-                        ...httpStatus,
-                        buffer: concat(payload),
-                        headers,
-                      }
-                    );
+
+                    const ttl = getContext(CACHE_RESPONSE_TTL);
+                    if (ttl && !noCache) {
+                      await getContext(CACHE_CONTEXT)?.set(
+                        [
+                          context.url,
+                          "text/html",
+                          outlet,
+                          HTML_CACHE,
+                          lastModified,
+                        ],
+                        {
+                          ...httpStatus,
+                          buffer: concat(payload),
+                          headers,
+                        },
+                        ttl
+                      );
+                    }
                   }
                 })();
 

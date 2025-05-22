@@ -253,7 +253,9 @@ export default {
 };
 ```
 
+<Link name="built-in-cache-providers">
 ## Built-in cache providers
+</Link>
 
 `@lazarv/react-server` provides a few built-in cache providers that you can use out of the box without any configuration. These are:
 
@@ -263,7 +265,9 @@ export default {
 - `local`: A cache provider that uses the browser's local storage. This is useful for caching data that needs to persist across page reloads.
 - `session`: A cache provider that uses the browser's session storage. This is useful for caching data that needs to persist across page reloads, but only for the current session.
 
+<Link name="rsc-serialization">
 ## RSC serialization
+</Link>
 
 Storing a React component with a cache provider which is not an in-memory caching solution needs the component to be serialized. You can use the RSC format to save the component state. To use the RSC serialization in a cache provider, you can set the `type` option to `rsc` in the cache provider configuration. This will use the RSC serialization format when storing the component in the cache.
 

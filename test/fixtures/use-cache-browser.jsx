@@ -4,22 +4,22 @@ import { use, useState, useEffect } from "react";
 import { ClientOnly } from "@lazarv/react-server/client";
 
 async function getLocalTime() {
-  "use cache: local; ttl=500";
+  "use cache: local; ttl=1000";
   return new Date().toISOString();
 }
 
 async function getSessionTime() {
-  "use cache: session; ttl=1000";
+  "use cache: session; ttl=2000";
   return new Date().toISOString();
 }
 
 async function getIndexedDBTime() {
-  "use cache: indexedb; ttl=1500";
+  "use cache: indexedb; ttl=3000";
   return new Date().toISOString();
 }
 
 async function getLRUTime() {
-  "use cache: lru; ttl=2000";
+  "use cache: lru; ttl=4000";
   return new Date().toISOString();
 }
 

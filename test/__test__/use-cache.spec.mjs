@@ -104,25 +104,25 @@ test("use cache browser", async () => {
     await page.reload();
     nextState = JSON.parse(await page.textContent("pre"));
   }
-  expect(Date.now() - start).toBeGreaterThan(500);
+  expect(Date.now() - start).toBeGreaterThan(1000);
   expect(nextState.session).toEqual(state.session);
 
   while (nextState.session === state.session) {
     await page.reload();
     nextState = JSON.parse(await page.textContent("pre"));
   }
-  expect(Date.now() - start).toBeGreaterThan(1000);
+  expect(Date.now() - start).toBeGreaterThan(2000);
   expect(nextState.indexedb).toEqual(state.indexedb);
 
   while (nextState.indexedb === state.indexedb) {
     await page.reload();
     nextState = JSON.parse(await page.textContent("pre"));
   }
-  expect(Date.now() - start).toBeGreaterThan(1500);
+  expect(Date.now() - start).toBeGreaterThan(3000);
 
   await waitForChange(null, () => page.textContent("pre"));
   const { lru: lru3 } = JSON.parse(await page.textContent("pre"));
-  expect(Date.now() - start).toBeGreaterThan(2000);
+  expect(Date.now() - start).toBeGreaterThan(4000);
   expect(lru3).not.toEqual(lru2);
 });
 

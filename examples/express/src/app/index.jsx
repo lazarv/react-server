@@ -1,6 +1,7 @@
 import { useHttpContext } from "@lazarv/react-server";
 
 import Counter from "./Counter";
+import WebSocket from "./WebSocket";
 
 export default function App() {
   const {
@@ -14,6 +15,7 @@ export default function App() {
         <p>My random number for today is {Math.random()}</p>
         <Counter />
         <p>User: {req?.user?.id}</p>
+        <WebSocket />
       </body>
     </html>
   );

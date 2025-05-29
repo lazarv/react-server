@@ -313,7 +313,7 @@ export async function render(Component, props = {}, options = {}) {
                       <link
                         key={mod}
                         rel="modulepreload"
-                        href={import.meta.env.DEV ? mod : linkHref(mod)}
+                        href={linkHref(mod)}
                       />
                     ))}
                   </>
@@ -322,6 +322,7 @@ export async function render(Component, props = {}, options = {}) {
             : () => null;
         const ComponentWithStyles = (
           <>
+            <link rel="preconnect" href={origin ?? "/"} id="live-io" />
             <Styles />
             <ModulePreloads />
             <Component {...props} />

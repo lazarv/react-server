@@ -1,6 +1,11 @@
+import { createServer } from "node:http";
+
 import express from "express";
+import { Server } from "socket.io";
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
@@ -18,6 +23,17 @@ app.use("/react-server", async (req, res, next) => {
   middlewares(req, res, next);
 });
 
-app.listen(3000, () => {
+io.on("connection", (socket) => {
+  let count = 0;
+  const timer = setInterval(() => {
+    socket.emit("message", `Hello from server (${++count}x)`);
+  }, 200);
+
+  socket.on("disconnect", () => {
+    clearInterval(timer);
+  });
+});
+
+httpServer.listen(3000, () => {
   console.log("Example app listening on port 3000!");
 });

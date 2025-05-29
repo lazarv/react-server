@@ -1,6 +1,7 @@
 import Remote from "http://[::1]:3001" with { type: "remote" };
 import Static from "http://localhost:3002" with { type: "remote" };
 import Streaming from "http://localhost:3003" with { type: "remote" };
+import Live from "http://localhost:3004" with { type: "remote" };
 
 import HostButton from "./HostButton.jsx";
 
@@ -53,6 +54,16 @@ export default function App() {
           >
             <h2>Streaming</h2>
             <Streaming ttl={0} defer />
+          </div>
+          <div
+            style={{
+              margin: 16,
+              padding: 16,
+              border: "dashed 2px #f0f",
+            }}
+          >
+            <h2>Live</h2>
+            <Live ttl={0} defer />
           </div>
         </div>
       </body>

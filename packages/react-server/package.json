@@ -19,6 +19,10 @@
       "types": "./server/error-boundary.d.ts",
       "default": "./server/error-boundary.jsx"
     },
+    "./live": {
+      "types": "./server/live.d.ts",
+      "default": "./server/live.jsx"
+    },
     "./memory-cache/client": {
       "types": "./cache/client.d.ts",
       "default": "./cache/client.mjs"
@@ -145,6 +149,8 @@
     "rolldown-vite": "6.3.5",
     "sass": "^1.86.0",
     "semver": "^7.6.3",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "source-map": "^0.7.4",
     "strip-ansi": "^7.1.0",
     "style-to-js": "^1.1.12",

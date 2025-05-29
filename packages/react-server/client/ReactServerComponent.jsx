@@ -15,7 +15,13 @@ import {
   useClient,
 } from "./context.mjs";
 
-function FlightComponent({ remote = false, defer = false, request, children }) {
+function FlightComponent({
+  remote = false,
+  defer = false,
+  live = false,
+  request,
+  children,
+}) {
   const { url, outlet } = useContext(FlightContext);
   const client = useClient();
   const { registerOutlet, subscribe, getFlightResponse, abort } = client;
@@ -39,7 +45,7 @@ function FlightComponent({ remote = false, defer = false, request, children }) {
 
   useEffect(() => {
     let mounted = true;
-    const unregisterOutlet = registerOutlet(outlet, url);
+    const unregisterOutlet = registerOutlet(outlet, url, live);
     const unsubscribe = subscribe(
       outlet || url,
       async (to, options, callback) => {
@@ -187,15 +193,18 @@ export default function ReactServerComponent({
   remote,
   defer,
   request,
+  live,
   children,
 }) {
   const { navigate, abort } = useClient();
+  const parent = useContext(FlightContext);
 
   return (
     <FlightContext.Provider
       value={{
-        url,
+        url: url || parent.url,
         outlet,
+        live,
         refresh(options = {}) {
           return refresh(outlet, options);
         },
@@ -213,7 +222,12 @@ export default function ReactServerComponent({
         },
       }}
     >
-      <FlightComponent remote={remote} defer={defer} request={request}>
+      <FlightComponent
+        remote={remote}
+        defer={defer}
+        request={request}
+        live={live ? url ?? parent.url ?? true : false}
+      >
         {children}
       </FlightComponent>
     </FlightContext.Provider>

@@ -6,15 +6,11 @@ import { clientReferenceMap } from "../server/client-reference-map.mjs";
 
 export function toBuffer(model) {
   return new Promise(async (resolve, reject) => {
-    const stream = renderToReadableStream(
-      model,
-      {},
-      {
-        onError(error) {
-          reject(error);
-        },
-      }
-    );
+    const stream = renderToReadableStream(model, clientReferenceMap(), {
+      onError(error) {
+        reject(error);
+      },
+    });
 
     const payload = [];
     for await (const chunk of stream) {

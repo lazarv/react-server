@@ -1,0 +1,75 @@
+---
+title: Live Components
+category: Framework
+order: 13
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Live Components
+
+Live Components are a powerful feature of the `@lazarv/react-server` framework that allows you to create interactive components that can update in real-time without requiring a full page reload. This is particularly useful for applications that require dynamic content updates, such as chat applications, dashboards, or collaborative tools.
+
+> **Note:** Live Components are designed to work seamlessly with the `@lazarv/react-server` framework, and they leverage the power of React Server Components to provide a smooth and efficient user experience. However, they are still an experimental feature, and you should use them with caution in production applications.
+
+<Link name="why-live-components">
+## Why Live Components?
+</Link>
+
+Live Components provide several benefits:
+- **Real-time updates:** Live Components can update their state and re-render in response to changes in data, providing a seamless user experience.
+- **Reduced latency:** By avoiding full page reloads, Live Components can deliver updates more quickly, improving the responsiveness of your application.
+- **Improved user experience:** Users can interact with the application without interruptions, leading to a smoother and more engaging experience.
+- **Remote Components:** Live Components can be used in conjunction with Remote Components, allowing you to load and render components from remote sources while still benefiting from real-time updates.
+
+<Link name="how-to-implement-live-components">
+## How to Implement Live Components
+</Link>
+
+To implement Live Components in your application, you can use the `"use live"` directive in your component. This directive enables the component to be live and allows it to update in real-time. You need to implement your component using an async generator function that yields the component's updates as React Server Components. Here's an example of how to create a simple Live Component:
+
+```jsx
+"use live";
+
+export default async function* LiveComponent() {
+  while (true) {
+    yield <div>Current time: {new Date().toLocaleTimeString()}</div>;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+```
+
+The framework will create a special outlet for this component, allowing it to update in real-time. The component will re-render every second, displaying the current time without requiring a full page reload or any user interaction.
+
+You can use Live Components in your application by importing them and rendering them like any other React component:
+
+```jsx
+import LiveComponent from "./LiveComponent";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Live Component Example</h1>
+      <LiveComponent />
+    </div>
+  );
+}
+```
+
+This will render the Live Component on the page, and it will update every second to show the current time.
+
+You can also use Live Components in combination with other features of the `@lazarv/react-server` framework, such as server functions and client components, to create rich, interactive applications that respond to user input and data changes in real-time.
+
+Each Live Component instance is runs in it's own context, so you can have multiple instances of the same Live Component on the same page, each with its own state and updates. This allows you to create complex, interactive UIs that can handle multiple live updates simultaneously.
+
+> **Note:** stay tuned for updates on the Live Components feature, `"use live: broadcast"` is planned to arrive very soon, which will allow you to broadcast updates to multiple Live Components at once, making it easier to manage state and updates across your application.
+
+<Link name="live-io">
+## Live I/O
+</Link>
+
+Live Components are using [socket.io](https://socket.io/) under the hood to establish a WebSocket connection between the server and the client. This allows the server to push updates to the client in real-time, enabling the Live Components to update without requiring a full page reload.
+
+When you use the `"use live"` directive, the framework automatically sets up the necessary WebSocket connection and manages the communication between the server and the client. This means you can focus on building your Live Components without worrying about the underlying implementation details.
+
+> **Note:** Live Components are built on top of WebSockets, but in the future, the framework may support other protocols for real-time communication, such as Server-Sent Events (SSE) or HTTP/2 push. This will allow you to choose the best protocol for your application's needs and ensure optimal performance and compatibility across different browsers and devices.

@@ -45,6 +45,7 @@ import aliasPlugin from "../plugins/alias.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
 import importRemote from "../plugins/import-remote.mjs";
+import reactServerLive from "../plugins/live.mjs";
 import optimizeDeps from "../plugins/optimize-deps.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
@@ -171,6 +172,7 @@ export default async function createServer(root, options) {
       ...filterOutVitePluginReact(config.plugins),
       asset(),
       optimizeDeps(),
+      reactServerLive(options.httpServer, config),
     ],
     cacheDir:
       config.cacheDir || join(cwd, "node_modules", options.outDir, ".cache"),
@@ -402,7 +404,7 @@ export default async function createServer(root, options) {
       }
 
       const cache = getRuntime(MEMORY_CACHE_CONTEXT);
-      if (await cache.has([data.triggeredBy])) {
+      if (await cache?.has([data.triggeredBy])) {
         viteDevServer.environments.rsc.logger.info(
           `${colors.green("invalidate cache")} ${colors.gray(
             relative(cwd, data.triggeredBy)

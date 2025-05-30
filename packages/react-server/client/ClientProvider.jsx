@@ -18,10 +18,101 @@ const outlets = new Map();
 const outletAbortControllers = new Map();
 const prefetching = new Map();
 const flightCache = new Map();
+const liveOutlets = new Set();
+const liveIO = new Map();
 
-const registerOutlet = (outlet, url) => {
+const connectLiveIO = async (origin) => {
+  if (!liveIO.has(origin)) {
+    liveIO.set(
+      origin,
+      new Promise(async (resolve, reject) => {
+        try {
+          const href = document
+            .querySelector("link[rel='preconnect'][id='live-io']")
+            ?.getAttribute("href");
+
+          if (!href && !origin) {
+            throw new Error(
+              "Live IO URL not found. Ensure <link rel='preconnect' id='live-io'> is set."
+            );
+          }
+
+          const { io } = await import("socket.io-client");
+          resolve({ io, url: new URL(origin ?? href, location) });
+        } catch (error) {
+          reject(error);
+        }
+      })
+    );
+  }
+  return liveIO.get(origin);
+};
+
+const registerOutlet = (outlet, url, live = false) => {
   outlets.set(outlet, url);
-  return () => outlets.delete(outlet);
+  if (live) {
+    liveOutlets.add(outlet);
+    connectLiveIO(typeof live === "string" ? live : url.origin).then(
+      async ({ io, url }) => {
+        const socket = io(new URL(`/${outlet}`, url).href, {
+          withCredentials: true,
+        });
+
+        const updateOutlet = (component) => {
+          cache.set(outlet || url, component);
+          emit(outlet, location.href, { fromCache: true }, (err) => {
+            if (!err) {
+              activeChunk.set(outlet, cache.get(outlet));
+            }
+          });
+        };
+
+        socket.on("live:end", () => {
+          socket.disconnect();
+        });
+
+        socket.on("live:buffer", (data) => {
+          const component = createFromReadableStream(
+            new ReadableStream({
+              type: "bytes",
+              start(controller) {
+                controller.enqueue(new Uint8Array(data));
+                controller.close();
+              },
+            })
+          );
+          updateOutlet(component);
+        });
+
+        let controller;
+        socket.on("live:stream", ({ done, value }) => {
+          if (!controller) {
+            const component = createFromReadableStream(
+              new ReadableStream({
+                type: "bytes",
+                start(_controller) {
+                  controller = _controller;
+                },
+              })
+            );
+            updateOutlet(component);
+          }
+
+          if (value) {
+            controller.enqueue(new Uint8Array(value));
+          }
+          if (done) {
+            controller.close();
+            controller = null;
+          }
+        });
+      }
+    );
+  }
+  return () => {
+    outlets.delete(outlet);
+    liveOutlets.delete(outlet);
+  };
 };
 
 const subscribe = (url, listener) => {

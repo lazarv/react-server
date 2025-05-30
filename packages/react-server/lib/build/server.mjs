@@ -13,6 +13,7 @@ import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
+import reactServerLive from "../plugins/live.mjs";
 import rootModule from "../plugins/root-module.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
@@ -186,6 +187,10 @@ export default async function serverBuild(root, options) {
           replacement: join(sys.rootDir, "server/http-context.mjs"),
         },
         {
+          find: /^@lazarv\/react-server\/live$/,
+          replacement: sys.normalizePath(join(sys.rootDir, "server/live.jsx")),
+        },
+        {
           find: /^@lazarv\/react-server\/memory-cache$/,
           replacement: join(sys.rootDir, "cache/index.mjs"),
         },
@@ -326,6 +331,7 @@ export default async function serverBuild(root, options) {
       reactServerEval(options),
       ...buildPlugins,
       fixEsbuildOptionsPlugin(),
+      reactServerLive(),
     ],
     css: {
       ...config.css,

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Worker } from "node:worker_threads";
 
@@ -6,14 +7,18 @@ import { compose } from "@hattip/compose";
 import { cookie } from "@hattip/cookie";
 import { cors } from "@hattip/cors";
 import { parseMultipartFormData } from "@hattip/multipart";
+import { Server } from "socket.io";
 
 import memoryDriver, { StorageCache } from "../../cache/index.mjs";
+import { getContext } from "../../server/context.mjs";
 import { PrerenderStorage } from "../../server/prerender-storage.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   FORM_DATA_PARSER,
+  HTTP_CONTEXT,
+  LIVE_IO,
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
@@ -97,31 +102,78 @@ export default async function createServer(root, options) {
     }
   );
 
+  let server;
+  let httpServer = options.httpServer;
   if (options.middlewareMode) {
-    return { middlewares };
-  }
-
-  const httpsOptions = config.server?.https ?? options.https;
-  if (!httpsOptions) {
-    const { createServer } = await import("node:http");
-    return createServer(middlewares);
-  }
-
-  // fallback to http1 when proxy is needed.
-  if (config.server?.proxy) {
-    const { createServer } = await import("node:https");
-    return createServer(httpsOptions, middlewares);
+    server = { middlewares };
   } else {
-    const { createSecureServer } = await import("node:http2");
-    return createSecureServer(
-      {
-        // Manually increase the session memory to prevent 502 ENHANCE_YOUR_CALM
-        // errors on large numbers of requests
-        maxSessionMemory: 1000,
-        ...httpsOptions,
-        allowHTTP1: true,
-      },
-      middlewares
-    );
+    const httpsOptions = config.server?.https ?? options.https;
+    if (!httpsOptions) {
+      const { createServer } = await import("node:http");
+      server = httpServer = createServer(middlewares);
+    } else {
+      // fallback to http1 when proxy is needed.
+      if (config.server?.proxy) {
+        const { createServer } = await import("node:https");
+        server = httpServer = createServer(httpsOptions, middlewares);
+      } else {
+        const { createSecureServer } = await import("node:http2");
+        server = httpServer = createSecureServer(
+          {
+            // Manually increase the session memory to prevent 502 ENHANCE_YOUR_CALM
+            // errors on large numbers of requests
+            maxSessionMemory: 1000,
+            ...httpsOptions,
+            allowHTTP1: true,
+          },
+          middlewares
+        );
+      }
+    }
   }
+
+  if (
+    httpServer &&
+    existsSync(join(cwd, options.outDir, "server/live-io.manifest.json"))
+  ) {
+    const corsConfig = getServerCors(config);
+    const io = new Server(httpServer, {
+      cors: {
+        ...corsConfig,
+        origin:
+          typeof corsConfig.origin === "function"
+            ? (origin, callback) => {
+                callback(
+                  null,
+                  corsConfig.origin(
+                    getContext(HTTP_CONTEXT) ?? {
+                      request: { headers: { get: () => origin } },
+                    }
+                  )
+                );
+              }
+            : cors.origin,
+      },
+    });
+    runtime$(LIVE_IO, {
+      io,
+      httpServer,
+      connections: new Set(),
+    });
+
+    io.on("connection", async (socket) => {
+      const connections = getRuntime(LIVE_IO)?.connections ?? new Set();
+      connections.add(socket);
+
+      socket.on("disconnect", () => {
+        connections.delete(socket);
+      });
+    });
+
+    httpServer.on("close", () => {
+      io.close();
+    });
+  }
+
+  return server;
 }

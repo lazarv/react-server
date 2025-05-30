@@ -67,6 +67,10 @@ const registerOutlet = (outlet, url, live = false) => {
           });
         };
 
+        socket.on("live:end", () => {
+          socket.disconnect();
+        });
+
         socket.on("live:buffer", (data) => {
           const component = createFromReadableStream(
             new ReadableStream({

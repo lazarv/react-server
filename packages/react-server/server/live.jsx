@@ -102,6 +102,19 @@ export async function runLiveComponent(
     try {
       const logger = createLogger(getContext(LOGGER_CONTEXT));
       const abortController = new AbortController();
+      let aborted = false;
+
+      const handleAbort = () => {
+        if (!aborted) {
+          aborted = true;
+          abortController.signal.removeEventListener("abort", handleAbort);
+        }
+      };
+
+      abortController.signal.addEventListener("abort", handleAbort, {
+        once: true,
+      });
+
       return AbortControllerStorage.run(abortController, async () => {
         try {
           logger.starting(specifier);
@@ -127,27 +140,20 @@ export async function runLiveComponent(
               });
 
               const cleanupController = new AbortController();
-              const abortPromise = new Promise((_, reject) => {
-                abortController.signal.addEventListener(
-                  "abort",
-                  () => {
-                    reject(new Error("LIVE_COMPONENT_ABORTED"));
-                  },
-                  { once: true, signal: cleanupController.signal }
-                );
-              });
-
-              while (true) {
-                try {
-                  const { value, done } = await Promise.race([
-                    worker.next(),
-                    abortPromise,
-                  ]);
+              try {
+                while (true) {
+                  const { value, done } = await worker.next();
+                  if (aborted) {
+                    throw new Error("LIVE_COMPONENT_ABORTED");
+                  }
                   if (value) {
                     if (streaming) {
                       const stream = await toStream(value);
                       const reader = stream.getReader();
                       while (true) {
+                        if (aborted) {
+                          throw new Error("LIVE_COMPONENT_ABORTED");
+                        }
                         const { done, value } = await reader.read();
                         namespace.emit("live:stream", { done, value });
                         if (done) {
@@ -164,20 +170,20 @@ export async function runLiveComponent(
                     cleanupController.abort();
                     break;
                   }
-                } catch (error) {
-                  if (
-                    error instanceof Error &&
-                    error.message === "LIVE_COMPONENT_ABORTED"
-                  ) {
-                    logger.aborted(specifier);
-                  } else {
-                    logger?.error(error);
-                  }
-                  break;
+                }
+              } catch (error) {
+                if (
+                  error instanceof Error &&
+                  error.message === "LIVE_COMPONENT_ABORTED"
+                ) {
+                  logger.aborted(specifier);
+                } else {
+                  logger.error(error);
                 }
               }
 
               namespace.off("connection", process);
+              namespace.emit("live:end");
             };
 
             namespace.on("connection", process);

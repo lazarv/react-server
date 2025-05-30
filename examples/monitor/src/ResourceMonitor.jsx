@@ -37,13 +37,13 @@ export default async function* ResourceMonitor() {
   while (true) {
     yield (
       <svg
-        width={width}
+        width={width + 20}
         height={height + 20}
         viewBox={`0 0 ${width} ${height + 20}`}
         style={{
           background: "#111",
-          width: `${width * 2}px`,
-          height: `${height * 2}px`,
+          width: `100%`,
+          height: `auto`,
         }}
       >
         {[0, 25, 50, 75, 100].map((yVal) => {

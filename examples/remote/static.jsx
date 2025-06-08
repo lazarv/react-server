@@ -1,10 +1,14 @@
-export default function StaticRemote() {
+export default function StaticRemote({ children }) {
   return (
-    <p>
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed nonne
-      merninisti licere mihi ista probare, quae sunt a te dicta? Duo Reges:
-      constructio interrete. Quae cum dixisset paulumque institisset, Quid est?
-      Quae cum essent dicta, discessimus. Quae cum essent dicta, discessimus.
-    </p>
+    <>
+      <p>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed nonne
+        merninisti licere mihi ista probare, quae sunt a te dicta? Duo Reges:
+        constructio interrete. Quae cum dixisset paulumque institisset, Quid
+        est? Quae cum essent dicta, discessimus. Quae cum essent dicta,
+        discessimus.
+      </p>
+      {children}
+    </>
   );
 }

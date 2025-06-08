@@ -29,11 +29,11 @@ export default function Link({
   ...props
 }) {
   const { prefetch, navigate } = useClient();
-  const { outlet } = useContext(FlightContext);
+  const { outlet, url } = useContext(FlightContext);
 
   const tryNavigate = useCallback(async () => {
     try {
-      await navigate(to, {
+      await navigate(url ? new URL(to, url).href : to, {
         outlet: target || (local ? outlet : root ? "PAGE_ROOT" : undefined),
         push:
           (replace ? false : push) ??

@@ -1,4 +1,8 @@
-import { createFromFetch } from "react-server-dom-webpack/client.edge";
+import {
+  createFromFetch,
+  createTemporaryReferenceSet,
+  encodeReply,
+} from "react-server-dom-webpack/client.edge";
 
 import { useCache } from "@lazarv/react-server/memory-cache";
 import { ReactServerComponent } from "@lazarv/react-server/navigation";
@@ -14,6 +18,7 @@ async function RemoteComponentLoader({
   request = {},
   defer,
   onError,
+  remoteProps = {},
 }) {
   const Component = await useCache(
     [url],
@@ -24,6 +29,10 @@ async function RemoteComponentLoader({
           /\/+/g,
           "/"
         );
+      const temporaryReferences = createTemporaryReferenceSet();
+      const body = await encodeReply(remoteProps, {
+        temporaryReferences,
+      });
       return createFromFetch(
         fetch(src.toString(), {
           ...request,
@@ -36,11 +45,14 @@ async function RemoteComponentLoader({
                 }
               : {}),
           },
+          body,
+          method: "POST",
         }).catch((e) => {
           (onError ?? getContext(LOGGER_CONTEXT)?.error)?.(e);
           throw e;
         }),
         {
+          temporaryReferences,
           serverConsumerManifest: {
             moduleMap: new Proxy(
               {},
@@ -101,6 +113,7 @@ export default async function RemoteComponent({
   defer,
   request,
   onError,
+  ...props
 }) {
   const url = useUrl();
   const remoteUrl = new URL(src, url);
@@ -165,6 +178,7 @@ export default async function RemoteComponent({
         url={remoteUrlString}
         outlet={remoteUrlString.replace(/[^a-zA-Z0-9_]/g, "_")}
         request={request}
+        remoteProps={props}
       >
         <RemoteComponentLoader
           url={remoteUrl}
@@ -172,6 +186,7 @@ export default async function RemoteComponent({
           request={request}
           defer={defer}
           onError={onError}
+          remoteProps={props}
         />
       </ReactServerComponent>
     </>

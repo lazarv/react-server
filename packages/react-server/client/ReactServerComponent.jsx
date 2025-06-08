@@ -20,11 +20,20 @@ function FlightComponent({
   defer = false,
   live = false,
   request,
+  remoteProps = {},
   children,
 }) {
   const { url, outlet } = useContext(FlightContext);
   const client = useClient();
-  const { registerOutlet, subscribe, getFlightResponse, abort } = client;
+  const {
+    registerOutlet,
+    subscribe,
+    getFlightResponse,
+    abort,
+    createRemoteTemporaryReferenceSet,
+    createTemporaryReferenceSet,
+    encodeReply,
+  } = client;
   const [{ resourceKey, error, Component }, setComponent] = useState({
     resourceKey: 0,
     error: null,
@@ -34,6 +43,10 @@ function FlightComponent({
         ? getFlightResponse?.(url, {
             outlet,
             remote,
+            remoteProps,
+            temporaryReferences: remoteProps
+              ? createRemoteTemporaryReferenceSet(remoteProps)
+              : null,
             defer,
             request,
           })
@@ -45,7 +58,14 @@ function FlightComponent({
 
   useEffect(() => {
     let mounted = true;
-    const unregisterOutlet = registerOutlet(outlet, url, live);
+    const unregisterOutlet = registerOutlet(
+      outlet,
+      url,
+      remote,
+      remoteProps,
+      defer,
+      live
+    );
     const unsubscribe = subscribe(
       outlet || url,
       async (to, options, callback) => {
@@ -67,6 +87,14 @@ function FlightComponent({
         }
 
         let componentResolve, componentReject;
+        let body, temporaryReferences;
+        if (remoteProps) {
+          temporaryReferences = createTemporaryReferenceSet();
+          body = await encodeReply(remoteProps, {
+            temporaryReferences,
+          });
+        }
+
         const componentPromise = new Promise((resolve, reject) => {
           componentResolve = resolve;
           componentReject = reject;
@@ -76,6 +104,9 @@ function FlightComponent({
           ...options,
           outlet,
           remote,
+          remoteProps,
+          temporaryReferences,
+          body,
           request,
           onReady: options.callServer ? undefined : componentResolve,
           onAbort: options.callServer ? undefined : componentReject,
@@ -131,24 +162,38 @@ function FlightComponent({
 
   useEffect(() => {
     if (remote || defer) {
-      getFlightResponse(url, {
-        outlet,
-        remote,
-        defer,
-        request,
-        fromScript: defer ? false : true,
-        onReady: (nextComponent) => {
-          if (nextComponent) {
-            startTransition(() =>
-              setComponent((prev) => ({
-                ...prev,
-                resourceKey: prev.resourceKey + 1,
-                error: errorRef.current,
-                Component: nextComponent,
-              }))
-            );
-          }
-        },
+      (remoteProps
+        ? (async () => {
+            const temporaryReferences = createTemporaryReferenceSet();
+            const body = await encodeReply(remoteProps, {
+              temporaryReferences,
+            });
+            return { temporaryReferences, body };
+          })()
+        : Promise.resolve({})
+      ).then(({ temporaryReferences, body }) => {
+        getFlightResponse(url, {
+          outlet,
+          remote,
+          remoteProps,
+          temporaryReferences,
+          body,
+          defer,
+          request,
+          fromScript: defer ? false : true,
+          onReady: (nextComponent) => {
+            if (nextComponent) {
+              startTransition(() =>
+                setComponent((prev) => ({
+                  ...prev,
+                  resourceKey: prev.resourceKey + 1,
+                  error: errorRef.current,
+                  Component: nextComponent,
+                }))
+              );
+            }
+          },
+        });
       });
     }
   }, [url, outlet, remote, defer, request, getFlightResponse]);
@@ -194,6 +239,7 @@ export default function ReactServerComponent({
   defer,
   request,
   live,
+  remoteProps = {},
   children,
 }) {
   const { navigate, abort } = useClient();
@@ -226,6 +272,7 @@ export default function ReactServerComponent({
         remote={remote}
         defer={defer}
         request={request}
+        remoteProps={remoteProps}
         live={live ? url ?? parent.url ?? true : false}
       >
         {children}

@@ -28,7 +28,7 @@ export default function rootModule(root) {
               (node) =>
                 node.type === "ExportNamedDeclaration" && node.declaration
             )
-            .map((node) => node.declaration.id.name);
+            .map((node) => node.declaration.id?.name);
           const allExports = ast.body
             .filter(
               (node) =>

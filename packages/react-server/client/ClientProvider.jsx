@@ -1,6 +1,7 @@
 import {
   createFromReadableStream,
   encodeReply,
+  createTemporaryReferenceSet,
 } from "react-server-dom-webpack/client.browser";
 
 import {
@@ -20,6 +21,7 @@ const prefetching = new Map();
 const flightCache = new Map();
 const liveOutlets = new Set();
 const liveIO = new Map();
+const outletTemporaryReferences = new Map();
 
 const connectLiveIO = async (origin) => {
   if (!liveIO.has(origin)) {
@@ -48,7 +50,14 @@ const connectLiveIO = async (origin) => {
   return liveIO.get(origin);
 };
 
-const registerOutlet = (outlet, url, live = false) => {
+const registerOutlet = (
+  outlet,
+  url,
+  remote,
+  remoteProps,
+  defer,
+  live = false
+) => {
   outlets.set(outlet, url);
   if (live) {
     liveOutlets.add(outlet);
@@ -79,6 +88,13 @@ const registerOutlet = (outlet, url, live = false) => {
                 controller.enqueue(new Uint8Array(data));
                 controller.close();
               },
+            }),
+            streamOptions({
+              outlet,
+              remote,
+              remoteProps,
+              temporaryReferences: outletTemporaryReferences.get(outlet),
+              defer,
             })
           );
           updateOutlet(component);
@@ -93,6 +109,13 @@ const registerOutlet = (outlet, url, live = false) => {
                 start(_controller) {
                   controller = _controller;
                 },
+              }),
+              streamOptions({
+                outlet,
+                remote,
+                remoteProps,
+                temporaryReferences: outletTemporaryReferences.get(outlet),
+                defer,
               })
             );
             updateOutlet(component);
@@ -112,6 +135,7 @@ const registerOutlet = (outlet, url, live = false) => {
   return () => {
     outlets.delete(outlet);
     liveOutlets.delete(outlet);
+    outletTemporaryReferences.delete(outlet);
   };
 };
 
@@ -125,8 +149,8 @@ const subscribe = (url, listener) => {
 };
 
 const emit = (url, to = url, options = {}, callback = () => {}) => {
-  if (!listeners.has(url)) return callback();
-  const urlListeners = listeners.get(url);
+  if (!listeners.has(url) && !listeners.has(to)) return callback();
+  const urlListeners = listeners.get(to) || listeners.get(url);
   for (const listener of urlListeners) listener(to, options, callback);
 };
 
@@ -402,80 +426,114 @@ window.addEventListener("popstate", () => {
   }
 });
 
-export const streamOptions = (outlet, remote, defer) => ({
-  findSourceMapURL: import.meta.env.DEV
-    ? (filename, environment) =>
-        new URL(
-          `/__react_server_source_map__?filename=${new URL(filename, location).pathname}&environment=${environment}`,
-          location
-        ).href
-    : null,
-  async callServer(id, args) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const formData = await encodeReply(args);
-        const url = outlet || PAGE_ROOT;
+function createRemoteTemporaryReferenceSet(remoteProps) {
+  const temporaryReferences = createTemporaryReferenceSet();
+  encodeReply(remoteProps, {
+    temporaryReferences,
+  });
+  return temporaryReferences;
+}
 
-        let target = outlet;
-        cache.delete(url);
-        cache.delete(target);
-        getFlightResponse(outlets.get(target) || url, {
-          method: "POST",
-          body: formData,
-          outlet: target,
-          remote,
-          defer,
-          callServer: id || true,
-          onFetch: (res) => {
-            const callServer =
-              typeof res.headers.get("React-Server-Data") === "string"
-                ? id || true
-                : false;
-            emit(target, url, { callServer }, async (err, result) => {
-              if (err) reject(err);
-              else {
-                if (!callServer) {
-                  const url = res.headers.get("React-Server-Render");
-                  const outlet = res.headers.get("React-Server-Outlet");
-
-                  if (url && outlet) {
-                    cache.set(outlet, await result);
-                    emit(outlet, url, {});
-                  }
-
-                  return resolve();
+export const streamOptions = ({
+  outlet,
+  remote,
+  remoteProps,
+  temporaryReferences,
+  defer,
+}) => {
+  if (!temporaryReferences) {
+    temporaryReferences = createRemoteTemporaryReferenceSet(remoteProps);
+  }
+  outletTemporaryReferences.set(outlet, temporaryReferences);
+  return {
+    temporaryReferences,
+    findSourceMapURL: import.meta.env.DEV
+      ? (filename, environment) =>
+          new URL(
+            `/__react_server_source_map__?filename=${new URL(filename, location).pathname}&environment=${environment}`,
+            location
+          ).href
+      : null,
+    async callServer(id, args) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const temporaryReferences = createTemporaryReferenceSet();
+          const remotePropsBody = await encodeReply(remoteProps, {
+            temporaryReferences,
+          });
+          const formData = await encodeReply(
+            remoteProps
+              ? {
+                  __react_server_function_args__: args,
+                  __react_server_remote_props__: remotePropsBody,
                 }
-                const rsc = await result;
-                try {
-                  const value = await rsc.at(-1);
-                  resolve(value);
+              : args
+          );
+          const url = outlet || PAGE_ROOT;
 
-                  const url = res.headers.get("React-Server-Render");
-                  const outlet = res.headers.get("React-Server-Outlet");
+          let target = outlet;
+          cache.delete(url);
+          cache.delete(target);
+          getFlightResponse(outlets.get(target) || url, {
+            method: "POST",
+            body: formData,
+            outlet: target,
+            remote,
+            remoteProps,
+            temporaryReferences,
+            defer,
+            callServer: id || true,
+            onFetch: (res) => {
+              const callServer =
+                typeof res.headers.get("React-Server-Data") === "string"
+                  ? id || true
+                  : false;
+              emit(target, url, { callServer }, async (err, result) => {
+                if (err) reject(err);
+                else {
+                  if (!callServer) {
+                    const url = res.headers.get("React-Server-Render");
+                    const outlet = res.headers.get("React-Server-Outlet");
 
-                  if (url && outlet) {
-                    cache.set(outlet, rsc.slice(0, -1));
-                    emit(outlet, url, {});
+                    if (url && outlet) {
+                      cache.set(outlet, await result);
+                      emit(outlet, url, {});
+                    }
+
+                    return resolve();
                   }
-                } catch (e) {
-                  reject(e);
+                  const rsc = await result;
+                  try {
+                    const value = await rsc.at(-1);
+                    resolve(value);
+
+                    const url = res.headers.get("React-Server-Render");
+                    const outlet = res.headers.get("React-Server-Outlet");
+
+                    if (url && outlet) {
+                      cache.set(outlet, rsc.slice(0, -1));
+                      emit(outlet, url, {});
+                    }
+                  } catch (e) {
+                    reject(e);
+                  }
                 }
-              }
-            });
-          },
-          onError: (err) => {
-            reject(err);
-          },
-          headers: {
-            "React-Server-Action": encodeURIComponent(id),
-          },
-        });
-      } catch (e) {
-        reject(e);
-      }
-    });
-  },
-});
+              });
+            },
+            onError: (err) => {
+              reject(err);
+            },
+            headers: {
+              "React-Server-Action": encodeURIComponent(id),
+            },
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    },
+  };
+};
 
 const abort = (outlet = PAGE_ROOT, reason, prefetch) => {
   if (
@@ -528,7 +586,13 @@ function getFlightResponse(url, options = {}) {
         options.outlet || url,
         createFromReadableStream(
           from,
-          streamOptions(options.outlet || url, options.remote)
+          streamOptions({
+            outlet: options.outlet || url,
+            remote: options.remote,
+            remoteProps: options.remoteProps,
+            temporaryReferences: options.temporaryReferences,
+            defer: options.defer,
+          })
         )
       );
 
@@ -595,7 +659,7 @@ function getFlightResponse(url, options = {}) {
             try {
               response = await fetch(srcString, {
                 ...options.request,
-                method: options.method,
+                method: options.method ?? (options.body ? "POST" : "GET"),
                 body: options.body,
                 headers: {
                   ...options.request?.headers,
@@ -668,7 +732,13 @@ function getFlightResponse(url, options = {}) {
             }
           },
         }),
-        streamOptions(options.outlet || url, options.remote, options.defer)
+        streamOptions({
+          outlet: options.outlet || url,
+          remote: options.remote,
+          remoteProps: options.remoteProps,
+          temporaryReferences: options.temporaryReferences,
+          defer: options.defer,
+        })
       );
       cache.set(options.outlet || url, component);
     }
@@ -697,6 +767,9 @@ export default function ClientProvider({ children }) {
         invalidate,
         abort,
         getFlightResponse,
+        createRemoteTemporaryReferenceSet,
+        createTemporaryReferenceSet,
+        encodeReply,
         state: {
           activeChunk,
           cache,

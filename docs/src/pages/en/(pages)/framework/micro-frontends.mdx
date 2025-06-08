@@ -79,6 +79,25 @@ export default function Home() {
 }
 ```
 
+Remote components support passing props to the remote micro-frontend application. You can pass props to the `RemoteComponent` just like you would with any other React component. The props will be passed to the micro-frontend and can be used in the micro-frontend's components. Passing props includes passing child components as well, so you can compose your micro-frontend with other components in your hosting application.
+
+```jsx
+import RemoteComponent from "@lazarv/react-server/remote";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Hosting application</h1>
+      <RemoteComponent src="http://localhost:3001" message="Hello from the hosting application!">
+        <p>This is a child component passed to the micro-frontend.</p>
+      </RemoteComponent>
+    </div>
+  );
+}
+```
+
+> **Note:** only serializable props can be passed to the micro-frontend application. This means that you can pass all props which could also be passed to React client components.
+
 It's also possible to use the `ReactServerComponent` component with the `url` and `defer` props to load a micro-frontend from a remote URL. This component is similar to the `RemoteComponent` component, but it only renders the micro-frontend on the client side. This is very similar to how Astro server islands work with the `server:defer` attribute. Learn how [outlets](/router/client-navigation#outlet) work in the router section of the documentation about client-side navigation.
 
 ```jsx

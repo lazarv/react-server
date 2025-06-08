@@ -1,6 +1,9 @@
 import { ReadableStream } from "node:stream/web";
 
-import server from "react-server-dom-webpack/server.edge";
+import server, {
+  createTemporaryReferenceSet,
+  decodeReply,
+} from "react-server-dom-webpack/server.edge";
 
 import {
   concat,
@@ -42,6 +45,7 @@ import {
   RELOAD,
   RENDER_CONTEXT,
   RENDER_STREAM,
+  RENDER_TEMPORARY_REFERENCES,
   RENDER_WAIT,
   STYLES_CONTEXT,
   SERVER_FUNCTION_NOT_FOUND,
@@ -81,6 +85,7 @@ export async function render(Component, props = {}, options = {}) {
         const renderContext = getContext(RENDER_CONTEXT);
         const remote = renderContext.flags.isRemote;
         const outlet = useOutlet();
+        let body = "";
         let serverFunctionResult,
           callServer,
           callServerHeaders,
@@ -145,6 +150,11 @@ export async function render(Component, props = {}, options = {}) {
               await context.request.text(),
               serverReferenceMap
             );
+          }
+
+          if ("__react_server_function_args__" in input) {
+            body = input["__react_server_remote_props__"];
+            input = input["__react_server_function_args__"] ?? [];
           }
 
           if (serverActionHeader && serverActionHeader !== "null") {
@@ -243,6 +253,26 @@ export async function render(Component, props = {}, options = {}) {
           });
         }
 
+        const temporaryReferences = createTemporaryReferenceSet();
+        context$(RENDER_TEMPORARY_REFERENCES, temporaryReferences);
+
+        if (
+          context.request.body &&
+          context.request.body instanceof ReadableStream &&
+          !context.request.body.locked
+        ) {
+          const decoder = new TextDecoder();
+          for await (const chunk of context.request.body) {
+            body += decoder.decode(chunk);
+          }
+          body = body || "{}";
+        }
+        if (body) {
+          const remoteProps = await decodeReply(body, serverReferenceMap, {
+            temporaryReferences,
+          });
+          Object.assign(props, remoteProps);
+        }
         const ifModifiedSince =
           context.request.headers.get("if-modified-since");
         const noCache =
@@ -438,6 +468,7 @@ export async function render(Component, props = {}, options = {}) {
                 app,
                 clientReferenceMap({ remote, origin }),
                 {
+                  temporaryReferences,
                   onError(e) {
                     hasError = true;
                     const redirect = getContext(REDIRECT_CONTEXT);
@@ -575,6 +606,7 @@ export async function render(Component, props = {}, options = {}) {
             app,
             clientReferenceMap({ remote, origin }),
             {
+              temporaryReferences,
               onError(e) {
                 hasError = true;
                 const redirect = getContext(REDIRECT_CONTEXT);
@@ -599,7 +631,9 @@ export async function render(Component, props = {}, options = {}) {
                 ? []
                 : getContext(MAIN_MODULE),
             bootstrapScripts:
-              renderContext.flags.isRSC || renderContext.flags.isRemote
+              import.meta.env.DEV ||
+              renderContext.flags.isRSC ||
+              renderContext.flags.isRemote
                 ? []
                 : [
                     `const moduleCache = new Map();
@@ -698,6 +732,7 @@ export async function render(Component, props = {}, options = {}) {
             remote,
             origin,
             importMap,
+            body,
             httpContext: {
               request: {
                 method: context.request.method,

@@ -7,4 +7,7 @@ export default {
       },
     ];
   },
+  resolve: {
+    shared: ["DataProvider"],
+  },
 };

@@ -21,12 +21,15 @@ export default function Form({
   ...props
 }) {
   const { navigate } = useClient();
-  const { outlet } = useContext(FlightContext);
+  const { outlet, url: _url } = useContext(FlightContext);
   const ref = useRef(null);
 
   const tryNavigate = useCallback(async () => {
     try {
-      const url = new URL(ref.current.action, window.location.origin);
+      const url = new URL(
+        new URL(ref.current.action, _url || location.origin).pathname,
+        _url || location.origin
+      );
       const formData = new FormData(ref.current);
       for (const [key, value] of formData.entries()) {
         url.searchParams.set(key, value);

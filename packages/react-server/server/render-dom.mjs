@@ -1,6 +1,10 @@
 import { renderToReadableStream, resume } from "react-dom/server.edge";
 import { prerender } from "react-dom/static.edge";
-import { createFromReadableStream } from "react-server-dom-webpack/client.edge";
+import {
+  createFromReadableStream,
+  createTemporaryReferenceSet,
+  encodeReply,
+} from "react-server-dom-webpack/client.edge";
 
 import { HttpContextStorage } from "@lazarv/react-server/http-context";
 import { getEnv, immediate } from "@lazarv/react-server/lib/sys.mjs";
@@ -8,6 +12,7 @@ import { ssrManifest } from "@lazarv/react-server/server/ssr-manifest.mjs";
 import { Parser } from "parse5";
 
 import dom2flight from "./dom-flight.mjs";
+import { remoteTemporaryReferences } from "./temporary-references.mjs";
 
 const streamMap = new Map();
 const preludeMap = new Map();
@@ -63,6 +68,7 @@ export const createRenderer = ({
     origin,
     importMap,
     defer,
+    body,
     httpContext,
   }) => {
     if (!flight && !streamMap.has(id)) {
@@ -144,10 +150,20 @@ export const createRenderer = ({
                     const decoder = new TextDecoder("utf-8");
                     const encoder = new TextEncoder();
 
-                    const tree = await createFromReadableStream(
-                      renderStream,
-                      ssrManifest
-                    );
+                    const temporaryReferences = createTemporaryReferenceSet();
+                    if (body) {
+                      await encodeReply(
+                        remoteTemporaryReferences(JSON.parse(body)),
+                        {
+                          temporaryReferences,
+                        }
+                      );
+                    }
+
+                    const tree = await createFromReadableStream(renderStream, {
+                      temporaryReferences,
+                      ...ssrManifest,
+                    });
 
                     const forwardReader = forwardStream.getReader();
 
@@ -516,6 +532,7 @@ export const createRenderer = ({
                           }
                         }
 
+                        parser.tokenizer.write("", true);
                         const fragment = parser.getFragment();
                         if (fragment.childNodes.length > 0) {
                           const tree = dom2flight(fragment, { origin, defer });

@@ -4,9 +4,10 @@ import { renderToReadableStream } from "react-server-dom-webpack/server.edge";
 import { concat, copyBytesFrom } from "../lib/sys.mjs";
 import { clientReferenceMap } from "../server/client-reference-map.mjs";
 
-export function toBuffer(model) {
+export function toBuffer(model, options = {}) {
   return new Promise(async (resolve, reject) => {
     const stream = renderToReadableStream(model, clientReferenceMap(), {
+      ...options,
       onError(error) {
         reject(error);
       },
@@ -21,8 +22,8 @@ export function toBuffer(model) {
   });
 }
 
-export function toStream(model) {
-  return renderToReadableStream(model, clientReferenceMap());
+export function toStream(model, options = {}) {
+  return renderToReadableStream(model, clientReferenceMap(), options);
 }
 
 function createManifest() {
@@ -58,7 +59,7 @@ function createManifest() {
   };
 }
 
-export function fromBuffer(payload) {
+export function fromBuffer(payload, options = {}) {
   const Component = createFromReadableStream(
     new ReadableStream({
       type: "bytes",
@@ -67,12 +68,18 @@ export function fromBuffer(payload) {
         controller.close();
       },
     }),
-    createManifest()
+    {
+      ...createManifest(),
+      ...options,
+    }
   );
 
   return Component;
 }
 
-export function fromStream(stream) {
-  return createFromReadableStream(stream, createManifest());
+export function fromStream(stream, options = {}) {
+  return createFromReadableStream(stream, {
+    ...createManifest(),
+    ...options,
+  });
 }

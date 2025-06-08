@@ -33,6 +33,9 @@ export const RENDER = Symbol.for("RENDER");
 export const RENDER_STREAM = Symbol.for("RENDER_STREAM");
 export const RENDER_CONTEXT = Symbol.for("RENDER_CONTEXT");
 export const RENDER_HANDLER = Symbol.for("RENDER_HANDLER");
+export const RENDER_TEMPORARY_REFERENCES = Symbol.for(
+  "RENDER_TEMPORARY_REFERENCES"
+);
 export const RENDER_WAIT = Symbol.for("RENDER_WAIT");
 export const WORKER_THREAD = Symbol.for("WORKER_THREAD");
 export const PRELUDE_HTML = Symbol.for("PRELUDE_HTML");

@@ -11,6 +11,7 @@ import { getContext } from "@lazarv/react-server/server/context.mjs";
 import {
   LIVE_IO,
   LOGGER_CONTEXT,
+  RENDER_TEMPORARY_REFERENCES,
 } from "@lazarv/react-server/server/symbols.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
 
@@ -118,6 +119,7 @@ export async function runLiveComponent(
       return AbortControllerStorage.run(abortController, async () => {
         try {
           logger.starting(specifier);
+          const temporaryReferences = getContext(RENDER_TEMPORARY_REFERENCES);
           const worker = Component(props);
           const { done, value: component } = await worker.next();
 
@@ -148,7 +150,9 @@ export async function runLiveComponent(
                   }
                   if (value) {
                     if (streaming) {
-                      const stream = await toStream(value);
+                      const stream = await toStream(value, {
+                        temporaryReferences,
+                      });
                       const reader = stream.getReader();
                       while (true) {
                         if (aborted) {
@@ -161,7 +165,9 @@ export async function runLiveComponent(
                         }
                       }
                     } else {
-                      const buffer = await toBuffer(value);
+                      const buffer = await toBuffer(value, {
+                        temporaryReferences,
+                      });
                       namespace.emit("live:buffer", buffer);
                     }
                   }
@@ -222,7 +228,7 @@ export function createLiveComponent(specifier, displayName, Component) {
       true
     );
     return (
-      <ReactServerComponent outlet={outlet} live>
+      <ReactServerComponent outlet={outlet} live remoteProps={props}>
         {component}
       </ReactServerComponent>
     );

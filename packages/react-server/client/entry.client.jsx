@@ -8,7 +8,9 @@ import ClientProvider, {
 } from "./ClientProvider.jsx";
 import ReactServerComponent from "./ReactServerComponent.jsx";
 
-self.__react_server_callServer__ = streamOptions(PAGE_ROOT).callServer;
+self.__react_server_callServer__ = streamOptions({
+  outlet: PAGE_ROOT,
+}).callServer;
 
 const initialState = { didCatch: false, error: null };
 

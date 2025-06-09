@@ -60,11 +60,11 @@ export default function Home() {
 }
 ```
 
-When you exported the source of the `RemoteComponent` as static at build time using the `remote` flag the component still works as expected. The `RemoteComponent` will be replaced with the static content of the micro-frontend. Read more about how to export static micro-frontend content in the [Static generation](/router/static#remote) section of the documentation.
-
 <Link name="static-export">
 ### Static export
 </Link>
+
+When you exported the source of the `RemoteComponent` as static at build time using the `remote` flag the component still works as expected. The `RemoteComponent` will be replaced with the static content of the micro-frontend. Read more about how to export static micro-frontend content in the [Static generation](/router/static#remote) section of the documentation.
 
 You can also export your hosting application while using the `RemoteComponent` as static at build time. The `RemoteComponent` will be replaced with the static content of the micro-frontend. So both your micro-frontend application and your hosting application can be statically generated at build time to achieve the best performance when using static content in a micro-frontend architecture.
 

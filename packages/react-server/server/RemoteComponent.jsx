@@ -111,6 +111,7 @@ export default async function RemoteComponent({
   src,
   ttl,
   defer,
+  isolate = false,
   request,
   onError,
   ...props
@@ -175,6 +176,7 @@ export default async function RemoteComponent({
       <ReactServerComponent
         remote
         defer={defer}
+        isolate={isolate}
         url={remoteUrlString}
         outlet={remoteUrlString.replace(/[^a-zA-Z0-9_]/g, "_")}
         request={request}

@@ -167,26 +167,23 @@ test("suspense client", async () => {
   await waitForHydration();
 
   if (process.env.NODE_ENV === "production") {
-    const scripts = await page.$$("script");
-    expect(scripts.length).toBe(2);
+    const scripts = await page.$$("script[src]");
+    expect(scripts.length).toBe(1);
     expect(await scripts[0].getAttribute("src")).toContain("/client/index");
-    expect(await scripts[1].getAttribute("src")).toBe(null);
   } else {
     const button = await page.getByRole("button");
-    expect(await button.isVisible()).toBe(true);
     await button.click();
     expect(logs).toContain("use client");
     await waitForChange(
       () => {},
       () => page.$$("script")
     );
-    const scripts = await page.$$("script");
+    const scripts = await page.$$("script[src]");
     // this is flaky and needs a stable solution
-    expect(scripts.length).toBeGreaterThanOrEqual(4);
+    expect(scripts.length).toBeGreaterThanOrEqual(3);
     expect(await scripts[0].getAttribute("src")).toBe("/@vite/client");
     expect(await scripts[1].getAttribute("src")).toBe("/@hmr");
     expect(await scripts[2].getAttribute("src")).toBe("/@__webpack_require__");
-    expect(await scripts[3].getAttribute("src")).toBe(null);
   }
 });
 

@@ -4,9 +4,11 @@ import {
   startTransition,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 import {
   FlightContext,
@@ -18,6 +20,7 @@ import {
 function FlightComponent({
   remote = false,
   defer = false,
+  isolate = false,
   live = false,
   request,
   remoteProps = {},
@@ -212,22 +215,43 @@ function FlightComponent({
     return () => abortController.abort();
   }, [outlet]);
 
+  const [shadowRoot, setShadowRoot] = useState(null);
+  useLayoutEffect(() => {
+    if (isolate && typeof document !== "undefined") {
+      const element = document.getElementById(`shadowroot_${outlet}`);
+      let shadowRootElement = element?.shadowRoot;
+      if (!shadowRootElement && element) {
+        element.attachShadow({ mode: "open" });
+        shadowRootElement = element.shadowRoot;
+      }
+      shadowRootElement.innerHTML = "";
+      setShadowRoot(shadowRootElement);
+    }
+  }, [outlet, isolate]);
+
+  let componentToRender = Component;
   if (error) {
     if (outlet === PAGE_ROOT) {
-      return (
-        <FlightComponentContext.Provider value={{ resourceKey, error }}>
-          {prevComponent.current}
-        </FlightComponentContext.Provider>
-      );
+      componentToRender = prevComponent.current;
+    } else {
+      throw error;
     }
-    throw error;
+  } else {
+    prevComponent.current = Component;
   }
-
-  prevComponent.current = Component;
 
   return (
     <FlightComponentContext.Provider value={{ resourceKey, error }}>
-      {Component}
+      {isolate ? (
+        <div id={`shadowroot_${outlet}`}>
+          {shadowRoot ? createPortal(componentToRender, shadowRoot) : null}
+          {typeof document === "undefined" ? (
+            <template shadowrootmode="open">{componentToRender}</template>
+          ) : null}
+        </div>
+      ) : (
+        componentToRender
+      )}
     </FlightComponentContext.Provider>
   );
 }
@@ -237,6 +261,7 @@ export default function ReactServerComponent({
   outlet = null,
   remote,
   defer,
+  isolate,
   request,
   live,
   remoteProps = {},
@@ -271,6 +296,7 @@ export default function ReactServerComponent({
       <FlightComponent
         remote={remote}
         defer={defer}
+        isolate={isolate}
         request={request}
         remoteProps={remoteProps}
         live={live ? url ?? parent.url ?? true : false}

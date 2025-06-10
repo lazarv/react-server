@@ -37,7 +37,7 @@ export default function App() {
             }}
           >
             <h2>Server Function</h2>
-            <Remote ttl={0} initialName="Remote User">
+            <Remote ttl={0} isolate initialName="Remote User">
               <HostButton />
               <div
                 style={{
@@ -58,7 +58,7 @@ export default function App() {
             }}
           >
             <h2>Static</h2>
-            <Static ttl={0}>
+            <Static ttl={0} isolate>
               <div style={{ padding: 16, border: "dashed 2px #0aa" }}>
                 <i>Remote Component content</i>
               </div>
@@ -72,7 +72,12 @@ export default function App() {
             }}
           >
             <h2>Streaming</h2>
-            <Streaming ttl={0} defer message="Remote Component is loading...">
+            <Streaming
+              ttl={0}
+              defer
+              isolate
+              message="Remote Component is loading..."
+            >
               <div
                 style={{
                   padding: 16,
@@ -92,7 +97,7 @@ export default function App() {
             }}
           >
             <h2>Live</h2>
-            <Live ttl={0}>
+            <Live isolate ttl={0}>
               <div
                 style={{
                   padding: 16,
@@ -112,7 +117,7 @@ export default function App() {
             }}
           >
             <h2>Navigation</h2>
-            <Navigation message="This is the navigation example.">
+            <Navigation isolate message="This is the navigation example.">
               <div
                 style={{
                   padding: 16,
@@ -132,7 +137,7 @@ export default function App() {
             }}
           >
             <h2>Form</h2>
-            <Form initialName="Anonymous">
+            <Form isolate initialName="Anonymous">
               <div
                 style={{
                   padding: 16,
@@ -153,7 +158,7 @@ export default function App() {
           >
             <h2>Context</h2>
             <DataProvider data={{ message: <b>This is a context example.</b> }}>
-              <Context>
+              <Context isolate>
                 <div
                   style={{
                     padding: 16,

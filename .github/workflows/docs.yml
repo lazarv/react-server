@@ -1,4 +1,3 @@
-# This workflow is based on https://github.com/vitejs/vite/tree/main/.github/workflows
 name: Documentation 📚
 
 on:
@@ -7,15 +6,12 @@ on:
       - main
     paths:
       - "docs/**"
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - "docs/**"
   pull_request_target:
     types: [opened, synchronize, reopened]
     paths:
       - "docs/**"
-  workflow_dispatch:
+    branches:
+      - main
 
 permissions:
   pull-requests: write
@@ -63,7 +59,7 @@ jobs:
         run: pnpm run docs-build
 
       - name: Deploy to Vercel (PR Previews)
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request_target'
         working-directory: ./docs
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -72,7 +68,7 @@ jobs:
           echo "VERCEL_URL=${url}" >> $GITHUB_ENV
 
       - uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request_target'
         with:
           header: pr-docs-preview-url
           message: |

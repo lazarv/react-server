@@ -51,7 +51,7 @@ jobs:
   test:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server')
-    timeout-minutes: 20
+    timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

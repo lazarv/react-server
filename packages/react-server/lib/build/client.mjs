@@ -227,6 +227,10 @@ export default async function clientBuild(_, options) {
     css: {
       ...config.css,
       postcss: cwd,
+      modules: {
+        generateScopedName: "_[local]_[hash:base64:5]",
+        ...config.css?.modules,
+      },
     },
   };
 

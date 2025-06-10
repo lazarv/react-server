@@ -336,6 +336,10 @@ export default async function serverBuild(root, options) {
     css: {
       ...config.css,
       postcss: cwd,
+      modules: {
+        generateScopedName: "_[local]_[hash:base64:5]",
+        ...config.css?.modules,
+      },
     },
     ssr: {
       ...config.ssr,

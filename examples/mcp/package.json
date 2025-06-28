@@ -1,0 +1,17 @@
+{
+  "name": "@lazarv/react-server-example-mcp",
+  "private": true,
+  "description": "@lazarv/react-server MCP example application",
+  "scripts": {
+    "dev": "react-server",
+    "build": "react-server build",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "zod": "^3.23.8"
+  }
+}

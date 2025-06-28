@@ -23,6 +23,10 @@
       "types": "./server/live.d.ts",
       "default": "./server/live.jsx"
     },
+    "./mcp": {
+      "types": "./server/mcp.d.ts",
+      "default": "./server/mcp.mjs"
+    },
     "./memory-cache/client": {
       "types": "./cache/client.d.ts",
       "default": "./cache/client.mjs"
@@ -113,6 +117,7 @@
     "@inquirer/prompts": "^7.0.0",
     "@inquirer/search": "^3.0.0",
     "@mdx-js/rollup": "^3.0.1",
+    "@modelcontextprotocol/sdk": "^1.13.0",
     "@rollup/plugin-replace": "^5.0.2",
     "@types/babel__core": "^7.20.5",
     "@types/react": "^18.3.3",
@@ -154,7 +159,8 @@
     "source-map": "^0.7.4",
     "strip-ansi": "^7.1.0",
     "style-to-js": "^1.1.12",
-    "unstorage": "^1.16.0"
+    "unstorage": "^1.16.0",
+    "zod": "^3.23.8"
   },
   "engines": {
     "node": ">=20.10.0"

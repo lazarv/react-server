@@ -313,7 +313,7 @@ export default async function createServer(root, options) {
                     "picocolors",
                     "@lazarv/react-server",
                   ],
-                  external: ["unstorage"],
+                  external: ["unstorage", "@modelcontextprotocol/sdk"],
                   alias: [
                     {
                       find: /^react$/,

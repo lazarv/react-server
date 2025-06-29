@@ -85,10 +85,10 @@
       "@uidotdev/usehooks>react-dom": "0.0.0-experimental-56408a5b-20250610",
       "@vercel/analytics>react": "0.0.0-experimental-56408a5b-20250610",
       "@vercel/speed-insights>react": "0.0.0-experimental-56408a5b-20250610",
-      "vite": "npm:rolldown-vite@6.3.5",
-      "vite-plugin-svgr>vite": "npm:rolldown-vite@6.3.5",
-      "@vitejs/plugin-react>vite": "npm:rolldown-vite@6.3.5",
-      "@vitejs/plugin-react-swc>vite": "npm:rolldown-vite@6.3.5",
+      "vite": "npm:rolldown-vite@7.0.3",
+      "vite-plugin-svgr>vite": "npm:rolldown-vite@7.0.3",
+      "@vitejs/plugin-react>vite": "npm:rolldown-vite@7.0.3",
+      "@vitejs/plugin-react-swc>vite": "npm:rolldown-vite@7.0.3",
       "supertest>superagent": "9.0.2"
     }
   },

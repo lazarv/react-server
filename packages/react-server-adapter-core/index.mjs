@@ -272,26 +272,32 @@ export async function getDependencies(adapterFiles, reactServerDir) {
 
   reactServerDeps.forEach((file) => trace.add(relative(rootDir, file)));
   const dependencyFiles = Array.from(trace).reduce((deps, file) => {
-    const src = join(rootDir, file);
-    const stat = lstatSync(src);
-    if (stat.isSymbolicLink()) {
-      const srcLink = readlinkSync(src);
-      const link = isAbsolute(srcLink) ? srcLink : join(dirname(src), srcLink);
-      const linkStat = lstatSync(link);
-      if (linkStat.isDirectory()) {
+    try {
+      const src = join(rootDir, file);
+      const stat = lstatSync(src);
+      if (stat.isSymbolicLink()) {
+        const srcLink = readlinkSync(src);
+        const link = isAbsolute(srcLink)
+          ? srcLink
+          : join(dirname(src), srcLink);
+        const linkStat = lstatSync(link);
+        if (linkStat.isDirectory()) {
+          return deps;
+        }
+      }
+      if (
+        stat.isDirectory() ||
+        (sourceFiles.includes(src) && !reactServerDeps.includes(src))
+      ) {
         return deps;
       }
-    }
-    if (
-      stat.isDirectory() ||
-      (sourceFiles.includes(src) && !reactServerDeps.includes(src))
-    ) {
+      if (!deps.includes(src)) {
+        deps.push(src);
+      }
+      return deps;
+    } catch {
       return deps;
     }
-    if (!deps.includes(src)) {
-      deps.push(src);
-    }
-    return deps;
   }, []);
 
   return dependencyFiles.map((src) => {

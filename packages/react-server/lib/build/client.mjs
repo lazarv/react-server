@@ -150,6 +150,7 @@ export default async function clientBuild(_, options) {
       sourcemap: options.sourcemap,
       rollupOptions: {
         ...config.build?.rollupOptions,
+        preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: false,
           ...config.build?.rollupOptions?.treeshake,

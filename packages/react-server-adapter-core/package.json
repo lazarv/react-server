@@ -30,7 +30,7 @@
     "url": "https://github.com/lazarv/react-server/issues"
   },
   "dependencies": {
-    "@vercel/nft": "^0.27.2",
+    "@vercel/nft": "^0.29.4",
     "cli-progress": "^3.12.0",
     "cli-spinners": "^3.0.0",
     "fast-glob": "^3.2.12",

@@ -84,7 +84,7 @@ export async function loadConfig(initialConfig, options = {}) {
       } else {
         configModule = (
           await import(
-            /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`,
+            /* @vite-ignore */ `${pathToFileURL(src)}${filename.endsWith(".json") ? "" : `?_=${Math.floor((await stat(src)).mtimeMs)}`}`,
             filename.endsWith(".json") ? { with: { type: "json" } } : undefined
           )
         ).default;

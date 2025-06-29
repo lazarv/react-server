@@ -46,11 +46,15 @@ test("session cookie", async () => {
 
   await newUserButton.click();
   await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(0);
+  await page.waitForFunction(() =>
+    document.body.innerHTML.includes("User code: 100000")
+  );
   expect(await page.textContent("body")).toContain("User code: 100000");
 
   await newUserButton.click();
   await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(100);
+  await page.waitForFunction(() =>
+    document.body.innerHTML.includes("User code: 100001")
+  );
   expect(await page.textContent("body")).toContain("User code: 100001");
 });

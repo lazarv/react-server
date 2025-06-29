@@ -236,6 +236,7 @@ export default async function serverBuild(root, options) {
       sourcemap: options.sourcemap,
       rollupOptions: {
         ...config.build?.rollupOptions,
+        preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: false,
           ...config.build?.rollupOptions?.treeshake,
@@ -252,7 +253,16 @@ export default async function serverBuild(root, options) {
         output: {
           dir: options.outDir,
           format: "esm",
-          entryFileNames: "[name].mjs",
+          entryFileNames({ name }) {
+            return [
+              "server/__react_server_config__/prebuilt",
+              "server/render",
+              "server/index",
+              "server/error",
+            ].includes(name)
+              ? "[name].mjs"
+              : "[name].[hash].mjs";
+          },
           chunkFileNames: "server/[name].[hash].mjs",
         },
         input: {

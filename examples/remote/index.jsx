@@ -117,7 +117,11 @@ export default function App() {
             }}
           >
             <h2>Navigation</h2>
-            <Navigation isolate message="This is the navigation example.">
+            <Navigation
+              isolate
+              ttl={0}
+              message="This is the navigation example."
+            >
               <div
                 style={{
                   padding: 16,
@@ -137,7 +141,7 @@ export default function App() {
             }}
           >
             <h2>Form</h2>
-            <Form isolate initialName="Anonymous">
+            <Form isolate ttl={0} initialName="Anonymous">
               <div
                 style={{
                   padding: 16,
@@ -158,7 +162,7 @@ export default function App() {
           >
             <h2>Context</h2>
             <DataProvider data={{ message: <b>This is a context example.</b> }}>
-              <Context isolate>
+              <Context isolate ttl={0}>
                 <div
                   style={{
                     padding: 16,

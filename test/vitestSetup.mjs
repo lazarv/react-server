@@ -27,6 +27,7 @@ const consoleError = console.error;
 console.error = (...args) => {
   logs.push(args.join(" "));
   serverLogs.push(args.join(" "));
+  consoleError(...args);
 };
 
 const BASE_PORT = 3000;

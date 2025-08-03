@@ -269,7 +269,7 @@ export default async function serverBuild(root, options) {
               "server/render",
               "server/index",
               "server/error",
-            ].includes(name)
+            ].includes(name) || name.startsWith("static/")
               ? "[name].mjs"
               : "[name].[hash].mjs";
           },

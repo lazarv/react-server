@@ -711,7 +711,7 @@ function getFlightResponse(url, options = {}) {
 
               options.onError?.(e);
               return new Promise(async (resolve) => {
-                e.digest = e.message;
+                e.digest = e.digest || e.message;
                 e.environmentName = "react-server";
                 window.dispatchEvent(
                   new CustomEvent(

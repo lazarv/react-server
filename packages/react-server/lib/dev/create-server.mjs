@@ -1,7 +1,6 @@
 import { rm } from "node:fs/promises";
 import { isBuiltin, register } from "node:module";
 import { dirname, join, relative } from "node:path";
-import { format } from "node:util";
 import { Worker } from "node:worker_threads";
 
 import { createMiddleware } from "@hattip/adapter-node";
@@ -70,6 +69,7 @@ import ssrHandler from "./ssr-handler.mjs";
 alias("react-server");
 register("../loader/node-loader.react-server.mjs", import.meta.url);
 await reactServerBunAliasPlugin();
+await import("react");
 
 const cwd = sys.cwd();
 const workspaceRoot = findPackageRoot(join(cwd, "..")) ?? cwd;
@@ -313,7 +313,11 @@ export default async function createServer(root, options) {
                     "picocolors",
                     "@lazarv/react-server",
                   ],
-                  external: ["unstorage", "@modelcontextprotocol/sdk"],
+                  external: [
+                    "unstorage",
+                    "@modelcontextprotocol/sdk",
+                    "highlight.js",
+                  ],
                   alias: [
                     {
                       find: /^react$/,
@@ -395,13 +399,8 @@ export default async function createServer(root, options) {
           sys.normalizePath(data.triggeredBy)?.replace(sys.rootDir, cwd + "/")
         )
         ?.replace(/\/+/g, "/");
-      if (
-        !viteDevServer.environments.client.moduleGraph.idToModuleMap.has(
-          data.triggeredBy
-        )
-      ) {
-        viteDevServer.environments.client.hot.send(data);
-      }
+
+      viteDevServer.environments.client.hot.send(data);
 
       const cache = getRuntime(MEMORY_CACHE_CONTEXT);
       if (await cache?.has([data.triggeredBy])) {
@@ -503,6 +502,30 @@ export default async function createServer(root, options) {
   viteDevServer.environments.ssr.config.resolve.preserveSymlinks = true;
   viteDevServer.environments.rsc.config.resolve.preserveSymlinks = true;
 
+  const handleClientConsole = async (stream, environment) => {
+    const { createFromReadableStream } = await import(
+      "react-server-dom-webpack/client.edge"
+    );
+    const { method, args } = await createFromReadableStream(stream, {
+      serverConsumerManifest: {
+        moduleMap: {},
+      },
+    });
+    const logger = viteDevServer.config.logger;
+    try {
+      if (logger && typeof logger[method] === "function") {
+        logger[method](...args, {
+          environment: environment ?? colors.blueBright("(browser)"),
+          user: true,
+        });
+      } else {
+        console[method](...args);
+      }
+    } catch (e) {
+      logger?.error(e);
+    }
+  };
+
   worker.on("message", async (payload) => {
     if (payload.type === "import") {
       const {
@@ -548,11 +571,27 @@ export default async function createServer(root, options) {
           },
         },
       });
-    } else if (payload.type === "logger") {
-      // eslint-disable-next-line no-unused-vars
-      const { level, ...data } = payload;
-      const [msg, ...rest] = data.data;
-      viteDevServer.config.logger[payload.level](format(msg, ...rest));
+    } else if (payload.type === "react-server:console") {
+      const stream = new ReadableStream({
+        type: "bytes",
+        start(controller) {
+          const encoder = new TextEncoder();
+          try {
+            for (const chunk of payload.data.split("\n")) {
+              controller.enqueue(encoder.encode(`${chunk || ""}\n`));
+            }
+            controller.close();
+          } catch (e) {
+            controller.error(e);
+          }
+        },
+      });
+
+      try {
+        await handleClientConsole(stream, colors.cyanBright("(ssr)"));
+      } catch (e) {
+        console.error("Failed to process console", e);
+      }
     }
   });
   const initialRuntime = {
@@ -665,9 +704,41 @@ export default async function createServer(root, options) {
         }
   );
 
+  viteDevServer.ws.on("react-server:console", async (data) => {
+    const stream = new ReadableStream({
+      type: "bytes",
+      start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          for (const chunk of data.split("\n")) {
+            controller.enqueue(encoder.encode(`${chunk || ""}\n`));
+          }
+          controller.close();
+        } catch (e) {
+          controller.error(e);
+        }
+      },
+    });
+
+    try {
+      await handleClientConsole(stream);
+    } catch (e) {
+      console.error("Failed to process console", e);
+    }
+  });
+
   const initialHandlers = await Promise.all([
     async (context) => {
-      if (context.url.pathname === "/__react_server_source_map__") {
+      if (context.url.pathname === "/__react_server_console__") {
+        try {
+          await handleClientConsole(context.request.body);
+        } catch (e) {
+          viteDevServer.config.logger.error("Failed to process console", e);
+        }
+        return new Response(null, {
+          status: 204,
+        });
+      } else if (context.url.pathname === "/__react_server_source_map__") {
         const filename = context.url.searchParams.get("filename");
         const mod =
           viteDevServer.environments.rsc.moduleGraph.getModuleById(filename);

@@ -1,0 +1,17 @@
+{
+  "name": "@lazarv/react-server-example-react-markdown",
+  "private": true,
+  "description": "@lazarv/react-server React Markdown example application",
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "react-markdown": "^10.1.0"
+  }
+}

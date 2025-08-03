@@ -51,6 +51,7 @@ import {
   SERVER_FUNCTION_NOT_FOUND,
 } from "@lazarv/react-server/server/symbols.mjs";
 import { ServerFunctionNotFoundError } from "./action-state.mjs";
+import { cwd } from "../lib/sys.mjs";
 
 const serverReferenceMap = new Proxy(
   {},
@@ -353,6 +354,19 @@ export async function render(Component, props = {}, options = {}) {
         const ComponentWithStyles = (
           <>
             <link rel="preconnect" href={origin ?? "/"} id="live-io" />
+            {import.meta.env.DEV && (
+              <>
+                <meta name="react-server:cwd" content={cwd()} />
+                <meta
+                  name="react-server:console"
+                  content={String(config.console)}
+                />
+                <meta
+                  name="react-server:overlay"
+                  content={String(config.overlay)}
+                />
+              </>
+            )}
             <Styles />
             <ModulePreloads />
             <Component {...props} />
@@ -475,7 +489,7 @@ export async function render(Component, props = {}, options = {}) {
                     if (redirect?.response) {
                       return `Location=${redirect.response.headers.get("location")}`;
                     }
-                    return e?.message;
+                    return e?.digest ?? e?.message;
                   },
                 }
               );
@@ -613,7 +627,7 @@ export async function render(Component, props = {}, options = {}) {
                 if (redirect?.response) {
                   return resolve(redirect.response);
                 }
-                return e?.message;
+                return e?.digest ?? e?.message;
               },
             }
           );
@@ -709,7 +723,7 @@ export async function render(Component, props = {}, options = {}) {
               });
             },
             onError(e, digest) {
-              if (digest) {
+              if (!e.digest && digest) {
                 e.digest = digest;
               }
               (logger ?? console).error(e);

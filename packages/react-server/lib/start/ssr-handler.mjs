@@ -228,7 +228,7 @@ export default async function ssrHandler(root, options = {}) {
             context$(RENDER, render);
 
             if (GlobalErrorComponent) {
-              useErrorComponent(GlobalErrorComponent);
+              useErrorComponent(GlobalErrorComponent, globalErrorModule);
             }
 
             try {

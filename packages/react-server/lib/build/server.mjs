@@ -94,10 +94,20 @@ export default async function serverBuild(root, options) {
     if (bareImportRE.test(id)) {
       try {
         const mod = __require.resolve(id, { paths: [cwd] });
-        const pkg = findNearestPackageData(mod);
+        let pkg = findNearestPackageData(mod);
+        const prev = pkg;
+        if (pkg) {
+          while (pkg && !pkg.name && !pkg.version) {
+            pkg = findNearestPackageData(pkg, join(pkg.__pkg_dir__, ".."));
+          }
+          if (!pkg) {
+            pkg = prev;
+          }
+        }
         if (
           /[cm]?js$/.test(mod) &&
-          !(pkg?.type === "module" || pkg?.module || pkg?.exports)
+          !(pkg?.type === "module" || pkg?.module || pkg?.exports) &&
+          ![...(config.ssr?.noExternal ?? [])].includes(id)
         ) {
           return true;
         }
@@ -297,7 +307,9 @@ export default async function serverBuild(root, options) {
             : {}),
         },
         external(id, parentId, isResolved) {
-          return external(id, parentId, isResolved) || rscExternal(id);
+          return (
+            external(id, parentId, isResolved) || rscExternal(id, parentId)
+          );
         },
         plugins: [
           resolveWorkspace(),

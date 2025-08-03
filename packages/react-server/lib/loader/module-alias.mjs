@@ -111,6 +111,43 @@ export function alias(condition) {
   moduleAlias.addAliases(moduleAliases(condition));
 }
 
+export const reactClientFunctions = [
+  "act",
+  "Component",
+  "createContext",
+  "experimental_useEffectEvent",
+  "experimental_useOptimistic",
+  "PureComponent",
+  "unstable_addTransitionType",
+  "unstable_startGestureTransition",
+  "unstable_useCacheRefresh",
+  "useActionState",
+  "useContext",
+  "useDeferredValue",
+  "useEffect",
+  "useImperativeHandle",
+  "useInsertionEffect",
+  "useLayoutEffect",
+  "useOptimistic",
+  "useReducer",
+  "useRef",
+  "useState",
+  "useSyncExternalStore",
+  "useTransition",
+];
+export function reactServerPatch(code) {
+  return `${code}\n\n${reactClientFunctions
+    .map(
+      (name) => `module.exports.${name} = function ${name}() {
+  const err = new ReferenceError('${name} is not defined');
+  Error.captureStackTrace(err, module.exports.${name});
+  err.digest = "You are trying to use \`${name}\` in a React Server Component. \`${name}\` is only available in client components. Add \`'use client';\` at the top of your source file where you are using \`${name}\` to make it a client component file.";
+  throw err;
+};`
+    )
+    .join("\n\n")}\n`;
+}
+
 export async function reactServerBunAliasPlugin() {
   if (typeof Bun !== "undefined") {
     const { plugin } = await import("bun");

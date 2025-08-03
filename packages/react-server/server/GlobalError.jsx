@@ -1,11 +1,21 @@
+import { createRequire } from "node:module";
+
 import { useRender, useUrl } from "@lazarv/react-server";
+import hljs from "highlight.js";
+import "highlight.js/styles/github-dark.min.css";
+
 import { style, remoteStyle } from "./error-styles.mjs";
+import { prepareError } from "../lib/handlers/error.mjs";
+import { forRoot } from "../config";
+
+const _require = createRequire(import.meta.url);
 
 export default async function GlobalError({ error }) {
   const url = useUrl();
   const { isRemote } = useRender();
 
   if (import.meta.env.DEV) {
+    error = await prepareError(error);
     const [{ getContext }, { SERVER_CONTEXT }] = await Promise.all([
       import("@lazarv/react-server/server/context.mjs"),
       import("@lazarv/react-server/server/symbols.mjs"),
@@ -26,11 +36,15 @@ export default async function GlobalError({ error }) {
     return (
       <div className="react-server-global-error">
         <style>{remoteStyle}</style>
-        <h1>
-          {error.digest && error.digest !== error.message
-            ? error.digest
-            : error.message || "Global Error"}
-        </h1>
+        <h1>{error.message || "Global Error"}</h1>
+        {error.digest && error.digest !== error.message ? (
+          <p>{error.digest}</p>
+        ) : null}
+        {error.frame ? (
+          <pre className="react-server-global-error-frame">
+            <code>{error.frame.trim()}</code>
+          </pre>
+        ) : null}
         <pre>
           {import.meta.env.DEV
             ? error.stack
@@ -49,11 +63,36 @@ export default async function GlobalError({ error }) {
         <style>{style}</style>
       </head>
       <body suppressHydrationWarning className="react-server-global-error">
-        <h1>
-          {error.digest && error.digest !== error.message
-            ? error.digest
-            : error.message || "Global Error"}
-        </h1>
+        <h1>{error.message || "Global Error"}</h1>
+        {error.digest && error.digest !== error.message ? (
+          <p
+            dangerouslySetInnerHTML={{
+              __html: error.digest.replace(/`([^`]+)`/g, "<code>$1</code>"),
+            }}
+          />
+        ) : null}
+        {error.code ? (
+          <details>
+            <summary></summary>
+            <pre className="react-server-global-error-code">
+              <code
+                className="hljs"
+                dangerouslySetInnerHTML={{
+                  __html: hljs.highlight(error.code, { language: "javascript" })
+                    .value,
+                }}
+              />
+              <div
+                className="react-server-global-error-loc"
+                style={{ "--line": error.loc.line }}
+              />
+            </pre>
+          </details>
+        ) : error.frame ? (
+          <pre className="react-server-global-error-frame">
+            <code>{error.frame.trim()}</code>
+          </pre>
+        ) : null}
         <pre>
           {import.meta.env.DEV
             ? error.stack
@@ -62,12 +101,12 @@ export default async function GlobalError({ error }) {
         <a href={url.toString()}>
           <button>Retry</button>
         </a>
-        {import.meta.env.DEV && (
+        {import.meta.env.DEV && forRoot()?.overlay !== false && (
           <>
             <script type="module" src="/@vite/client"></script>
             <script type="module" src="/@hmr"></script>
             <script type="module">
-              {`import {ErrorOverlay} from "/@vite/client";document.body.appendChild(new ErrorOverlay(${JSON.stringify(error).replace(/</g, "\\u003c")}))`}
+              {`import {showErrorOverlay} from "/@fs${_require.resolve("@lazarv/react-server/client/error-overlay.mjs")}";showErrorOverlay(${JSON.stringify(error).replace(/</g, "\\u003c")});`}
             </script>
           </>
         )}

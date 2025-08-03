@@ -20,6 +20,7 @@ import {
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 import { replaceError } from "../utils/error.mjs";
+import { fixStacktrace } from "../utils/fix-stacktrace.mjs";
 
 function cleanStack(stack) {
   return stack
@@ -33,17 +34,37 @@ export async function prepareError(err) {
   try {
     if (!err.id) {
       const viteDevServer = getContext(SERVER_CONTEXT);
-      const [id, line, column] =
+
+      const [id] =
         err.stack
           .split("\n")[1]
           .match(/\((.*:[0-9]+:[0-9]+)\)/)?.[1]
+          .replace(/^\s*file:\/\//, "")
           .split(":") ?? [];
 
-      if (viteDevServer.environments.ssr.moduleGraph.idToModuleMap.has(id)) {
+      if (
+        viteDevServer.environments.ssr.moduleGraph.idToModuleMap.has(id) ||
+        viteDevServer.environments.rsc.moduleGraph.idToModuleMap.has(id)
+      ) {
+        if (viteDevServer.environments.ssr.moduleGraph.idToModuleMap.has(id)) {
+          fixStacktrace(err, viteDevServer.environments.ssr.moduleGraph);
+        } else {
+          fixStacktrace(err, viteDevServer.environments.rsc.moduleGraph);
+        }
+
+        const [, line, column] =
+          err.stack
+            .split("\n")[1]
+            .match(/\((.*:[0-9]+:[0-9]+)\)/)?.[1]
+            .replace(/^\s*file:\/\//, "")
+            .split(":") ?? [];
+
         const map = viteDevServer.environments.ssr.moduleGraph.getModuleById(id)
-          ?.ssrTransformResult?.map ?? {
-          sourcesContent: [await readFile(id, "utf-8")],
-        };
+          ?.ssrTransformResult?.map ??
+          viteDevServer.environments.rsc.moduleGraph.getModuleById(id)
+            ?.transformResult?.map ?? {
+            sourcesContent: [await readFile(id, "utf-8")],
+          };
 
         err.id = id;
         if (!err.loc) {
@@ -65,12 +86,12 @@ export async function prepareError(err) {
           const frame = lines
             .slice(start, end)
             .flatMap((l, i) => {
-              const curr = i + start;
+              const curr = i + start + 1;
               const indent = " ".repeat(
                 Math.max(start, end).toString().length - curr.toString().length
               );
               return [
-                `${indent}${curr} | ${l}`,
+                `${curr}${indent} | ${l}`,
                 ...(i === 2
                   ? [
                       `${indent}${curr
@@ -84,8 +105,10 @@ export async function prepareError(err) {
               ];
             })
             .join("\n");
-          err.frame = `${err.message}\n${frame}\n`;
+          err.frame = frame;
         }
+
+        err.code = map.sourcesContent[0];
       }
 
       err.plugin = err.plugin || packageJson.name;
@@ -95,9 +118,11 @@ export async function prepareError(err) {
   }
   return {
     message: strip(err.message),
+    digest: typeof err.digest === "string" ? strip(err.digest) : err.digest,
     stack: strip(cleanStack(err.stack || "")),
     id: err.id,
     frame: strip(err.frame || ""),
+    code: err.code,
     plugin: err.plugin,
     pluginCode: err.pluginCode?.toString(),
     loc: err.loc,
@@ -150,16 +175,16 @@ export default async function errorHandler(err) {
       const ssrLoadModule = getRuntime(MODULE_LOADER);
 
       if (typeof ssrLoadModule === "function") {
-        const { default: GlobalErrorComponent } = await ssrLoadModule(
-          `${sys.rootDir}/server/GlobalError.jsx`
-        );
+        const globalErrorModule = `${sys.rootDir}/server/GlobalError.jsx`;
+        const { default: GlobalErrorComponent } =
+          await ssrLoadModule(globalErrorModule);
 
         if (
           prevGlobalErrorComponent &&
           prevGlobalErrorComponent !== GlobalErrorComponent
         ) {
           context$(ERROR_CONTEXT, errorHandler);
-          useErrorComponent(GlobalErrorComponent);
+          useErrorComponent(GlobalErrorComponent, globalErrorModule);
           const handler = getContext(RENDER_HANDLER);
           return handler();
         } else {

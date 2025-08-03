@@ -5,6 +5,7 @@ import { codegen, parse, walk } from "../utils/ast.mjs";
 import { hasClientComponents, isModule } from "../utils/module.mjs";
 
 const cwd = sys.cwd();
+const isClientComponent = new Map();
 
 export default function useClient(type, manifest, enforce) {
   let config;
@@ -13,6 +14,51 @@ export default function useClient(type, manifest, enforce) {
     enforce,
     configResolved(_config) {
       config = _config;
+    },
+    hotUpdate: {
+      filter: {
+        id: /\.m?[jt]sx?$/,
+      },
+      async handler({ file, modules, read }) {
+        const code = await read();
+        if (!code) return;
+
+        const ast = await parse(code, file);
+        if (!ast) return null;
+
+        const directives = ast.body
+          .filter((node) => node.type === "ExpressionStatement")
+          .map(({ directive }) => directive);
+
+        const type = directives.includes("use client");
+        const prevType = isClientComponent.get(file);
+        isClientComponent.set(file, type);
+
+        if (
+          (this.environment.name === "rsc" &&
+            !directives.includes("use client")) ||
+          prevType !== type
+        ) {
+          this.environment.hot.send({
+            type: "full-reload",
+            triggeredBy: file,
+          });
+          return [];
+        }
+
+        if (this.environment.name === "client") {
+          if (modules.length === 0) {
+            this.environment.hot.send({
+              type: "full-reload",
+              triggeredBy: file,
+            });
+            return [];
+          }
+          return modules;
+        }
+
+        return [];
+      },
     },
     transform: {
       filter: {
@@ -69,17 +115,19 @@ export default function useClient(type, manifest, enforce) {
             return codegen(ast, id);
           }
 
-          if (!code.includes("use client")) return;
+          if (!code.includes("use client")) return null;
 
           const directives = ast.body
             .filter((node) => node.type === "ExpressionStatement")
             .map(({ directive }) => directive);
 
-          if (!directives.includes("use client")) return;
+          if (!directives.includes("use client")) return null;
           if (directives.includes("use server"))
             throw new Error(
               "Cannot use both 'use client' and 'use server' in the same module."
             );
+
+          isClientComponent.set(id, true);
 
           const workspacePath = manifest
             ? (id) => {
@@ -166,7 +214,9 @@ registerClientReference(${name}, "${workspacePath(id)}", "${name}");`
 
           if (this.environment.name === "rsc") {
             const mod = this.environment.moduleGraph.getModuleById(id);
-            mod.__react_server_client_component__ = true;
+            if (mod) {
+              mod.__react_server_client_component__ = true;
+            }
           }
 
           return codegen(clientReferenceAst, id);

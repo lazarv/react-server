@@ -115,7 +115,7 @@ export default async function ssrHandler(root) {
 
               context$(ERROR_BOUNDARY, ErrorBoundary);
               if (!renderContext.flags.isRemote && GlobalErrorComponent) {
-                useErrorComponent(GlobalErrorComponent);
+                useErrorComponent(GlobalErrorComponent, globalErrorModule);
               }
 
               const handler = async () => {

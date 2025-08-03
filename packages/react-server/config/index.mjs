@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile, rm, stat } from "node:fs/promises";
-import { basename, dirname, join, relative } from "node:path";
+import { basename, dirname, extname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { watch } from "chokidar";
@@ -84,7 +84,7 @@ export async function loadConfig(initialConfig, options = {}) {
       } else {
         configModule = (
           await import(
-            /* @vite-ignore */ `${pathToFileURL(src)}${filename.endsWith(".json") ? "" : `?_=${Math.floor((await stat(src)).mtimeMs)}`}`,
+            /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}${extname(filename)}`,
             filename.endsWith(".json") ? { with: { type: "json" } } : undefined
           )
         ).default;

@@ -46,7 +46,7 @@ The following options are specific to the `@lazarv/react-server` framework.
 
 Add new entries to the runtime context. The runtime context is a singleton store and can be used to share state in your application.
 
-```json
+```json filename="react-server.config.json"
 {
   "runtime": {
     "myEntry": "myValue"
@@ -56,7 +56,7 @@ Add new entries to the runtime context. The runtime context is a singleton store
 
 The `runtime` option can also be a function that returns the runtime context object. This is useful when you want to mutate the runtime context.
 
-```mjs
+```mjs filename="react-server.config.mjs"
 export default {
   runtime: (runtime) => {
     return {
@@ -73,7 +73,7 @@ export default {
 
 Provide cookies configuration, see available options [here](https://www.npmjs.com/package/cookie#options-1).
 
-```mjs
+```mjs filename="react-server.config.mjs"
 export default {
   cookies: {
     path: "/",
@@ -91,7 +91,7 @@ export default {
 
 You can add `pre` and `post` handlers to the Hattip middleware stack. You can define the async handler functions in an array for both `pre` and `post` options. See more details about Hattip handlers [here](https://github.com/hattipjs/hattip).
 
-```mjs
+```mjs filename="react-server.config.mjs"
 export default {
   handlers: {
     pre: [async () { ... }],
@@ -102,7 +102,7 @@ export default {
 
 The `handlers` option can also be a function that returns the handlers array. This is useful when you want to mutate the middlewares used.
 
-```mjs
+```mjs filename="react-server.config.mjs"
 export default {
   handlers: (handlers) => {
     return [...handlers, async () { ... }];
@@ -124,7 +124,7 @@ The public directory is the directory where the static assets are served from. T
 
 To disable the automatic module preloading of client components, you can use the `modulePreload` option. The `modulePreload` option can be a boolean value or a function that returns a boolean value. The function can also be an async function. When the `modulePreload` option evaluates to `false`, the modules for the client components will not be preloaded.
 
-```json
+```json filename="react-server.config.json"
 {
   "modulePreload": false
 }
@@ -132,7 +132,7 @@ To disable the automatic module preloading of client components, you can use the
 
 Using a function to disable the module preloading of client components:
 
-```mjs
+```mjs filename="react-server.config.mjs"
 export default {
   modulePreload: () => false,
 };
@@ -140,7 +140,7 @@ export default {
 
 As the whole application context is available in the function, you can use all helpers or hooks provided by the framework to determine whether to preload the client components.
 
-```mjs
+```mjs filename="react-server.config.mjs"
 import { usePathname } from "@lazarv/react-server";
 
 export default {
@@ -149,4 +149,30 @@ export default {
     return pathname !== "/";
   },
 };
+```
+
+<Link name="error">
+#### Error overlay
+</Link>
+
+To disable the error overlay in development mode, you can use the `overlay` option. The `overlay` option can be a boolean value. When the `overlay` option is set to `false`, the error overlay will not be displayed.
+
+```json filename="react-server.config.json"
+{
+  "overlay": false
+}
+```
+
+<Link name="console">
+#### Console forwarding
+</Link>
+
+Console forwarding is a feature that allows you to forward the console output from the browser to the development server. This is useful for debugging purposes, as it allows you to see the console output from the browser in your terminal when running the development server.
+
+Console forwarding is enabled by default in your application. To disable console forwarding, you can use the `console` option. The `console` option can be a boolean value. When the `console` option is set to `false`, the console output from the browser will not be forwarded to the development server.
+
+```json filename="react-server.config.json"
+{
+  "console": false
+}
 ```

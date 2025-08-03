@@ -46,10 +46,6 @@ export default function reactServerLive(httpServer, config) {
         connections.delete(socket);
       });
     });
-
-    httpServer.on("close", () => {
-      io.close();
-    });
   }
 
   if (httpServer) {

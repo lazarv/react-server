@@ -2,6 +2,8 @@
   "server": {
     "hmr": false
   },
+  "console": false,
+  "overlay": false,
   "cache": {
     "providers": {
       "indexedb": {

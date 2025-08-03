@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  id-token: write # Necessary for GitHub Actions to authenticate with external services
   actions: write # Necessary to cancel workflow executions
   checks: write # Necessary to write reports
   pull-requests: write # Necessary to comment on PRs

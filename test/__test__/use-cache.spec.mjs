@@ -133,7 +133,7 @@ test("rsc serialization", async () => {
   expect(await page.textContent("#serialized")).toContain(
     process.env.NODE_ENV === "production"
       ? `1:I["/client/fixtures/counter.`
-      : `2:I["fixtures/counter.jsx",[],"default",1]`
+      : `4:I["fixtures/counter.jsx",[],"default",1]`
   );
   expect(await page.getByRole("button").count()).toBe(2);
   expect(

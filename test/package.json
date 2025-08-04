@@ -16,10 +16,10 @@
     "@lazarv/react-server": "workspace:*",
     "idb-keyval": "^6.2.2",
     "picomatch": "^4.0.2",
-    "rolldown": "1.0.0-beta.21",
+    "rolldown": "1.0.0-beta.30",
     "tinyglobby": "^0.2.13",
     "unstorage": "^1.16.0",
-    "vite": "npm:rolldown-vite@7.0.3"
+    "vite": "npm:rolldown-vite@7.0.12"
   },
   "devDependencies": {
     "@playwright/test": "^1.53.1",

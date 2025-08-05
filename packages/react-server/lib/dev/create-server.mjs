@@ -147,7 +147,15 @@ export default async function createServer(root, options) {
         "react-dom",
         "react-dom/client",
         "react-server-dom-webpack/client.browser",
+        "react-server-dom-webpack/server.browser",
         "react-is",
+        "@jridgewell/trace-mapping",
+        "highlight.js/lib/core",
+        "highlight.js/lib/languages/diff",
+        "highlight.js/lib/languages/javascript",
+        "highlight.js/lib/languages/json",
+        "highlight.js/lib/languages/xml",
+        "socket.io-client",
         ...(config.optimizeDeps?.include ?? []),
       ],
     },
@@ -180,6 +188,18 @@ export default async function createServer(root, options) {
       ...config.resolve,
       alias: [
         ...resolvedClientAlias,
+        {
+          find: /^highlight\.js\/lib/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "node_modules", "highlight.js/lib")
+          ),
+        },
+        {
+          find: /^@jridgewell\/trace-mapping$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "node_modules", "@jridgewell/trace-mapping")
+          ),
+        },
         { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
         {
           find: /^@lazarv\/react-server\/client$/,

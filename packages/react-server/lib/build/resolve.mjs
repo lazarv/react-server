@@ -32,6 +32,11 @@ export const clientAlias = (dev) => [
     replacement: dependencies.reactServerDomWebpackClientBrowser,
     id: "react-server-dom-webpack/client.browser",
   },
+  {
+    find: /^react-server-dom-webpack\/server.browser$/,
+    replacement: dependencies.reactServerDomWebpackServerBrowser,
+    id: "react-server-dom-webpack/server.browser",
+  },
   { find: /^react-is$/, replacement: dependencies.reactIs, id: "react-is" },
   ...(dependencies.scheduler
     ? [
@@ -61,5 +66,10 @@ export const clientAlias = (dev) => [
     find: /^unstorage\/drivers\/session-storage$/,
     replacement: dependencies.unstorageDriversSessionStorage,
     id: "unstorage/drivers/session-storage",
+  },
+  {
+    find: /^socket.io-client$/,
+    replacement: dependencies.socketIoClient,
+    id: "socket.io-client",
   },
 ];

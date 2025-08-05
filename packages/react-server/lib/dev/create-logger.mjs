@@ -41,11 +41,37 @@ export default function createLogger(level = "info", options) {
     errorOnce: colors.red("[error]"),
   };
 
+  function stripConsoleStyles(args) {
+    if (args.length === 0) return args;
+
+    const [formatString, ...params] = args;
+    const formatSpecifiers = formatString.match(/%%|%[sdifoOjc]/g) || [];
+    const styleIndices = [];
+    let paramIndex = 0;
+
+    formatSpecifiers.forEach((specifier) => {
+      if (specifier === "%c") {
+        styleIndices.push(paramIndex);
+        paramIndex++;
+      } else if (specifier !== "%%") {
+        paramIndex++;
+      }
+    });
+
+    const updatedFormatString = formatString.replace(/(?<!%)%c/g, "");
+    const strippedParams = params.filter(
+      (_, index) => !styleIndices.includes(index)
+    );
+
+    return [updatedFormatString, ...strippedParams];
+  }
+
   return {
     ...logger,
     ...["log", "info", "warn", "debug", "warnOnce"].reduce(
       (newLogger, command) => {
-        newLogger[command] = (...args) => {
+        newLogger[command] = (...originalArgs) => {
+          const args = stripConsoleStyles(originalArgs);
           let [msg, ...commandArgs] = args;
           const options = commandArgs?.[commandArgs?.length - 1];
 

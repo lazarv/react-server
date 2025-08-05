@@ -20,6 +20,9 @@ const reactDomServerEdge = normalizePath(
 const reactServerDomWebpackClientBrowser = normalizePath(
   __require.resolve("react-server-dom-webpack/client.browser")
 );
+const reactServerDomWebpackServerBrowser = normalizePath(
+  __require.resolve("react-server-dom-webpack/server.browser")
+);
 const reactServerDomWebpackClientEdge = normalizePath(
   __require.resolve("react-server-dom-webpack/client.edge")
 );
@@ -43,6 +46,7 @@ const unstorageDriversLocalStorage = normalizePath(
 const unstorageDriversSessionStorage = normalizePath(
   __require.resolve("unstorage/drivers/session-storage")
 );
+const socketIoClient = normalizePath(__require.resolve("socket.io-client"));
 
 export {
   react,
@@ -53,6 +57,7 @@ export {
   reactJsxRuntime,
   reactCompilerRuntime,
   reactServerDomWebpackClientBrowser,
+  reactServerDomWebpackServerBrowser,
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
   reactIs,
@@ -61,4 +66,5 @@ export {
   unstorageDriversMemory,
   unstorageDriversLocalStorage,
   unstorageDriversSessionStorage,
+  socketIoClient,
 };

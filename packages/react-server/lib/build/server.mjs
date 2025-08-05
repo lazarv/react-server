@@ -98,7 +98,7 @@ export default async function serverBuild(root, options) {
         const prev = pkg;
         if (pkg) {
           while (pkg && !pkg.name && !pkg.version) {
-            pkg = findNearestPackageData(pkg, join(pkg.__pkg_dir__, ".."));
+            pkg = findNearestPackageData(join(pkg.__pkg_dir__, ".."));
           }
           if (!pkg) {
             pkg = prev;

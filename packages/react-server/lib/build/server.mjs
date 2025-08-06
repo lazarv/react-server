@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { join, relative, extname } from "node:path";
 
 import replace from "@rollup/plugin-replace";
 import glob from "fast-glob";
@@ -274,6 +274,26 @@ export default async function serverBuild(root, options) {
               : "[name].[hash].mjs";
           },
           chunkFileNames: "server/[name].[hash].mjs",
+          advancedChunks: {
+            groups: [
+              {
+                name(id) {
+                  const clientModules = Array.from(clientManifest.values());
+                  if (
+                    clientModules.includes(id) &&
+                    !id.includes("node_modules")
+                  ) {
+                    const specifier = sys.normalizePath(relative(cwd, id));
+                    return specifier
+                      .replaceAll("../", "__/")
+                      .replace(extname(specifier), "");
+                  }
+                },
+              },
+              ...(config.build?.rollupOptions?.output?.advancedChunks?.groups ??
+                []),
+            ],
+          },
         },
         input: {
           "server/__react_server_config__/prebuilt": "virtual:config/prebuilt",

@@ -171,6 +171,10 @@ export default async function clientBuild(_, options) {
           advancedChunks: {
             groups: [
               {
+                name: "react",
+                test: /\/react\/|\/react-dom\/|\/react-server-dom-webpack\//,
+              },
+              {
                 name: "react-server/client/context",
                 test: /react-server\/client\/context/,
               },

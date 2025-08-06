@@ -101,12 +101,17 @@ export async function init$(type = "server", options = {}) {
     );
     const entry =
       type === "client" && browserEntry
-        ? Object.values(manifest.client).find(
-            (entry) =>
-              entry.src &&
-              realpathSync(join(cwd, entry.src)) ===
-                realpathSync(join(cwd, browserEntry?.src))
-          )
+        ? Object.values(manifest.client).find((entry) => {
+            try {
+              return (
+                entry.src &&
+                realpathSync(join(cwd, entry.src)) ===
+                  realpathSync(join(cwd, browserEntry?.src))
+              );
+            } catch {
+              return false;
+            }
+          })
         : Object.values(manifest.server).find(
             (entry) =>
               entry.src &&

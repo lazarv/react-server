@@ -130,7 +130,7 @@ export default async function RemoteComponent({
         const config = forRoot();
         const shared = [
           "rolldown-runtime",
-          "jsx-runtime",
+          "react",
           "react-server/client/context",
           /react-server\/client\/navigation$/,
           /react-server\/client\/location$/,
@@ -162,6 +162,10 @@ export default async function RemoteComponent({
             const remoteEntryUrl = new URL(`/${remote.file}`, remoteUrl).href;
             imports[remoteEntryUrl] = hostEntryUrl;
           }
+        }
+
+        if (Object.keys(imports).length === 0) {
+          return null;
         }
 
         return <script type="importmap">{JSON.stringify({ imports })}</script>;

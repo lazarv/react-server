@@ -335,7 +335,8 @@ export async function render(Component, props = {}, options = {}) {
         }
 
         const ModulePreloads =
-          configModulePreload !== false
+          configModulePreload !== false &&
+          !(remote || (origin && host !== origin))
             ? () => {
                 const modules = getContext(CLIENT_MODULES_CONTEXT);
                 return (
@@ -353,18 +354,26 @@ export async function render(Component, props = {}, options = {}) {
             : () => null;
         const ComponentWithStyles = (
           <>
-            <link rel="preconnect" href={origin ?? "/"} id="live-io" />
-            {import.meta.env.DEV && (
+            <link
+              rel="preconnect"
+              href={origin ?? "/"}
+              id={remote ? `live-io-${outlet}` : "live-io"}
+            />
+            {import.meta.env.DEV && !remote && (
               <>
                 <meta name="react-server:cwd" content={cwd()} />
-                <meta
-                  name="react-server:console"
-                  content={String(config.console)}
-                />
-                <meta
-                  name="react-server:overlay"
-                  content={String(config.overlay)}
-                />
+                {typeof config.console !== "undefined" && (
+                  <meta
+                    name="react-server:console"
+                    content={String(config.console)}
+                  />
+                )}
+                {typeof config.overlay !== "undefined" && (
+                  <meta
+                    name="react-server:overlay"
+                    content={String(config.overlay)}
+                  />
+                )}
               </>
             )}
             <Styles />

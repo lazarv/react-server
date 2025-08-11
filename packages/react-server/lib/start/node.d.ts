@@ -1,4 +1,8 @@
-import type { NodeMiddleware } from "@hattip/adapter-node";
+export type NodeMiddleware = (
+  req: import("http").IncomingMessage,
+  res: import("http").ServerResponse,
+  next?: (err?: any) => void
+) => any;
 
 export interface ReactServerOptions {
   outDir?: string;

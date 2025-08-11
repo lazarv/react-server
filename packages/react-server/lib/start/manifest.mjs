@@ -1,4 +1,3 @@
-import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -104,9 +103,7 @@ export async function init$(type = "server", options = {}) {
         ? Object.values(manifest.client).find((entry) => {
             try {
               return (
-                entry.src &&
-                realpathSync(join(cwd, entry.src)) ===
-                  realpathSync(join(cwd, browserEntry?.src))
+                entry.isEntry && entry.name === `server/${browserEntry.name}`
               );
             } catch {
               return false;

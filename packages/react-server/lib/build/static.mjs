@@ -6,12 +6,11 @@ import { pipeline } from "node:stream/promises";
 import { Worker } from "node:worker_threads";
 import { createBrotliCompress, createGzip } from "node:zlib";
 
-import { parseMultipartFormData } from "@hattip/multipart";
 import { filesize } from "filesize";
 import colors from "picocolors";
 
-import { forRoot } from "../../config/index.mjs";
 import memoryDriver, { StorageCache } from "../../cache/index.mjs";
+import { forRoot } from "../../config/index.mjs";
 import { getContext } from "../../server/context.mjs";
 import {
   getRuntime,
@@ -24,6 +23,7 @@ import {
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
+import { parseMultipartFormData } from "../http/index.mjs";
 import ssrHandler from "../start/ssr-handler.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";

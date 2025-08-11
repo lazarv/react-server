@@ -2,11 +2,13 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Worker } from "node:worker_threads";
 
-import { createMiddleware } from "@hattip/adapter-node";
-import { compose } from "@hattip/compose";
-import { cookie } from "@hattip/cookie";
-import { cors } from "@hattip/cors";
-import { parseMultipartFormData } from "@hattip/multipart";
+import {
+  compose,
+  cookie,
+  cors,
+  createMiddleware,
+  parseMultipartFormData,
+} from "@lazarv/react-server/http";
 import { Server } from "socket.io";
 
 import memoryDriver, { StorageCache } from "../../cache/index.mjs";
@@ -97,7 +99,9 @@ export default async function createServer(root, options) {
         config.server?.origin ??
         `${
           config.server?.https || options.https ? "https" : "http"
-        }://${options.host ?? sys.getEnv("HOST") ?? config.server?.host ?? "localhost"}:${options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000}`,
+        }://${options.host ?? sys.getEnv("HOST") ?? config.server?.host ?? "localhost"}:$${
+          options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000
+        }`,
       trustProxy: config.server?.trustProxy ?? options.trustProxy,
     }
   );

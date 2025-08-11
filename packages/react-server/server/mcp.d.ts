@@ -1,6 +1,7 @@
-import type { AdapterRequestContext } from "@hattip/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { z, ZodTypeAny } from "zod";
+
+import type { HttpContext } from "../lib/http/index.d.ts";
 export type { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 
 type InputSchemaShape = Record<string, ZodTypeAny>;
@@ -85,7 +86,7 @@ export function createPrompt<S extends InputSchemaShape, R>(
  * @param tools - An optional object containing tools defined using `createTool`.
  * @param resources - An optional object containing resources defined using `createResource`.
  * @param prompts - An optional object containing prompts defined using `createPrompt`.
- * @returns A function that takes an `AdapterRequestContext` and returns a promise that resolves to a `Response`. A `@lazarv/react-server` server middleware can use this function to handle requests.
+ * @returns A function that takes an `HttpContext` and returns a promise that resolves to a `Response`. A `@lazarv/react-server` server middleware can use this function to handle requests.
  */
 export function createServer<T, R, P>({
   tools,
@@ -95,7 +96,7 @@ export function createServer<T, R, P>({
   tools?: T;
   resources?: R;
   prompts?: P;
-}): (context: AdapterRequestContext) => Promise<Response>;
+}): (context: HttpContext) => Promise<Response>;
 
 /** Retrieves the current Model Context Protocol (MCP) server from the request context.
  * This function is typically used within a server-side component to access the MCP server instance.

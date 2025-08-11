@@ -29,6 +29,7 @@ import {
 import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
 import { bareImportRE, findNearestPackageData } from "../utils/module.mjs";
+import { realpathSync } from "node:fs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();

@@ -3,11 +3,6 @@ import { isBuiltin, register } from "node:module";
 import { dirname, join, relative } from "node:path";
 import { Worker } from "node:worker_threads";
 
-import { createMiddleware } from "@hattip/adapter-node";
-import { compose } from "@hattip/compose";
-import { cookie } from "@hattip/cookie";
-import { cors } from "@hattip/cors";
-import { parseMultipartFormData } from "@hattip/multipart";
 import colors from "picocolors";
 import {
   createRunnableDevEnvironment,
@@ -35,6 +30,13 @@ import {
 import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
+import {
+  compose,
+  cookie,
+  cors,
+  createMiddleware,
+  parseMultipartFormData,
+} from "../http/index.mjs";
 import {
   alias,
   moduleAliases,
@@ -755,9 +757,7 @@ export default async function createServer(root, options) {
         } catch (e) {
           viteDevServer.config.logger.error("Failed to process console", e);
         }
-        return new Response(null, {
-          status: 204,
-        });
+        return new Response(null, { status: 204 });
       } else if (context.url.pathname === "/__react_server_source_map__") {
         const filename = context.url.searchParams.get("filename");
         const mod =
@@ -768,17 +768,13 @@ export default async function createServer(root, options) {
               ...mod.transformResult.map,
               sourceRoot: dirname(relative(cwd, filename)),
             }),
-            {
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }
+            { headers: { "Content-Type": "application/json" } }
           );
         }
       }
     },
     trailingSlashHandler(),
-    cookie(config.cookies),
+    cookie(config?.cookies),
     ...(config.handlers?.pre ?? []),
     ssrHandler(root),
     ...(config.handlers?.post ?? []),

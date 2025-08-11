@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { lstatSync, readlinkSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readlinkSync } from "node:fs";
 import { cp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import {
@@ -225,6 +225,12 @@ export async function getDependencies(adapterFiles, reactServerDir) {
     __require.resolve("@lazarv/react-server/client/entry.client.jsx", {
       paths: [cwd],
     }),
+    __require.resolve("@lazarv/react-server/cache/index.mjs", {
+      paths: [cwd],
+    }),
+    __require.resolve("@lazarv/react-server/cache/client.mjs", {
+      paths: [cwd],
+    }),
   ];
   sourceFiles.push(...adapterFiles, ...reactServerDeps);
 
@@ -237,6 +243,14 @@ export async function getDependencies(adapterFiles, reactServerDir) {
   const traceCache = {};
   const aliasReactServer = moduleAliases("react-server");
   const aliasReact = moduleAliases();
+
+  const ignoreAlias = [
+    "unstorage",
+    "unstorage/drivers/memory",
+    "unstorage/drivers/localstorage",
+    "unstorage/drivers/session-storage",
+  ];
+
   const traces = await Promise.all([
     nodeFileTrace(sourceFiles, {
       conditions: ["react-server", "node", "import"],
@@ -244,7 +258,7 @@ export async function getDependencies(adapterFiles, reactServerDir) {
       base: rootDir,
       ignore: [`${reactServerPkgDir}/lib/dev/create-logger.mjs`],
       resolve(id, parent, job, cjsResolve) {
-        if (aliasReactServer[id]) {
+        if (aliasReactServer[id] && !ignoreAlias.includes(id)) {
           return aliasReactServer[id];
         }
         return resolve(id, parent, job, cjsResolve);
@@ -256,12 +270,22 @@ export async function getDependencies(adapterFiles, reactServerDir) {
       base: rootDir,
       ignore: [`${reactServerPkgDir}/lib/dev/create-logger.mjs`],
       resolve(id, parent, job, cjsResolve) {
-        if (aliasReact[id]) {
+        if (aliasReact[id] && !ignoreAlias.includes(id)) {
           return aliasReact[id];
         }
         return resolve(id, parent, job, cjsResolve);
       },
     }),
+    nodeFileTrace(
+      Array.from(
+        new Set([...Object.keys(aliasReactServer), ...Object.keys(aliasReact)])
+      ).map((id) => __require.resolve(id, { paths: [cwd] })),
+      {
+        conditions: ["node", "require"],
+        cache: traceCache,
+        base: rootDir,
+      }
+    ),
   ]);
 
   const trace = traces.reduce((trace, t) => {
@@ -302,14 +326,42 @@ export async function getDependencies(adapterFiles, reactServerDir) {
 
   return dependencyFiles.map((src) => {
     const path = sys.normalizePath(relative(rootDir, src));
-    const dest = path.startsWith("node_modules/.pnpm")
-      ? path.split("/").slice(3).join("/")
-      : path.startsWith(sys.normalizePath(relative(rootDir, reactServerPkgDir)))
-        ? path.replace(
-            sys.normalizePath(relative(rootDir, reactServerPkgDir)),
-            "node_modules/@lazarv/react-server"
+    let dest = path;
+
+    if (path.startsWith("node_modules/.pnpm")) {
+      dest = path.split("/").slice(3).join("/");
+    } else if (
+      path.startsWith(sys.normalizePath(relative(rootDir, reactServerPkgDir)))
+    ) {
+      dest = path.replace(
+        sys.normalizePath(relative(rootDir, reactServerPkgDir)),
+        "node_modules/@lazarv/react-server"
+      );
+    } else if (relative(src, cwd).startsWith("../")) {
+      try {
+        let packageJsonPath = join(dirname(src), "package.json");
+        while (
+          !existsSync(packageJsonPath) &&
+          dirname(packageJsonPath) !== "/"
+        ) {
+          packageJsonPath = join(
+            dirname(packageJsonPath),
+            "..",
+            "package.json"
+          );
+        }
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+        dest = sys.normalizePath(
+          join(
+            `node_modules/${packageJson.name}`,
+            relative(dirname(packageJsonPath), src)
           )
-        : path;
+        );
+      } catch {
+        // If package.json is not found, keep the original path
+        dest = path;
+      }
+    }
     return { src, dest };
   });
 }

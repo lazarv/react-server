@@ -1,6 +1,8 @@
-import type { RequestContextExtensions } from "@hattip/compose";
-import type { CookieSerializeOptions } from "@hattip/cookie";
-import type { AdapterRequestContext } from "@hattip/core";
+import type {
+  CookieSerializeOptions,
+  HttpContext,
+  RequestContextExtensions,
+} from "../lib/http/index.d.ts";
 
 /**
  * This function enables caching the response for the specified time-to-live (TTL).
@@ -73,7 +75,7 @@ export function redirect(url: string, status?: number): void;
  *
  * @returns The current request context
  */
-export function useHttpContext(): AdapterRequestContext;
+export function useHttpContext(): HttpContext;
 
 /**
  * This hook returns the current request object.
@@ -338,4 +340,4 @@ export function useRender(): {
 /**
  * The current version of `@lazarv/react-server`.
  */
-export const version: string;
+export let version: string;

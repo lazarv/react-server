@@ -103,16 +103,14 @@ test("http rewrite", async () => {
   expect(await page.textContent("body")).toContain("/rewrite");
 });
 
-// this is flaky so we need to skip it for now
-test.skip("http response cache", async () => {
+test("http response cache", async () => {
   await server("fixtures/http-response-cache.jsx");
   await page.goto(hostname);
   const first = await page.textContent("body");
-  await page.waitForTimeout(500);
   await page.goto(hostname);
   const second = await page.textContent("body");
   expect(first).toBe(second);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1000);
   await page.goto(hostname);
   const third = await page.textContent("body");
   expect(first).not.toBe(third);

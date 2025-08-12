@@ -66,6 +66,20 @@ export default function createLogger(level = "info", options) {
     return [updatedFormatString, ...strippedParams];
   }
 
+  function addTerminalColors(str) {
+    return colors.cyan(colors.italic(colors.bold(str)));
+  }
+
+  function addColors(message) {
+    const tagMatch = /<([^>]+)>/;
+    message = message.replace(tagMatch, (_, tag) =>
+      addTerminalColors(`<${tag}>`)
+    );
+    const codeMatch = /`([^`]+)`/;
+    message = message.replace(codeMatch, (_, code) => addTerminalColors(code));
+    return message;
+  }
+
   return {
     ...logger,
     ...["log", "info", "warn", "debug", "warnOnce"].reduce(
@@ -120,7 +134,7 @@ export default function createLogger(level = "info", options) {
                     })
                     .join(" ")
                 : `${commandTag[command] ?? ""}${commandTag[command] ? " " : ""}${repeatMessage(
-                    useFormat ? format(msg, ...commandArgs) : msg,
+                    addColors(useFormat ? format(msg, ...commandArgs) : msg),
                     options?.environment
                   )}`,
               { timestamp: true, ...options }
@@ -174,7 +188,7 @@ export default function createLogger(level = "info", options) {
             if (typeof e !== "string") {
               msg = JSON.stringify(e);
             } else {
-              msg = e;
+              msg = addColors(format(e, ...rest));
             }
           } catch (e) {
             msg = e.message || e;

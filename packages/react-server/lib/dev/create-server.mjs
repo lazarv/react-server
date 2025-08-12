@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import { isBuiltin, register } from "node:module";
+import { createRequire, isBuiltin, register } from "node:module";
 import { dirname, join, relative } from "node:path";
 import { Worker } from "node:worker_threads";
 
@@ -75,6 +75,7 @@ await import("react");
 
 const cwd = sys.cwd();
 const workspaceRoot = findPackageRoot(join(cwd, "..")) ?? cwd;
+const __require = createRequire(import.meta.url);
 
 export default async function createServer(root, options) {
   if (!options.outDir) {
@@ -193,13 +194,17 @@ export default async function createServer(root, options) {
         {
           find: /^highlight\.js\/lib/,
           replacement: sys.normalizePath(
-            join(sys.rootDir, "node_modules", "highlight.js/lib")
+            dirname(__require.resolve("highlight.js/lib/core"))
           ),
         },
         {
           find: /^@jridgewell\/trace-mapping$/,
           replacement: sys.normalizePath(
-            join(sys.rootDir, "node_modules", "@jridgewell/trace-mapping")
+            typeof import.meta.resolve === "function"
+              ? import.meta.resolve("@jridgewell/trace-mapping")
+              : __require
+                  .resolve("@jridgewell/trace-mapping")
+                  .replace(/\.umd\.js$/, ".mjs")
           ),
         },
         { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },

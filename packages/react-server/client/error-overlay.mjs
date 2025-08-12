@@ -537,7 +537,10 @@ class ReactServerErrorIndicator extends HTMLElement {
     opacity: 0.8;
   }
 }`;
-    this.root.innerHTML = `<div class="message">${this.message || (displayType[type] ?? type)}</div>`;
+    const content = document.createElement("div");
+    content.className = "message";
+    content.textContent = `${this.message || (displayType[type] ?? type)}`;
+    this.root.appendChild(content);
     this.root.appendChild(errorToastStyle);
 
     const actions = document.createElement("div");

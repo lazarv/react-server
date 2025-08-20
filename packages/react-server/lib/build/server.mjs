@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { createRequire, isBuiltin } from "node:module";
 import { join, relative, extname } from "node:path";
 
 import replace from "@rollup/plugin-replace";
@@ -49,6 +49,10 @@ export default async function serverBuild(root, options) {
   ];
 
   const external = (id, parentId, isResolved) => {
+    if (isBuiltin(id)) {
+      return true;
+    }
+
     const external = [
       /manifest\.json/,
       "bun",
@@ -92,14 +96,23 @@ export default async function serverBuild(root, options) {
     return false;
   };
   const rscExternal = (id) => {
+    if (isBuiltin(id)) {
+      return true;
+    }
+
     if (bareImportRE.test(id)) {
       try {
         const mod = __require.resolve(id, { paths: [cwd] });
         let pkg = findNearestPackageData(mod);
         const prev = pkg;
         if (pkg) {
+          let prevDir = pkg.__pkg_dir__;
           while (pkg && !pkg.name && !pkg.version) {
             pkg = findNearestPackageData(join(pkg.__pkg_dir__, ".."));
+            if (pkg.__pkg_dir__ === prevDir) {
+              break;
+            }
+            prevDir = pkg.__pkg_dir__;
           }
           if (!pkg) {
             pkg = prev;

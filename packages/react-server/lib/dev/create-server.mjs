@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { createRequire, isBuiltin, register } from "node:module";
 import { dirname, join, relative } from "node:path";
@@ -186,7 +187,10 @@ export default async function createServer(root, options) {
       reactServerLive(options.httpServer, config),
     ],
     cacheDir:
-      config.cacheDir || join(cwd, "node_modules", options.outDir, ".cache"),
+      config.cacheDir ||
+      (existsSync(join(cwd, "node_modules"))
+        ? join(cwd, "node_modules", options.outDir, ".cache")
+        : join(cwd, options.outDir, ".cache")),
     resolve: {
       ...config.resolve,
       alias: [
@@ -341,6 +345,7 @@ export default async function createServer(root, options) {
                     "@lazarv/react-server",
                   ],
                   external: [
+                    "picocolors",
                     "unstorage",
                     "@modelcontextprotocol/sdk",
                     "highlight.js",

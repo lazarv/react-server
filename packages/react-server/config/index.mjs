@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile, rm, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -14,6 +15,7 @@ import merge from "../lib/utils/merge.mjs";
 
 const cwd = sys.cwd();
 const defaultConfig = {};
+const __require = createRequire(import.meta.url);
 
 export async function loadConfig(initialConfig, options = {}) {
   const outDir = options.outDir ?? ".react-server";
@@ -41,7 +43,15 @@ export async function loadConfig(initialConfig, options = {}) {
     await glob(configPatterns, {
       cwd,
     })
-  ).map((file) => relative(cwd, file));
+  )
+    .map((file) => relative(cwd, file))
+    .toSorted((a, b) => {
+      const aIsRuntime = a.includes(".runtime.config.");
+      const bIsRuntime = b.includes(".runtime.config.");
+      if (aIsRuntime && !bIsRuntime) return 1;
+      if (!aIsRuntime && bIsRuntime) return -1;
+      return 0;
+    });
 
   for await (const file of configFiles) {
     try {
@@ -62,9 +72,36 @@ export async function loadConfig(initialConfig, options = {}) {
             input: src,
             output: {
               file: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
-              minify: true,
+              minify: options.minify ?? false,
             },
-            external: () => true,
+            external: (id) => {
+              if (typeof config["."]?.resolve?.external !== "undefined") {
+                const external = config["."]?.resolve?.external;
+                if (external instanceof RegExp) {
+                  return external.test(id);
+                } else if (Array.isArray(external)) {
+                  for (const pattern of external) {
+                    if (typeof pattern === "string" && pattern === id) {
+                      return true;
+                    } else if (pattern instanceof RegExp && pattern.test(id)) {
+                      return true;
+                    }
+                  }
+                  return false;
+                } else if (typeof external === "function") {
+                  return external(id);
+                } else if (typeof external === "string") {
+                  return external === id;
+                }
+                return false;
+              }
+              try {
+                const resolved = __require.resolve(id, { paths: [cwd] });
+                return /node_modules/.test(resolved);
+              } catch {
+                return false;
+              }
+            },
             resolve: {
               tsconfigFilename: join(cwd, "tsconfig.json"),
             },

@@ -338,6 +338,21 @@ export function useRender(): {
 };
 
 /**
+ * Get runtime context store.
+ *
+ * @returns The runtime context store.
+ */
+export function getRuntime<R = Record<string, unknown>>(): R;
+
+/**
+ * Get runtime context store entry by key.
+ *
+ * @param key - The key of the store entry to retrieve.
+ * @returns The runtime context store entry.
+ */
+export function getRuntime<R = unknown, K = string>(key?: K): R;
+
+/**
  * The current version of `@lazarv/react-server`.
  */
 export let version: string;

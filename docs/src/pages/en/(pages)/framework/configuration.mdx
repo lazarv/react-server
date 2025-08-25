@@ -46,7 +46,7 @@ The following options are specific to the `@lazarv/react-server` framework.
 
 Add new entries to the runtime context. The runtime context is a singleton store and can be used to share state in your application.
 
-```json filename="react-server.config.json"
+```json filename="react-server.runtime.config.json"
 {
   "runtime": {
     "myEntry": "myValue"
@@ -56,7 +56,7 @@ Add new entries to the runtime context. The runtime context is a singleton store
 
 The `runtime` option can also be a function that returns the runtime context object. This is useful when you want to mutate the runtime context.
 
-```mjs filename="react-server.config.mjs"
+```mjs filename="react-server.runtime.config.mjs"
 export default {
   runtime: (runtime) => {
     return {
@@ -65,6 +65,22 @@ export default {
     };
   },
 };
+```
+
+In your application you can retrieve the runtime context using the `getRuntime` function.
+
+```mjs
+import { getRuntime } from "@lazarv/react-server";
+
+const runtime = getRuntime();
+```
+
+You can also directly access the runtime context entries by key using the `getRuntime` function.
+
+```mjs
+import { getRuntime } from "@lazarv/react-server";
+
+const entry = getRuntime("myEntry");
 ```
 
 <Link name="cookies">

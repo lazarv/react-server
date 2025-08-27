@@ -9,6 +9,10 @@ import {
   PAGE_ROOT as _PAGE_ROOT_,
 } from "./context.mjs";
 
+if (typeof ReadableByteStreamController === "undefined") {
+  await import("web-streams-polyfill/polyfill");
+}
+
 export const PAGE_ROOT = _PAGE_ROOT_;
 export const ClientContext = _ClientContext;
 
@@ -689,8 +693,15 @@ function getFlightResponse(url, options = {}) {
                 return;
               }
 
-              for await (const chunk of body) {
-                controller.enqueue(chunk);
+              const reader = body.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (value) {
+                  controller.enqueue(value);
+                }
+                if (done) {
+                  break;
+                }
               }
               controller.close();
 

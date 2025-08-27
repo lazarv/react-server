@@ -160,6 +160,7 @@ export default async function createServer(root, options) {
         "highlight.js/lib/languages/json",
         "highlight.js/lib/languages/xml",
         "socket.io-client",
+        "web-streams-polyfill/polyfill",
         ...(config.optimizeDeps?.include ?? []),
       ],
     },

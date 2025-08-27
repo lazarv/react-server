@@ -47,6 +47,9 @@ const unstorageDriversSessionStorage = normalizePath(
   __require.resolve("unstorage/drivers/session-storage")
 );
 const socketIoClient = normalizePath(__require.resolve("socket.io-client"));
+const webStreamsPolyfillPolyfill = normalizePath(
+  __require.resolve("web-streams-polyfill/polyfill")
+);
 
 export {
   react,
@@ -67,4 +70,5 @@ export {
   unstorageDriversLocalStorage,
   unstorageDriversSessionStorage,
   socketIoClient,
+  webStreamsPolyfillPolyfill,
 };

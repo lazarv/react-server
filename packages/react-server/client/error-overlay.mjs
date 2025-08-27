@@ -704,16 +704,17 @@ if (
                   ?.getAttribute("content") || null;
               const normalizedArgs = args.map((arg) => {
                 if (arg instanceof Error) {
-                  const stacklines = arg.stack
-                    .split("\n")
-                    .filter((it) => it.trim().startsWith("at "))
-                    .map((it) =>
-                      it
-                        .trim()
-                        .replace(location.origin, it.includes(cwd) ? "" : cwd)
-                        .replace("/@fs", "")
-                        .replace(/\?v=[a-z0-9]+/, "")
-                    );
+                  const stacklines =
+                    arg.stack
+                      ?.split("\n")
+                      .filter((it) => it.trim().startsWith("at "))
+                      .map((it) =>
+                        it
+                          .trim()
+                          .replace(location.origin, it.includes(cwd) ? "" : cwd)
+                          .replace("/@fs", "")
+                          .replace(/\?v=[a-z0-9]+/, "")
+                      ) ?? [];
                   arg.stack = stacklines.join("\n");
                 }
                 return arg;

@@ -72,4 +72,9 @@ export const clientAlias = (dev) => [
     replacement: dependencies.socketIoClient,
     id: "socket.io-client",
   },
+  {
+    find: /^web-streams-polyfill\/polyfill$/,
+    replacement: dependencies.webStreamsPolyfillPolyfill,
+    id: "web-streams-polyfill/polyfill",
+  },
 ];

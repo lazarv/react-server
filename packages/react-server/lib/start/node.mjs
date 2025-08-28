@@ -1,7 +1,8 @@
 import { loadConfig } from "../../config/prebuilt.mjs";
 import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
-import { CONFIG_CONTEXT } from "../../server/symbols.mjs";
+import { CONFIG_CONTEXT, CONFIG_ROOT } from "../../server/symbols.mjs";
 import { experimentalWarningSilence } from "../sys.mjs";
+import createLogger from "./create-logger.mjs";
 import createServer from "./create-server.mjs";
 
 export function reactServer(root, options = {}, initialConfig = {}) {
@@ -19,6 +20,8 @@ export function reactServer(root, options = {}, initialConfig = {}) {
 
       await runtime_init$(async () => {
         runtime$(CONFIG_CONTEXT, config);
+        await createLogger(config[CONFIG_ROOT]);
+
         resolve(
           await createServer(root, {
             ...options,

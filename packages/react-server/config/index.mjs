@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFile, rm, stat } from "node:fs/promises";
-import { basename, dirname, join, relative } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
+import { basename, dirname, extname, join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { watch } from "chokidar";
 import glob from "fast-glob";
@@ -14,6 +15,7 @@ import merge from "../lib/utils/merge.mjs";
 
 const cwd = sys.cwd();
 const defaultConfig = {};
+const __require = createRequire(import.meta.url);
 
 export async function loadConfig(initialConfig, options = {}) {
   const outDir = options.outDir ?? ".react-server";
@@ -22,7 +24,7 @@ export async function loadConfig(initialConfig, options = {}) {
   const configPatterns = [
     "**/{react-server,+*,vite}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
     options.command === "build"
-      ? "**/{react-server,+*,vite}.build.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}"
+      ? "**/{react-server,+*,vite}.{build,production,runtime,server}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}"
       : "**/{react-server,+*,vite}.{development,runtime,server}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
     "!**/node_modules",
     "!*/**/vite.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
@@ -41,7 +43,15 @@ export async function loadConfig(initialConfig, options = {}) {
     await glob(configPatterns, {
       cwd,
     })
-  ).map((file) => relative(cwd, file));
+  )
+    .map((file) => relative(cwd, file))
+    .toSorted((a, b) => {
+      const aIsRuntime = a.includes(".runtime.config.");
+      const bIsRuntime = b.includes(".runtime.config.");
+      if (aIsRuntime && !bIsRuntime) return 1;
+      if (!aIsRuntime && bIsRuntime) return -1;
+      return 0;
+    });
 
   for await (const file of configFiles) {
     try {
@@ -57,24 +67,51 @@ export async function loadConfig(initialConfig, options = {}) {
         try {
           await stat(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
         } catch {
-          const { build } = await import("esbuild");
+          const { build } = await import("rolldown");
           await build({
-            absWorkingDir: join(fileURLToPath(import.meta.url), "../.."),
-            entryPoints: [src],
-            outfile: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
-            bundle: true,
-            platform: "node",
-            format: "esm",
-            external: ["*"],
-            minify: true,
-            tsconfig: join(cwd, "tsconfig.json"),
+            input: src,
+            output: {
+              file: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
+              minify: options.minify ?? false,
+            },
+            external: (id) => {
+              if (typeof config["."]?.resolve?.external !== "undefined") {
+                const external = config["."]?.resolve?.external;
+                if (external instanceof RegExp) {
+                  return external.test(id);
+                } else if (Array.isArray(external)) {
+                  for (const pattern of external) {
+                    if (typeof pattern === "string" && pattern === id) {
+                      return true;
+                    } else if (pattern instanceof RegExp && pattern.test(id)) {
+                      return true;
+                    }
+                  }
+                  return false;
+                } else if (typeof external === "function") {
+                  return external(id);
+                } else if (typeof external === "string") {
+                  return external === id;
+                }
+                return false;
+              }
+              try {
+                const resolved = __require.resolve(id, { paths: [cwd] });
+                return /node_modules/.test(resolved);
+              } catch {
+                return false;
+              }
+            },
+            resolve: {
+              tsconfigFilename: join(cwd, "tsconfig.json"),
+            },
           });
         }
         try {
           const src = `${join(cwd, outDir, key, filename)}.${hash}.mjs`;
           configModule = (
             await import(
-              `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`
+              /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`
             )
           ).default;
         } catch (e) {
@@ -84,7 +121,7 @@ export async function loadConfig(initialConfig, options = {}) {
       } else {
         configModule = (
           await import(
-            `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`,
+            /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}${extname(filename)}`,
             filename.endsWith(".json") ? { with: { type: "json" } } : undefined
           )
         ).default;
@@ -99,8 +136,8 @@ export async function loadConfig(initialConfig, options = {}) {
   const configKeys = Object.keys(config);
   const root = configKeys.includes(".")
     ? "."
-    : configKeys.find((key) => configKeys.every((it) => it.startsWith(key))) ??
-      ".";
+    : (configKeys.find((key) => configKeys.every((it) => it.startsWith(key))) ??
+      ".");
   config[CONFIG_ROOT] = config[root] = merge(
     {},
     defaultConfig,

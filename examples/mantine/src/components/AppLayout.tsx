@@ -9,13 +9,7 @@ import { IconPlus } from "@tabler/icons-react";
 import AppLogo from "./AppLogo";
 import { MainNavigation } from "./MainNavigation";
 
-export function AppLayout({
-  serverPathname,
-  children,
-}: {
-  serverPathname: string;
-  children: React.ReactNode;
-}) {
+export function AppLayout({ children }: { children: React.ReactNode }) {
   const [opened, { toggle }] = useDisclosure();
 
   return (
@@ -41,7 +35,7 @@ export function AppLayout({
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="md">
-        <MainNavigation serverPathname={serverPathname} />
+        <MainNavigation />
       </AppShell.Navbar>
       <AppShell.Main>{children}</AppShell.Main>
     </AppShell>

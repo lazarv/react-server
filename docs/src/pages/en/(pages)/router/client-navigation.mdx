@@ -106,7 +106,7 @@ export default function Home() {
 ```
 
 <Link name="navigate">
-### Navigate
+## Navigate
 </Link>
 
 To programmatically navigate to a new page you can use the `navigate` function returned by the `useClient` hook. It's recommended to use `navigate` in a React transition to render only the parts of the page that are changing.
@@ -165,6 +165,25 @@ export default function Home() {
 }
 ```
 
+<Link name="form">
+## Form
+</Link>
+
+You can navigate to a new page by using the `Form` client component exported by the `@lazarv/react-server/navigation` module. This component will navigate to the current route on form submit using form data as the query parameters.
+
+```jsx
+import { Form } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <Form>
+      <input name="name" />
+      <button type="submit">Submit</button>
+    </Form>
+  );
+}
+```
+
 <Link name="outlet">
 ## Outlet
 </Link>
@@ -216,11 +235,11 @@ Using both `defer` and `url` props on the `ReactServerComponent` you can achieve
 
 The `useClient` hook returns an object with the following properties:
 
-- `navigate(url: string, options: { rollback?: number })`: A function that navigates to a new page. The `rollback` option allows you to cache the current page for a specified amount of time.
-- `replace(url: string, options: { rollback?: number })`: A function that replaces the current page with a new page. The `rollback` option allows you to cache the current page for a specified amount of time.
-- `prefetch(url: string, options: { ttl?: number })`: A function that prefetches a page. The `ttl` option allows you to cache the page for a specified amount of time.
-- `refresh()`: A function that refreshes the current page.
-
+- `navigate(url: string, options: { outlet?: string; push?: boolean; rollback?: number; signal?: AbortSignal; fallback?: React.ReactNode; Component?: React.ReactNode })`: A function that navigates to a new page or the specified outlet. The `rollback` option allows you to cache the current page for a specified amount of time.
+- `replace(url: string, options: { outlet?: string; rollback?: number; signal?: AbortSignal; fallback?: React.ReactNode; Component?: React.ReactNode })`: A function that replaces the current page with a new page or the content of the specified outlet. The `rollback` option allows you to cache the current page for a specified amount of time.
+- `prefetch(url: string, options: { outlet?: string; ttl?: number; signal?: AbortSignal })`: A function that prefetches a page or the content of the specified outlet. The `ttl` option allows you to cache the page for a specified amount of time.
+- `refresh(outlet?: string, options: { signal?: AbortSignal; fallback?: React.ReactNode; Component?: React.ReactNode })`: A function that refreshes the current page or the content of the specified outlet.
+- `abort(outlet?: string, reason?: unknown)`: A function that aborts navigation of the specified outlet.
 You can use these functions for programmatic navigation.
 
 ```jsx
@@ -243,6 +262,148 @@ export default function Home() {
       <button onClick={() => startTransition(async () => refresh())}>
         Refresh
       </button>
+    </div>
+  );
+}
+```
+
+<Link name="use-outlet">
+## useOutlet
+</Link>
+
+The `useOutlet` hook returns a set of functions to interact with the current outlet. These functions are the same as the ones returned by the `useClient` hook, but you don't need to specify the `outlet` option. In the example below, the `navigate` function is scoped to the current outlet, not the entire page. But if the current outlet is the root outlet, the `navigate` function will navigate to the entire page.
+
+```jsx
+"use client";
+
+import { useOutlet } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useOutlet();
+
+  return (
+    <div>
+      <button onClick={() => navigate("/about")}>About</button>
+    </div>
+  );
+}
+```
+
+<Link name="fallback">
+## Fallback
+</Link>
+
+The `fallback` option on the `Link` and `Refresh` components allows you to specify a fallback component to render until the outlet starts to render the React Server Component. This can be useful when you want to render a loading indicator or a skeleton while the React Server Component is being rendered immediately, without waiting for the React Server Component request to reach the server.
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" target="content" fallback={<div>Loading...</div>}>About</Link>
+    </div>
+  );
+}
+```
+
+You can also specify the `fallback` option when navigating programmatically with the `navigate` or `replace` functions.
+
+```jsx
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => navigate("/about", { fallback: <div>Loading...</div> })}>About</button>
+    </div>
+  );
+}
+```
+
+<Link name="component">
+## Component
+</Link>
+
+The `Component` option on the `Link` and `Refresh` components allows you to specify a React component to render. This can be useful when you want to render a React component directly in the outlet instead of making a request to the server.
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" target="content" Component={<div>About</div>}>About</Link>
+    </div>
+  );
+}
+```
+
+You can also specify the `Component` option when navigating programmatically with the `navigate` or `replace` functions.
+
+```jsx
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => navigate("/about", { Component: <div>About</div> })}>About</button>
+    </div>
+  );
+}
+```
+
+<Link name="revalidate">
+## Using revalidate
+</Link>
+
+You can use the `revalidate` prop on the `Link`, `Refresh` and `Form` components to control client-side caching of the page or content of the specified outlet. The `revalidate` prop can accept a number which represents the number of milliseconds the page or outlet will be cached for the target URL. After the timeout expires, the page will be removed from the cache and the next time the user navigates to the page, the page will be rendered again by fetching the content from the server rendering the React Server Component.
+
+By default, the `revalidate` prop is not set, which means that the page or outlet will not be cached at all, and every navigation will fetch the content from the server.
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" revalidate={5000}>About</Link>
+    </div>
+  );
+}
+```
+
+You can disable revalidation by passing `false` to the `revalidate` prop. By disabling revalidation, the page or outlet will be cached indefinitely.
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" revalidate={false}>About</Link>
+    </div>
+  );
+}
+```
+
+You can also fully customize the logic for revalidation by passing a function to the `revalidate` prop. The function will receive a context object including the `outlet`, the target `url` and the `timestamp` of the cached content. The function should return a boolean indicating whether the content should be revalidated.
+
+```jsx
+"use client";
+
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" revalidate={async ({ outlet, url, timestamp }) => {
+        return Math.random() > 0.5;
+      }}>About</Link>
     </div>
   );
 }

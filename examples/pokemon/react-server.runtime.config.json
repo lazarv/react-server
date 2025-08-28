@@ -1,0 +1,13 @@
+{
+  "root": "src/app",
+  "cache": {
+    "providers": {
+      "default": {
+        "driver": "unstorage/drivers/fs",
+        "options": {
+          "base": "./.cache"
+        }
+      }
+    }
+  }
+}

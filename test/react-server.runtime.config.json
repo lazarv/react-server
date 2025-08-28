@@ -1,0 +1,33 @@
+{
+  "cache": {
+    "providers": {
+      "indexedb": {
+        "driver": "unstorage/drivers/indexedb",
+        "options": {
+          "base": "app",
+          "dbName": "react-server",
+          "storeName": "test"
+        }
+      },
+      "lru": "unstorage/drivers/lru-cache",
+      "rsc": {
+        "driver": "unstorage/drivers/fs",
+        "options": {
+          "type": "rsc",
+          "base": "./.cache"
+        }
+      }
+    },
+    "profiles": {
+      "default": {
+        "ttl": 30000
+      },
+      "frequent": {
+        "ttl": 500
+      },
+      "day": {
+        "ttl": 86400000
+      }
+    }
+  }
+}

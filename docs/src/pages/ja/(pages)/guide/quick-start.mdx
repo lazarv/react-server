@@ -1,0 +1,96 @@
+---
+title: クイックスタート
+order: 0
+contents: false
+---
+
+import { Tabs, Tab } from "../../../../components/Tabs.jsx";
+import Pnpm from "../../../../components/pnpm.jsx";
+import Deno from "../../../../components/Deno.jsx";
+
+# クイックスタート
+`@lazarv/react-server` ドキュメントへようこそ! このフレームワークを使い始めるには、React Server Componentをデフォルトとしてエクスポートしたファイルを作成し、作成したファイル上でnpxを使って`@lazarv/react-server`コマンドを実行するだけです。サーバーサイドレンダリングされたReactアプリケーションを始めるのに、必要なものは他にはありません！簡単でしょ？
+
+```jsx filename="./App.jsx"
+export default function App() {
+  return <h1>Hello, World!</h1>;
+}
+```
+
+<Tabs name="runtime">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
+```sh
+pnpx @lazarv/react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npx @lazarv/react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn dlx @lazarv/react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bunx --bun @lazarv/react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **注意:** Denoはまだサポートされていません。後ほどアップデートをご確認ください。
+
+</Tab>
+
+</Tabs>
+
+[ガイド](/guide)と[チュートリアル](/tutorials)のセクションを調べたり、[フレームワーク](/framework)、[ファイルシステムベースのルーター](/router)、[デプロイ](/deploy)する方法について学んだりして、旅を続けてください。ご質問やヘルプが必要な場合は、GitHubの[issue](https://github.com/lazarv/react-server/issues)にお願いします。喜んでお手伝いさせていただきます！
+
+`@lazarv/react-server`プロジェクトを起動するには、簡単に初期セットアップができるCLIツール、@lazarv/create-react-serverを使うこともできます。ツールを使うには、以下を実行してください :
+
+<Tabs name="create">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
+```sh
+pnpx @lazarv/create-react-server
+```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npx @lazarv/create-react-server
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn dlx @lazarv/create-react-server
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bunx --bun @lazarv/create-react-server
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **注意:** Denoはまだサポートされていません。後ほどアップデートをご確認ください。
+
+</Tab>
+
+</Tabs>
+
+ウィザードの設定が完了したら、ターミナルに表示される手順に沿って、新しいプロジェクトを試してみましょう！
+
+> **近日公開予定**: サードパーティ製の UIライブラリ、データベース、状態管理、認証機能などは、@lazarv/create-react-server で作成したプロジェクトにスムーズに導入できます。今後のアップデートをお楽しみに！
+
+次の章では、@lazarv/react-serverを使ってゼロから始める方法を説明します。

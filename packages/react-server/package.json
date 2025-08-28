@@ -8,55 +8,86 @@
   "bin": "bin/cli.mjs",
   "exports": {
     "./client": {
-      "default": "./client/index.jsx",
-      "types": "./client/index.d.ts"
+      "types": "./client/index.d.ts",
+      "default": "./client/index.jsx"
     },
     "./config": {
-      "default": "./config/index.mjs",
-      "types": "./config/index.d.ts"
+      "types": "./config/index.d.ts",
+      "default": "./config/index.mjs"
     },
     "./error-boundary": {
-      "default": "./server/error-boundary.jsx",
-      "types": "./server/error-boundary.d.ts"
+      "types": "./server/error-boundary.d.ts",
+      "default": "./server/error-boundary.jsx"
+    },
+    "./http": {
+      "types": "./lib/http/index.d.ts",
+      "default": "./lib/http/index.mjs"
+    },
+    "./live": {
+      "types": "./server/live.d.ts",
+      "default": "./server/live.jsx"
+    },
+    "./mcp": {
+      "types": "./server/mcp.d.ts",
+      "default": "./server/mcp.mjs"
+    },
+    "./memory-cache/client": {
+      "types": "./cache/client.d.ts",
+      "default": "./cache/client.mjs"
     },
     "./memory-cache": {
-      "default": "./memory-cache/index.mjs",
-      "types": "./memory-cache/index.d.ts"
+      "types": "./cache/index.d.ts",
+      "default": "./cache/index.mjs"
+    },
+    "./storage-cache": {
+      "types": "./cache/storage-cache.d.ts",
+      "default": "./cache/storage-cache.mjs"
+    },
+    "./storage-cache/crypto": {
+      "default": "./cache/crypto.mjs"
+    },
+    "./rsc": {
+      "types": "./cache/rsc.d.ts",
+      "default": "./cache/rsc.mjs"
     },
     "./navigation": {
-      "default": "./client/navigation.jsx",
-      "types": "./client/navigation.d.ts"
+      "types": "./client/navigation.d.ts",
+      "default": "./client/navigation.jsx"
+    },
+    "./http-context": {
+      "default": "./server/http-context.mjs"
     },
     "./router": {
-      "default": "./server/router.jsx",
-      "types": "./server/router.d.ts"
+      "types": "./server/router.d.ts",
+      "default": "./server/router.jsx"
     },
     "./remote": {
-      "default": "./server/remote.jsx",
-      "types": "./server/remote.d.ts"
+      "types": "./server/remote.d.ts",
+      "default": "./server/remote.jsx"
     },
     "./prerender": {
-      "default": "./server/prerender.jsx",
-      "types": "./server/prerender.d.ts"
+      "types": "./server/prerender.d.ts",
+      "default": "./server/prerender.jsx"
     },
     "./dev": {
-      "default": "./lib/dev/index.mjs",
-      "types": "./lib/dev/index.d.ts"
+      "types": "./lib/dev/index.d.ts",
+      "default": "./lib/dev/index.mjs"
     },
     "./node": {
-      "default": "./lib/start/node.mjs",
-      "types": "./lib/start/node.d.ts"
+      "types": "./lib/start/node.d.ts",
+      "default": "./lib/start/node.mjs"
     },
     "./file-router": {
       "default": "./lib/plugins/file-router/entrypoint.jsx"
     },
+    "./cache/*": "./cache/*",
     "./client/*": "./client/*",
     "./server/*": "./server/*",
     "./lib/*": "./lib/*",
     "./*": "./*",
     ".": {
-      "default": "./server/index.mjs",
-      "types": "./server/index.d.ts"
+      "types": "./server/index.d.ts",
+      "default": "./server/index.mjs"
     }
   },
   "scripts": {},
@@ -70,57 +101,67 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lazarv/react-server.git"
+    "url": "git+https://github.com/lazarv/react-server.git"
   },
   "bugs": {
     "url": "https://github.com/lazarv/react-server/issues"
   },
   "dependencies": {
-    "@hattip/adapter-node": "^0.0.34",
-    "@hattip/compose": "^0.0.34",
-    "@hattip/cookie": "^0.0.34",
-    "@hattip/core": "^0.0.34",
-    "@hattip/cors": "^0.0.34",
-    "@hattip/headers": "^0.0.34",
-    "@hattip/multipart": "^0.0.34",
+    "@babel/core": "^7.26.0",
+    "@babel/plugin-transform-react-jsx-self": "^7.25.9",
+    "@babel/plugin-transform-react-jsx-source": "^7.25.9",
+    "@hono/node-server": "^1.14.1",
     "@inquirer/prompts": "^7.0.0",
     "@inquirer/search": "^3.0.0",
+    "@jridgewell/trace-mapping": "^0.3.29",
     "@mdx-js/rollup": "^3.0.1",
+    "@modelcontextprotocol/sdk": "^1.13.0",
     "@rollup/plugin-replace": "^5.0.2",
+    "@types/babel__core": "^7.20.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.0",
-    "acorn": "^8.10.0",
+    "@vitejs/plugin-react-oxc": "^0.1.1",
     "acorn-loose": "^8.4.0",
     "algoliasearch": "^5.10.2",
     "ansi-regex": "^6.0.1",
+    "astring": "^1.9.0",
     "cac": "^6.7.14",
     "chokidar": "^3.5.3",
+    "cookie": "^1.0.2",
     "deep-eql": "^5.0.2",
-    "esbuild": "^0.19.3",
     "escodegen": "^2.1.0",
     "estraverse": "^5.3.0",
     "fast-glob": "^3.2.12",
     "filesize": "^10.0.12",
+    "highlight.js": "^11.11.1",
     "micromatch": "^4.0.5",
     "mime": "^3.0.0",
     "module-alias": "^2.2.3",
     "open": "^9.1.0",
+    "oxc-parser": "^0.61.2",
     "parse5": "^7.1.2",
     "picocolors": "^1.0.1",
     "pino": "^8.14.1",
-    "react": "0.0.0-experimental-204a551e-20240926",
-    "react-dom": "0.0.0-experimental-204a551e-20240926",
-    "react-is": "0.0.0-experimental-204a551e-20240926",
+    "react": "0.0.0-experimental-bdb4a96f-20250801",
+    "react-dom": "0.0.0-experimental-bdb4a96f-20250801",
+    "react-is": "0.0.0-experimental-bdb4a96f-20250801",
     "react-property": "^2.0.2",
-    "react-server-dom-webpack": "0.0.0-experimental-204a551e-20240926",
+    "react-refresh": "^0.14.2",
+    "react-server-dom-webpack": "0.0.0-experimental-bdb4a96f-20250801",
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",
-    "sass": "^1.63.6",
+    "rolldown": "1.0.0-beta.30",
+    "rolldown-vite": "7.0.12",
+    "sass": "^1.86.0",
     "semver": "^7.6.3",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "source-map": "^0.7.4",
     "strip-ansi": "^7.1.0",
     "style-to-js": "^1.1.12",
-    "vite": "6.0.0-alpha.18"
+    "unstorage": "^1.16.0",
+    "web-streams-polyfill": "^4.2.0",
+    "zod": "^3.23.8"
   },
   "engines": {
     "node": ">=20.10.0"

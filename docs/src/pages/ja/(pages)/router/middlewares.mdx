@@ -1,0 +1,58 @@
+---
+title: ミドルウェア
+category: Router
+order: 8
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# ミドルウェア
+
+ファイルシステムベースルーターで、サーバミドルウェアとAPIルートも作成できます。
+ページの基本ルーティングと同じように、ルーティングストラクチャーを使えます。
+
+ミドルウェアとAPIルーティングで、@lazarv/react-serverから、全ての関数が利用可能です。
+リクエストのリダイレクト、書き換え、クッキーの管理、レスポンスヘッダーの追加ができます。
+React Server Component と同等の機能がそのまま利用できます。
+
+<Link name="implementation">
+## 実行
+</Link>
+
+ミドルウェアは、すべてのルートハンドラーの前に実行される関数です。それらは認証やログ記録、解析のような多くのことのために使われます。
+ミドルウェアのルートを作成するには、`.middleware.{js,mjs,ts,mts}` 拡張子のミドルウェア用ファイルを作成し、モジュールからデフォルトで非同期関数をエクスポートします。  
+この関数がミドルウェアハンドラになります。
+さらなるミドルウェアやルートハンドラの実行を止めるために、ミドルウェアからレスポンスを返すことができます。あるいは次のミドルウェアやルートハンドラの実行を続けるために、レスポンス値を排除することができます。
+
+パスネームを取得するためにusePathname関数が使え、適合するルートを取得するためにuseMatch関数も使えます。
+また、リクエストをリダイレクトまたは書き換えるために、リダイレクト関数、リライト関数も使えます。
+また、ミドルウェアで、 @lazarv/react-serverモジュールから、他のヘルパーまたはフック関数を使うことができます。
+
+```jsx
+// index.middleware.mjs
+import { redirect, rewrite, usePathname } from "@lazarv/react-server";
+import { useMatch } from "@lazarv/react-server/router";
+
+export default async function MyMiddleware() {
+  const pathname = usePathname();
+
+  const isRedirect = useMatch("/redirect");
+  if (isRedirect) {
+    redirect("/");
+  }
+
+  const isRewrite = useMatch("/rewrite");
+  if (isRewrite) {
+    rewrite("/");
+  }
+
+  const isJson = useMatch("/json");
+  if (isJson) {
+    return new Response(JSON.stringify({ message: "Hello World" }), {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  }
+}
+```

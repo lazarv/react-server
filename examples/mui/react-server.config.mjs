@@ -10,10 +10,13 @@ export default {
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("@mui/material")) {
-            return "@mui/material";
-          }
+        advancedChunks: {
+          groups: [
+            {
+              name: "@mui/material",
+              test: /@mui\/material\//,
+            },
+          ],
         },
       },
     },

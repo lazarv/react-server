@@ -4,14 +4,23 @@ import colors from "picocolors";
 import strip from "strip-ansi";
 
 import packageJson from "../../package.json" with { type: "json" };
-import { getContext } from "../../server/context.mjs";
+import { context$, getContext } from "../../server/context.mjs";
+import { useErrorComponent } from "../../server/error-handler.mjs";
+import { getRuntime } from "../../server/runtime.mjs";
 import {
+  ERROR_COMPONENT,
+  ERROR_CONTEXT,
   HTTP_HEADERS,
   HTTP_STATUS,
-  RENDER_CONTEXT,
+  LOGGER_CONTEXT,
+  MODULE_LOADER,
+  RENDER,
+  RENDER_HANDLER,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import * as sys from "../sys.mjs";
 import { replaceError } from "../utils/error.mjs";
+import { fixStacktrace } from "../utils/fix-stacktrace.mjs";
 
 function cleanStack(stack) {
   return stack
@@ -25,17 +34,37 @@ export async function prepareError(err) {
   try {
     if (!err.id) {
       const viteDevServer = getContext(SERVER_CONTEXT);
-      const [id, line, column] =
+
+      const [id] =
         err.stack
           .split("\n")[1]
           .match(/\((.*:[0-9]+:[0-9]+)\)/)?.[1]
+          .replace(/^\s*file:\/\//, "")
           .split(":") ?? [];
 
-      if (viteDevServer.environments.ssr.moduleGraph.idToModuleMap.has(id)) {
+      if (
+        viteDevServer.environments.ssr.moduleGraph.idToModuleMap.has(id) ||
+        viteDevServer.environments.rsc.moduleGraph.idToModuleMap.has(id)
+      ) {
+        if (viteDevServer.environments.ssr.moduleGraph.idToModuleMap.has(id)) {
+          fixStacktrace(err, viteDevServer.environments.ssr.moduleGraph);
+        } else {
+          fixStacktrace(err, viteDevServer.environments.rsc.moduleGraph);
+        }
+
+        const [, line, column] =
+          err.stack
+            .split("\n")[1]
+            .match(/\((.*:[0-9]+:[0-9]+)\)/)?.[1]
+            .replace(/^\s*file:\/\//, "")
+            .split(":") ?? [];
+
         const map = viteDevServer.environments.ssr.moduleGraph.getModuleById(id)
-          ?.ssrTransformResult?.map ?? {
-          sourcesContent: [await readFile(id, "utf-8")],
-        };
+          ?.ssrTransformResult?.map ??
+          viteDevServer.environments.rsc.moduleGraph.getModuleById(id)
+            ?.transformResult?.map ?? {
+            sourcesContent: [await readFile(id, "utf-8")],
+          };
 
         err.id = id;
         if (!err.loc) {
@@ -57,12 +86,12 @@ export async function prepareError(err) {
           const frame = lines
             .slice(start, end)
             .flatMap((l, i) => {
-              const curr = i + start;
+              const curr = i + start + 1;
               const indent = " ".repeat(
                 Math.max(start, end).toString().length - curr.toString().length
               );
               return [
-                `${indent}${curr} | ${l}`,
+                `${curr}${indent} | ${l}`,
                 ...(i === 2
                   ? [
                       `${indent}${curr
@@ -76,8 +105,10 @@ export async function prepareError(err) {
               ];
             })
             .join("\n");
-          err.frame = `${err.message}\n${frame}\n`;
+          err.frame = frame;
         }
+
+        err.code = map.sourcesContent[0];
       }
 
       err.plugin = err.plugin || packageJson.name;
@@ -87,9 +118,11 @@ export async function prepareError(err) {
   }
   return {
     message: strip(err.message),
+    digest: typeof err.digest === "string" ? strip(err.digest) : err.digest,
     stack: strip(cleanStack(err.stack || "")),
     id: err.id,
     frame: strip(err.frame || ""),
+    code: err.code,
     plugin: err.plugin,
     pluginCode: err.pluginCode?.toString(),
     loc: err.loc,
@@ -101,34 +134,27 @@ function plainResponse(e) {
     status: 500,
     statusText: "Internal Server Error",
   };
+  const headers = getContext(HTTP_HEADERS) ?? new Headers();
+  headers.set("Content-Type", "text/plain; charset=utf-8");
+
   return new Response(e?.stack ?? null, {
     ...httpStatus,
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      ...(getContext(HTTP_HEADERS) ?? {}),
-    },
+    headers,
   });
 }
 
 export default async function errorHandler(err) {
+  const logger = getContext(LOGGER_CONTEXT) ?? console;
   try {
     err = replaceError(err);
-
-    const server = getContext(SERVER_CONTEXT);
-    // TODO: is there a better way to check if this is a vite dev server?
-    if (typeof server?.ssrFixStacktrace !== "function") {
-      return plainResponse(err);
-    }
-
-    const renderContext = getContext(RENDER_CONTEXT);
-    if (renderContext?.flags?.isRSC) {
-      return plainResponse(err);
-    }
 
     const httpStatus = getContext(HTTP_STATUS) ?? {
       status: 500,
       statusText: "Internal Server Error",
     };
+
+    const headers = getContext(HTTP_HEADERS) ?? new Headers();
+    headers.set("Content-Type", "text/html; charset=utf-8");
 
     const error = await prepareError(err);
 
@@ -138,38 +164,75 @@ export default async function errorHandler(err) {
         viteDevServer.environments.client.moduleGraph.invalidateAll();
         viteDevServer.environments.ssr.moduleGraph.invalidateAll();
         viteDevServer.environments.rsc.moduleGraph.invalidateAll();
-      } catch {
+      } catch (e) {
+        console.error(e);
         // ignore
       }
     }
 
-    return new Response(
-      `<!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Error</title>
-        <script type="module" src="${`${server.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}"></script>
-        <script type="module" src="${`${server.config.base || "/"}/@hmr`.replace(/\/+/g, "/")}"></script>
-        <script type="module">
-          import { ErrorOverlay } from "${`${server.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}";
-          document.body.appendChild(new ErrorOverlay(${JSON.stringify(
-            error
-          ).replace(/</g, "\\u003c")}))
-        </script>
-      </head>
-      <body>
-      </body>
-    </html>`,
-      {
-        ...httpStatus,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          ...(getContext(HTTP_HEADERS) ?? {}),
-        },
+    try {
+      const prevGlobalErrorComponent = getContext(ERROR_COMPONENT);
+      const ssrLoadModule = getRuntime(MODULE_LOADER);
+
+      if (typeof ssrLoadModule === "function") {
+        const globalErrorModule = `${sys.rootDir}/server/GlobalError.jsx`;
+        const { default: GlobalErrorComponent } =
+          await ssrLoadModule(globalErrorModule);
+
+        if (
+          prevGlobalErrorComponent &&
+          prevGlobalErrorComponent !== GlobalErrorComponent
+        ) {
+          context$(ERROR_CONTEXT, errorHandler);
+          useErrorComponent(GlobalErrorComponent, globalErrorModule);
+          const handler = getContext(RENDER_HANDLER);
+          return handler();
+        } else {
+          context$(ERROR_COMPONENT, null);
+          context$(ERROR_CONTEXT, errorHandler);
+          const render = getContext(RENDER);
+          if (typeof render !== "function") {
+            throw error;
+          }
+          return getContext(RENDER)(
+            GlobalErrorComponent,
+            { error },
+            { skipFunction: true }
+          );
+        }
+      } else {
+        throw err;
       }
-    );
+    } catch (e) {
+      logger.error(e);
+      return new Response(
+        `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Error</title>
+    <script type="module" src="${`${viteDevServer.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}"></script>
+    <script type="module" src="${`${viteDevServer.config.base || "/"}/@hmr`.replace(/\/+/g, "/")}"></script>
+    <script type="module">
+      import { ErrorOverlay } from "${`${viteDevServer.config.base || "/"}/@vite/client`.replace(/\/+/g, "/")}";
+      document.body.appendChild(new ErrorOverlay(${JSON.stringify(
+        error
+      ).replace(/</g, "\\u003c")}))
+    </script>
+  </head>
+  <body>
+    <h1 style="word-break:break-word;">${error.message}</h1>
+    <pre style="width: 100%;white-space: pre-wrap;word-break:break-word;">${error.stack}</pre>
+  </body>
+</html>`,
+        {
+          ...httpStatus,
+          headers,
+        }
+      );
+    }
   } catch (e) {
+    logger.error(e);
     return plainResponse(e);
   }
 }

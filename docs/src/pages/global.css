@@ -70,16 +70,15 @@ main {
 }
 
 body > header {
-  @apply w-full border-b self-center sticky top-0 h-12 flex items-center justify-center bg-white dark:bg-zinc-900 dark:text-gray-300 dark:border-gray-800 z-10 drop-shadow-xl;
+  @apply w-full border-b self-center sticky top-0 h-12 flex items-center bg-white dark:bg-zinc-900 dark:text-gray-300 dark:border-gray-800 z-10 drop-shadow-xl;
 
   & nav {
-    @apply container max-w-screen-xl px-4 pr-16 flex gap-2 self-center justify-center items-center relative;
+    @apply w-full px-4 grid grid-cols-[1fr_3fr_1fr] items-center relative;
 
     @media screen(sm) {
       @apply gap-8;
     }
 
-    & label svg,
     & a svg {
       path {
         @apply fill-black dark:fill-gray-300;
@@ -87,7 +86,7 @@ body > header {
     }
 
     & > a:first-child {
-      @apply pb-1 mr-auto;
+      @apply py-1 mr-auto;
 
       & h4 {
         @apply text-[0.5rem] font-normal m-0 -mt-0.5 leading-none;
@@ -95,12 +94,6 @@ body > header {
 
       & h3 {
         @apply text-lg font-semibold m-0 -mt-0.5 leading-none;
-      }
-
-      @media screen(md) {
-        display: inline-block;
-        position: absolute;
-        left: 1rem;
       }
     }
   }
@@ -175,6 +168,8 @@ article {
   overflow: auto;
   view-transition-name: content;
   position: relative;
+  display: flex;
+  flex-direction: column;
 
   @media (prefers-reduced-motion) {
     view-transition-name: none;
@@ -224,6 +219,10 @@ article {
 
   & pre code {
     @apply rounded-lg my-8 text-sm leading-5 border border-gray-500 shadow-xl shadow-gray-500 dark:shadow-[rgba(255,255,255,0.1)] dark:shadow-lg;
+  }
+
+  & p ~ pre code {
+    @apply mt-0;
   }
 
   & > code {
@@ -406,5 +405,64 @@ footer {
 @keyframes index-out {
   to {
     transform: scale(0.9);
+  }
+}
+
+@keyframes scanline {
+  0% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.background-effect {
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  background-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.02) 49.4%,
+    rgba(255, 0, 0, 0.5) 49.6%,
+    rgba(255, 165, 0, 0.5) 49.8%,
+    rgba(255, 255, 0, 0.5) 50%,
+    rgba(0, 255, 0, 0.5) 50.2%,
+    rgba(0, 0, 255, 0.5) 50.4%,
+    rgba(0, 0, 0, 0) 50.6%
+  );
+  background-size: 100% 205%;
+  mask-image: url(/motherboard.svg);
+  mask-repeat: no-repeat;
+  mask-size: cover;
+  mask-position: center;
+  animation: scanline 5s ease-out;
+
+  @media (prefers-reduced-motion) {
+    animation: none;
+    background-image: none;
+    background-color: rgba(0, 0, 0, 0.02);
+    z-index: 0;
+  }
+}
+
+.dark .background-effect {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02) 49.4%,
+    rgba(255, 0, 0, 0.5) 49.6%,
+    rgba(255, 165, 0, 0.5) 49.8%,
+    rgba(255, 255, 0, 0.5) 50%,
+    rgba(0, 255, 0, 0.5) 50.2%,
+    rgba(0, 0, 255, 0.5) 50.4%,
+    rgba(127, 127, 127, 0.01) 50.6%
+  );
+
+  @media (prefers-reduced-motion) {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.02);
   }
 }

@@ -3,6 +3,7 @@ import {
   FORM_DATA_PARSER,
   HTTP_CONTEXT,
   HTTP_OUTLET,
+  HTTP_RESPONSE,
   RENDER_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 
@@ -39,8 +40,8 @@ export function useRequest() {
   return getContext(HTTP_CONTEXT).request;
 }
 
-export function useResponse() {
-  return getContext(HTTP_CONTEXT).response;
+export async function useResponse() {
+  return getContext(HTTP_RESPONSE);
 }
 
 export async function useFormData(handleFile) {

@@ -43,6 +43,7 @@ export async function command({ logger, server, resolvedUrls, restartServer }) {
         logger?.warn?.(`Restarting server... 🚧`);
         controller.abort();
       },
+      disabled: typeof Bun !== "undefined",
     },
     l: {
       name: "Reload the application 🔥",
@@ -154,6 +155,7 @@ export async function command({ logger, server, resolvedUrls, restartServer }) {
 
             return [
               ...Object.entries(availableCommands)
+                .filter(([, command]) => !command.disabled)
                 .reduce((source, [value, command]) => {
                   const name = command.name.toLowerCase().trim();
                   if (name.startsWith(term) || name.includes(term)) {

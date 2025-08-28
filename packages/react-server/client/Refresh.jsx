@@ -12,8 +12,16 @@ export default function Refresh({
   transition,
   prefetch: prefetchEnabled,
   ttl = Infinity,
+  revalidate,
+  noCache,
+  fallback,
+  Component,
   onRefresh,
   onError,
+  onClick,
+  onFocus,
+  onMouseOver,
+  onTouchStart,
   children,
   ...props
 }) {
@@ -25,38 +33,61 @@ export default function Refresh({
       await refresh(
         target ||
           url ||
-          (local ? _outlet || _url : root ? "PAGE_ROOT" : undefined)
+          (local ? _outlet || _url : root ? "PAGE_ROOT" : undefined),
+        { noCache, fallback, Component, revalidate }
       );
       onRefresh?.();
     } catch (e) {
       onError?.(e);
     }
-  }, [refresh, target, local, root, url, _outlet, _url, onRefresh, onError]);
+  }, [
+    refresh,
+    target,
+    local,
+    root,
+    url,
+    _outlet,
+    _url,
+    revalidate,
+    noCache,
+    fallback,
+    Component,
+    onRefresh,
+    onError,
+  ]);
 
-  const handleRefresh = async (e) => {
-    e.preventDefault();
-    if (transition !== false) {
-      startTransition(tryRefresh);
-    } else {
-      tryRefresh();
-    }
-  };
+  const handleRefresh = useCallback(
+    async (e) => {
+      e.preventDefault();
+      onClick?.(e);
+      if (transition !== false && !fallback) {
+        startTransition(tryRefresh);
+      } else {
+        tryRefresh();
+      }
+    },
+    [transition, fallback, onClick, tryRefresh]
+  );
 
-  const handlePrefetch = () =>
+  const handlePrefetch = (handler) => (e) => {
+    handler?.(e);
     prefetchEnabled === true &&
-    prefetch(url || _url, {
-      outlet: target || (local ? _outlet : root ? "PAGE_ROOT" : undefined),
-      ttl,
-    });
+      prefetch(url || _url, {
+        outlet: target || (local ? _outlet : root ? "PAGE_ROOT" : undefined),
+        ttl,
+        noCache,
+        revalidate,
+      });
+  };
 
   return (
     <a
       {...props}
       href={url}
       onClick={handleRefresh}
-      onFocus={handlePrefetch}
-      onMouseOver={handlePrefetch}
-      onTouchStart={handlePrefetch}
+      onFocus={handlePrefetch(onFocus)}
+      onMouseOver={handlePrefetch(onMouseOver)}
+      onTouchStart={handlePrefetch(onTouchStart)}
     >
       {children}
     </a>

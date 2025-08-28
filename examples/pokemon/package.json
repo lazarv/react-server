@@ -1,0 +1,28 @@
+{
+  "name": "@lazarv/react-server-example-pokemon",
+  "private": true,
+  "description": "React Server Pokemon example application",
+  "scripts": {
+    "dev": "react-server",
+    "build": "react-server build",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0",
+    "unstorage": "^1.16.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.9",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^4.0.9",
+    "vite": "6.2.3"
+  }
+}

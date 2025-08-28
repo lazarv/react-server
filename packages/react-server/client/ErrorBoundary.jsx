@@ -11,7 +11,12 @@ import {
   useState,
 } from "react";
 
-import { FlightContext, useClient } from "./context.mjs";
+import {
+  FlightContext,
+  FlightComponentContext,
+  useClient,
+  PAGE_ROOT,
+} from "./context.mjs";
 
 const ErrorBoundaryContext = createContext(null);
 
@@ -62,16 +67,20 @@ export class ErrorBoundary extends Component {
     return { didCatch: true, error };
   }
 
-  resetErrorBoundary(...args) {
+  async resetErrorBoundary(...args) {
     const { error } = this.state;
 
     if (error !== null) {
-      this.props.onReset?.({
+      await this.props.onReset?.({
         args,
         reason: "imperative-api",
+        error,
+        resetErrorBoundary: this.resetErrorBoundary,
       });
 
-      this.setState(initialState);
+      if (typeof error?.digest !== "string") {
+        this.setState(initialState);
+      }
     }
   }
 
@@ -93,13 +102,23 @@ export class ErrorBoundary extends Component {
       prevState.error !== null &&
       hasArrayChanged(prevProps.resetKeys, resetKeys)
     ) {
-      this.props.onReset?.({
-        next: resetKeys,
-        prev: prevProps.resetKeys,
-        reason: "keys",
-      });
+      if (typeof this.props.onReset === "function") {
+        const resetPromise = this.props.onReset({
+          next: resetKeys,
+          prev: prevProps.resetKeys,
+          reason: "keys",
+        });
 
-      this.setState(initialState);
+        if (typeof resetPromise?.then === "function") {
+          resetPromise.then(() => {
+            this.setState(initialState);
+          });
+        } else {
+          this.setState(initialState);
+        }
+      } else {
+        this.setState(initialState);
+      }
     }
   }
 
@@ -108,6 +127,13 @@ export class ErrorBoundary extends Component {
       this.props;
     const { didCatch, error } = this.state;
 
+    if (
+      error?.message === "Redirect" &&
+      error?.digest.startsWith("Location=")
+    ) {
+      error.redirectTo = error.digest.slice(9);
+    }
+
     let childToRender = children;
 
     if (didCatch) {
@@ -115,6 +141,10 @@ export class ErrorBoundary extends Component {
         error,
         resetErrorBoundary: this.resetErrorBoundary,
       };
+
+      if (!import.meta.env.DEV) {
+        delete error.stack;
+      }
 
       if (typeof fallbackRender === "function") {
         childToRender = fallbackRender(props);
@@ -153,39 +183,77 @@ function hasArrayChanged(a = [], b = []) {
   );
 }
 
-function ResetErrorBoundary() {
-  const { url, outlet } = useContext(FlightContext);
-  const { resetBoundary } = useErrorBoundary();
-  const { subscribe } = useClient();
+function FallbackRenderComponent({
+  FallbackComponent,
+  fallbackRender,
+  ...props
+}) {
+  const { outlet } = useContext(FlightContext);
+  const client = useClient();
+  const { navigate } = client;
+  const { error } = props;
+  const { redirectTo } = error;
 
   useEffect(() => {
-    return subscribe(outlet || url, () => resetBoundary());
-  }, []);
+    if (redirectTo) {
+      navigate(redirectTo, { outlet, external: outlet !== PAGE_ROOT });
+    }
+  }, [redirectTo, navigate, outlet]);
 
+  if (redirectTo) {
+    return null;
+  }
+
+  return (
+    <>
+      {FallbackComponent && typeof FallbackComponent === "function" ? (
+        <FallbackComponent {...props} />
+      ) : (
+        FallbackComponent
+      )}
+      {fallbackRender?.(props)}
+    </>
+  );
+}
+
+function ThrowError({ error }) {
+  if (error) {
+    throw error;
+  }
   return null;
 }
 
-export default function ReactServerErrorBoundary({
+export default function ReactServerOutletErrorBoundary({
   component: FallbackComponent,
   render: fallbackRender,
+  onReset,
+  global,
   children,
   ...props
 }) {
+  const { outlet } = useContext(FlightContext);
+  const { resourceKey, error } = useContext(FlightComponentContext);
+  const { invalidate } = useClient();
+
   return (
     <ErrorBoundary
+      key={`${outlet}_${resourceKey}`}
       {...props}
+      onReset={async (details) => {
+        if (typeof details.error?.digest === "string") {
+          await invalidate(outlet);
+        }
+        onReset?.(details);
+      }}
       fallbackRender={(props) => (
-        <>
-          <ResetErrorBoundary />
-          {FallbackComponent && typeof FallbackComponent === "function" ? (
-            <FallbackComponent {...props} />
-          ) : (
-            FallbackComponent
-          )}
-          {fallbackRender?.(props)}
-        </>
+        <FallbackRenderComponent
+          FallbackComponent={FallbackComponent}
+          fallbackRender={fallbackRender}
+          {...props}
+        />
       )}
     >
+      <ThrowError error={error} />
       {children}
     </ErrorBoundary>
   );

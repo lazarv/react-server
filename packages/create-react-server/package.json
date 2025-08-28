@@ -1,0 +1,47 @@
+{
+  "name": "@lazarv/create-react-server",
+  "version": "0.0.0",
+  "bin": {
+    "create-react-server": "index.mjs"
+  },
+  "type": "module",
+  "keywords": [
+    "react",
+    "server",
+    "rsc",
+    "ssr",
+    "esm",
+    "vite",
+    "create"
+  ],
+  "author": "lazarv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lazarv/react-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
+  "dependencies": {
+    "@inquirer/checkbox": "^4.0.1",
+    "@inquirer/confirm": "^5.0.1",
+    "@inquirer/core": "^10.0.1",
+    "@inquirer/figures": "^1.0.7",
+    "@inquirer/input": "^4.0.1",
+    "@inquirer/number": "^3.0.1",
+    "@inquirer/prompts": "^7.0.0",
+    "@inquirer/select": "^4.0.1",
+    "@lazarv/react-server": "workspace:*",
+    "ansi-escapes": "^7.0.0",
+    "cac": "^6.7.14",
+    "fast-glob": "^3.2.12",
+    "filesize": "^10.0.12",
+    "picocolors": "^1.1.1",
+    "prettier": "^3.0.0",
+    "ts-morph": "^24.0.0"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  }
+}

@@ -5,13 +5,15 @@ import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
 import colors from "picocolors";
-import { build as viteBuild } from "vite";
+import { build as viteBuild } from "rolldown-vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
+import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
+import rollupUseCacheInline from "../plugins/use-cache-inline.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import {
@@ -22,6 +24,7 @@ import banner from "./banner.mjs";
 import { chunks } from "./chunks.mjs";
 import customLogger from "./custom-logger.mjs";
 import { clientAlias } from "./resolve.mjs";
+import { bareImportRE } from "../utils/module.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -79,6 +82,59 @@ export default async function clientBuild(_, options) {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
         },
+        {
+          find: /^@lazarv\/react-server\/error-boundary$/,
+          replacement: join(sys.rootDir, "server/error-boundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/client\/ErrorBoundary\.jsx$/,
+          replacement: join(sys.rootDir, "client/ErrorBoundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/file-router$/,
+          replacement: join(
+            sys.rootDir,
+            "lib/plugins/file-router/entrypoint.jsx"
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/router$/,
+          replacement: join(sys.rootDir, "server/router.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/prerender$/,
+          replacement: join(sys.rootDir, "server/prerender.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/remote$/,
+          replacement: join(sys.rootDir, "server/remote.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/navigation$/,
+          replacement: join(sys.rootDir, "client/navigation.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/http-context$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "client/http-context.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/memory-cache$/,
+          replacement: join(sys.rootDir, "cache/client.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "cache/storage-cache.mjs")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "cache/crypto-browser.mjs")
+          ),
+        },
         ...clientAlias(options.dev),
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],
@@ -96,10 +152,40 @@ export default async function clientBuild(_, options) {
         ...config.build?.rollupOptions,
         preserveEntrySignatures: "strict",
         treeshake: {
-          moduleSideEffects: false,
+          moduleSideEffects: (id, external) => {
+            if (id.includes("/web-streams-polyfill/")) {
+              return true;
+            } else if (
+              typeof config.build?.rollupOptions?.treeshake
+                ?.moduleSideEffects === "function"
+            ) {
+              return config.build.rollupOptions.treeshake.moduleSideEffects(
+                id,
+                external
+              );
+            } else if (
+              Array.isArray(
+                config.build?.rollupOptions?.treeshake?.moduleSideEffects
+              )
+            ) {
+              return config.build.rollupOptions.treeshake.moduleSideEffects.some(
+                (pattern) =>
+                  (typeof pattern === "string" && id.includes(pattern)) ||
+                  (pattern instanceof RegExp && pattern.test(id))
+              );
+            } else if (
+              config.build?.rollupOptions?.treeshake?.moduleSideEffects === true
+            ) {
+              return true;
+            }
+            return false;
+          },
           ...config.build?.rollupOptions?.treeshake,
         },
         external: [
+          ...(Object.keys(config.importMap?.imports ?? {}) ?? []).filter(
+            (key) => bareImportRE.test(key)
+          ),
           ...(config.resolve?.shared ?? []),
           ...(config.build?.rollupOptions?.external ?? []),
         ],
@@ -109,17 +195,19 @@ export default async function clientBuild(_, options) {
           format: "esm",
           entryFileNames: "[name].[hash].mjs",
           chunkFileNames: "client/[name].[hash].mjs",
-          manualChunks: (id, ...rest) => {
-            if (id in chunks) return chunks[id];
-            if (id.includes("react-server/client/context")) {
-              return "react-server/client/context";
-            }
-            return (
-              config.build?.rollupOptions?.output?.manualChunks?.(
-                id,
-                ...rest
-              ) ?? undefined
-            );
+          advancedChunks: {
+            groups: [
+              {
+                name: "react",
+                test: /\/react\/|\/react-dom\/|\/react-server-dom-webpack\//,
+              },
+              {
+                name: "react-server/client/context",
+                test: /react-server\/client\/context/,
+              },
+              ...(config.build?.rollupOptions?.output?.advancedChunks?.groups ??
+                []),
+            ],
           },
         },
         input: {
@@ -154,6 +242,11 @@ export default async function clientBuild(_, options) {
           rollupUseClient("client", undefined, "pre"),
           rollupUseClient("client"),
           rollupUseServer("client"),
+          rollupUseCacheInline(
+            config.cache?.profiles,
+            config.cache?.providers,
+            "client"
+          ),
           ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },
@@ -161,10 +254,15 @@ export default async function clientBuild(_, options) {
     plugins: [
       ...userOrBuiltInVitePluginReact(config.plugins),
       ...filterOutVitePluginReact(config.plugins),
+      fixEsbuildOptionsPlugin(),
     ],
     css: {
       ...config.css,
       postcss: cwd,
+      modules: {
+        generateScopedName: "_[local]_[hash:base64:5]",
+        ...config.css?.modules,
+      },
     },
   };
 

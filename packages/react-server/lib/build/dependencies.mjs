@@ -1,23 +1,55 @@
 import { createRequire } from "node:module";
 
+import { normalizePath } from "../sys.mjs";
+
 const __require = createRequire(import.meta.url);
 
-const react = __require.resolve("react");
-const reactJsxRuntime = __require.resolve("react/jsx-runtime");
-const reactJsxDevRuntime = __require.resolve("react/jsx-dev-runtime");
-const reactDom = __require.resolve("react-dom");
-const reactDomClient = __require.resolve("react-dom/client");
-const reactDomServerEdge = __require.resolve("react-dom/server.edge");
-const reactServerDomWebpackClientBrowser = __require.resolve(
-  "react-server-dom-webpack/client.browser"
+const react = normalizePath(__require.resolve("react"));
+const reactJsxRuntime = normalizePath(__require.resolve("react/jsx-runtime"));
+const reactJsxDevRuntime = normalizePath(
+  __require.resolve("react/jsx-dev-runtime")
 );
-const reactServerDomWebpackClientEdge = __require.resolve(
-  "react-server-dom-webpack/client.edge"
+const reactCompilerRuntime = normalizePath(
+  __require.resolve("react/compiler-runtime")
 );
-const reactServerDomWebpackServerEdge = __require.resolve(
-  "react-server-dom-webpack/server.edge"
+const reactDom = normalizePath(__require.resolve("react-dom"));
+const reactDomClient = normalizePath(__require.resolve("react-dom/client"));
+const reactDomServerEdge = normalizePath(
+  __require.resolve("react-dom/server.edge")
 );
-const reactIs = __require.resolve("react-is");
+const reactServerDomWebpackClientBrowser = normalizePath(
+  __require.resolve("react-server-dom-webpack/client.browser")
+);
+const reactServerDomWebpackServerBrowser = normalizePath(
+  __require.resolve("react-server-dom-webpack/server.browser")
+);
+const reactServerDomWebpackClientEdge = normalizePath(
+  __require.resolve("react-server-dom-webpack/client.edge")
+);
+const reactServerDomWebpackServerEdge = normalizePath(
+  __require.resolve("react-server-dom-webpack/server.edge")
+);
+const reactIs = normalizePath(__require.resolve("react-is"));
+let scheduler;
+try {
+  scheduler = normalizePath(__require.resolve("scheduler"));
+} catch {
+  // noop
+}
+const unstorage = normalizePath(__require.resolve("unstorage"));
+const unstorageDriversMemory = normalizePath(
+  __require.resolve("unstorage/drivers/memory")
+);
+const unstorageDriversLocalStorage = normalizePath(
+  __require.resolve("unstorage/drivers/localstorage")
+);
+const unstorageDriversSessionStorage = normalizePath(
+  __require.resolve("unstorage/drivers/session-storage")
+);
+const socketIoClient = normalizePath(__require.resolve("socket.io-client"));
+const webStreamsPolyfillPolyfill = normalizePath(
+  __require.resolve("web-streams-polyfill/polyfill")
+);
 
 export {
   react,
@@ -26,8 +58,17 @@ export {
   reactDomServerEdge,
   reactJsxDevRuntime,
   reactJsxRuntime,
+  reactCompilerRuntime,
   reactServerDomWebpackClientBrowser,
+  reactServerDomWebpackServerBrowser,
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
   reactIs,
+  scheduler,
+  unstorage,
+  unstorageDriversMemory,
+  unstorageDriversLocalStorage,
+  unstorageDriversSessionStorage,
+  socketIoClient,
+  webStreamsPolyfillPolyfill,
 };

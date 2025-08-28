@@ -9,13 +9,19 @@ const cwd = sys.cwd();
 export default function configPrebuilt() {
   return {
     name: "react-server:config-prebuilt",
-    resolveId(id) {
-      if (id === "virtual:config/prebuilt") {
+    resolveId: {
+      filter: {
+        id: /^virtual:config\/prebuilt$/,
+      },
+      handler(id) {
         return id;
-      }
+      },
     },
-    async load(id) {
-      if (id === "virtual:config/prebuilt") {
+    load: {
+      filter: {
+        id: /^virtual:config\/prebuilt$/,
+      },
+      async handler() {
         const configFiles = (
           await glob(
             [
@@ -27,7 +33,7 @@ export default function configPrebuilt() {
               cwd,
             }
           )
-        ).map((file) => relative(cwd, file));
+        ).map((file) => sys.normalizePath(relative(cwd, file)));
 
         if (configFiles.length === 0) {
           return "export default {};";
@@ -36,7 +42,7 @@ export default function configPrebuilt() {
         return `import { CONFIG_ROOT } from "@lazarv/react-server/server/symbols.mjs";
 import merge from "@lazarv/react-server/lib/utils/merge.mjs";
 
-${configFiles.map((file, i) => `import config_${i} from "${join(cwd, file)}";`).join("\n")}
+${configFiles.map((file, i) => `import config_${i} from "${sys.normalizePath(join(cwd, file))}";`).join("\n")}
 
 export default {
     ${
@@ -56,7 +62,7 @@ export default {
         : ""
     }
 };`;
-      }
+      },
     },
   };
 }

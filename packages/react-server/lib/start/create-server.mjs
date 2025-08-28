@@ -1,20 +1,26 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Worker } from "node:worker_threads";
 
-import { createMiddleware } from "@hattip/adapter-node";
-import { compose } from "@hattip/compose";
-import { cookie } from "@hattip/cookie";
-import { cors } from "@hattip/cors";
-import { parseMultipartFormData } from "@hattip/multipart";
+import {
+  compose,
+  cookie,
+  cors,
+  createMiddleware,
+  parseMultipartFormData,
+} from "@lazarv/react-server/http";
+import { Server } from "socket.io";
 
-import { MemoryCache } from "../../memory-cache/index.mjs";
+import memoryDriver, { StorageCache } from "../../cache/index.mjs";
+import { getContext } from "../../server/context.mjs";
 import { PrerenderStorage } from "../../server/prerender-storage.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   FORM_DATA_PARSER,
-  LOGGER_CONTEXT,
+  HTTP_CONTEXT,
+  LIVE_IO,
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
@@ -22,6 +28,7 @@ import notFoundHandler from "../handlers/not-found.mjs";
 import staticHandler from "../handlers/static.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import * as sys from "../sys.mjs";
+import { getServerCors } from "../utils/server-config.mjs";
 import ssrHandler from "./ssr-handler.mjs";
 
 const cwd = sys.cwd();
@@ -36,15 +43,14 @@ export default async function createServer(root, options) {
   runtime$(WORKER_THREAD, worker);
 
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
-  const logger = getRuntime(LOGGER_CONTEXT);
 
   const initialRuntime = {
-    [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
+    [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
     [FORM_DATA_PARSER]: parseMultipartFormData,
   };
   runtime$(
     typeof config.runtime === "function"
-      ? config.runtime(initialRuntime) ?? initialRuntime
+      ? (config.runtime(initialRuntime) ?? initialRuntime)
       : {
           ...initialRuntime,
           ...config.runtime,
@@ -76,15 +82,14 @@ export default async function createServer(root, options) {
     ...(config.handlers?.post ?? []),
     notFoundHandler(),
   ]);
-  if (options.cors) {
-    logger.info("CORS enabled");
-    initialHandlers.unshift(cors());
+  if (options.cors || config.server?.cors || config.cors) {
+    initialHandlers.unshift(cors(getServerCors(config)));
   }
 
   const middlewares = createMiddleware(
     compose(
       typeof config.handlers === "function"
-        ? config.handlers(initialHandlers) ?? initialHandlers
+        ? (config.handlers(initialHandlers) ?? initialHandlers)
         : [...initialHandlers, ...(config.handlers ?? [])]
     ),
     {
@@ -94,36 +99,85 @@ export default async function createServer(root, options) {
         config.server?.origin ??
         `${
           config.server?.https || options.https ? "https" : "http"
-        }://${options.host ?? sys.getEnv("HOST") ?? config.server?.host ?? "localhost"}:${options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000}`,
+        }://${options.host ?? sys.getEnv("HOST") ?? config.server?.host ?? "localhost"}:$${
+          options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000
+        }`,
       trustProxy: config.server?.trustProxy ?? options.trustProxy,
     }
   );
 
+  let server;
+  let httpServer = options.httpServer;
   if (options.middlewareMode) {
-    return { middlewares };
-  }
-
-  const httpsOptions = config.server?.https ?? options.https;
-  if (!httpsOptions) {
-    const { createServer } = await import("node:http");
-    return createServer(middlewares);
-  }
-
-  // fallback to http1 when proxy is needed.
-  if (config.server?.proxy) {
-    const { createServer } = await import("node:https");
-    return createServer(httpsOptions, middlewares);
+    server = { middlewares };
   } else {
-    const { createSecureServer } = await import("node:http2");
-    return createSecureServer(
-      {
-        // Manually increase the session memory to prevent 502 ENHANCE_YOUR_CALM
-        // errors on large numbers of requests
-        maxSessionMemory: 1000,
-        ...httpsOptions,
-        allowHTTP1: true,
-      },
-      middlewares
-    );
+    const httpsOptions = config.server?.https ?? options.https;
+    if (!httpsOptions) {
+      const { createServer } = await import("node:http");
+      server = httpServer = createServer(middlewares);
+    } else {
+      // fallback to http1 when proxy is needed.
+      if (config.server?.proxy) {
+        const { createServer } = await import("node:https");
+        server = httpServer = createServer(httpsOptions, middlewares);
+      } else {
+        const { createSecureServer } = await import("node:http2");
+        server = httpServer = createSecureServer(
+          {
+            // Manually increase the session memory to prevent 502 ENHANCE_YOUR_CALM
+            // errors on large numbers of requests
+            maxSessionMemory: 1000,
+            ...httpsOptions,
+            allowHTTP1: true,
+          },
+          middlewares
+        );
+      }
+    }
   }
+
+  if (
+    httpServer &&
+    existsSync(join(cwd, options.outDir, "server/live-io.manifest.json"))
+  ) {
+    const corsConfig = getServerCors(config);
+    const io = new Server(httpServer, {
+      cors: {
+        ...corsConfig,
+        origin:
+          typeof corsConfig.origin === "function"
+            ? (origin, callback) => {
+                callback(
+                  null,
+                  corsConfig.origin(
+                    getContext(HTTP_CONTEXT) ?? {
+                      request: { headers: { get: () => origin } },
+                    }
+                  )
+                );
+              }
+            : cors.origin,
+      },
+    });
+    runtime$(LIVE_IO, {
+      io,
+      httpServer,
+      connections: new Set(),
+    });
+
+    io.on("connection", async (socket) => {
+      const connections = getRuntime(LIVE_IO)?.connections ?? new Set();
+      connections.add(socket);
+
+      socket.on("disconnect", () => {
+        connections.delete(socket);
+      });
+    });
+
+    httpServer.on("close", () => {
+      io.close();
+    });
+  }
+
+  return server;
 }

@@ -1,50 +1,44 @@
 import Card from "../../components/Card";
 import Pill from "../../components/Pill";
 import Link from "../../components/Link";
+import GitHub from "../../../public/github.svg?react";
 
-<div className="relative sm:pl-24">
-  <img src="/react-server.svg" className="w-10 h-10 left-72 sm:w-20 sm:h-20 absolute sm:left-0 sm:right-auto" alt="@lazarv/react-server logo" />
+<div className="background-effect"></div>
+
+<div className="relative sm:pl-16 mb-4">
+  <img src="/react-server.svg" className="w-10 h-10 left-[17.5rem] top-1 sm:top-0 sm:w-14 sm:h-14 absolute sm:left-0 sm:right-auto" alt="@lazarv/react-server logo" />
   <h2 className="text-xs m-0 pt-0 border-none dark:text-yellow-500 mt-4 sm:mt-0">@lazarv</h2>
   <h1 className="text-5xl m-0 -mt-4 whitespace-nowrap sm:text-6xl dark:text-yellow-500">
     react-server
   </h1>
-  <h3 className="m-0 mb-4 leading-tight">
-    The easiest way to build React apps with server-side rendering
-  </h3>
 </div>
 
 <div className="whitespace-nowrap w-full flex flex-wrap gap-2">
-  <Pill href="/guide/get-started">Get Started</Pill>
+  <Pill href="/guide/quick-start">Quick Start</Pill>
   <Pill href="/guide/why">Why @lazarv/react-server?</Pill>
   <Pill href="https://github.com/lazarv/react-server" target="_blank">
     View on GitHub
   </Pill>
 </div>
 
-<div className="my-8 md:my-16">
+<div className="w-full my-8 sm:my-16 flex flex-col items-center text-2xl sm:text-5xl font-bold">
 
-# Quick Start
-
-Welcome to the `@lazarv/react-server` documentation! To start using this framework, just create a file exporting a React Server Component as default and run the `@lazarv/react-server` command using `npx` with the path to the file. You need nothing else to start your first server-side rendered React application! Painfully simple, right?
-
-<div className="my-4">
-
-```jsx filename="./App.jsx"
-export default function App() {
-  return (
-    <h1>Hello, World!</h1>
-  );
-}
-```
-
-```sh
-npx @lazarv/react-server ./App.jsx
-```
-
+<div className="inline-flex flex-col items-center text-center">
+The easiest way to build  
+React apps with server-side rendering
+<div className="flex flex-col text-sm my-2 sm:my-4 [&>h2]:text-lg [&>h2]:sm:text-2xl [&>h2]:m-0 text-gray-700 dark:text-gray-400">
+## Supercharge React with Vite
+Instant reloads, lightning-fast builds, and a developer experience on steroids.
+</div>
 </div>
 
-Continue your journey by exploring the [guide](/guide) and [tutorials](/tutorials) sections or learn more details about the [framework](/framework), the file-system based [router](/router) or how you can [deploy](/deploy) your app to a cloud provider. If you have any questions or need help, feel free to [open an issue](https://github.com/lazarv/react-server/issues) on GitHub. We are happy to help you!
+<div className="flex flex-row items-center gap-1 sm:gap-4 my-2 text-xl sm:text-6xl text-gray-800 dark:text-gray-300"><img src="/react.svg" alt="React" className="w-8 sm:w-32" /> + <img src="/vite.svg" alt="Vite" className="w-8 sm:w-32" /> = <img src="/react-server.svg" alt="@lazarv/react-server" className="w-8 sm:w-32" /></div>
 
+<div className="italic max-w-xl p-4 mt-12 mb-4 text-lg text-center font-normal bg-gray-50 dark:bg-gray-800 border rounded-xl border-gray-500 shadow-lg dark:shadow-[rgba(255,255,255,0.1)]">
+**@lazarv/react-server** is all about innovation, rapid iteration, and simplicity. It gives you the flexibility to build, the speed to iterate, and the scalability to grow — without getting in your way.
+</div>
+
+<iframe className="mb-16" src="https://ghbtns.com/github-btn.html?user=lazarv&repo=react-server&type=star&count=true&size=large" frameBorder="0" scrolling="0" width="135" height="30" title="GitHub"></iframe>
 </div>
 
 # Features
@@ -62,13 +56,13 @@ With React Server Components, render React components on the server, providing f
   </Card>
 
   <Card>
-  <img src="/server.svg" alt="Server Actions" />
+  <img src="/server.svg" alt="Server Functions" />
 
-#### Server Actions
+#### Server Functions
 
 ##### Seamless Server Interaction
 
-Server Actions enable easy communication between the client and server. Trigger server-side functions directly from your components, making server operations more straightforward and efficient.
+Server Functions enable easy communication between the client and server. Trigger server-side functions directly from your components, making server operations more straightforward and efficient.
 
   </Card>
 
@@ -116,5 +110,3 @@ Easily embed Markdown content within your React components using MDX integration
 
   </Card>
 </div>
-import { jsx } from "react/jsx-runtime"
-

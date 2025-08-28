@@ -1,25 +1,25 @@
 import cluster from "node:cluster";
 import { once } from "node:events";
-import { createRequire } from "node:module";
 import { isIPv6 } from "node:net";
 import { availableParallelism } from "node:os";
-import { pathToFileURL } from "node:url";
 
 import { loadConfig } from "../../config/prebuilt.mjs";
-import { logger } from "../../server/logger.mjs";
-import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
+import {
+  getRuntime,
+  init$ as runtime_init$,
+  runtime$,
+} from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
-import { getEnv } from "../sys.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
+import { getServerConfig } from "../utils/server-config.mjs";
+import createLogger from "./create-logger.mjs";
 import createServer from "./create-server.mjs";
-
-const __require = createRequire(import.meta.url);
 
 function primary(numCPUs) {
   // fork workers
@@ -45,36 +45,9 @@ async function worker(root, options, config) {
 
   await runtime_init$(async () => {
     runtime$(CONFIG_CONTEXT, config);
-
-    if (!configRoot?.logger) {
-      const { default: loggerModule } = await import("pino");
-      const logger = loggerModule();
-      runtime$(LOGGER_CONTEXT, logger);
-    } else if (typeof configRoot?.logger === "string") {
-      try {
-        const { default: loggerModule } = await import(
-          pathToFileURL(__require.resolve(configRoot?.logger))
-        );
-        const logger = loggerModule();
-        runtime$(LOGGER_CONTEXT, logger);
-      } catch {
-        const { default: loggerModule } = await import("pino");
-        const logger = loggerModule();
-        logger.warn(
-          `Failed to load logger module ${configRoot?.logger}, using default logger.`
-        );
-        runtime$(LOGGER_CONTEXT, logger);
-      }
-    } else {
-      runtime$(LOGGER_CONTEXT, configRoot?.logger);
-    }
-
+    const logger = await createLogger(configRoot);
     const server = await createServer(root, options);
-
-    const port = options.port ?? getEnv("PORT") ?? configRoot.port ?? 3000;
-    const host =
-      options.host ?? getEnv("HOST") ?? configRoot.host ?? "localhost";
-    const listenerHost = host === true ? undefined : host;
+    const { port, listenerHost } = getServerConfig(configRoot, options);
 
     const listener = server.listen(port, listenerHost);
     runtime$(SERVER_CONTEXT, listener);
@@ -125,6 +98,18 @@ export default async function start(root, options) {
       ) {
         primary(numCPUs);
       } else {
+        process.on("SIGINT", () => {
+          process.exit(0);
+        });
+        process.on("SIGTERM", () => {
+          process.exit(0);
+        });
+        process.on("unhandledRejection", (reason) => {
+          const logger = getRuntime(LOGGER_CONTEXT);
+          (logger ?? console).error(reason);
+          process.exit(1);
+        });
+
         worker(root, options, config);
       }
     } catch (error) {

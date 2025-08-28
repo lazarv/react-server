@@ -1,26 +1,22 @@
+import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import { register } from "node:module";
-import { join, relative } from "node:path";
-import { format } from "node:util";
+import { createRequire, isBuiltin, register } from "node:module";
+import { dirname, join, relative } from "node:path";
 import { Worker } from "node:worker_threads";
 
-import { createMiddleware } from "@hattip/adapter-node";
-import { compose } from "@hattip/compose";
-import { cookie } from "@hattip/cookie";
-import { cors } from "@hattip/cors";
-import { parseMultipartFormData } from "@hattip/multipart";
 import colors from "picocolors";
 import {
-  createNodeDevEnvironment,
+  createRunnableDevEnvironment,
   createServer as createViteDevServer,
   DevEnvironment,
-  RemoteEnvironmentTransport,
-} from "vite";
-import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
+} from "rolldown-vite";
+import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
+import memoryDriver from "unstorage/drivers/memory";
 
-import { MemoryCache } from "../../memory-cache/index.mjs";
+import StorageCache from "../../cache/storage-cache.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
+  COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
@@ -35,10 +31,23 @@ import {
 import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
-import { alias, moduleAliases } from "../loader/module-alias.mjs";
-import { applyAlias } from "../loader/utils.mjs";
+import {
+  compose,
+  cookie,
+  cors,
+  createMiddleware,
+  parseMultipartFormData,
+} from "../http/index.mjs";
+import {
+  alias,
+  moduleAliases,
+  reactServerBunAliasPlugin,
+} from "../loader/module-alias.mjs";
+import aliasPlugin from "../plugins/alias.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
+import importRemote from "../plugins/import-remote.mjs";
+import reactServerLive from "../plugins/live.mjs";
 import optimizeDeps from "../plugins/optimize-deps.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
@@ -51,19 +60,23 @@ import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
-import { bareImportRE, findPackageRoot, tryStat } from "../utils/module.mjs";
+import { findPackageRoot, tryStat } from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
 } from "../utils/plugins.mjs";
+import { getServerCors } from "../utils/server-config.mjs";
 import createLogger from "./create-logger.mjs";
 import ssrHandler from "./ssr-handler.mjs";
 
 alias("react-server");
 register("../loader/node-loader.react-server.mjs", import.meta.url);
+await reactServerBunAliasPlugin();
+await import("react");
 
 const cwd = sys.cwd();
 const workspaceRoot = findPackageRoot(join(cwd, "..")) ?? cwd;
+const __require = createRequire(import.meta.url);
 
 export default async function createServer(root, options) {
   if (!options.outDir) {
@@ -75,13 +88,31 @@ export default async function createServer(root, options) {
 
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
+  const reactServerAlias = moduleAliases("react-server");
   const resolvedClientAlias = clientAlias(true);
+  const reverseServerAlias = Object.entries(reactServerAlias).reduce(
+    (acc, [id, alias]) => {
+      if (alias) {
+        acc.push({ id, alias });
+      }
+      return acc;
+    },
+    []
+  );
+  const reverseClientAlias = resolvedClientAlias.reduce(
+    (acc, { id, replacement }) => {
+      acc[replacement] = id;
+      return acc;
+    },
+    {}
+  );
+
   const devServerConfig = {
     ...config,
     server: {
       ...config.server,
       middlewareMode: true,
-      cors: options.cors ?? config.server?.cors,
+      cors: false,
       hmr:
         config.server?.hmr === false
           ? false
@@ -99,21 +130,37 @@ export default async function createServer(root, options) {
           ...(config.server?.fs?.allow ?? []),
         ],
       },
+      watch:
+        typeof Bun !== "undefined"
+          ? { useFsEvents: false, ...config.server?.watch }
+          : config.server?.watch,
     },
     publicDir: join(cwd, publicDir),
     root: cwd,
     appType: "custom",
-    clearScreen: options.clearScreen,
     configFile: false,
     optimizeDeps: {
       holdUntilCrawlEnd: true,
       ...config.optimizeDeps,
       force: options.force || config.optimizeDeps?.force,
       include: [
+        "react",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "react/compiler-runtime",
         "react-dom",
         "react-dom/client",
         "react-server-dom-webpack/client.browser",
+        "react-server-dom-webpack/server.browser",
         "react-is",
+        "@jridgewell/trace-mapping",
+        "highlight.js/lib/core",
+        "highlight.js/lib/languages/diff",
+        "highlight.js/lib/languages/javascript",
+        "highlight.js/lib/languages/json",
+        "highlight.js/lib/languages/xml",
+        "socket.io-client",
+        "web-streams-polyfill/polyfill",
         ...(config.optimizeDeps?.include ?? []),
       ],
     },
@@ -125,6 +172,7 @@ export default async function createServer(root, options) {
       !root || root === "@lazarv/react-server/file-router"
         ? fileRouter(options)
         : [],
+      importRemote(),
       resolveWorkspace(),
       reactServerEval(options),
       reactServerRuntime(),
@@ -133,24 +181,107 @@ export default async function createServer(root, options) {
       useClient(),
       useServer(),
       useServerInline(),
-      useCacheInline(config.cache?.profiles),
+      useCacheInline(config.cache?.profiles, config.cache?.providers),
       ...filterOutVitePluginReact(config.plugins),
       asset(),
       optimizeDeps(),
+      reactServerLive(options.httpServer, config),
     ],
-    cacheDir: join(cwd, "node_modules", options.outDir, ".cache/client"),
+    cacheDir:
+      config.cacheDir ||
+      (existsSync(join(cwd, "node_modules"))
+        ? join(cwd, "node_modules", options.outDir, ".cache")
+        : join(cwd, options.outDir, ".cache")),
     resolve: {
       ...config.resolve,
-      preserveSymlinks: true,
       alias: [
+        ...resolvedClientAlias,
+        {
+          find: /^highlight\.js\/lib/,
+          replacement: sys.normalizePath(
+            dirname(__require.resolve("highlight.js/lib/core"))
+          ),
+        },
+        {
+          find: /^@jridgewell\/trace-mapping$/,
+          replacement: sys.normalizePath(
+            typeof import.meta.resolve === "function"
+              ? import.meta.resolve("@jridgewell/trace-mapping")
+              : __require
+                  .resolve("@jridgewell/trace-mapping")
+                  .replace(/\.umd\.js$/, ".mjs")
+          ),
+        },
         { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
         {
           find: /^@lazarv\/react-server\/client$/,
-          replacement: join(sys.rootDir, "client"),
+          replacement: sys.normalizePath(join(sys.rootDir, "client")),
+        },
+        {
+          find: /^@lazarv\/react-server\/error-boundary$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/error-boundary.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/client\/ErrorBoundary\.jsx$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "client/ErrorBoundary.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/file-router$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "lib/plugins/file-router/entrypoint.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/router$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/router.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/prerender$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/prerender.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/remote$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/remote.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/navigation$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "client/navigation.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/http-context$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "client/http-context.jsx")
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/memory-cache$/,
+          replacement: sys.normalizePath(join(sys.rootDir, "cache/client.mjs")),
+        },
+        {
+          find: /^@lazarv\/react-server\/server\//,
+          replacement: sys.normalizePath(join(sys.rootDir, "server/")),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "cache/crypto-browser.mjs")
+          ),
         },
         ...makeResolveAlias(config.resolve?.alias),
       ],
-      noExternal: [bareImportRE],
+      noExternal: true,
     },
     customLogger:
       config.customLogger ??
@@ -160,128 +291,107 @@ export default async function createServer(root, options) {
       }),
     environments: {
       client: {
-        resolve: {
-          preserveSymlinks: false,
-        },
         dev: {
-          createEnvironment: (name, config) => {
-            const dev = new DevEnvironment(
-              name,
-              {
-                ...config,
-                resolve: {
-                  ...config.resolve,
-                  alias: [...clientAlias(true), ...config.resolve.alias],
-                },
-              },
-              {}
-            );
-            return dev;
-          },
+          createEnvironment: (name, config, context) =>
+            new DevEnvironment(name, config, context),
         },
       },
       ssr: {
-        resolve: {
-          external: [
-            "react",
-            "react/jsx-runtime",
-            "react/jsx-dev-runtime",
-            "react-dom",
-            "react-dom/client",
-            "react-server-dom-webpack",
-            "react-is",
-          ],
-          conditions: ["default"],
-          externalConditions: ["default"],
-          dedupe: [
-            "react",
-            "react-dom",
-            "react-server-dom-webpack",
-            "react-is",
-            "picocolors",
-            "@lazarv/react-server",
-          ],
-        },
         dev: {
-          createEnvironment: (name, config) => {
-            return createNodeDevEnvironment(
-              name,
-              {
-                ...config,
-                root: sys.rootDir,
-                cacheDir: join(
-                  cwd,
-                  "node_modules",
-                  options.outDir,
-                  ".cache/ssr"
-                ),
+          createEnvironment: (name, config, context) =>
+            createRunnableDevEnvironment(name, config, {
+              ...context,
+              options: {
                 resolve: {
-                  ...config.resolve,
+                  dedupe: ["picocolors"],
+                  external: ["picocolors"],
                   alias: [
-                    ...clientAlias(true),
-                    ...(config.resolve?.alias ?? []),
+                    {
+                      find: /^@lazarv\/react-server\/http-context$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "server/http-context.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/memory-cache$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/index.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/crypto.mjs")
+                      ),
+                    },
                   ],
                 },
               },
-              {
-                runner: {
-                  transport: new RemoteEnvironmentTransport({
-                    send: (data) => {
-                      worker.postMessage({ type: "import", data });
-                    },
-                    onMessage: (listener) => {
-                      worker.on("message", (payload) => {
-                        if (payload.type === "import") {
-                          listener(payload.data);
-                        }
-                      });
-                    },
-                  }),
-                },
-              }
-            );
-          },
+            }),
         },
       },
       rsc: {
-        resolve: {
-          external: [
-            "react",
-            "react-dom",
-            "react-server-dom-webpack",
-            "react-is",
-            ...(config.ssr?.external ?? []),
-            ...(config.external ?? []),
-          ],
-          conditions: ["react-server"],
-          externalConditions: ["react-server"],
-          dedupe: [
-            "react",
-            "react-dom",
-            "react-server-dom-webpack",
-            "react-is",
-            "picocolors",
-            "@lazarv/react-server",
-          ],
-        },
         dev: {
-          createEnvironment: (name, config) => {
-            const dev = createNodeDevEnvironment(
-              name,
-              {
-                ...config,
-                root: sys.rootDir,
-                cacheDir: join(
-                  cwd,
-                  "node_modules",
-                  options.outDir,
-                  ".cache/rsc"
-                ),
+          createEnvironment: (name, config) =>
+            createRunnableDevEnvironment(name, config, {
+              options: {
+                resolve: {
+                  conditions: ["react-server"],
+                  dedupe: [
+                    "react",
+                    "react-dom",
+                    "react-server-dom-webpack",
+                    "react-is",
+                    "picocolors",
+                    "@lazarv/react-server",
+                  ],
+                  external: [
+                    "picocolors",
+                    "unstorage",
+                    "@modelcontextprotocol/sdk",
+                    "highlight.js",
+                  ],
+                  alias: [
+                    {
+                      find: /^react$/,
+                      replacement: reactServerAlias.react,
+                    },
+                    {
+                      find: /^react\/jsx-runtime$/,
+                      replacement: reactServerAlias["react/jsx-runtime"],
+                    },
+                    {
+                      find: /^react\/jsx-dev-runtime$/,
+                      replacement: reactServerAlias["react/jsx-dev-runtime"],
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/http-context$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/http-context.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/memory-cache$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/index.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/crypto.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/rsc$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/rsc.mjs")
+                      ),
+                    },
+                  ],
+                },
               },
-              {}
-            );
-            return dev;
-          },
+            }),
         },
       },
     },
@@ -289,7 +399,7 @@ export default async function createServer(root, options) {
 
   const viteConfig =
     typeof config.vite === "function"
-      ? config.vite(devServerConfig) ?? devServerConfig
+      ? (config.vite(devServerConfig) ?? devServerConfig)
       : merge(devServerConfig, config.vite);
 
   if (options.force) {
@@ -301,21 +411,38 @@ export default async function createServer(root, options) {
   }
 
   const viteDevServer = await createViteDevServer(viteConfig);
+
+  Object.assign(
+    viteDevServer.config.plugins.find((p) => p.name === "alias"),
+    aliasPlugin({
+      entries: viteDevServer.config.resolve.alias,
+      customResolver: async function (id, importer, options) {
+        const resolved = await this.resolve(id, importer, options);
+        return resolved || { id, meta: { "vite:alias": { noResolved: true } } };
+      },
+    })
+  );
+
   viteDevServer.environments.client.hot = viteDevServer.ws;
   viteDevServer.environments.rsc.watcher = viteDevServer.watcher;
   viteDevServer.environments.rsc.hot = {
-    send: (data) => {
+    send: async (data) => {
       data.triggeredBy = sys
         .normalizePath(
           sys.normalizePath(data.triggeredBy)?.replace(sys.rootDir, cwd + "/")
         )
         ?.replace(/\/+/g, "/");
-      if (
-        !viteDevServer.environments.client.moduleGraph.idToModuleMap.has(
-          data.triggeredBy
-        )
-      ) {
-        viteDevServer.environments.client.hot.send(data);
+
+      viteDevServer.environments.client.hot.send(data);
+
+      const cache = getRuntime(MEMORY_CACHE_CONTEXT);
+      if (await cache?.has([data.triggeredBy])) {
+        viteDevServer.environments.rsc.logger.info(
+          `${colors.green("invalidate cache")} ${colors.gray(
+            relative(cwd, data.triggeredBy)
+          )}`
+        );
+        await cache.delete([data.triggeredBy]);
       }
     },
   };
@@ -337,42 +464,167 @@ export default async function createServer(root, options) {
   const moduleRunner = new RSCModuleRunner(
     {
       root: cwd,
-      transport: viteDevServer.environments.rsc,
+      transport: {
+        async invoke({ data: { data } }) {
+          const [_specifier, parentId, meta] = data;
+
+          if (isBuiltin(_specifier)) {
+            return {
+              result: {
+                externalize: _specifier,
+              },
+            };
+          }
+
+          if (_specifier.startsWith("react-client-reference:")) {
+            return {
+              result: {
+                id: _specifier,
+                type: "module",
+              },
+            };
+          }
+
+          const specifier = sys.normalizePath(_specifier);
+
+          try {
+            const url =
+              specifier.startsWith("/") &&
+              !specifier.startsWith("/@fs") &&
+              !specifier.startsWith("/@id") &&
+              !tryStat(specifier)
+                ? sys.normalizePath(join(cwd, specifier))
+                : specifier;
+
+            const rawUrl = url.replace(/^\/@fs/, "");
+
+            const aliased = reverseServerAlias.find(
+              ({ alias }) => alias.includes(rawUrl) || rawUrl.includes(alias)
+            )?.id;
+            if (aliased) {
+              return {
+                result: {
+                  externalize: aliased,
+                  type: "commonjs",
+                },
+              };
+            }
+
+            const result = await viteDevServer.environments.rsc.fetchModule(
+              specifier,
+              parentId,
+              meta
+            );
+            return { result };
+          } catch {
+            return {
+              result: {
+                externalize: specifier,
+                type: "module",
+              },
+            };
+          }
+        },
+        connect: () => {},
+      },
+      hot: false,
     },
     new ESModulesEvaluator()
   );
 
-  const reactServerAlias = moduleAliases("react-server");
-  const originalFetchModule = moduleRunner.transport.fetchModule;
-  moduleRunner.transport.fetchModule = async (specifier, parentId, meta) => {
-    const alias = applyAlias(reactServerAlias, specifier);
-    if (alias !== specifier && tryStat(alias)) {
-      return {
-        externalize: specifier,
-        type: "commonjs",
-      };
-    }
+  viteDevServer.environments.ssr.config.resolve.preserveSymlinks = true;
+  viteDevServer.environments.rsc.config.resolve.preserveSymlinks = true;
+
+  const handleClientConsole = async (stream, environment) => {
+    const { createFromReadableStream } = await import(
+      "react-server-dom-webpack/client.edge"
+    );
+    const { method, args } = await createFromReadableStream(stream, {
+      serverConsumerManifest: {
+        moduleMap: {},
+      },
+    });
+    const logger = viteDevServer.config.logger;
     try {
-      return await originalFetchModule.call(
-        moduleRunner.transport,
-        specifier,
-        parentId,
-        meta
-      );
-    } catch {
-      return {
-        externalize: specifier,
-        type: "module",
-      };
+      if (logger && typeof logger[method] === "function") {
+        logger[method](...args, {
+          environment: environment ?? colors.blueBright("(browser)"),
+          user: true,
+        });
+      } else {
+        console[method](...args);
+      }
+    } catch (e) {
+      logger?.error(e);
     }
   };
 
-  worker.on("message", (payload) => {
-    if (payload.type === "logger") {
-      // eslint-disable-next-line no-unused-vars
-      const { level, ...data } = payload;
-      const [msg, ...rest] = data.data;
-      viteDevServer.config.logger[payload.level](format(msg, ...rest));
+  worker.on("message", async (payload) => {
+    if (payload.type === "import") {
+      const {
+        name,
+        id,
+        data: [specifier, parentId, meta],
+      } = payload.data.data;
+
+      let result = {
+        externalize: specifier,
+      };
+
+      if (!isBuiltin(specifier)) {
+        try {
+          if (reverseClientAlias[specifier]) {
+            result = {
+              externalize: specifier,
+              type: "commonjs",
+            };
+          } else {
+            result = await viteDevServer.environments.ssr.fetchModule(
+              specifier,
+              parentId,
+              meta
+            );
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      worker.postMessage({
+        type: "import",
+        data: {
+          type: "custom",
+          event: "vite:invoke",
+          data: {
+            name,
+            id: `response:${id.split(":")[1]}`,
+            data: {
+              result,
+            },
+          },
+        },
+      });
+    } else if (payload.type === "react-server:console") {
+      const stream = new ReadableStream({
+        type: "bytes",
+        start(controller) {
+          const encoder = new TextEncoder();
+          try {
+            for (const chunk of payload.data.split("\n")) {
+              controller.enqueue(encoder.encode(`${chunk || ""}\n`));
+            }
+            controller.close();
+          } catch (e) {
+            controller.error(e);
+          }
+        },
+      });
+
+      try {
+        await handleClientConsole(stream, colors.cyanBright("(ssr)"));
+      } catch (e) {
+        console.error("Failed to process console", e);
+      }
     }
   });
   const initialRuntime = {
@@ -411,7 +663,7 @@ export default async function createServer(root, options) {
         }
       : null,
     [FORM_DATA_PARSER]: parseMultipartFormData,
-    [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
+    [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
     [COLLECT_STYLESHEETS]: function collectCss(rootModule) {
       const styles = [];
       const visited = new Set();
@@ -442,34 +694,112 @@ export default async function createServer(root, options) {
       collectCss(rootModule);
       return styles;
     },
+    [COLLECT_CLIENT_MODULES]: function collectClientModules(rootModule) {
+      const modules = [];
+      const visited = new Set();
+      function collectClientModules(moduleId) {
+        if (
+          moduleId &&
+          !visited.has(moduleId) &&
+          !moduleId.startsWith("virtual:")
+        ) {
+          visited.add(moduleId);
+          const mod = viteDevServer.environments.rsc.moduleGraph.getModuleById(
+            sys.normalizePath(moduleId)
+          );
+          if (!mod) return;
+
+          if (mod.__react_server_client_component__) {
+            modules.unshift(`/@fs${moduleId}`);
+          } else {
+            if (/node_modules/.test(moduleId)) return;
+
+            const values = Array.from(mod.importedModules.values());
+            const imports = values.filter(
+              (mod) => !/\.(css|scss|less)/.test(mod.id)
+            );
+
+            imports.forEach((mod) => mod.id && collectClientModules(mod.id));
+          }
+        }
+      }
+      collectClientModules(rootModule);
+      return modules;
+    },
   };
 
   runtime$(
     typeof config.runtime === "function"
-      ? config.runtime(initialRuntime) ?? initialRuntime
+      ? (config.runtime(initialRuntime) ?? initialRuntime)
       : {
           ...initialRuntime,
           ...config.runtime,
         }
   );
 
+  viteDevServer.ws.on("react-server:console", async (data) => {
+    const stream = new ReadableStream({
+      type: "bytes",
+      start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          for (const chunk of data.split("\n")) {
+            controller.enqueue(encoder.encode(`${chunk || ""}\n`));
+          }
+          controller.close();
+        } catch (e) {
+          controller.error(e);
+        }
+      },
+    });
+
+    try {
+      await handleClientConsole(stream);
+    } catch (e) {
+      console.error("Failed to process console", e);
+    }
+  });
+
   const initialHandlers = await Promise.all([
+    async (context) => {
+      if (context.url.pathname === "/__react_server_console__") {
+        try {
+          await handleClientConsole(context.request.body);
+        } catch (e) {
+          viteDevServer.config.logger.error("Failed to process console", e);
+        }
+        return new Response(null, { status: 204 });
+      } else if (context.url.pathname === "/__react_server_source_map__") {
+        const filename = context.url.searchParams.get("filename");
+        const mod =
+          viteDevServer.environments.rsc.moduleGraph.getModuleById(filename);
+        if (mod?.transformResult?.map) {
+          return new Response(
+            JSON.stringify({
+              ...mod.transformResult.map,
+              sourceRoot: dirname(relative(cwd, filename)),
+            }),
+            { headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+    },
     trailingSlashHandler(),
-    cookie(config.cookies),
+    cookie(config?.cookies),
     ...(config.handlers?.pre ?? []),
     ssrHandler(root),
     ...(config.handlers?.post ?? []),
     notFoundHandler(),
   ]);
-  if (options.cors) {
-    initialHandlers.unshift(cors());
+  if (options.cors || config.server?.cors || config.cors) {
+    initialHandlers.unshift(cors(getServerCors(config)));
   }
 
   viteDevServer.middlewares.use(
     createMiddleware(
       compose(
         typeof config.handlers === "function"
-          ? config.handlers(initialHandlers) ?? initialHandlers
+          ? (config.handlers(initialHandlers) ?? initialHandlers)
           : [...initialHandlers, ...(config.handlers ?? [])]
       )
     )

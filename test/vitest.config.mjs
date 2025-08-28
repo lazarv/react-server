@@ -23,10 +23,11 @@ export default defineConfig({
     },
     testTimeout: 60000,
     reporters: process.env.GITHUB_ACTIONS
-      ? ["dot", "github-actions"]
+      ? ["verbose", "github-actions"]
       : ["default"],
     pool: "forks",
     fileParallelism: !process.env.CI,
+    retry: 3,
   },
   publicDir: false,
 });

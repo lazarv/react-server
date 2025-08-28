@@ -8,23 +8,68 @@ import Link from "../../../../components/Link.jsx";
 
 # Tailwind CSS
 
-`@lazarv/react-server` is compatible with Tailwind CSS. You can use Tailwind CSS the same way you use it in a standard React project with Vite, using the PostCSS and Autoprefixer plugins.
+`@lazarv/react-server` is compatible with Tailwind CSS, both v3 or v4. You can use Tailwind CSS the same way you use it in a standard React project with Vite, using the PostCSS and Autoprefixer plugins when using Tailwind CSS v3 or the official Tailwind CSS plugin when using Tailwind CSS v4.
 
-<Link name="install">
-## Install
+<Link name="v4">
+## v4
 </Link>
 
-You can install Tailwind CSS in your project by running the following command:
+You can just follow the official Tailwind CSS documentation to install Tailwind CSS v4 in your project at [Get started with Tailwind CSS Using Vite](https://tailwindcss.com/docs/installation/using-vite).
+
+Install the dependencies:
 
 ```sh
-pnpm add -D tailwindcss postcss autoprefixer
-pnpm dlx tailwindcss init
+pnpm add -D tailwindcss @tailwindcss/vite
+```
+
+Add the plugin to your `vite.config.js` file:
+
+```js filename="vite.config.js"
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  plugins: [
+    tailwindcss(),
+  ],
+});
+```
+
+Your `styles.css` file has to import Tailwind CSS:
+
+```css filename="styles.css"
+@import "tailwindcss";
+```
+
+The only difference from the offical Vite instructions is that you will import your `styles.css` file in your server component, instead of an HTML file:
+
+```tsx filename="src/pages/index.tsx"
+import "./styles.css";
+
+export default function HomePage() {
+  return <h1 className="text-2xl font-bold">Hello World</h1>;
+}
+```
+
+You can now use Tailwind CSS in any of your React Server Components or client components.
+
+> Check out the updated [Pokémon example](https://github.com/lazarv/react-server/tree/main/examples/pokemon) to see a complete example on how to use Tailwind CSS v4 with `@lazarv/react-server`.
+
+<Link name="v3">
+## v3
+</Link>
+
+You can install Tailwind CSS v3 in your project by running the following command:
+
+```sh
+pnpm add -D tailwindcss@3 postcss autoprefixer
+pnpm dlx tailwindcss@3 init
 ```
 
 Add Tailwind CSS to your `postcss.config.js` file:
 
 ```js filename="./postcss.config.js"
-module.exports = {
+export default {
   plugins: {
     tailwindcss: {},
     autoprefixer: {},
@@ -35,10 +80,8 @@ module.exports = {
 Configure your template paths in the `tailwind.config.js` file:
 
 ```js filename="./tailwind.config.js"
-module.exports = {
-  content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
-  ],
+export default {
+  content: ["./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {},
   },
@@ -56,13 +99,11 @@ Add the following lines to your `main.css` file:
 @tailwind utilities;
 ```
 
-<Link name="use-tailwind-css">
-## Use Tailwind CSS
-</Link>
-
 You can now use Tailwind CSS in any of your React Server Components or client components.
 
 ```tsx filename="./src/pages/index.tsx"
+import "./main.css";
+
 export default function HomePage() {
   return <h1 className="text-2xl font-bold">Hello World</h1>;
 }
@@ -71,11 +112,11 @@ export default function HomePage() {
 You don't need to do anything more. Start your development server and you can see the styles applied.
 
 ```sh
-pnpm exec react-server
+pnpm react-server
 ```
 
 Your styles will be also applied during a production build.
 
 ```sh
-pnpm exec react-server build
+pnpm react-server build
 ```

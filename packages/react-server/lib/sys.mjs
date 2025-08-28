@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { format } from "node:util";
 
 export function normalizePath(path) {
   return path?.replace(/\\/g, "/");
@@ -63,6 +64,45 @@ export function experimentalWarningSilence() {
       return originalEmit.call(process, name, data, ...args);
     };
   }
+}
+
+export function suppressReactWarnings() {
+  const oldConsoleError = console.error;
+  console.error = function (message, ...args) {
+    if (!message) return;
+    // suppress warning about multiple react renderers using the same context
+    if (
+      typeof message === "string" &&
+      message.includes(
+        "Warning: Detected multiple renderers concurrently rendering the same context provider. This is currently unsupported."
+      )
+    ) {
+      return;
+    }
+    // throw on other warnings
+    if (
+      message?.startsWith?.("Warning:") ||
+      message?.message?.startsWith?.("Warning:")
+    ) {
+      const error =
+        typeof message === "string"
+          ? new Error(format(message, ...args))
+          : message;
+      const stack = error.stack?.split?.("\n") ?? [];
+      if (
+        stack.find(
+          (line) => line.includes("at printWarning") && line.includes("/react@")
+        )
+      ) {
+        if (typeof message === "string") {
+          throw error;
+        } else {
+          return;
+        }
+      }
+    }
+    return oldConsoleError.call(console, message, ...args);
+  };
 }
 
 if (typeof Deno !== "undefined") {

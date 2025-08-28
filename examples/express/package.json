@@ -15,7 +15,10 @@
   "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "systeminformation": "^5.27.1"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",

@@ -1,5 +1,4 @@
 import { isIPv6 } from "node:net";
-import { setTimeout } from "node:timers/promises";
 
 import open from "open";
 import colors from "picocolors";
@@ -17,17 +16,32 @@ import {
   LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
-import { getEnv } from "../sys.mjs";
 import banner from "../utils/banner.mjs";
+import { clearScreen } from "../utils/clear-screen.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
+import { getServerConfig } from "../utils/server-config.mjs";
 import { command } from "./command.mjs";
 import createServer from "./create-server.mjs";
 
 export default async function dev(root, options) {
   try {
+    if (options.clearScreen) {
+      clearScreen();
+    }
+
     await logo();
     banner("starting development server");
+
+    process.on("unhandledRejection", (err) => {
+      const logger = getRuntime(LOGGER_CONTEXT);
+      logger?.error?.(
+        `${colors.red("✖")} ${colors.bold("Unhandled Rejection:")} ${err?.message ?? err}`
+      );
+      if (err?.stack) {
+        logger?.error?.(colors.red(err.stack));
+      }
+    });
 
     let server;
     let configWatcher;
@@ -54,7 +68,7 @@ export default async function dev(root, options) {
 
           let config = await loadConfig(
             {},
-            options.watch ?? true
+            typeof Bun === "undefined" && (options.watch ?? true)
               ? {
                   ...options,
                   onWatch(watcher) {
@@ -85,11 +99,7 @@ export default async function dev(root, options) {
             options
           );
 
-          const port =
-            options.port ?? getEnv("PORT") ?? configRoot.port ?? 3000;
-          const host =
-            options.host ?? getEnv("HOST") ?? configRoot.host ?? "localhost";
-          const listenerHost = host === true ? undefined : host;
+          const { port, listenerHost } = getServerConfig(configRoot, options);
 
           const openServer = (https, host, port) => {
             if (options.open ?? configRoot.server?.open) {
@@ -107,7 +117,7 @@ export default async function dev(root, options) {
                 if (listenerHost) {
                   resolvedUrls.push(
                     new URL(
-                      `http${options.https ?? configRoot.server?.https ? "s" : ""}://${isIPv6(listenerHost) ? `[${listenerHost}]` : listenerHost}:${listener.address().port}`
+                      `http${(options.https ?? configRoot.server?.https) ? "s" : ""}://${isIPv6(listenerHost) ? `[${listenerHost}]` : listenerHost}:${listener.address().port}`
                     )
                   );
                   openServer(
@@ -120,7 +130,7 @@ export default async function dev(root, options) {
                   getServerAddresses(listener).forEach((address) => {
                     resolvedUrls.push(
                       new URL(
-                        `http${options.https ?? configRoot.server?.https ? "s" : ""}://${isIPv6(address.address) ? `[${address.address}]` : address.address}:${listener.address().port}`
+                        `http${(options.https ?? configRoot.server?.https) ? "s" : ""}://${isIPv6(address.address) ? `[${address.address}]` : address.address}:${listener.address().port}`
                       )
                     );
                     if (!opening) {

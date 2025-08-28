@@ -51,10 +51,17 @@ export type ErrorBoundaryProps =
   | ErrorBoundaryPropsWithComponent
   | ErrorBoundaryPropsWithRender;
 
+export type ErrorBoundaryComponentProps = React.PropsWithChildren<{
+  error: Error & { digest?: string };
+  resetErrorBoundary: () => void;
+}>;
+
 export type ReactServerErrorBoundaryProps = React.PropsWithChildren<
   Omit<ErrorBoundaryProps, "fallback"> & {
     fallback?: React.ReactNode;
-    component?: React.ComponentType<{ error?: Error }> | React.ReactNode;
+    component?:
+      | React.ComponentType<ErrorBoundaryComponentProps>
+      | React.ReactNode;
   }
 >;
 

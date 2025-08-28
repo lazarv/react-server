@@ -1,0 +1,19 @@
+{
+  "root": "src/app",
+  "export": [
+    {
+      "path": "/"
+    },
+    {
+      "path": "/",
+      "outlet": "content"
+    },
+    {
+      "path": "/about"
+    },
+    {
+      "path": "/about",
+      "outlet": "content"
+    }
+  ]
+}

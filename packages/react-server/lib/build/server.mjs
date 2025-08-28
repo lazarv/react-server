@@ -1,15 +1,19 @@
-import { writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { join } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { createRequire, isBuiltin } from "node:module";
+import { join, relative, extname } from "node:path";
 
 import replace from "@rollup/plugin-replace";
-import { build as viteBuild } from "vite";
+import glob from "fast-glob";
+import { build as viteBuild } from "rolldown-vite";
 
 import { forRoot } from "../../config/index.mjs";
 import configPrebuilt from "../plugins/config-prebuilt.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
+import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
+import importRemotePlugin from "../plugins/import-remote.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
+import reactServerLive from "../plugins/live.mjs";
 import rootModule from "../plugins/root-module.mjs";
 import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
@@ -25,12 +29,15 @@ import {
 import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
 import { bareImportRE, findNearestPackageData } from "../utils/module.mjs";
+import { realpathSync } from "node:fs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
 export default async function serverBuild(root, options) {
-  root ||= "@lazarv/react-server/file-router";
+  if (!options.eval) {
+    root ||= "@lazarv/react-server/file-router";
+  }
 
   banner("rsc", options.dev);
   const config = forRoot();
@@ -42,8 +49,13 @@ export default async function serverBuild(root, options) {
   ];
 
   const external = (id, parentId, isResolved) => {
+    if (isBuiltin(id)) {
+      return true;
+    }
+
     const external = [
       /manifest\.json/,
+      "bun",
       /^bun:/,
       /^node:/,
       "react",
@@ -56,6 +68,8 @@ export default async function serverBuild(root, options) {
       "react-server-dom-webpack/server.edge",
       "react-is",
       "picocolors",
+      "unstorage",
+      /^unstorage\/drivers\//,
       ...(Array.isArray(config.build?.rollupOptions?.external)
         ? config.build?.rollupOptions?.external
         : []),
@@ -82,13 +96,32 @@ export default async function serverBuild(root, options) {
     return false;
   };
   const rscExternal = (id) => {
+    if (isBuiltin(id)) {
+      return true;
+    }
+
     if (bareImportRE.test(id)) {
       try {
         const mod = __require.resolve(id, { paths: [cwd] });
-        const pkg = findNearestPackageData(mod);
+        let pkg = findNearestPackageData(mod);
+        const prev = pkg;
+        if (pkg) {
+          let prevDir = pkg.__pkg_dir__;
+          while (pkg && !pkg.name && !pkg.version) {
+            pkg = findNearestPackageData(join(pkg.__pkg_dir__, ".."));
+            if (pkg.__pkg_dir__ === prevDir) {
+              break;
+            }
+            prevDir = pkg.__pkg_dir__;
+          }
+          if (!pkg) {
+            pkg = prev;
+          }
+        }
         if (
           /[cm]?js$/.test(mod) &&
-          !(pkg?.type === "module" || pkg?.module || pkg?.exports)
+          !(pkg?.type === "module" || pkg?.module || pkg?.exports) &&
+          ![...(config.ssr?.noExternal ?? [])].includes(id)
         ) {
           return true;
         }
@@ -98,6 +131,32 @@ export default async function serverBuild(root, options) {
     }
     return false;
   };
+
+  const globalErrorFiles = await glob(
+    [
+      config.globalErrorComponent ?? "**/react-server.error.{jsx,tsx}",
+      "!node_modules",
+    ],
+    {
+      cwd,
+      absolute: true,
+      onlyFiles: true,
+    }
+  );
+  const globalError =
+    globalErrorFiles?.[0] ??
+    __require.resolve("@lazarv/react-server/server/GlobalError.jsx", {
+      paths: [cwd],
+    });
+
+  let isGlobalErrorClientComponent = false;
+  try {
+    const code = await readFile(globalError, "utf8");
+    isGlobalErrorClientComponent =
+      code.includes(`"use client"`) || code.includes(`'use client'`);
+  } catch {
+    // ignore
+  }
 
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
@@ -115,6 +174,65 @@ export default async function serverBuild(root, options) {
         {
           find: /^@lazarv\/react-server\/client$/,
           replacement: join(sys.rootDir, "client"),
+        },
+        {
+          find: /^@lazarv\/react-server\/error-boundary$/,
+          replacement: join(sys.rootDir, "server/error-boundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/client\/ErrorBoundary\.jsx$/,
+          replacement: join(sys.rootDir, "client/ErrorBoundary.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/file-router$/,
+          replacement: join(
+            sys.rootDir,
+            "lib/plugins/file-router/entrypoint.jsx"
+          ),
+        },
+        {
+          find: /^@lazarv\/react-server\/router$/,
+          replacement: join(sys.rootDir, "server/router.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/prerender$/,
+          replacement: join(sys.rootDir, "server/prerender.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/remote$/,
+          replacement: join(sys.rootDir, "server/remote.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/navigation$/,
+          replacement: join(sys.rootDir, "client/navigation.jsx"),
+        },
+        {
+          find: /^@lazarv\/react-server\/http-context$/,
+          replacement: join(sys.rootDir, "server/http-context.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/live$/,
+          replacement: sys.normalizePath(join(sys.rootDir, "server/live.jsx")),
+        },
+        {
+          find: /^@lazarv\/react-server\/memory-cache$/,
+          replacement: join(sys.rootDir, "cache/index.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache$/,
+          replacement: join(sys.rootDir, "cache/storage-cache.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
+          replacement: sys.normalizePath(join(sys.rootDir, "cache/crypto.mjs")),
+        },
+        {
+          find: /^@lazarv\/react-server\/rsc$/,
+          replacement: sys.normalizePath(join(sys.rootDir, "cache/rsc.mjs")),
+        },
+        {
+          find: /^@lazarv\/react-server\/server\//,
+          replacement: join(sys.rootDir, "server/"),
         },
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],
@@ -147,21 +265,48 @@ export default async function serverBuild(root, options) {
           moduleSideEffects: false,
           ...config.build?.rollupOptions?.treeshake,
         },
+        onwarn(warn) {
+          if (
+            warn.code === "EMPTY_BUNDLE" ||
+            warn.code === "CIRCULAR_DEPENDENCY"
+          ) {
+            return;
+          }
+          console.warn(warn.message);
+        },
         output: {
           dir: options.outDir,
           format: "esm",
-          entryFileNames: "[name].mjs",
+          entryFileNames({ name }) {
+            return [
+              "server/__react_server_config__/prebuilt",
+              "server/render",
+              "server/index",
+              "server/error",
+            ].includes(name) || name.startsWith("static/")
+              ? "[name].mjs"
+              : "[name].[hash].mjs";
+          },
           chunkFileNames: "server/[name].[hash].mjs",
-          manualChunks: (id, ...rest) => {
-            if (id.includes("@lazarv/react-server") && id.endsWith(".mjs")) {
-              return "@lazarv/react-server";
-            }
-            return (
-              config.build?.rollupOptions?.output?.manualChunks?.(
-                id,
-                ...rest
-              ) ?? undefined
-            );
+          advancedChunks: {
+            groups: [
+              {
+                name(id) {
+                  const clientModules = Array.from(clientManifest.values());
+                  if (
+                    clientModules.includes(id) &&
+                    !id.includes("node_modules")
+                  ) {
+                    const specifier = sys.normalizePath(relative(cwd, id));
+                    return specifier
+                      .replaceAll("../", "__/")
+                      .replace(extname(specifier), "");
+                  }
+                },
+              },
+              ...(config.build?.rollupOptions?.output?.advancedChunks?.groups ??
+                []),
+            ],
           },
         },
         input: {
@@ -171,10 +316,7 @@ export default async function serverBuild(root, options) {
             { paths: [cwd] }
           ),
           "server/index":
-            !root &&
-            (!reactServerRouterModule ||
-              options.eval ||
-              (!process.stdin.isTTY && !process.env.CI))
+            !root && (options.eval || (!process.stdin.isTTY && !process.env.CI))
               ? "virtual:react-server-eval.jsx"
               : root?.startsWith("virtual:")
                 ? root
@@ -184,9 +326,24 @@ export default async function serverBuild(root, options) {
                       paths: [cwd],
                     }
                   ),
+          "server/error": __require.resolve(globalError, {
+            paths: [cwd],
+          }),
+          ...(isGlobalErrorClientComponent
+            ? {
+                "server/error-boundary": __require.resolve(
+                  "@lazarv/react-server/error-boundary",
+                  {
+                    paths: [cwd],
+                  }
+                ),
+              }
+            : {}),
         },
         external(id, parentId, isResolved) {
-          return external(id, parentId, isResolved) || rscExternal(id);
+          return (
+            external(id, parentId, isResolved) || rscExternal(id, parentId)
+          );
         },
         plugins: [
           resolveWorkspace(),
@@ -200,9 +357,24 @@ export default async function serverBuild(root, options) {
           rollupUseClient("server", clientManifest),
           rollupUseServer("rsc", serverManifest),
           rollupUseServerInline(serverManifest),
-          rollupUseCacheInline(config.cache?.profiles),
+          rollupUseCacheInline(
+            config.cache?.profiles,
+            config.cache?.providers,
+            "server"
+          ),
           rootModule(root),
           configPrebuilt(),
+          {
+            name: "suppress-empty-chunks",
+            generateBundle(_, bundle) {
+              Object.keys(bundle).forEach((fileName) => {
+                const chunk = bundle[fileName];
+                if (chunk.code && !chunk.code.trim()) {
+                  delete bundle[fileName];
+                }
+              });
+            },
+          },
           ...(config.build?.rollupOptions?.plugins ?? []),
         ],
       },
@@ -211,12 +383,19 @@ export default async function serverBuild(root, options) {
       !root || root === "@lazarv/react-server/file-router"
         ? fileRouter(options)
         : [],
+      importRemotePlugin(),
       reactServerEval(options),
       ...buildPlugins,
+      fixEsbuildOptionsPlugin(),
+      reactServerLive(),
     ],
     css: {
       ...config.css,
       postcss: cwd,
+      modules: {
+        generateScopedName: "_[local]_[hash:base64:5]",
+        ...config.css?.modules,
+      },
     },
     ssr: {
       ...config.ssr,
@@ -255,6 +434,25 @@ export default async function serverBuild(root, options) {
   if (clientManifest.size > 0) {
     const viteConfigClientComponents = {
       ...viteConfig,
+      resolve: {
+        ...viteConfig.resolve,
+        alias: [
+          {
+            find: /^@lazarv\/react-server\/http-context$/,
+            replacement: join(sys.rootDir, "server/http-context.mjs"),
+          },
+          {
+            find: /^@lazarv\/react-server\/memory-cache$/,
+            replacement: join(sys.rootDir, "cache/client.mjs"),
+          },
+          ...viteConfig.resolve.alias.filter(
+            (alias) =>
+              !alias.replacement.endsWith(
+                "react-server/client/http-context.jsx"
+              ) && !alias.replacement.endsWith("react-server/cache/index.mjs")
+          ),
+        ],
+      },
       build: {
         ...viteConfig.build,
         manifest: "server/client-manifest.json",
@@ -279,11 +477,16 @@ export default async function serverBuild(root, options) {
             rollupUseClient("client", undefined, "pre"),
             rollupUseClient("client"),
             rollupUseServer("ssr"),
+            rollupUseCacheInline(
+              config.cache?.profiles,
+              config.cache?.providers,
+              "client"
+            ),
             ...(config.build?.rollupOptions?.plugins ?? []),
           ],
         },
       },
-      plugins: [...buildPlugins],
+      plugins: [...buildPlugins, fixEsbuildOptionsPlugin()],
       ssr: {
         ...config.ssr,
       },

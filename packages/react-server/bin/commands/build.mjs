@@ -21,6 +21,7 @@ export default (cli) =>
       type: [String],
     })
     .option("--deploy", "[boolean] deploy using adapter", { default: false })
+    .option("-e, --eval <code>", "evaluate code", { type: "string" })
     .option("--outDir <dir>", "[string] output directory", {
       default: ".react-server",
     })

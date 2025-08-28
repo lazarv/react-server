@@ -1,0 +1,29 @@
+---
+title: API routes
+category: Router
+order: 9
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# API routes
+
+ファイルシステムベースのルーターは、ファイルシステムベースの方法でAPIルートを定義する方法を提供します。ページの基本ルーティングと同じルーティング構造を使用できます。
+
+<Link name="handlers">
+## Route handlers
+</Link>
+
+APIルートはミドルウェアに似ていますが、APIリクエストの処理に使用されます。APIルートを作成するには、APIルートに一致するパスを持つ`.server.{js,mjs,ts,mts}`拡張子のファイルを作成し、モジュールからHTTPメソッド名を使用してデフォルトの非同期関数をエクスポートします。これらの関数がAPIルートハンドラーになります。また、`GET.posts.server.mjs`や`POST.posts.server.mjs`などのHTTPメソッドプレフィックスを持つファイルにAPIルートハンドラーを作成して、指定されたHTTPメソッドにのみハンドラーを適用することもできます。プレフィックスなしで`.server.mjs`拡張子を持つファイルを作成すると、すべてのHTTPメソッドに使用され、現在のHTTPメソッド名を持つエクスポートされた関数またはデフォルトでエクスポートされた関数のみが呼び出されます。サポートされているHTTPメソッドは、`GET`、`POST`、`PUT`、`PATCH`、`DELETE`、`HEAD`、`OPTIONS`です。
+
+```jsx
+// GET.posts.server.mjs
+
+export default async function GetPosts(context) {
+  return new Response(JSON.stringify({ posts: [ /* posts */ ] }), {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+};
+```

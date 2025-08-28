@@ -6,12 +6,11 @@ import { pipeline } from "node:stream/promises";
 import { Worker } from "node:worker_threads";
 import { createBrotliCompress, createGzip } from "node:zlib";
 
-import { parseMultipartFormData } from "@hattip/multipart";
 import { filesize } from "filesize";
 import colors from "picocolors";
 
+import memoryDriver, { StorageCache } from "../../cache/index.mjs";
 import { forRoot } from "../../config/index.mjs";
-import { MemoryCache } from "../../memory-cache/index.mjs";
 import { getContext } from "../../server/context.mjs";
 import {
   getRuntime,
@@ -24,6 +23,7 @@ import {
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
+import { parseMultipartFormData } from "../http/index.mjs";
 import ssrHandler from "../start/ssr-handler.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
@@ -32,7 +32,7 @@ const cwd = sys.cwd();
 
 function size(bytes) {
   const s = filesize(bytes);
-  return " ".repeat(Math.max(0, 8 - s.length)) + s;
+  return " ".repeat(Math.max(0, 10 - s.length)) + s;
 }
 
 function log(
@@ -49,7 +49,7 @@ function log(
       (dirname(normalizedBasename) === "." ? "" : "/") +
         basename(normalizedBasename)
     )} ${`${" ".repeat(
-      maxFilenameLength - normalizedBasename.length
+      Math.max(0, maxFilenameLength - normalizedBasename.length)
     )}${colors.gray(colors.bold(size(htmlStat.size)))}${colors.dim(
       `${gzipStat.size ? ` │ gzip: ${size(gzipStat.size)}` : ""}${brotliStat.size ? ` │ brotli: ${size(brotliStat.size)}` : ""}${postponedStat.size ? ` │ postponed: ${size(postponedStat.size)}` : ""}`
     )}`}`
@@ -74,12 +74,12 @@ export default async function staticSiteGenerator(root, options) {
     runtime$(CONFIG_CONTEXT, config);
 
     const initialRuntime = {
-      [MEMORY_CACHE_CONTEXT]: new MemoryCache(),
+      [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
       [FORM_DATA_PARSER]: parseMultipartFormData,
     };
     runtime$(
       typeof config.runtime === "function"
-        ? config.runtime(initialRuntime) ?? initialRuntime
+        ? (config.runtime(initialRuntime) ?? initialRuntime)
         : {
             ...initialRuntime,
             ...config.runtime,
@@ -125,6 +125,7 @@ export default async function staticSiteGenerator(root, options) {
 
       if (paths.length === 0) {
         console.log(colors.yellow("warning: no paths to export, skipping..."));
+        getRuntime(WORKER_THREAD)?.terminate();
         return;
       }
 
@@ -184,7 +185,7 @@ export default async function staticSiteGenerator(root, options) {
               url,
               method: method ?? "GET",
               request: {
-                url,
+                url: url.toString(),
                 method: method ?? "GET",
                 headers: new Headers({
                   accept: "text/html",
@@ -267,7 +268,7 @@ export default async function staticSiteGenerator(root, options) {
               );
             }
           } catch (e) {
-            console.log(e);
+            console.error(e);
           }
         })
       );
@@ -283,7 +284,7 @@ export default async function staticSiteGenerator(root, options) {
               const stream = await render({
                 url,
                 request: {
-                  url,
+                  url: url.toString(),
                   headers: new Headers({
                     accept: "text/x-component",
                   }),
@@ -342,7 +343,7 @@ export default async function staticSiteGenerator(root, options) {
                 maxFilenameLength
               );
             } catch (e) {
-              console.log(e);
+              console.error(e);
             }
           })
       );
@@ -358,7 +359,7 @@ export default async function staticSiteGenerator(root, options) {
               const stream = await render({
                 url,
                 request: {
-                  url,
+                  url: url.toString(),
                   headers: new Headers({
                     accept: "text/x-component",
                     "React-Server-Outlet": "REACT_SERVER_BUILD_OUTLET",
@@ -415,15 +416,12 @@ export default async function staticSiteGenerator(root, options) {
                 maxFilenameLength
               );
             } catch (e) {
-              console.log(e);
+              console.error(e);
             }
           })
       );
 
-      const worker = getRuntime(WORKER_THREAD);
-      if (worker) {
-        worker.terminate();
-      }
+      getRuntime(WORKER_THREAD)?.terminate();
     }
   });
 }

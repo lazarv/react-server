@@ -2,19 +2,22 @@ import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { forChild } from "../../config/context.mjs";
-import { init$ as memory_cache_init$ } from "../../memory-cache/index.mjs";
+import { init$ as cache_init$ } from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
-import { logger } from "../../server/logger.mjs";
+import { useErrorComponent } from "../../server/error-handler.mjs";
+import { style as errorStyle } from "../../server/error-styles.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getPrerender } from "../../server/prerender-storage.mjs";
 import { createRenderContext } from "../../server/render-context.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
+  CLIENT_MODULES_CONTEXT,
+  COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
+  ERROR_BOUNDARY,
   ERROR_CONTEXT,
   FORM_DATA_PARSER,
   HTTP_CONTEXT,
@@ -29,6 +32,7 @@ import {
   POSTPONE_STATE,
   PRELUDE_HTML,
   REDIRECT_CONTEXT,
+  RENDER,
   RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
@@ -49,6 +53,7 @@ const cwd = sys.cwd();
 export default async function ssrHandler(root, options = {}) {
   const outDir = options.outDir ?? ".react-server";
   const defaultRoot = join(cwd, outDir, "server/index.mjs");
+  const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 
@@ -63,12 +68,33 @@ export default async function ssrHandler(root, options = {}) {
       paths: [cwd],
     }
   );
-  const [{ render }, { default: Component, init$: root_init$ }] =
-    await Promise.all([
-      import(pathToFileURL(entryModule)),
-      import(pathToFileURL(rootModule)),
-    ]);
+  const globalErrorModule = __require.resolve(`./${outDir}/server/error.mjs`, {
+    paths: [cwd],
+  });
+  let errorBoundary;
+  try {
+    errorBoundary = __require.resolve(`./${outDir}/server/error-boundary.mjs`, {
+      paths: [cwd],
+    });
+  } catch {
+    // ignore
+  }
+  const [
+    { render },
+    { default: Component, init$: root_init$ },
+    { default: GlobalErrorComponent },
+    { default: ErrorBoundary },
+  ] = await Promise.all([
+    import(pathToFileURL(entryModule)),
+    import(pathToFileURL(rootModule)),
+    import(pathToFileURL(globalErrorModule)),
+    errorBoundary
+      ? import(pathToFileURL(errorBoundary))
+      : Promise.resolve({ default: null }),
+  ]);
+  const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
+  const clientModules = getRuntime(COLLECT_CLIENT_MODULES)?.(rootModule) ?? [];
   const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
   const mainModule = getRuntime(MAIN_MODULE)?.map((mod) =>
     `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")
@@ -126,16 +152,47 @@ export default async function ssrHandler(root, options = {}) {
       status: 500,
       statusText: "Internal Server Error",
     };
-    return new Response(e?.stack ?? null, {
+
+    const headers = getContext(HTTP_HEADERS) ?? new Headers();
+
+    if (getContext(RENDER_CONTEXT)?.flags?.isHTML) {
+      const html = `<html lang="en">
+  <head>
+    <title>Server Error</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      ${errorStyle}
+    </style>
+  </head>
+  <body class="react-server-global-error">
+    <h1>${e?.digest || e?.message}</h1>
+    <pre>${(e?.digest ? e?.message : e?.stack) || "An unexpected error occurred while rendering the page. The specific message is omitted in production builds to avoid leaking sensitive details."}</pre>
+    <a href="${getContext(HTTP_CONTEXT)?.url.pathname}">
+      <button>Retry</button>
+    </a>
+  </body>
+</html>`;
+
+      headers.set("Content-Type", "text/html; charset=utf-8");
+      return new Response(html, {
+        status: httpStatus.status,
+        headers,
+      });
+    }
+
+    headers.set("Content-Type", "text/plain; charset=utf-8");
+
+    return new Response(e?.digest || e?.message, {
       ...httpStatus,
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        ...(getContext(HTTP_HEADERS) ?? {}),
-      },
+      headers,
     });
   };
 
   return async (httpContext) => {
+    const noCache =
+      httpContext.request.headers.get("cache-control") === "no-cache";
+
     return new Promise((resolve, reject) => {
       try {
         ContextStorage.run(
@@ -152,44 +209,46 @@ export default async function ssrHandler(root, options = {}) {
             [MEMORY_CACHE_CONTEXT]: memoryCache,
             [MANIFEST]: manifest,
             [REDIRECT_CONTEXT]: {},
+            [COLLECT_CLIENT_MODULES]: collectClientModules,
+            [CLIENT_MODULES_CONTEXT]: clientModules,
             [COLLECT_STYLESHEETS]: collectStylesheets,
             [STYLES_CONTEXT]: styles,
             [RENDER_STREAM]: renderStream,
             [PRELUDE_HTML]: getPrerender(PRELUDE_HTML),
             [POSTPONE_STATE]: getPrerender(POSTPONE_STATE),
+            [ERROR_BOUNDARY]: ErrorBoundary,
           },
           async () => {
-            const cacheModule = forChild(httpContext.url)?.cache?.module;
-
-            if (cacheModule) {
-              const { init$: cache_init$ } = await import(
-                pathToFileURL(
-                  __require.resolve(cacheModule, {
-                    paths: [cwd],
-                  })
-                )
-              );
+            if (!noCache) {
               await cache_init$?.();
-            } else {
-              await memory_cache_init$?.();
             }
 
             const renderContext = createRenderContext(httpContext);
             context$(RENDER_CONTEXT, renderContext);
+            context$(RENDER, render);
+
+            if (GlobalErrorComponent) {
+              useErrorComponent(GlobalErrorComponent, globalErrorModule);
+            }
 
             try {
               const middlewares = await root_init$?.();
               if (middlewares) {
                 const response = await middlewares(httpContext);
                 if (response) {
-                  return resolve(response);
+                  return resolve(
+                    typeof response === "function"
+                      ? await response(httpContext)
+                      : response
+                  );
                 }
               }
-            } catch {
+            } catch (e) {
               const redirect = getContext(REDIRECT_CONTEXT);
               if (redirect?.response) {
                 return resolve(redirect.response);
               }
+              logger.error(e);
             }
 
             if (renderContext.flags.isUnknown) {

@@ -1,0 +1,53 @@
+# Define build argument for port with default value
+ARG PORT=3000
+
+# Stage 1: Build
+FROM oven/bun:latest AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first to check for Bun and lock files
+COPY package.json bun.lock ./
+
+# Install dependencies using Bun
+RUN --mount=type=cache,target=/root/.bun \
+  bun install --frozen-lockfile
+
+# Copy source files and .react-server directory
+COPY . .
+
+# Build using Bun
+RUN bun --bun run build
+
+# Stage 2: Production
+FROM oven/bun:latest AS runner
+
+# Forward the build argument
+ARG PORT
+ENV PORT=$PORT
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files and lock files
+COPY --from=builder /app/package.json /app/bun.lock ./
+
+# Install production dependencies using Bun
+RUN --mount=type=cache,target=/root/.bun \
+  bun install --production
+
+# Copy built files and .react-server directory from builder stage
+COPY --from=builder /app/.react-server ./.react-server
+
+# Ensure correct permissions for existing bun user
+RUN chown -R bun:bun /app
+
+# Switch to the existing bun user
+USER bun
+
+# Expose the port your app runs on
+EXPOSE ${PORT}
+
+# Start the application using Bun
+CMD ["bun", "--bun", "start", "--host"]

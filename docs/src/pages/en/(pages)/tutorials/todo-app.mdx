@@ -1,14 +1,14 @@
 ---
-title: Using server actions
+title: Using server functions
 order: 1
 category: Tutorials
 ---
 
 import Link from "../../../../components/Link.jsx";
 
-# Using server actions
+# Using server functions
 
-Our goal in this tutorial is to use no client-side JavaScript and no React hydration. We only want to use React Server Components and Server Actions. Is this possible? Absolutely!
+Our goal in this tutorial is to use no client-side JavaScript and no React hydration. We only want to use React Server Components and Server Functions. Is this possible? Absolutely!
 
 <Link name="project-setup">
 ## Project setup
@@ -21,8 +21,8 @@ mkdir todo
 cd todo
 pnpm init
 pnpm add @lazarv/react-server better-sqlite3 zod
-pnpm add -D @types/better-sqlite3 @types/react @types/react-dom autoprefixer postcss tailwindcss typescript
-pnpx tailwindcss init -p
+pnpm add -D @types/better-sqlite3 @types/react @types/react-dom autoprefixer postcss tailwindcss@3 typescript
+pnpx tailwindcss@3 init -p
 ```
 
 To store our Todo items, we will use a local Sqlite database. For validation, we will use Zod and for styling we will use Tailwind CSS. To include all our source code as Tailwind content, change the **tailwind.config.js** to this:
@@ -60,7 +60,7 @@ export default function Index() {
 }
 ```
 
-To run this micro-app, you can just use `pnpm exec react-server ./src/index.tsx` . To make our life easier, let’s add some npm scripts to **package.json**:
+To run this micro-app, you can just use `pnpm react-server ./src/index.tsx` . To make our life easier, let’s add some npm scripts to **package.json**:
 
 ```jsx filename="./package.json"
 "scripts": {
@@ -159,17 +159,19 @@ export default function Item({ id, title }: Props) {
 }
 ```
 
-The Item component will render our Todo item using an `id` and `title` prop. But what about that `<form action={deleteTodo}>`? It’s a server action! When the user will submit the form by clicking on the “Delete” button, the browser will call our server action. This is possible without any JavaScript on the frontend, as React supports progressive enhancement for server actions and the initial form action will call the server action by including a hidden input field in the form:
+The Item component will render our Todo item using an `id` and `title` prop. But what about that `<form action={deleteTodo}>`? It’s a server function! When the user will submit the form by clicking on the “Delete” button, the browser will call our server function. This is possible without any JavaScript on the frontend, as React supports progressive enhancement for server functions and the initial form action will call the server function by including a hidden input field in the form:
 
 ```jsx filename="./src/Item.tsx"
 <input type="hidden" name="$ACTION_ID_/Users/lazarv/Projects/tutorials/todo/src/actions.ts#deleteTodo">
 ```
 
-The framework will resolve this `$ACTION_ID_` prefixed path to the server action and it will call our server action function!
+The framework will resolve this `$ACTION_ID_` prefixed path to the server function and it will call our server function function!
 
-## Server actions
+<Link name="server-functions">
+## Server functions
+</Link>
 
-We will use server actions to implement all functionality of our Todo app. This is the most complex part of the app, but don’t shy away, it’s still really very simple, let’s create **src/actions.ts**:
+We will use server functions to implement all functionality of our Todo app. This is the most complex part of the app, but don’t shy away, it’s still really very simple, let’s create **src/actions.ts**:
 
 ```jsx filename="./src/actions.ts"
 "use server";
@@ -230,17 +232,17 @@ export async function deleteTodo(formData: FormData) {
 }
 ```
 
-In the first line of this file, we instrument the framework to treat this file as a server action module using the `“use server”;` directive. All exported async functions will be available for us to use as server actions.
+In the first line of this file, we instrument the framework to treat this file as a server function module using the `“use server”;` directive. All exported async functions will be available for us to use as server functions.
 
 We initialize the Sqlite database on module import and create Zod schemas for item add and delete operations.
 
-In all server actions, you will receive a `FormData` instance, including all the fields we define in the forms. We `safeParse` these after converting to JavaScript objects using `Object.fromEntries`.
+In all server functions, you will receive a `FormData` instance, including all the fields we define in the forms. We `safeParse` these after converting to JavaScript objects using `Object.fromEntries`.
 
 If Zod validation fails, we throw the validation issues as an error.
 
 On success, we run a database command to INSERT or DELETE the Todo item.
 
-At the end, we are using `redirect` to navigate the user back from the server action call. This is needed as we don’t want the user to use a browser page refresh to create or delete the Todo item again, reusing the form submit.
+At the end, we are using `redirect` to navigate the user back from the server function call. This is needed as we don’t want the user to use a browser page refresh to create or delete the Todo item again, reusing the form submit.
 
 We also implemented the `allTodos` function here, to have all the storage related code in a single file.
 
@@ -297,9 +299,9 @@ export default function AddTodo() {
 }
 ```
 
-We already know, how to use server actions from a `<form>`. But what about the result of our server action call? `useActionState` to the rescue!
+We already know, how to use server functions from a `<form>`. But what about the result of our server function call? `useActionState` to the rescue!
 
-By passing the `addTodo` server action function reference to `useActionState` , we can get the result of the server action call when this specific server action was called, so we can collect the `error` result. This will be the Zod error issues we thrown in the add server action. So we can iterate on all Zod validation issues here and render validation error messages on the server side.
+By passing the `addTodo` server function function reference to `useActionState` , we can get the result of the server function call when this specific server function was called, so we can collect the `error` result. This will be the Zod error issues we thrown in the add server function. So we can iterate on all Zod validation issues here and render validation error messages on the server side.
 
 <Link name="production-build">
 ## Production build

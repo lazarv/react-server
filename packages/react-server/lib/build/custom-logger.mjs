@@ -1,4 +1,4 @@
-import { createLogger } from "vite";
+import { createLogger } from "rolldown-vite";
 
 const logger = createLogger();
 

@@ -39,3 +39,31 @@ export default function FallbackError({ error }) {
 ```
 
 > **Warning:** you can define an error boundary, error fallback or loading component only for layouts, not for pages.
+
+<Link name="global">
+## Global error component
+</Link>
+
+By default, the global error component is the first `react-server.error.jsx` or `react-server.error.tsx` file found from the root of your app. This component will be used to render the error component when an error occurs during the rendering of a page and no error component is defined for the error.
+
+Your global error component will be used for all errors that are not handled by a more specific error component. The error component will receive the error as a prop.
+
+```jsx
+// src/app/react-server.error.tsx
+export default function GlobalError({ error }: { error: Error }) {
+  return <div>{error.message}</div>;
+}
+```
+
+Optionally, you can specify the global error component in the `react-server.config.json` file. You only need to specify the path to the file when you want to use a file that is not named `react-server.error.jsx` or `react-server.error.tsx`, like `global-error.tsx` or similar, or when you want to use a file specifically for the global error component and not the first the framework can find with the default name.
+
+```jsx
+// react-server.config.json
+{
+  "globalErrorComponent": "src/app/react-server.error.tsx"
+}
+```
+
+Your global error component can be a React Server Component or a client component. When it's a client component, it will be rendered on the client side using a React error boundary, while if it's a React Server Component, it will be rendered on the server side only.
+
+> **Warning:** you can't reset a global error boundary! The page needs to be reloaded to reset the error boundary. Use the `Refresh` component to reload the page using the React Server Component payload. It's recommended to use the `noCache` prop on the `Refresh` component to avoid caching issues.

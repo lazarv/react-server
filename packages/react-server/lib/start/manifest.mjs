@@ -1,9 +1,11 @@
 import { createRequire } from "node:module";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { getContext } from "../../server/context.mjs";
 import { runtime$ } from "../../server/runtime.mjs";
 import {
+  COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   HTTP_CONTEXT,
   MAIN_MODULE,
@@ -96,25 +98,27 @@ export async function init$(type = "server", options = {}) {
     const browserEntry = Object.values(manifest.browser).find(
       (entry) => entry.file === id
     );
-    const clientEntry = Object.values(manifest.client).find(
-      browserEntry
-        ? (entry) => entry.src?.endsWith(browserEntry?.src)
-        : (entry) => entry.src && id.endsWith(entry.src)
-    );
-    const serverEntry = Object.values(manifest.server).find(
-      browserEntry
-        ? (entry) => entry.src?.endsWith(browserEntry?.src)
-        : (entry) => entry.src && id.endsWith(entry.src)
-    );
-    if (!clientEntry && !serverEntry) {
+    const entry =
+      type === "client" && browserEntry
+        ? Object.values(manifest.client).find((entry) => {
+            try {
+              return (
+                entry.isEntry && entry.name === `server/${browserEntry.name}`
+              );
+            } catch {
+              return false;
+            }
+          })
+        : Object.values(manifest.server).find(
+            (entry) =>
+              entry.src &&
+              (join(cwd, entry.src) === `/${id}` ||
+                sys.normalizePath(join(cwd, entry.src)) === id)
+          );
+    if (!entry) {
       throw new Error(`Module not found: ${$$id}`);
     }
-    const specifier = __require.resolve(
-      `./${outDir}/${(type === "client" ? clientEntry : serverEntry)?.file}`,
-      {
-        paths: [cwd],
-      }
-    );
+    const specifier = join(cwd, outDir, entry.file);
     const links = collectStylesheets(specifier, manifest.client) ?? [];
     entryCache.set(id, { specifier, links });
     if (links.length > 0) {
@@ -133,8 +137,10 @@ export async function init$(type = "server", options = {}) {
         entry.src?.endsWith(normalizedRootModule)
     );
     const styles = [];
+    const visited = new Set();
     function collectCss(entry) {
-      if (!entry) return styles;
+      if (!entry || visited.has(entry.file)) return styles;
+      visited.add(entry.file);
       if (entry.css) {
         styles.unshift(...entry.css.map((href) => `/${href}`));
       }
@@ -146,4 +152,34 @@ export async function init$(type = "server", options = {}) {
     return styles;
   }
   runtime$(COLLECT_STYLESHEETS, collectStylesheets);
+
+  function collectClientModules(rootModule) {
+    if (!rootModule) return [];
+    const normalizedRootModule = sys.normalizePath(rootModule);
+    const rootManifest = Array.from(Object.values(manifest.server)).find(
+      (entry) =>
+        normalizedRootModule.endsWith(entry.file) ||
+        entry.src?.endsWith(normalizedRootModule)
+    );
+    const modules = [];
+    const visited = new Set();
+    function collectModules(mod) {
+      if (!mod || visited.has(mod.file)) return modules;
+      visited.add(mod.file);
+      if (mod.imports) {
+        mod.imports.forEach((imported) =>
+          collectModules(manifest.server[imported])
+        );
+      }
+      const clientModule = Object.values(manifest.browser).find(
+        (entry) => entry.name === `client/${mod.name}`
+      );
+      if (clientModule) {
+        modules.push(`/${clientModule.file}`);
+      }
+    }
+    collectModules(rootManifest);
+    return modules;
+  }
+  runtime$(COLLECT_CLIENT_MODULES, collectClientModules);
 }

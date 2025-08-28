@@ -1,0 +1,366 @@
+---
+title: HTTP コンテクスト
+category: Framework
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# HTTP コンテクスト
+
+`@lazarv/react-server` を使用すると、サーバーサイドレンダリングのコンテクストに関連するすべてにアクセスできます。このガイドでは、HTTPコンテクストにアクセスする方法について説明します。
+
+これから紹介するものは、HTTPコンテクストにアクセスして操作するためのフックまたは関数です。
+
+これらの関数はすべて、ミドルウェアやファイルシステムベースのルーターを使用したルートハンドラーでも利用可能です。これらはフレームワーク固有であり、Reactとは関係ありません。
+
+`useHttpContext()` を使用すると、完全なHTTPコンテクストにアクセスできます。
+```jsx
+import { useHttpContext } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const context = useHttpContext();
+
+  return (
+    <div>
+      <p>Method: {context.request.method}</p>
+      <p>URL: {context.request.url.toString()}</p>
+      <p>Request Headers: {JSON.stringify(context.request.headers)}</p>
+      <p>Request Cookies: {JSON.stringify(context.request.cookie)}</p>
+    </div>
+  );
+};
+```
+
+<Link name="request">
+## リクエスト
+</Link>
+
+`useRequest()` を使用すると、完全なHTTPリクエストにアクセスできます。
+
+```jsx
+import { useRequest } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const request = useRequest();
+
+  return (
+    <div>
+      <p>Method: {request.method}</p>
+      <p>URL: {request.url.toString()}</p>
+      <p>Headers: {JSON.stringify(request.headers)}</p>
+      <p>Cookies: {JSON.stringify(request.cookie)}</p>
+    </div>
+  );
+};
+```
+
+<Link name="response">
+## レスポンス
+</Link>
+
+`useResponse()` を使用すると、完全なHTTPレスポンスにアクセスできます。これは、レスポンスがクライアントに送信された後、サスペンドされ、後でクライアントにストリーミングされたReactコンポーネント内でのみ利用可能です。
+
+```jsx
+import { useResponse } from "@lazarv/react-server";
+
+export default async function MyComponent() {
+  const response = await useResponse();
+
+  return (
+    <div>
+      <p>Headers: {JSON.stringify(response.headers)}</p>
+      <p>Cookies: {JSON.stringify(response.cookie)}</p>
+    </div>
+  );
+};
+```
+
+<Link name="url">
+## URL
+</Link>
+
+`useUrl()` を使用すると、現在のリクエストのURLにアクセスできます。
+
+```jsx
+import { useUrl } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const url = useUrl();
+
+  return <p>URL: {url.href}</p>;
+};
+```
+
+<Link name="pathname">
+## パス名
+</Link>
+
+`usePathname()` を使用すると、現在のリクエストのパス名にアクセスできます。
+
+```jsx
+import { usePathname } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const pathname = usePathname();
+
+  return <p>Pathname: {pathname}</p>;
+};
+```
+
+<Link name="search-params">
+## 検索パラメータ
+</Link>
+
+`useSearchParams()` を使用すると、現在のリクエストの検索パラメータにアクセスできます。これは、検索パラメータのキーと値のペアを持つオブジェクトです。同じキーに複数の値がある場合、その値は配列になります。
+
+```jsx
+import { useSearchParams } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const searchParams = useSearchParams();
+
+  return (
+    <p>Search params: {JSON.stringify(searchParams)}</p>
+  );
+};
+```
+
+<Link name="headers">
+## ヘッダー
+</Link>
+
+`headers()` を使用すると、現在のリクエストのヘッダーにアクセスできます。
+
+```jsx
+import { headers } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const requestHeaders = headers();
+
+  return <p>Headers: {JSON.stringify(requestHeaders)}</p>;
+};
+```
+
+キーと値のペアのオブジェクトを渡すことで、現在のレスポンスのヘッダーを変更することもできます。
+
+```jsx
+import { headers } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  headers({
+    "X-My-Header": "My value",
+  });
+
+  return <p>Headers: {JSON.stringify(headers())}</p>;
+};
+```
+
+または、`Headers` オブジェクトを渡すことでも変更できます。
+
+```jsx
+import { headers } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  headers(new Headers({
+    "X-My-Header": "My value",
+  }));
+
+  return <p>Headers: {JSON.stringify(headers())}</p>;
+};
+```
+
+または、キーと値のペアの配列を渡すことでも変更できます。
+
+```jsx
+import { headers } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  headers([
+    ["X-My-Header", "My value"],
+  ]);
+
+  return <p>Headers: {JSON.stringify(headers())}</p>;
+};
+```
+
+`headers()` 関数を使用してヘッダーを変更すると、現在のレスポンスのヘッダーが上書きされます。レスポンスヘッダーを直接変更したい場合は、ヘッダーを設定、追加、削除するための3つの補助関数を使用できます。これらの関数は `setHeader()`、`appendHeader()`、および `deleteHeader()` です。
+
+```jsx
+import { setHeader, appendHeader, deleteHeader } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  setHeader("X-My-Header", "My first value");
+  appendHeader("X-My-Header", "My second value");
+  deleteHeader("X-My-Header");
+
+  return <p>Check the response headers!</p>;
+}
+```
+
+> **注意:** HTTPヘッダーは大文字と小文字を区別しないことに注意してください！
+
+<Link name="cookies">
+## クッキー
+</Link>
+
+`cookie()` を使用すると、現在のリクエストのクッキーにアクセスできます。
+
+```jsx
+import { cookie } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const requestCookies = cookie();
+
+  return <p>Cookies: {JSON.stringify(requestCookies)}</p>;
+};
+```
+
+また、現在のレスポンスのコンテクストでクッキーを設定または削除することもできます。
+
+```jsx
+import { setCookie, deleteCookie } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  setCookie("my-cookie", "my-value");
+  deleteCookie("other-cookie");
+
+  return <p>Cookies: {JSON.stringify(cookie())}</p>;
+};
+```
+
+<Link name="status">
+## ステータス
+</Link>
+
+`status()` を使用すると、現在のレスポンスのステータスコードとテキストを設定できます。
+
+```jsx
+import { status } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  status(404, "Not found");
+
+  return <p>Not Found</p>;
+};
+```
+
+<Link name="form-data">
+## フォームデータ
+</Link>
+
+`useFormData()` を使用すると、現在のリクエストのフォームデータにアクセスできます。
+
+```jsx
+import { useFormData } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const formData = useFormData();
+
+  return (
+    <p>Form data: {JSON.stringify(Object.fromEntries(formData.entries()))}</p>
+  );
+};
+```
+
+<Link name="redirect">
+## リダイレクト
+</Link>
+
+`redirect()` を使用すると、現在のリクエストを別のURLにリダイレクトできます。
+
+> **警告:** `redirect()` 関数はエラーをスローし、フレームワークがそれをキャッチしてリダイレクトを実行します。`try`/`catch` ブロック内で `redirect()` を使用する場合、リダイレクトエラーであれば再スローすることを確認してください。
+
+```jsx
+import { redirect } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  redirect("https://example.com");
+};
+```
+
+<Link name="rewrite">
+## リライト
+</Link>
+
+`rewrite()` を使用すると、現在のリクエストを別のURLにリライトできます。これは、ミドルウェア関数内で現在のリクエストのURLパス名を変更するのに便利です。
+
+```jsx
+import { rewrite, useUrl } from "@lazarv/react-server";
+
+export function init$() {
+  return async () => {
+    const { pathname } = useUrl();
+
+    if (pathname === "/old-pathname") {
+      rewrite("/new-pathname");
+    }
+  };
+}
+
+export default function MyComponent() {
+  const { pathname } = useUrl();
+
+  return <p>Current pathname: {pathname}</p>;
+}
+```
+
+<Link name="outlet">
+## アウトレット
+</Link>
+
+`useOutlet()` を使用すると、現在のリクエストのアウトレットにアクセスできます。これは、現在のリクエストがレンダリングされているアウトレットの名前を取得するのに便利です。
+
+```jsx
+import { useOutlet } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const outlet = useOutlet();
+
+  return <p>Outlet: {outlet}</p>;
+}
+```
+
+<Link name="render-lock">
+## レンダーロック
+</Link>
+
+`useRender()` を使用すると、現在のリクエストのレンダーロックにアクセスできます。これは、非同期関数が実行されている間、またはロックが解除されるまで、React Server Componentのレンダリングをロックしたい場合に便利です。なぜならReact Server Componentはデフォルトでストリーミングを使用してレンダリングされるからです。特にHTTPヘッダーやクッキーを非同期のReact Server Componentで処理する場合に役立ちます。レンダリングをロックしないと、非同期関数が終了する前にヘッダーやクッキーがクライアントに送信されてしまいます。レンダリングプロセスでロックが検出されると、レンダリングはロックが解除されるまで待機し、ヘッダーやクッキーの送信を開始してからReact Server Componentのストリーミングを開始します。
+
+```jsx
+import { headers, useRender } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const { lock } = useRender();
+
+  await lock(async () => {
+    // Do something async
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    headers({
+      "x-lock": "works",
+    });
+  });
+
+  return <p>Render lock</p>;
+}
+```
+
+`lock()` 関数を使用して、後でロックを解除するための `unlock()` 関数を取得することもできます。
+
+```jsx
+import { headers, useRender } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  const { lock } = useRender();
+
+  const unlock = lock();
+  // Do something async
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  headers({
+    "x-lock": "works",
+  });
+  unlock();
+
+  return <p>Render lock</p>;
+}
+```

@@ -1,0 +1,411 @@
+---
+title: クライアントサイドナビゲーション
+category: Router
+order: 1
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# クライアントサイドナビゲーション
+
+サーバが最初のページをレンダリングした後、クライアントが引き継いで、その後のすべてのナビゲーションを処理します。これは、`@lazarv/react-server/navigation`モジュールからエクスポートされたクライアントコンポーネントを使用するか、`@lazarv/react-server/client`モジュールの`useClient`フックによって公開された関数を使用して行うことができます。これらの関数を使用して、新しいページに移動したり、ページをプリフェッチしたり、現在のページを更新したりすることができます。
+
+ナビゲーションと更新には、組み込みのクライアントコンポーネントを使用することをお勧めします。これらのコンポーネントは、変更されている部分のみをレンダリングするReactトランジションを自動的に開始します。これにより、ユーザーがページの読み込みを待つ時間を短縮し、ユーザーエクスペリエンスを向上させます。
+
+`useClient`フックによって公開される関数はより低レベルであり、Reactトランジションを手動で開始する必要がある場合にのみ使用すべきです。
+
+<Link name="link">
+## Link
+</Link>
+
+`@lazarv/react-server/navigation`モジュールからエクスポートされた`Link`クライアントコンポーネントを使用して、新しいページに移動することができます。
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about">About</Link>
+    </div>
+  );
+}
+```
+
+
+<Link name="prefetch">
+### プリフェッチ
+</Link>
+
+`Link`コンポーネントに`prefetch` propsを渡すことで、ページのプリフェッチを有効にすることができます。これにより、ユーザーがリンクにホバーした時にページがプリフェッチされます。
+
+```jsx
+import { Link } from "@lazarv/react-server/client";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" prefetch>
+        About
+      </Link>
+    </div>
+  );
+}
+```
+
+デフォルトでは、プリフェッチされたページは無期限にキャッシュされます。`Link`コンポーネントの`prefetch` propsにタイムアウト値を渡すことで、この動作を変更することができます。`prefetch` propsは、ページがキャッシュされるミリ秒数を表す数値を受け入れます。タイムアウトが経過すると、ページはキャッシュから削除され、次にユーザーがリンクにホバーすると、ページが再度プリフェッチされます。
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" prefetch={5000}>
+        About
+      </Link>
+    </div>
+  );
+}
+```
+
+プログラムでページをプリフェッチするには、`useClient`フックが返す`prefetch`関数を使用できます。
+
+```jsx
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { prefetch } = useClient();
+
+  return (
+    <div>
+      <button onMouseOver={() => prefetch("/about")}>About</button>
+    </div>
+  );
+}
+```
+
+<Link name="rollback">
+### ロールバック
+</Link>
+
+ユーザーがページから離れると、`Link`コンポーネントに`rollback` propsを指定すると、ルーターは最後のページをキャッシュします。これにより、ユーザーはサーバがページを再度レンダリングするのを待つことなく、前のページに戻ることができます。提供された値は、ページがキャッシュされるミリ秒数を表します。タイムアウトが経過すると、ページはキャッシュから削除され、次にユーザーがページに戻ると、ページはサーバによって再度レンダリングされます。
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" rollback={5000}>
+        About
+      </Link>
+    </div>
+  );
+}
+```
+
+<Link name="navigate">
+## ナビゲート
+</Link>
+
+プログラムで新しいページに移動するには、`useClient`フックが返す`navigate`関数を使用できます。変更されている部分のみをレンダリングするために、Reactトランジションで`navigate`を使用することをお勧めします。
+
+```jsx
+import { startTransition } from "react";
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => startTransition(async () => navigate("/about"))}>
+        About
+      </button>
+    </div>
+  );
+}
+```
+
+<Link name="refresh">
+## リフレッシュ
+</Link>
+
+`@lazarv/react-server/navigation`モジュールからエクスポートされた`<Refresh>`クライアントコンポーネントを使用するか、`@lazarv/react-server/client`モジュールの`useClient`フックが返す`refresh`関数を使用して、現在のページを更新することができます。
+
+```jsx
+import { Refresh } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Refresh>Click to refresh!</Refresh>
+    </div>
+  );
+}
+```
+
+プログラムで現在のページを更新するには、`useClient`フックが返す`refresh`関数を使用できます。ここでも、ページの更新にはReactトランジションを開始することをお勧めします。
+
+```jsx
+import { startTransition } from "react";
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { refresh } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => startTransition(async () => refresh())}>
+        Refresh
+      </button>
+    </div>
+  );
+}
+```
+
+<Link name="form">
+## フォーム
+</Link>
+
+`@lazarv/react-server/navigation`モジュールからエクスポートされた`Form`クライアントコンポーネントを使用して、新しいページに移動することができます。このコンポーネントは、フォーム送信時にフォームデータをクエリパラメータとして使用し、現在のルートに移動します。
+
+```jsx
+import { Form } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <Form>
+      <input name="name" />
+      <button type="submit">Submit</button>
+    </Form>
+  );
+}
+```
+
+<Link name="outlet">
+## アウトレット
+</Link>
+
+`ReactServerComponent`を使用して、サブページナビゲーションに使用できるアウトレットを作成できます。これは、`<iframe>`要素のモダンなReact Server Componentバージョンです。`Link`または`Refresh`コンポーネントを使用するか、`navigate`または`replace`関数を使用してプログラムで移動する場合、クライアントサイドルーターはアウトレットのコンテンツを自動的に更新し、サーバサイドレンダリングのアウトレットの結果をレンダリングします。サーバサイドルーティングと[useOutlet](/framework/http#outlet)ヘルパー関数を使用して、アウトレットのサーバサイドレンダリングを自分で処理する必要があります。
+
+```jsx
+"use client";
+
+import { Link, ReactServerComponent } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/photos/1" target="modal">My photo</Link>
+      <ReactServerComponent outlet="modal" />
+    </div>
+  );
+}
+```
+
+`ReactServerComponent`内には4種類の`Link`または`Refresh`ナビゲーションがあります。未指定、`target`、`local`、`root`です。`Link`または`Refresh`コンポーネントで`target`を使用すると、同じ名前のアウトレットのコンテンツのみが更新されます。`local`を使用すると、現在のページのURLは更新されず、親アウトレットのコンテンツが更新されます。`root`を使用すると、ページのコンテンツが更新されます。target属性を指定しない場合は、ページ全体が更新対象となり、ページ内に存在するすべてのアウトレットのコンテンツも含めて更新されます。
+
+```jsx
+"use client";
+
+import { Link, ReactServerComponent } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <ReactServerComponent outlet="modal">
+        <Link to="/photos/2" local>My photo</Link>
+      </ReactServerComponent>
+    </div>
+  );
+}
+```
+
+`defer` propsを持つ`ReactServerComponent`を使用すると、ユーザーが`defer` propsを持つ`ReactServerComponent`を含むページに移動した時にのみ、アウトレットのコンテンツがレンダリングされます。これは、ユーザーが`defer` propsを持つ`ReactServerComponent`を含むページに移動するまで、アウトレットのコンテンツのレンダリングを延期したい場合に役立ちます。アウトレットのコンテンツはサーバからフェッチされます。
+
+また、`ReactServerComponent`に`url` propsを指定して、アウトレットのコンテンツのURLを指定することもできます。これは、現在のページとは異なるURLからアウトレットのコンテンツをレンダリングしたい場合に役立ちます。
+
+`ReactServerComponent`に`defer`と`url`の両方のpropsを使用することで、`iframe`要素と同様の動作を実現できます。
+
+<Link name="use-client">
+## useClient
+</Link>
+
+`useClient`フックは、次のプロパティを持つオブジェクトを返します：
+
+- `navigate(url: string, options: { outlet?: string; push?: boolean; rollback?: number; signal?: AbortSignal; fallback?: React.ReactNode; Component?: React.ReactNode })`: 新しいページまたは指定されたアウトレットに移動する関数。`rollback`オプションを使用すると、現在のページを指定した時間だけキャッシュすることができます。
+- `replace(url: string, options: { outlet?: string; rollback?: number; signal?: AbortSignal; fallback?: React.ReactNode; Component?: React.ReactNode })`: 現在のページを新しいページまたは指定されたアウトレットのコンテンツに置き換える関数。`rollback`オプションを使用すると、現在のページを指定した時間だけキャッシュすることができます。
+- `prefetch(url: string, options: { outlet?: string; ttl?: number; signal?: AbortSignal })`: ページまたは指定されたアウトレットのコンテンツをプリフェッチする関数。`ttl`オプションを使用すると、ページを指定した時間だけキャッシュすることができます。
+- `refresh(outlet?: string, options: { signal?: AbortSignal; fallback?: React.ReactNode; Component?: React.ReactNode })`: 現在のページまたは指定されたアウトレットのコンテンツを更新する関数。
+- `abort(outlet?: string, reason?: unknown)`: 指定されたアウトレットのナビゲーションを中止する関数。
+
+これらの関数をプログラムでのナビゲーションに使用できます。
+
+```jsx
+import { startTransition } from "react";
+
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate, replace, prefetch, refresh } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => startTransition(async () => navigate("/about"))}>
+        About
+      </button>
+      <button onClick={() => startTransition(async () => replace("/about"))}>
+        Replace
+      </button>
+      <button onMouseOver={() => prefetch("/about")}>Prefetch</button>
+      <button onClick={() => startTransition(async () => refresh())}>
+        Refresh
+      </button>
+    </div>
+  );
+}
+```
+
+<Link name="use-outlet">
+## useOutlet
+</Link>
+
+`useOutlet`フックは、現在のアウトレットとやり取りするための一連の関数を返します。これらの関数は`useClient`フックが返す関数と同じですが、`outlet`オプションを指定する必要はありません。以下の例では、`navigate`関数は現在のアウトレットにスコープされており、ページ全体ではありません。ただし、現在のアウトレットがルートアウトレットである場合、`navigate`関数はページ全体に移動します。
+
+```jsx
+"use client";
+
+import { useOutlet } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useOutlet();
+
+  return (
+    <div>
+      <button onClick={() => navigate("/about")}>About</button>
+    </div>
+  );
+}
+```
+
+<Link name="fallback">
+## フォールバック
+</Link>
+
+`Link`と`Refresh`コンポーネントの`fallback`オプションを使用すると、アウトレットがReact Server Componentのレンダリングを開始するまでレンダリングするフォールバックコンポーネントを指定できます。これは、React Server Componentリクエストがサーバに到達するのを待たずに、React Server Componentがレンダリングされている間にローディングインジケーターやスケルトンをすぐにレンダリングしたい場合に役立ちます。
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" target="content" fallback={<div>Loading...</div>}>About</Link>
+    </div>
+  );
+}
+```
+
+また、`navigate`または`replace`関数を使用してプログラムで移動する際に、`fallback`オプションを指定することもできます。
+
+```jsx
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => navigate("/about", { fallback: <div>Loading...</div> })}>About</button>
+    </div>
+  );
+}
+```
+
+<Link name="component">
+## コンポーネント
+</Link>
+
+`Link`および`Refresh`コンポーネントの`Component`オプションを使用すると、レンダリングするReactコンポーネントを指定できます。これは、サーバにリクエストを送信する代わりに、Reactコンポーネントをアウトレットに直接レンダリングしたい場合に役立ちます。
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" target="content" Component={<div>About</div>}>About</Link>
+    </div>
+  );
+}
+```
+
+また、`navigate`または`replace`関数を使用してプログラムで移動する際に、`Component`オプションを指定することもできます。
+
+```jsx
+import { useClient } from "@lazarv/react-server/client";
+
+export default function Home() {
+  const { navigate } = useClient();
+
+  return (
+    <div>
+      <button onClick={() => navigate("/about", { Component: <div>About</div> })}>About</button>
+    </div>
+  );
+}
+```
+
+<Link name="revalidate">
+## revalidateの使用
+</Link>
+
+`Link`、`Refresh`、`Form`コンポーネントの`revalidate` propsを使用して、ページまたは指定したアウトレットのコンテンツのクライアントサイドキャッシングを制御できます。`revalidate` propsは、ターゲットURLのページまたはアウトレットがキャッシュされるミリ秒数を表す数値を受け入れることができます。タイムアウトが経過すると、ページはキャッシュから削除され、次にユーザーがページに移動すると、サーバからコンテンツをフェッチしてReact Server Componentをレンダリングすることで、ページが再度レンダリングされます。
+
+デフォルトでは、`revalidate` propsは設定されておらず、ページまたはアウトレットはまったくキャッシュされません。そのため、すべてのナビゲーションでサーバからコンテンツをフェッチします。
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" revalidate={5000}>About</Link>
+    </div>
+  );
+}
+```
+
+`revalidate` propsに`false`を渡すことで、再検証を無効にすることができます。再検証を無効にすることで、ページまたはアウトレットは無期限にキャッシュされます。
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" revalidate={false}>About</Link>
+    </div>
+  );
+}
+```
+
+また、`revalidate` propsに関数を渡すことで、再検証のロジックを完全にカスタマイズすることもできます。この関数は、`outlet`、ターゲット`url`、およびキャッシュされたコンテンツの`timestamp`を含むコンテキストオブジェクトを受け取ります。この関数はコンテンツを再検証すべきかどうかを示すbool値を返す必要があります。
+
+```jsx
+"use client";
+
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Home() {
+  return (
+    <div>
+      <Link to="/about" revalidate={async ({ outlet, url, timestamp }) => {
+        return Math.random() > 0.5;
+      }}>About</Link>
+    </div>
+  );
+}
+```

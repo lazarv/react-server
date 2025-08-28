@@ -9,6 +9,7 @@ export class RedirectError extends Error {
     super("Redirect");
     this.url = url;
     this.status = status;
+    this.digest = `${status} ${url}`;
   }
 }
 
@@ -16,6 +17,7 @@ export function redirect(url, status = 302) {
   const store = getContext(REDIRECT_CONTEXT);
   if (store) {
     const request = getContext(HTTP_CONTEXT).request;
+    store.location = url;
     store.response =
       request.method !== "GET"
         ? new Response(
@@ -37,9 +39,4 @@ export function redirect(url, status = 302) {
   }
 
   throw new RedirectError(url, status);
-}
-
-export function redirect$(handler) {
-  const store = getContext(REDIRECT_CONTEXT);
-  store.redirectHandlers.push(handler);
 }

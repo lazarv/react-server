@@ -17,12 +17,13 @@ async function AsyncComponent() {
   );
 }
 
-export default function Streaming() {
+export default function Streaming({ message = "Loading...", children }) {
   return (
     <div>
-      <Suspense fallback={<p>Loading...</p>}>
+      <Suspense fallback={<p>{message}</p>}>
         <AsyncComponent />
       </Suspense>
+      {children}
     </div>
   );
 }

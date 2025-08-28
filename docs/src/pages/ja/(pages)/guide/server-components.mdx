@@ -1,0 +1,45 @@
+---
+title: サーバーコンポーネント
+order: 3
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# サーバーコンポーネント
+
+React Server Componentは今回作成するアプリにおいて核となる部分です。React Server Componentはサーバー上でレンダリングされ、HTMLまたはJSONでシリアライズされたReactコンポーネントツリーとしてクライアント側に送信されるReactコンポーネントです。React Server Componentのソースコードはクライアント側に直接送信されるのではなく、レンダリングされたHTMLまたはJSONのみが送信されます。
+
+サーバーコンポーネントはステートレスなので、ステートフルなReactフックは扱えません。サーバーコンポーネントでステートを使用する場合は、クエリパラメータかcookieを使用してください。
+
+<Link name="async-server-components">
+## 非同期サーバーコンポーネント
+</Link>
+
+サーバーコンポーネントは非同期で扱うことができます。 つまり、データベースやAPIからデータを取得し、その結果をレンダリングします。 レンダリングではクライアント側にHTML/JSONを送信する前に、データの取得を待機します。
+
+```jsx
+export default async function AsyncServerComponent() {
+  const data = await getData();
+  return <div>{data}</div>;
+}
+```
+
+さらに、非同期サーバーコンポーネントを`Suspense`コンポーネントでラップすることで、データの待機中にローディングを表示できます。`Suspense`コンポーネントでラップされていないコンテンツは即座にレンダリングが走ります。非同期サーバーコンポーネントはデータの準備ができたときにレンダリングされ、その後クライアントに送信されます。 今回のようなレンダリングは、クライアント側でJavaScriptを使う必要があります。
+
+
+```jsx
+async function AsyncServerComponent() {
+  const data = await getData();
+  return <div>{data}</div>;
+}
+export default function App() {
+  return (
+    <>
+      <h1>My App</h1>
+      <Suspense fallback={<div>Loading...</div>}>
+        <AsyncServerComponent />
+      </Suspense>
+    </>
+  );
+}
+```

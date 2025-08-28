@@ -1,4 +1,9 @@
 export async function getComments() {
-  const res = await fetch("https://jsonplaceholder.typicode.com/comments");
-  return res.json();
+  if (typeof document === "undefined") {
+    const { default: comments } = await import("../data/comments.json");
+    return comments;
+  } else {
+    const res = await fetch("/api/comments");
+    return res.json();
+  }
 }

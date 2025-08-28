@@ -17,12 +17,15 @@ export async function setup({ provide }) {
 
 export async function teardown() {
   await browserServer.close();
-  const files = await readdir(process.cwd(), { withFileTypes: true });
-  await Promise.all(
-    files
-      .filter(
-        (file) => file.isDirectory() && file.name.includes(".react-server")
-      )
-      .map((file) => rm(join(process.cwd(), file.name), { recursive: true }))
-  );
+
+  if (!process.env.CI) {
+    const files = await readdir(process.cwd(), { withFileTypes: true });
+    await Promise.all(
+      files
+        .filter(
+          (file) => file.isDirectory() && file.name.includes(".react-server")
+        )
+        .map((file) => rm(join(process.cwd(), file.name), { recursive: true }))
+    );
+  }
 }

@@ -1,5 +1,6 @@
 ---
 title: Why @lazarv/react-server?
+order: 2
 ---
 
 import Link from "../../../../components/Link.jsx";
@@ -8,7 +9,7 @@ import Link from "../../../../components/Link.jsx";
 
 This is a page dedicated to answer the question: Why `@lazarv/react-server`? Hopefully you will get the answers why you should try out this framework and why it's a great choice for your next project.
 
-> I created `@lazarv/react-server` because I wanted to use React Server Components and Server Actions using Vite <span className="text-red-500">❤️</span>. For most small apps Next.js was too much, too heavy and slow. I wanted to have the same experience as you run a simple JavaScript file using node.js. This framework is trying to be non-opinionated as much as possible. You can achieve possibly anything you want. The only restriction is that it will use it's own React version. You don't even need to install React in your project. It's all included in the framework. I hope you will enjoy using this framework as much as I enjoyed creating it and using it to create this documentation too. - **lazarv**
+> I created `@lazarv/react-server` because I wanted to use React Server Components and Server Functions using Vite <span className="text-red-500">❤️</span>. For most small apps Next.js was too much, too heavy and slow. I wanted to have the same experience as you run a simple JavaScript file using node.js. This framework is trying to be non-opinionated as much as possible. You can achieve possibly anything you want. The only restriction is that it will use it's own React version. You don't even need to install React in your project. It's all included in the framework. I hope you will enjoy using this framework as much as I enjoyed creating it and using it to create this documentation too. - **lazarv**
 
 <Link name="what-is-a-meta-framework">
 ## What is a meta-framework?
@@ -38,7 +39,7 @@ The goal of `@lazarv/react-server` is to provide a meta-framework that has these
 - uses ES modules
 - uses Vite
 - extensible with plugins
-- supports server actions
+- supports server functions
 - supports file-system based routing
 - supports Markdown and MDX pages
 - supports static generation
@@ -81,11 +82,11 @@ The file-system based router itself is a plugin and you can also use any React o
 
 Every part of the framework is configurable and extensible. If not, it's a bug and should be reported.
 
-<Link name="why-server-actions">
-## Why server actions?
+<Link name="why-server-functions">
+## Why server functions?
 </Link>
 
-React Server Components are already steering the wheel of development style in the direction of PHP. Server actions are pushing it even further. With PHP you still need to switch languages between server and client. You need to work with both PHP and JavaScript. With React Server Components and server actions even without JavaScript you can use TypeScript or JavaScript throughout the whole application. You can use the same language on the server and on the client. You can use the same language for data fetching and for rendering. You can use the same language for everything.
+React Server Components are already steering the wheel of development style in the direction of PHP. Server functions are pushing it even further. With PHP you still need to switch languages between server and client. You need to work with both PHP and JavaScript. With React Server Components and server functions even without JavaScript you can use TypeScript or JavaScript throughout the whole application. You can use the same language on the server and on the client. You can use the same language for data fetching and for rendering. You can use the same language for everything.
 
 This is especially nice when you use TypeScript as your whole application will be type-safe!
 
@@ -113,9 +114,9 @@ Frameworks are not just for server-side rendered applications. You can also crea
 ## Why progressive enhancement?
 </Link>
 
-React server actions support progressive enhancement even when the user disabled JavaScript in the browser. This is a great feature for accessibility and SEO. You can create a fully server rendered application without any client-side JavaScript. But with client components, interactive parts can be added with progressive enhancement in mind.
+React server functions support progressive enhancement even when the user disabled JavaScript in the browser. This is a great feature for accessibility and SEO. You can create a fully server rendered application without any client-side JavaScript. But with client components, interactive parts can be added with progressive enhancement in mind.
 
-As links and forms are the basic building blocks of the web, they are also the basic building blocks for React Server Components with server actions. Add links to your pages and use server actions on your forms to make your application work without JavaScript. Lazy loaded client components with ES modules makes your application fast and to work with any browser.
+As links and forms are the basic building blocks of the web, they are also the basic building blocks for React Server Components with server functions. Add links to your pages and use server functions on your forms to make your application work without JavaScript. Lazy loaded client components with ES modules makes your application fast and to work with any browser.
 
 <Link name="why-streaming-server-side-rendering">
 ## Why streaming server-side rendering?

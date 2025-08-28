@@ -41,7 +41,7 @@ export default function MicroFrontend() {
 
 Just don't use `html`, `head` or `body` tags in your micro-frontend route as the hosting application can't render multiple of these tags.
 
-> **Note:** React Server Components, client components and server actions are all supported in micro-frontends when using the `@lazarv/react-server` framework using server-side rendering.
+> **Note:** React Server Components, client components and server functions are all supported in micro-frontends when using the `@lazarv/react-server` framework using server-side rendering.
 
 `@lazarv/react-server` provides a set of tools to help you implement micro-frontends in your application. You can use the `RemoteComponent` component to load a micro-frontend from a remote URL. This allows you to load a micro-frontend on demand and render it in your application using server-side rendering.
 
@@ -60,9 +60,17 @@ export default function Home() {
 }
 ```
 
+<Link name="static-export">
+### Static export
+</Link>
+
 When you exported the source of the `RemoteComponent` as static at build time using the `remote` flag the component still works as expected. The `RemoteComponent` will be replaced with the static content of the micro-frontend. Read more about how to export static micro-frontend content in the [Static generation](/router/static#remote) section of the documentation.
 
 You can also export your hosting application while using the `RemoteComponent` as static at build time. The `RemoteComponent` will be replaced with the static content of the micro-frontend. So both your micro-frontend application and your hosting application can be statically generated at build time to achieve the best performance when using static content in a micro-frontend architecture.
+
+<Link name="deferred">
+### Deferred
+</Link>
 
 For streaming response to work from a micro-frontend, you need to pass `defer` as a prop to the `RemoteComponent`. The initial content will be rendered during server-side rendering, and the rest of the content will be streamed from the micro-frontend after the initial content is rendered and the `RemoteComponent` gets hydrated.
 
@@ -78,6 +86,52 @@ export default function Home() {
   );
 }
 ```
+
+<Link name="passing-props">
+### Passing props
+</Link>
+
+Remote components support passing props to the remote micro-frontend application. You can pass props to the `RemoteComponent` just like you would with any other React component. The props will be passed to the micro-frontend and can be used in the micro-frontend's components. Passing props includes passing child components as well, so you can compose your micro-frontend with other components in your hosting application.
+
+```jsx
+import RemoteComponent from "@lazarv/react-server/remote";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Hosting application</h1>
+      <RemoteComponent src="http://localhost:3001" message="Hello from the hosting application!">
+        <p>This is a child component passed to the micro-frontend.</p>
+      </RemoteComponent>
+    </div>
+  );
+}
+```
+
+> **Note:** only serializable props can be passed to the micro-frontend application. This means that you can pass all props which could also be passed to React client components.
+
+<Link name="isolation">
+### Isolation
+</Link>
+
+You can isolate the micro-frontend from the hosting application by using the `isolate` prop. This will create a shadow DOM for the micro-frontend, preventing styles and scripts from leaking into or out of the micro-frontend. This is useful when you want to ensure that the micro-frontend is completely isolated from the hosting application.
+
+```jsx
+import RemoteComponent from "@lazarv/react-server/remote";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Hosting application</h1>
+      <RemoteComponent src="http://localhost:3001" isolate />
+    </div>
+  );
+}
+```
+
+<Link name="react-server-component">
+### React Server Components
+</Link>
 
 It's also possible to use the `ReactServerComponent` component with the `url` and `defer` props to load a micro-frontend from a remote URL. This component is similar to the `RemoteComponent` component, but it only renders the micro-frontend on the client side. This is very similar to how Astro server islands work with the `server:defer` attribute. Learn how [outlets](/router/client-navigation#outlet) work in the router section of the documentation about client-side navigation.
 
@@ -120,12 +174,8 @@ To externalize the shared dependencies, you can use the `resolve.shared` option 
 {
   "resolve": {
     "shared": [
-      "react",
-      "react/jsx-dev-runtime",
-      "react/jsx-runtime",
-      "react-dom",
-      "react-dom/client",
-      "react-server-dom-webpack/client.browser",
+      "my-shared-dependency",
+      /another-shared-dependency/
     ]
   }
 }
@@ -139,55 +189,68 @@ If you want to use these dependencies from the CDN even during development, you 
 
 > **Warning:** You need to use the exact same versions of `react`, `react/jsx-dev-runtime`, `react/jsx-runtime`, `react-dom`, `react-dom/client`, and `react-server-dom-webpack/client.browser` in the hosting application and the micro-frontends, both on the client and the server side. Otherwise, you may encounter compatibility issues.
 
-An example import map that works both in development and production while using React from [esm.sh](https://esm.sh) is shown below:
+To use an import map to work with both development and production environments, you need to create a configuration file for each environments, specifying the import maps. The configuration files below show how to use an import map that uses React from [esm.sh](https://esm.sh).
 
-```mjs
+In development, we can use the hosting application to serve the client components:
+
+```mjs filename="react-server.development.config.json"
 export default {
   importMap: {
     imports: {
-      ...(process.env.NODE_ENV !== "production"
-        ? {
-            react:
-              "https://esm.sh/react@0.0.0-experimental-204a551e-20240926?dev",
-            "react/jsx-dev-runtime":
-              "https://esm.sh/react@0.0.0-experimental-204a551e-20240926/jsx-dev-runtime?dev",
-            "react-dom":
-              "https://esm.sh/react-dom@0.0.0-experimental-204a551e-20240926?dev",
-            "react-dom/client":
-              "https://esm.sh/react-dom@0.0.0-experimental-204a551e-20240926/client?dev",
-            "react-server-dom-webpack/client.browser":
-              "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-204a551e-20240926/client.browser?dev",
-            "http://localhost:3001/": "/",
-            "http://localhost:3003/": "/",
-          }
-        : {
-            react:
-              "https://esm.sh/react@0.0.0-experimental-204a551e-20240926",
-            "react/jsx-runtime":
-              "https://esm.sh/react@0.0.0-experimental-204a551e-20240926/jsx-runtime",
-            "react-dom":
-              "https://esm.sh/react-dom@0.0.0-experimental-204a551e-20240926",
-            "react-dom/client":
-              "https://esm.sh/react-dom@0.0.0-experimental-204a551e-20240926/client",
-            "react-server-dom-webpack/client.browser":
-              "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-204a551e-20240926/client.browser",
-            "http://localhost:3003/client/node_modules/@lazarv/react-server/":
-              "/client/node_modules/@lazarv/react-server/",
-          }),
+      react: "https://esm.sh/react@0.0.0-experimental-56408a5b-20250610?dev",
+      "react/jsx-dev-runtime":
+        "https://esm.sh/react@0.0.0-experimental-56408a5b-20250610/jsx-dev-runtime?dev",
+      "react/jsx-runtime":
+        "https://esm.sh/react@0.0.0-experimental-56408a5b-20250610/jsx-runtime?dev",
+      "react-dom":
+        "https://esm.sh/react-dom@0.0.0-experimental-56408a5b-20250610?dev",
+      "react-dom/client":
+        "https://esm.sh/react-dom@0.0.0-experimental-56408a5b-20250610/client?dev",
+      "react-server-dom-webpack/client.browser":
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-56408a5b-20250610/client.browser?dev",
     },
-  },
-  resolve: {
-    shared: [
-      "react",
-      "react/jsx-dev-runtime",
-      "react/jsx-runtime",
-      "react-dom",
-      "react-dom/client",
-      "react-server-dom-webpack/client.browser",
-    ],
   },
 };
 ```
+
+In production, we only map `@lazarv/react-server` modules to share these with each micro-frontend:
+
+```mjs filename="react-server.production.config.json"
+export default {
+  importMap: {
+    imports: {
+      react: "https://esm.sh/react@0.0.0-experimental-56408a5b-20250610",
+      "react/jsx-runtime":
+        "https://esm.sh/react@0.0.0-experimental-56408a5b-20250610/jsx-runtime",
+      "react-dom":
+        "https://esm.sh/react-dom@0.0.0-experimental-56408a5b-20250610",
+      "react-dom/client":
+        "https://esm.sh/react-dom@0.0.0-experimental-56408a5b-20250610/client",
+      "react-server-dom-webpack/client.browser":
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-56408a5b-20250610/client.browser",
+    },
+  },
+};
+```
+
+Beside the configuration files above, we still specify static exports in the `react-server.config.json` file:
+
+```mjs filename="react-server.config.json"
+export default {
+  export() {
+    return [
+      {
+        path: "/",
+        remote: true,
+      },
+    ];
+  },
+};
+```
+
+<Link name="example">
+## Example
+</Link>
 
 For a fully working example of micro-frontends, check out the [micro-frontends example](https://github.com/lazarv/react-server/tree/main/examples/remote) in the `@lazarv/react-server` repository.
 

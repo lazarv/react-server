@@ -1,0 +1,84 @@
+---
+title: Vercel
+category: Deploy
+order: 1
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Vercel
+
+Vercel にデプロイするには、`@lazarv/react-server-adapter-vercel` パッケージを使用します。このアダプタはVercel およびその設定と連携するために特化して設計されています。
+
+<Link name="installation">
+## インストール
+</Link>
+
+まず、Vercel でプロジェクトを初期化する必要があります。以下のコマンドを実行してください
+
+```sh
+vercel project add <project-name>
+vercel link --yes --project <project-name>
+```
+
+この時点で、`.vercel` ディレクトリ内に `project.json` ファイルが作成されます。このファイルは、Vercel プロジェクトのプロジェクトおよび組織設定を保存するために使用されます。
+
+プロジェクトを初期化した後、`@lazarv/react-server-adapter-vercel` パッケージをプロジェクトに追加できます
+
+```sh
+pnpm add -D @lazarv/react-server-adapter-vercel
+```
+
+次に、このアダプタを `react-server.config.mjs` ファイルに追加する必要があります:
+
+```mjs
+export default {
+  adapter: '@lazarv/react-server-adapter-vercel',
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+このアダプタの設定は、Vercel の `config.json` ファイルに追加されます。これにより、ヘッダー、リダイレクト、リライトなど、すべての利用可能な Vercel 設定オプションを使用できます。
+
+また、以下のアダプタオプションを使用して、すべてのサーバサイドレンダリングを処理する `index` 関数の Serverless Function 設定を上書きすることもできます:
+
+```mjs
+export default {
+  adapter: ['@lazarv/react-server-adapter-vercel', {
+    serverlessFunctions: {
+      index: {
+        memory: 1024,
+        maxDuration: 10,
+        // ...
+      },
+    }
+  }],
+};
+```
+
+この設定は `.vercel/output/functions/index.func/.vc-config.json` に作成されます。利用可能なオプションの詳細については、Vercel Build Output API ドキュメントの Vercel Primitives セクションにある [Serverless Function configuration](https://vercel.com/docs/build-output-api/v3/primitives#serverless-function-configuration) を参照してください。
+
+<Link name="deploy">
+## デプロイ
+</Link>
+
+`@lazarv/react-server` を Vercel アダプタと共に使用する場合、以下のコマンドを使用してアプリケーションを Vercel にデプロイできます:
+
+```sh
+pnpm react-server build [root] # [root] is the entry point of your application
+vercel deploy --prebuilt
+```
+
+`react-server` CLI を使用して、`deploy` 引数を指定することでデプロイすることも可能です:
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+これにより、アプリケーションがビルドされ、Vercel にデプロイされます。
+
+> `@lazarv/react-server-adapter-vercel` パッケージは、**Vercel Edge Functions、Edge Middleware、Prerender Functions、ISR（インクリメンタル・スタティック・リジェネレーション）、画像最適化** などの Vercel の各種機能にはまだ対応していません。  
+今後のアップデートにご期待ください！

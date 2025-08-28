@@ -1,6 +1,5 @@
 import "@mantine/core/styles.css";
 
-import { usePathname } from "@lazarv/react-server";
 import { ColorSchemeScript, createTheme, MantineProvider } from "@mantine/core";
 
 import { AppLayout } from "../components/AppLayout";
@@ -12,18 +11,16 @@ const theme = createTheme({
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
   return (
-    <html lang="en" data-mantine-color-scheme="light">
+    <html lang="en" data-mantine-color-scheme="light" suppressHydrationWarning>
       <head>
         <ColorSchemeScript />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <MantineProvider theme={theme}>
           <ModalsProvider>
             <Notifications />
-            <AppLayout serverPathname={pathname}>{children}</AppLayout>
+            <AppLayout>{children}</AppLayout>
           </ModalsProvider>
         </MantineProvider>
       </body>

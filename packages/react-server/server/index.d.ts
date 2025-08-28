@@ -1,6 +1,8 @@
-import type { RequestContextExtensions } from "@hattip/compose";
-import type { CookieSerializeOptions } from "@hattip/cookie";
-import type { AdapterRequestContext } from "@hattip/core";
+import type {
+  CookieSerializeOptions,
+  HttpContext,
+  RequestContextExtensions,
+} from "../lib/http/index.d.ts";
 
 /**
  * This function enables caching the response for the specified time-to-live (TTL).
@@ -73,7 +75,7 @@ export function redirect(url: string, status?: number): void;
  *
  * @returns The current request context
  */
-export function useHttpContext(): AdapterRequestContext;
+export function useHttpContext(): HttpContext;
 
 /**
  * This hook returns the current request object.
@@ -87,7 +89,7 @@ export function useRequest(): Request;
  *
  * @returns The current response object
  */
-export function useResponse(): Response;
+export function useResponse(): Promise<Response>;
 
 /**
  * This hook returns the current URL object.
@@ -198,7 +200,37 @@ export function status(status?: number, statusText?: string): void;
  * }
  * ```
  */
-export function headers(headers?: Record<string, string>): void;
+export function headers(
+  headers?: Record<string, string> | Headers | [string, string][]
+): void;
+
+/**
+ * Set a response header in the current request context.
+ *
+ * @param key - The header key
+ * @param value - The header value
+ */
+export function setHeader(key: string, value: string): void;
+
+/**
+ * Append a response header in the current request context.
+ *
+ * @param key - The header key
+ * @param value - The header value
+ */
+export function appendHeader(key: string, value: string): void;
+
+/**
+ * Delete a response header in the current request context.
+ *
+ * @param key - The header key
+ */
+export function deleteHeader(key: string): void;
+
+/**
+ * Clear all response headers in the current request context.
+ */
+export function clearHeaders(): void;
 
 /**
  * Get the active outlet when using client navigation.
@@ -255,3 +287,72 @@ export interface ReactServerCache {
   hasExpiry(keys: string[], ttl: number): Promise<boolean>;
   delete(keys: string[]): Promise<void>;
 }
+
+/**
+ * This function returns an object which contains helper functions to control the render process. `lock()` enables you to lock the render of the current component to wait for the specified task to complete before sending HTTP headers and cookies to the client.
+ *
+ * @returns An object with two methods: `lock(task: () => Promise<void>)` and `lock(): () => void`
+ */
+export function useRender(): {
+  /**
+   * Lock the render of the current component to wait for the specified task to complete before sending HTTP headers and cookies to the client.
+   *
+   * @param task - The task to wait for
+   *
+   * @example
+   *
+   * ```tsx
+   * import { useRender } from '@lazarv/react-server';
+   *
+   * export async function App() {
+   *  const { lock } = useRender();
+   *  await lock(async () => {
+   *    await new Promise((resolve) => setTimeout(resolve, 1000));
+   *  });
+   *  return <p>Render lock</p>;
+   * }
+   * ```
+   */
+  lock(task: () => Promise<void>): Promise<void>;
+  /**
+   * Lock the render process and returns a function to unlock it.
+   *
+   * @returns A function to unlock the render process
+   *
+   * @example
+   *
+   * ```tsx
+   * import { useRender } from '@lazarv/react-server';
+   *
+   * export async function App() {
+   *  const { lock } = useRender();
+   *  const unlock = lock();
+   *  await new Promise((resolve) => setTimeout(resolve, 1000));
+   *  unlock();
+   *
+   *  return <p>Render lock</p>;
+   * }
+   * ```
+   */
+  lock(): () => void;
+};
+
+/**
+ * Get runtime context store.
+ *
+ * @returns The runtime context store.
+ */
+export function getRuntime<R = Record<string, unknown>>(): R;
+
+/**
+ * Get runtime context store entry by key.
+ *
+ * @param key - The key of the store entry to retrieve.
+ * @returns The runtime context store entry.
+ */
+export function getRuntime<R = unknown, K = string>(key?: K): R;
+
+/**
+ * The current version of `@lazarv/react-server`.
+ */
+export let version: string;

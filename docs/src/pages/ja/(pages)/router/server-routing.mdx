@@ -1,0 +1,257 @@
+---
+title: サーバーサイドルーティング
+category: Router
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# サーバーサイドルーティング
+
+`@lazarv/react-server` に組み込まれている低レベルのルーティングソリューションは、単純なユースケースには対応できますが、より複雑なアプリケーションには非推奨です。より高度なルーティングソリューションには、[ファイルシステムベースのルーター](/router/file-router) や、[React Router](https://reactrouter.com/) や [TanStack Router](https://tanstack.com/router) のようなサードパーティのルーターを使用してください。
+
+<Link name="routes">
+## ルート
+</Link>
+
+コンポーネントを `@lazarv/react-server/router` からインポートした `Route` コンポーネントで囲んで、ルートを定義することができます。 `Route` コンポーネントの子コンポーネントがレンダリングするルートは絶対パスを定義する必要があります。 ルートコンポーネントは `Route` コンポーネントの `element` prop として定義することもできます。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/about">
+      <About />
+    </Route>
+    <Route path="/readme" element={<Readme />} />
+  );
+}
+```
+
+<Link name="exact-routes">
+## Exact routes（完全一致）
+</Link>
+
+ルートを定義すると、定義したパスで始まるすべてのパスにマッチします。完全一致なパスのみにマッチさせたい場合は、`exact` propを使います。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/about" exact>
+      <About />
+    </Route>
+  );
+}
+```
+
+<Link name="nested-routes">
+## ネストされたルート
+</Link>
+
+ルート内に別のルートを定義することで、ルートをネストできます。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+function About() {
+  return (
+    <div>
+      <h1>About</h1>
+      <Route path="/about/team" element={<Tean />} />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Route path="/about" element={<About />} />
+  );
+}
+```
+
+<Link name="route-layouts">
+## ルートレイアウト
+</Link>
+
+ルートの子要素をレンダリングするには、`render` propを使います。 `render` propは、`children` およびすべてのルートパラメータを引数として受け取り、React要素を返す関数を受け付けます。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+function Layout({ children }) {
+  return (
+    <div>
+      <h1>Layout</h1>
+      {children}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Route path="/" render={Layout}>
+      <Route path="/" exact element={<Home />} />
+      <Route path="/about" element={<About />} />
+    </Route>
+  );
+}
+```
+
+<Link name="route-parameters">
+## ルートパラメータ
+</Link>
+
+パスセグメントを角括弧で囲むことで、ルートパラメータを定義できます。 `Route` コンポーネントで `render` を使う場合、定義したルートパラメータの値を prop として受け取れます。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+function User({ id }) {
+  return (
+    <div>
+      <h1>User ID</h1>
+      <h2>{id}</h2>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Route path="/users/[id]" render={User} />
+  );
+}
+```
+
+<Link name="variable-length-route-parameters">
+## 可変長のルートパラメータ
+</Link>
+
+可変長のルートパラメータを定義するには、パスセグメントを角括弧で囲み、その直前に3つのドット（...）をつけます。 定義したパラメータの値は `Route` コンポーネントの `params` プロパティで利用できます。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/files/[...path]" render={File} />
+  );
+}
+```
+
+<Link name="route-parameter-matchers">
+## ルートパラメータマッチャー
+</Link>
+
+パスセグメントを角括弧で囲み、パラメータ名の後ろにマッチャー名を指定することで、ルートパラメータにカスタムマッチャーを定義できます。これにより、パラメータが指定したマッチャーの条件を満たした場合にのみ、このルート定義が適用されます。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+const matchers = {
+  number: (value) => /^\d+$/.test(value),
+};
+
+export default function App() {
+  return (
+    <Route path="/files/[id=number]" render={File} matchers={matchers} />
+  );
+}
+```
+
+<Link name="fallback-routes">
+## フォールバックルート
+</Link>
+
+パスを ` * ` に設定したルートを定義するか、`Route` コンポーネントの `fallback` プロパティを使うことで、フォールバック・ルートを定義できます。フォールバック・ルートは、他のどのルートにもマッチしないパスに適用されます。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/about" element={<About />} />
+    <Route fallback element={<NotFound />} />
+  );
+}
+```
+
+<Link name="redirects">
+## リダイレクト
+</Link>
+
+コンポーネント内で `redirect` 関数を使用することで、他の場所にリダイレクトすることができます。より正確には、サーバサイドレンダリング中の任意の場所で `redirect` を使用できますが、`RedirectError` がスローされます。フレームワークはこのエラーをキャッチして、クライアントにリダイレクト応答を送信します。
+
+```tsx
+import { redirect } from "@lazarv/react-server";
+
+export default function App() {
+  return redirect("/user");
+}
+```
+
+<Link name="rewrites">
+## リライト
+</Link>
+
+現在のリクエストの URL に含まれるパス名を変更するために `rewrite` 関数を使うことができます。これは、クライアントをリダイレクトすることなく URL を変更したいときに便利です。特にミドルウェアで使うのに最適です。
+
+```tsx
+import { rewrite } from "@lazarv/react-server";
+
+export default function App() {
+  return rewrite("/user");
+}
+```
+
+<Link name="reload">
+## リロード
+</Link>
+
+サーバ関数では、`reload` 関数を使って現在のページやアウトレットをリロードすることができます。 これは、アプリの要素をリフレッシュするために、変異の後にページやアウトレットをリロードしたい場合に便利です。
+
+```tsx
+"use server";
+
+import { reload } from "@lazarv/react-server";
+
+export async function addTodo(todo) {
+  await addTodo(todo);
+  reload();
+}
+```
+
+`reload` 関数にURLとアウトレット名を渡して、別のルートとアウトレットをレンダリングすることもできます。 この方法を使えば、サーバ関数を使ってデータを変更する場合でも、アプリ全体の不要な再レンダリングを回避して、アプリのパフォーマンスを最適化することができます。
+
+```tsx
+"use server";
+
+import { reload } from "@lazarv/react-server";
+
+export async function addTodo(todo) {
+  await addTodo(todo);
+  reload("/todos", "todo-list");
+}
+```
+
+<Link name="middlewares">
+## ミドルウェア
+</Link>
+
+ミドルウェアはルートハンドラの前に実行される関数です。認証、ロギング、解析など、さまざまなことに使われます。
+
+エントリモジュールから `init$` という名前の非同期関数をエクスポートしてください。この関数は、ミドルウェアランナーとなるリクエストハンドラの初期化を行います。`init$` 関数は非同期関数を返す必要があります。この返される関数がミドルウェアランナーとなります。
+
+```jsx
+// index.jsx
+
+export async function init$() {
+  return async (context) {
+    // do something
+  };
+}
+```
+
+`@lazarv/react-server` モジュールから利用可能なすべての関数をミドルウェアで使用することができます。 リクエストをリダイレクトしたり書き換えたり、クッキーを管理したり、レスポンスにヘッダーを追加したりできます。React Server Component で使える機能は、ミドルウェア内でもすべて利用できます。

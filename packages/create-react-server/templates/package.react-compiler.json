@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "babel-plugin-react-compiler": "0.0.0-experimental-a08709b-20250207",
+    "eslint-plugin-react-compiler": "0.0.0-experimental-a08709b-20250207",
+    "@vitejs/plugin-react": "^4.4.1"
+  }
+}

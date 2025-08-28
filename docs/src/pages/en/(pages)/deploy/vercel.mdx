@@ -68,14 +68,14 @@ This configration will be created at `.vercel/output/functions/index.func/.vc-co
 When using `@lazarv/react-server` with the Vercel adapter, you can deploy your application to Vercel using the following command:
 
 ```sh
-pnpm exec react-server build [root] # [root] is the entry point of your application
+pnpm react-server build [root] # [root] is the entry point of your application
 vercel deploy --prebuilt
 ```
 
 You can also deploy with the `react-server` CLI by using the `deploy` argument:
 
 ```sh
-pnpm exec react-server build [root] --deploy
+pnpm react-server build [root] --deploy
 ```
 
 This will build your application and deploy it to Vercel.

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 export default async function logo() {
-  if (!process.env.CI) {
+  if (!process.env.CI && !process.env.NO_REACT_SERVER_LOGO) {
     const maxLineWidth = Math.min(process.stdout.columns, 80);
 
     if (maxLineWidth >= 80) {

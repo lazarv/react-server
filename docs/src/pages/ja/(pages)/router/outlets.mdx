@@ -1,0 +1,67 @@
+---
+title: アウトレット
+category: Router
+order: 4
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# アウトレット
+
+アウトレットは、ファイルシステムベースのルーターが提供する強力な機能です。これを使用することで、ネストされたレイアウトを作成したり、アプリ内でコンポーネントを再利用したりできます。レイアウトにアウトレットを追加するには、`@`で始まる名前のサブディレクトリにルートを定義します。URLがアウトレットディレクトリ内のルートと一致すると、そのルート定義ファイルからエクスポートされたコンポーネントが、Reactのpropsとしてレイアウトコンポーネントに渡されます。
+
+<Link name="implementation">
+## 実装
+</Link>
+
+レイアウトにアウトレットを追加するには、`@`で始まる名前のサブディレクトリにルートを定義します。URLがアウトレットディレクトリ内のルートと一致した場合、そのルート定義ファイルからエクスポートされたコンポーネントがReactのpropsとしてレイアウトコンポーネントに渡されます。
+
+```txt
+src
+- (main).layout.jsx
+- (main).page.jsx
+- @sidebar
+  - (sidebar).page.jsx
+```
+
+```jsx
+// (main).layout.jsx
+
+export default function RootLayout({ sidebar, children }) {
+  return (
+    <main>
+      {sidebar}
+      {children}
+    </main>
+  );
+}
+```
+
+```jsx filename="@sidebar/(sidebar).page.jsx"
+export default function Sidebar() {
+  return <aside>...</aside>;
+}
+```
+
+<Link name="client-side-navigation">
+## クライアントサイドナビゲーション
+</Link>
+
+[クライアントサイドナビゲーション](/router/client-navigation)でアウトレットを利用するには、`@lazarv/react-server/navigation`モジュールが提供する`React Server Component`コンポーネントを使用します。ファイルシステムベースのルーターを使用する場合は、各アウトレットのサーバサイドレンダリングが自動的に処理されます。同じモジュールの[Link](/router/client-navigation#navigation)コンポーネントと[Refresh](/router/client-navigation#refresh)コンポーネントを使うことで、アウトレットを活用する際のアプリのナビゲーションをより細かく制御できます。レイアウトコンポーネントのpropsとして利用できるアウトレットによる初期コンテンツと、`React Server Component`コンポーネントによるクライアントサイドナビゲーションを組み合わせることで、アプリに強力なナビゲーションシステムを構築できます。
+
+```jsx filename="(main).layout.jsx"
+import { ReactServerComponent } from "@lazarv/react-server/navigation";
+
+export default function RootLayout({ sidebar, children }) {
+  return (
+    <main>
+      <ReactServerComponent outlet="sidebar">
+        {sidebar}
+      </ReactServerComponent>
+      {children}
+    </main>
+  );
+}
+```
+
+アウトレットを使用した例を確認するには、[チュートリアルのPhotoセクション](/tutorials/photos#outlet)をご覧ください。

@@ -14,6 +14,9 @@ process.chdir(join(process.cwd(), "../examples/mantine"));
 
 test(
   "mantine and extensions",
+  {
+    timeout: 360000,
+  },
   async () => {
     await server(null);
     let res = await page.goto(hostname, { timeout: 60000 });
@@ -186,8 +189,5 @@ test(
     expect(await page.textContent("body")).toContain(
       "Welcome to Mantine rich text editor"
     );
-  },
-  {
-    timeout: 360000,
   }
 );

@@ -1,0 +1,4 @@
+# Codeowners of @lazarv/react-server
+# This file is used to define the code owners for the repository.
+# Codeowners are responsible for reviewing and approving changes to the files they own.
+* @lazarv

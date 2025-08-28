@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readdir, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import { afterEach } from "node:test";
@@ -15,14 +16,18 @@ export let hostname;
 export let logs;
 export let serverLogs;
 
+export const testCwd = process.cwd();
+
 console.log = (...args) => {
   logs.push(args.join(" "));
   serverLogs.push(args.join(" "));
 };
 
+const consoleError = console.error;
 console.error = (...args) => {
   logs.push(args.join(" "));
   serverLogs.push(args.join(" "));
+  consoleError(...args);
 };
 
 const BASE_PORT = 3000;
@@ -59,6 +64,7 @@ beforeAll(async ({ name, id }) => {
               outDir: `.react-server-dev-${id}-${hash}`,
               force: true,
               port,
+              cacheDir: `.reaact-server-dev-${id}-${hash}-vite-cache`,
             },
             {
               server: {
@@ -130,10 +136,12 @@ beforeAll(async ({ name, id }) => {
             }
           });
           worker.on("error", (e) => {
+            consoleError(e);
             reject(e);
           });
           worker.on("exit", (code) => {
             if (code !== 0) {
+              consoleError(new Error(`Worker stopped with exit code ${code}`));
               reject(new Error(`Worker stopped with exit code ${code}`));
             }
           });
@@ -154,4 +162,15 @@ afterEach(async () => {
 afterAll(async () => {
   await page?.close();
   await browser?.close();
+
+  if (!process.env.CI && testCwd !== process.cwd()) {
+    const files = await readdir(process.cwd(), { withFileTypes: true });
+    await Promise.all(
+      files
+        .filter(
+          (file) => file.isDirectory() && file.name.includes(".react-server")
+        )
+        .map((file) => rm(join(process.cwd(), file.name), { recursive: true }))
+    );
+  }
 });

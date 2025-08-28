@@ -1,0 +1,83 @@
+---
+title: TypeScript
+category: Integrations
+order: 1
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# TypeScript
+
+`lazarv/react-server` はTypeScriptと互換性があり、他のReactプロジェクトと同じようにTypeScriptを使うことができます。ViteとRolldownを利用してコードをトランスパイルしているため、TypeScriptはこのフレームワークでも動作します。
+
+<Link name="configuration">
+## 設定
+</Link>
+
+TypeScriptの設定はすべて `tsconfig.json` ファイルに保存することができます。TypeScriptの設定方法については[TypeScript設定ガイド](https://www.typescriptlang.org/docs/handbook/tsconfig-json.html)を参照してください。
+
+以下は `@lazarv/react-server` で使用する `tsconfig.json` ファイルの基本例です：
+
+```json filename="./tsconfig.json"
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "types": ["react/experimental", "react-dom/experimental"],
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}
+```
+
+重要なのは、`@lazarv/react-server` が実験的な React API を使用するため、React 用の `react/experimental` と `react-dom/experimental` タイプを使用することです。
+
+<Link name="typescript-file-system-routing">
+## 型安全なファイルシステムベースのルーティング
+</Link>
+
+`lazarv/react-server` はファイルシステムベースのルーティングを使用します。これは、ファイルシステムがルーティングの真実のソースであることを意味します。新しいファイルを作成すると、新しいルートが作成されます。
+
+これは非常に強力な機能ですが、TypeScriptを使っている場合は扱いにくいかもしれないです。ですが、`lazarv/react-server` にはこれを手助けする機能が組み込まれています。
+
+`.react-server` ディレクトリを `tsconfig.json` ファイルに含めることで、TypeScriptを使ってファイルシステムベースのルーティングを行うことができます。
+
+<Link name="typescript-path-aliases">
+## TypeScriptのパスエイリアス
+</Link>
+
+TypeScriptのパスエイリアスを動作させるには、`tsconfig.json` ファイルに `baseUrl` と `paths` を含める必要があります。
+
+```json filename="./tsconfig.json"
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+```
+
+パスのエイリアスを有効にするには、`vite.config.js` ファイルの `resolve.alias` に設定項目としてパスを含める必要があります。
+
+```js filename="./vite.config.mjs"
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@/': new URL('./src/', import.meta.url).pathname
+    }
+  }
+});
+```

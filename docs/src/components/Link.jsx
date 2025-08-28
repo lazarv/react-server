@@ -7,7 +7,7 @@ import { scrollHashIntoView } from "./utils.mjs";
 export default function Link({ name, children }) {
   return (
     <button
-      className="flex items-baseline group cursor-pointer"
+      className="flex items-baseline group cursor-pointer text-left"
       onClick={() => scrollHashIntoView(`#${name}`)}
     >
       <span id={name} className="relative -top-32 lg:-top-20"></span>

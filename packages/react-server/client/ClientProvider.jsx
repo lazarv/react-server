@@ -1,23 +1,148 @@
 import {
-  createFromFetch,
   createFromReadableStream,
   encodeReply,
+  createTemporaryReferenceSet,
 } from "react-server-dom-webpack/client.browser";
 
-import { ClientContext, PAGE_ROOT as _PAGE_ROOT_ } from "./context.mjs";
+import {
+  ClientContext as _ClientContext,
+  PAGE_ROOT as _PAGE_ROOT_,
+} from "./context.mjs";
+
+if (typeof ReadableByteStreamController === "undefined") {
+  await import("web-streams-polyfill/polyfill");
+}
 
 export const PAGE_ROOT = _PAGE_ROOT_;
+export const ClientContext = _ClientContext;
 
 const activeChunk = new Map();
 const cache = new Map();
 const listeners = new Map();
 const outlets = new Map();
+const outletAbortControllers = new Map();
 const prefetching = new Map();
 const flightCache = new Map();
-const registerOutlet = (outlet, url) => {
-  outlets.set(outlet, url);
-  return () => outlets.delete(outlet);
+const liveOutlets = new Set();
+const liveIO = new Map();
+const outletTemporaryReferences = new Map();
+
+const connectLiveIO = async (origin) => {
+  if (!liveIO.has(origin)) {
+    liveIO.set(
+      origin,
+      new Promise(async (resolve, reject) => {
+        try {
+          const href = document
+            .querySelector("link[rel='preconnect'][id='live-io']")
+            ?.getAttribute("href");
+
+          if (!href && !origin) {
+            throw new Error(
+              "Live IO URL not found. Ensure <link rel='preconnect' id='live-io'> is set."
+            );
+          }
+
+          const { io } = await import("socket.io-client");
+          resolve({ io, url: new URL(origin ?? href, location) });
+        } catch (error) {
+          reject(error);
+        }
+      })
+    );
+  }
+  return liveIO.get(origin);
 };
+
+const registerOutlet = (
+  outlet,
+  url,
+  remote,
+  remoteProps,
+  defer,
+  live = false
+) => {
+  outlets.set(outlet, url);
+  if (live) {
+    liveOutlets.add(outlet);
+    connectLiveIO(typeof live === "string" ? live : url.origin).then(
+      async ({ io, url }) => {
+        const socket = io(new URL(`/${outlet}`, url).href, {
+          withCredentials: true,
+        });
+
+        const updateOutlet = (component) => {
+          cache.set(outlet || url, component);
+          emit(outlet, location.href, { fromCache: true }, (err) => {
+            if (!err) {
+              activeChunk.set(outlet, cache.get(outlet));
+            }
+          });
+        };
+
+        socket.on("live:end", () => {
+          socket.disconnect();
+        });
+
+        socket.on("live:buffer", (data) => {
+          const component = createFromReadableStream(
+            new ReadableStream({
+              type: "bytes",
+              start(controller) {
+                controller.enqueue(new Uint8Array(data));
+                controller.close();
+              },
+            }),
+            streamOptions({
+              outlet,
+              remote,
+              remoteProps,
+              temporaryReferences: outletTemporaryReferences.get(outlet),
+              defer,
+            })
+          );
+          updateOutlet(component);
+        });
+
+        let controller;
+        socket.on("live:stream", ({ done, value }) => {
+          if (!controller) {
+            const component = createFromReadableStream(
+              new ReadableStream({
+                type: "bytes",
+                start(_controller) {
+                  controller = _controller;
+                },
+              }),
+              streamOptions({
+                outlet,
+                remote,
+                remoteProps,
+                temporaryReferences: outletTemporaryReferences.get(outlet),
+                defer,
+              })
+            );
+            updateOutlet(component);
+          }
+
+          if (value) {
+            controller.enqueue(new Uint8Array(value));
+          }
+          if (done) {
+            controller.close();
+            controller = null;
+          }
+        });
+      }
+    );
+  }
+  return () => {
+    outlets.delete(outlet);
+    liveOutlets.delete(outlet);
+    outletTemporaryReferences.delete(outlet);
+  };
+};
+
 const subscribe = (url, listener) => {
   if (!listeners.has(url)) {
     listeners.set(url, new Set());
@@ -26,12 +151,33 @@ const subscribe = (url, listener) => {
   urlListeners.add(listener);
   return () => urlListeners.delete(listener);
 };
+
 const emit = (url, to = url, options = {}, callback = () => {}) => {
-  if (!listeners.has(url)) return callback();
-  const urlListeners = listeners.get(url);
+  if (!listeners.has(url) && !listeners.has(to)) return callback();
+  const urlListeners = listeners.get(to) || listeners.get(url);
   for (const listener of urlListeners) listener(to, options, callback);
 };
-const prefetchOutlet = (to, { outlet = PAGE_ROOT, ttl = Infinity }) => {
+
+const isStale = (revalidate, context) => {
+  if (
+    typeof revalidate !== "undefined" &&
+    revalidate !== null &&
+    revalidate !== true
+  ) {
+    if (typeof revalidate === "function") {
+      return revalidate(context);
+    } else if (typeof revalidate === "number" && context.timestamp) {
+      return Date.now() - context.timestamp > revalidate;
+    }
+    return revalidate;
+  }
+  return true;
+};
+
+const prefetchOutlet = (
+  to,
+  { outlet = PAGE_ROOT, revalidate, ttl = Infinity }
+) => {
   if (prefetching.get(outlet) !== to) {
     cache.delete(outlet);
     cache.delete(to);
@@ -39,9 +185,24 @@ const prefetchOutlet = (to, { outlet = PAGE_ROOT, ttl = Infinity }) => {
     const key = `${outlet}:${to}`;
     if (flightCache.has(key)) {
       cache.set(outlet, flightCache.get(key));
-    } else {
-      getFlightResponse(to, { outlet });
+    } else if (
+      !flightCache.has(key) ||
+      (flightCache.has(key) &&
+        isStale(revalidate, {
+          outlet,
+          url: to,
+          timestamp: flightCache.get(`${key}:timestamp`),
+        }))
+    ) {
+      getFlightResponse(to, {
+        revalidate,
+        outlet,
+        onError: () => flightCache.delete(key),
+        prefetch: true,
+        fromCache: true,
+      });
       flightCache.set(key, cache.get(outlet));
+      flightCache.set(`${key}:timestamp`, Date.now());
       if (typeof ttl === "number" && ttl < Infinity) {
         setTimeout(() => {
           if (flightCache.has(key)) {
@@ -52,6 +213,7 @@ const prefetchOutlet = (to, { outlet = PAGE_ROOT, ttl = Infinity }) => {
     }
   }
 };
+
 const prefetch = (to, options = {}) => {
   if (outlets.size > 1) {
     const activeOutlets = new Set(outlets.keys());
@@ -64,16 +226,18 @@ const prefetch = (to, options = {}) => {
   }
   return prefetchOutlet(to, options);
 };
-const refresh = async (outlet = PAGE_ROOT) => {
+
+const refresh = async (outlet = PAGE_ROOT, options = {}) => {
   return new Promise((resolve, reject) => {
-    const url = outlets.get(outlet) || PAGE_ROOT;
+    const url =
+      outlet === PAGE_ROOT ? PAGE_ROOT : outlets.get(outlet) || PAGE_ROOT;
     if (prefetching.get(outlet) === url) {
       prefetching.delete(outlet);
     } else {
       cache.delete(url);
       cache.delete(outlet);
     }
-    emit(outlet, url, {}, (err) => {
+    emit(outlet, url, options, (err) => {
       if (err) reject(err);
       else {
         activeChunk.set(outlet, cache.get(outlet));
@@ -82,8 +246,12 @@ const refresh = async (outlet = PAGE_ROOT) => {
     });
   });
 };
+
 let prevLocation = new URL(location);
-const navigateOutlet = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
+const navigateOutlet = (
+  to,
+  { outlet = PAGE_ROOT, push, rollback = 0, revalidate, noCache, ...options }
+) => {
   return new Promise((resolve, reject) => {
     if (typeof rollback === "number" && rollback > 0) {
       const key = `${outlet}:${outlets.get(outlet) || location.href}`;
@@ -116,7 +284,15 @@ const navigateOutlet = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
     const key = `${outlet}:${to}`;
     if (flightCache.has(key)) {
       cache.set(outlet, flightCache.get(key));
-      flightCache.delete(key);
+      if (
+        isStale(revalidate, {
+          outlet,
+          url: to,
+          timestamp: flightCache.get(`${key}:timestamp`),
+        })
+      ) {
+        flightCache.delete(key);
+      }
       const timeoutKey = `${key}:timeout`;
       if (flightCache.has(timeoutKey)) {
         clearTimeout(flightCache.get(timeoutKey));
@@ -126,27 +302,46 @@ const navigateOutlet = (to, { outlet = PAGE_ROOT, push, rollback = 0 }) => {
       cache.delete(to);
       cache.delete(outlet);
     }
-    emit(outlet, to, {}, (err) => {
-      if (err) reject(err);
-      else {
-        activeChunk.set(outlet, cache.get(outlet));
-        resolve();
+    emit(
+      outlet,
+      to,
+      {
+        ...options,
+        noCache,
+        fromCache: true,
+      },
+      (err) => {
+        if (err) reject(err);
+        else {
+          activeChunk.set(outlet, cache.get(outlet));
+
+          if (!isStale(revalidate, { outlet, url: to })) {
+            flightCache.set(`${outlet}:${to}`, cache.get(outlet));
+            flightCache.set(`${outlet}:${to}:timestamp`, Date.now());
+          }
+
+          resolve();
+        }
       }
-    });
+    );
   });
 };
+
 const navigate = (to, options = {}) => {
   const isRoot = options.outlet === PAGE_ROOT;
   if (!isRoot && outlets.size > 1) {
     const activeOutlets = new Set(outlets.keys());
     activeOutlets.delete(PAGE_ROOT);
-    if (!options.external) {
+    if (options.push || options.replace) {
       if (options.push !== false) {
         history.pushState(Object.fromEntries(outlets.entries()), "", to);
       } else {
         history.replaceState(Object.fromEntries(outlets.entries()), "", to);
       }
       prevLocation = new URL(location);
+    }
+    if (options.outlet) {
+      return navigateOutlet(to, { ...options, outlet: options.outlet });
     }
     return Promise.all(
       Array.from(activeOutlets).map((outlet) =>
@@ -156,9 +351,29 @@ const navigate = (to, options = {}) => {
   }
   return navigateOutlet(to, options);
 };
+
 const replace = (to, options) => {
   return navigate(to, { ...options, push: false });
 };
+
+const invalidate = (outlet, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const url = options.url ?? (outlets.get(outlet) || PAGE_ROOT);
+    cache.delete(url);
+    cache.delete(outlet);
+    if (options.noEmit) {
+      return resolve();
+    }
+    emit(outlet, url, { ...options, outlet, noCache: true }, (err) => {
+      if (err) reject(err);
+      else {
+        activeChunk.set(outlet, cache.get(outlet));
+        resolve();
+      }
+    });
+  });
+};
+
 window.addEventListener("popstate", () => {
   const newLocation = new URL(location);
   if (
@@ -181,7 +396,7 @@ window.addEventListener("popstate", () => {
       flightCache.delete(timeoutKey);
     }
     outlets.set(PAGE_ROOT, location.href);
-    emit(PAGE_ROOT, location.href, {}, (err) => {
+    emit(PAGE_ROOT, location.href, { fromCache: true }, (err) => {
       if (!err) {
         activeChunk.set(PAGE_ROOT, cache.get(PAGE_ROOT));
       }
@@ -206,7 +421,7 @@ window.addEventListener("popstate", () => {
         cache.delete(location.href);
       }
       outlets.set(outlet, location.href);
-      emit(outlet, location.href, {}, (err) => {
+      emit(outlet, location.href, { fromCache: true }, (err) => {
         if (!err) {
           activeChunk.set(outlet, cache.get(outlet));
         }
@@ -214,86 +429,184 @@ window.addEventListener("popstate", () => {
     }
   }
 });
-export const streamOptions = (outlet, remote) => ({
-  async callServer(id, args) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const formData = await encodeReply(args);
-        const url = outlet || PAGE_ROOT;
 
-        let target = outlet;
-        cache.delete(url);
-        cache.delete(target);
-        getFlightResponse(outlets.get(target) || url, {
-          method: "POST",
-          body: formData,
-          outlet: target,
-          remote,
-          callServer: id || true,
-          onFetch: (res) => {
-            const callServer =
-              typeof res.headers.get("React-Server-Data") === "string"
-                ? id || true
-                : false;
-            emit(target, url, { callServer }, async (err, result) => {
-              if (err) reject(err);
-              else {
-                if (!callServer) {
-                  return resolve();
+function createRemoteTemporaryReferenceSet(remoteProps) {
+  const temporaryReferences = createTemporaryReferenceSet();
+  encodeReply(remoteProps, {
+    temporaryReferences,
+  });
+  return temporaryReferences;
+}
+
+export const streamOptions = ({
+  outlet,
+  remote,
+  remoteProps,
+  temporaryReferences,
+  defer,
+}) => {
+  if (!temporaryReferences) {
+    temporaryReferences = createRemoteTemporaryReferenceSet(remoteProps);
+  }
+  outletTemporaryReferences.set(outlet, temporaryReferences);
+  return {
+    temporaryReferences,
+    findSourceMapURL: import.meta.env.DEV
+      ? (filename, environment) =>
+          new URL(
+            `/__react_server_source_map__?filename=${new URL(filename, location).pathname}&environment=${environment}`,
+            location
+          ).href
+      : null,
+    async callServer(id, args) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const temporaryReferences = createTemporaryReferenceSet();
+          const remotePropsBody = await encodeReply(remoteProps, {
+            temporaryReferences,
+          });
+          const formData = await encodeReply(
+            remoteProps
+              ? {
+                  __react_server_function_args__: args,
+                  __react_server_remote_props__: remotePropsBody,
                 }
-                const rsc = await result;
-                try {
-                  const value = await rsc.at(-1);
-                  resolve(value);
+              : args
+          );
+          const url = outlet || PAGE_ROOT;
 
-                  const url = res.headers.get("React-Server-Render");
-                  const outlet = res.headers.get("React-Server-Outlet");
+          let target = outlet;
+          cache.delete(url);
+          cache.delete(target);
+          getFlightResponse(outlets.get(target) || url, {
+            method: "POST",
+            body: formData,
+            outlet: target,
+            remote,
+            remoteProps,
+            temporaryReferences,
+            defer,
+            callServer: id || true,
+            onFetch: (res) => {
+              const callServer =
+                typeof res.headers.get("React-Server-Data") === "string"
+                  ? id || true
+                  : false;
+              emit(target, url, { callServer }, async (err, result) => {
+                if (err) reject(err);
+                else {
+                  if (!callServer) {
+                    const url = res.headers.get("React-Server-Render");
+                    const outlet = res.headers.get("React-Server-Outlet");
 
-                  if (url && outlet) {
-                    cache.set(outlet, rsc.slice(0, -1));
-                    emit(outlet, url, {});
+                    if (url && outlet) {
+                      cache.set(outlet, await result);
+                      emit(outlet, url, {});
+                    }
+
+                    return resolve();
                   }
-                } catch (e) {
-                  reject(e);
+                  const rsc = await result;
+                  try {
+                    const value = await rsc.at(-1);
+                    resolve(value);
+
+                    const url = res.headers.get("React-Server-Render");
+                    const outlet = res.headers.get("React-Server-Outlet");
+
+                    if (url && outlet) {
+                      cache.set(outlet, rsc.slice(0, -1));
+                      emit(outlet, url, {});
+                    }
+                  } catch (e) {
+                    reject(e);
+                  }
                 }
-              }
-            });
-          },
-          onError: (err) => {
-            reject(err);
-          },
-          headers:
-            formData instanceof FormData &&
-            Array.from(formData.keys()).find((key) => key.includes("ACTION_ID"))
-              ? {}
-              : {
-                  "React-Server-Action": encodeURIComponent(id),
-                },
-        });
-      } catch (e) {
-        reject(e);
+              });
+            },
+            onError: (err) => {
+              reject(err);
+            },
+            headers: {
+              "React-Server-Action": encodeURIComponent(id),
+            },
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    },
+  };
+};
+
+const abort = (outlet = PAGE_ROOT, reason, prefetch) => {
+  if (
+    outletAbortControllers.has(outlet) ||
+    (prefetch !== false && outletAbortControllers.has(`prefetch:${outlet}`))
+  ) {
+    const abortControllers = outletAbortControllers.get(outlet);
+    const prefetchAbortControllers = outletAbortControllers.get(
+      `prefetch:${outlet}`
+    );
+    for (const abortController of [
+      ...(abortControllers || []),
+      ...(prefetch !== false ? prefetchAbortControllers || [] : []),
+    ]) {
+      if (!abortController?.signal.aborted) {
+        if (import.meta.env.DEV) {
+          if (abortControllers && abortControllers.has(abortController)) {
+            console.warn(
+              `Aborting: React Server Component request at outlet "${outlet}"`
+            );
+          }
+        }
+        abortController.abort(reason);
       }
-    });
-  },
-});
+    }
+    outletAbortControllers.delete(outlet);
+    outletAbortControllers.delete(`prefetch:${outlet}`);
+
+    if (prefetch !== false) {
+      prefetching.delete(outlet);
+    }
+  }
+};
+
 function getFlightResponse(url, options = {}) {
-  if (!cache.has(options.outlet || url)) {
+  let abortController = options.signal;
+  if (!cache.has(options.outlet || url) || options.noCache) {
     if (
       !options.defer &&
       self[`__flightStream__${options.outlet || PAGE_ROOT}__`] &&
       !self[`__flightHydration__${options.outlet || PAGE_ROOT}__`]
     ) {
+      const stream =
+        self[`__flightStream__${options.outlet || PAGE_ROOT}__`].readable;
+      const [from, backup] = stream.tee();
+      self[`__flightStream__${options.outlet || PAGE_ROOT}__`] = {
+        readable: backup,
+      };
       cache.set(
         options.outlet || url,
         createFromReadableStream(
-          self[`__flightStream__${options.outlet || PAGE_ROOT}__`].readable,
-          streamOptions(options.outlet || url, options.remote)
+          from,
+          streamOptions({
+            outlet: options.outlet || url,
+            remote: options.remote,
+            remoteProps: options.remoteProps,
+            temporaryReferences: options.temporaryReferences,
+            defer: options.defer,
+          })
         )
       );
+
       self[`__flightHydration__${options.outlet || PAGE_ROOT}__`] = true;
       activeChunk.set(options.outlet || url, cache.get(options.outlet || url));
     } else if (!options.fromScript) {
-      const src = new URL(url === PAGE_ROOT ? location.href : url, location);
+      const src = new URL(
+        url === PAGE_ROOT ? location.href : (options.url ?? url),
+        location
+      );
       const outlet =
         options.outlet && options.outlet !== PAGE_ROOT
           ? `@${options.outlet}.`
@@ -302,35 +615,151 @@ function getFlightResponse(url, options = {}) {
         /\/+/g,
         "/"
       );
-      cache.set(
-        options.outlet || url,
-        createFromFetch(
-          fetch(src.toString(), {
-            ...options.request,
-            method: options.method,
-            body: options.body,
-            headers: {
-              ...options.request?.headers,
-              accept: "text/x-component",
-              "React-Server-Outlet": encodeURIComponent(
-                options.outlet || PAGE_ROOT
-              ),
-              ...options.headers,
-            },
-          }).then(
-            (res) => {
-              options.onFetch?.(res);
-              return res;
-            },
-            (err) => {
-              options.onError?.(err);
-              throw err;
+      const srcString = src.toString();
+
+      if (!options.callServer) {
+        abort(
+          options.outlet || url,
+          new DOMException("navigation", "AbortError"),
+          !options.prefetch
+        );
+
+        if (!abortController) {
+          abortController = new AbortController();
+        }
+
+        if (options.onAbort) {
+          abortController.signal.addEventListener("abort", options.onAbort);
+        }
+
+        if (
+          options.prefetch &&
+          isStale(options.revalidate, {
+            outlet: options.outlet || PAGE_ROOT,
+            url,
+            timestamp: flightCache.get(
+              `${options.outlet || PAGE_ROOT}:${url}:timestamp`
+            ),
+          })
+        ) {
+          abortController.signal.addEventListener("abort", () => {
+            flightCache.delete(`${options.outlet || PAGE_ROOT}:${url}`);
+          });
+        }
+
+        const key = `${options.prefetch ? "prefetch:" : ""}${options.outlet || url}`;
+        if (!outletAbortControllers.has(key)) {
+          outletAbortControllers.set(key, new Set());
+        }
+
+        outletAbortControllers.get(key).add(abortController);
+      }
+
+      const component = createFromReadableStream(
+        new ReadableStream({
+          type: "bytes",
+          async start(controller) {
+            let response;
+            try {
+              response = await fetch(srcString, {
+                ...options.request,
+                method: options.method ?? (options.body ? "POST" : "GET"),
+                body: options.body,
+                headers: {
+                  ...options.request?.headers,
+                  accept: "text/x-component",
+                  ...(options.noCache && { "Cache-Control": "no-cache" }),
+                  ...(options.prefetch && { "React-Server-Prefetch": "true" }),
+                  ...options.headers,
+                },
+                credentials: "include",
+                signal: abortController?.signal,
+              });
+              const { body } = response;
+
+              window.dispatchEvent(
+                new CustomEvent(
+                  `__react_server_flight_error_${options.outlet}__`,
+                  {
+                    detail: { error: null, options, url },
+                  }
+                )
+              );
+
+              options.onFetch?.(response);
+
+              if (abortController?.signal.aborted) {
+                controller.error(abortController.signal.reason);
+                return;
+              }
+
+              const reader = body.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (value) {
+                  controller.enqueue(value);
+                }
+                if (done) {
+                  break;
+                }
+              }
+              controller.close();
+
+              if (outletAbortControllers.has(options.outlet || url)) {
+                const abortControllers = outletAbortControllers.get(
+                  options.outlet || url
+                );
+                if (abortControllers.has(abortController)) {
+                  abortControllers.delete(abortController);
+                }
+              }
+            } catch (e) {
+              if (e instanceof DOMException && e.name === "AbortError") {
+                cache.delete(options.outlet || url);
+                flightCache.delete(`${options.outlet || PAGE_ROOT}:${url}`);
+                return;
+              }
+
+              options.onError?.(e);
+              return new Promise(async (resolve) => {
+                e.digest = e.digest || e.message;
+                e.environmentName = "react-server";
+                window.dispatchEvent(
+                  new CustomEvent(
+                    `__react_server_flight_error_${options.outlet}__`,
+                    {
+                      detail: { error: e, options, url },
+                    }
+                  )
+                );
+
+                const encoder = new TextEncoder();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+
+                controller.enqueue(encoder.encode(`0:["$L1"]\n1:null\n`));
+                controller.close();
+                resolve();
+              });
             }
-          ),
-          streamOptions(options.outlet || url, options.remote)
-        )
+          },
+        }),
+        streamOptions({
+          outlet: options.outlet || url,
+          remote: options.remote,
+          remoteProps: options.remoteProps,
+          temporaryReferences: options.temporaryReferences,
+          defer: options.defer,
+        })
       );
+      cache.set(options.outlet || url, component);
     }
+  }
+
+  if (
+    typeof options.onReady === "function" &&
+    !abortController?.signal.aborted
+  ) {
+    return options.onReady(cache.get(options.outlet || url));
   }
 
   return cache.get(options.outlet || url);
@@ -346,7 +775,21 @@ export default function ClientProvider({ children }) {
         navigate,
         replace,
         subscribe,
+        invalidate,
+        abort,
         getFlightResponse,
+        createRemoteTemporaryReferenceSet,
+        createTemporaryReferenceSet,
+        encodeReply,
+        state: {
+          activeChunk,
+          cache,
+          flightCache,
+          listeners,
+          outlets,
+          outletAbortControllers,
+          prefetching,
+        },
       }}
     >
       {children}

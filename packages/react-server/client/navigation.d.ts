@@ -10,9 +10,13 @@
  * @property replace - If true, the link will replace the current route in the history stack
  * @property prefetch - If true, the link will be prefetched on mouse or touch events
  * @property ttl - The time-to-live for the prefetch
+ * @property revalidate - Controls when to revalidate the route cache, defaults to true, set to false to disable revalidation
  * @property rollback - The time-to-live for in case of a back navigation
+ * @property noCache - If true, the link will not use the cache
+ * @property fallback - The fallback component to render while the link is loading
+ * @property Component - The component to render in the outlet
  * @property onNavigate - A callback that is called when the navigation is complete
- * @property onError - A callback that is called when the link fails
+ * @property onError - A callback that is called when the navigation fails
  */
 export type LinkProps<T> = React.PropsWithChildren<{
   to: T;
@@ -24,7 +28,18 @@ export type LinkProps<T> = React.PropsWithChildren<{
   replace?: boolean;
   prefetch?: boolean;
   ttl?: number;
+  revalidate?:
+    | boolean
+    | number
+    | ((context: {
+        outlet: string;
+        url: string;
+        timestamp: number;
+      }) => Promise<boolean> | boolean);
   rollback?: number;
+  noCache?: boolean;
+  fallback?: React.ReactNode;
+  Component?: React.ReactNode;
   onNavigate?: () => void;
   onError?: (error: unknown) => void;
 }> &
@@ -63,6 +78,10 @@ export function Link<T extends string>(props: LinkProps<T>): JSX.Element;
  * @property transition - If true, the refresh will use React useTransition
  * @property prefetch - If true, the refresh will be prefetched on mouse or touch events
  * @property ttl - The time-to-live for the prefetch
+ * @property revalidate - Controls when to revalidate the route cache, defaults to true, set to false to disable revalidation
+ * @property noCache - If true, the refresh will not use the cache
+ * @property fallback - The fallback component to render while the refresh is loading
+ * @property Component - The component to render in the outlet
  * @property onRefresh - A callback that is called when the refresh is complete
  * @property onError - A callback that is called when the refresh fails
  */
@@ -74,6 +93,17 @@ export type RefreshProps = React.PropsWithChildren<{
   transition?: boolean;
   prefetch?: boolean;
   ttl?: number;
+  revalidate?:
+    | boolean
+    | number
+    | ((context: {
+        outlet: string;
+        url: string;
+        timestamp: number;
+      }) => Promise<boolean> | boolean);
+  noCache?: boolean;
+  fallback?: React.ReactNode;
+  Component?: React.ReactNode;
   onRefresh?: () => void;
   onError?: (error: unknown) => void;
 }> &
@@ -100,6 +130,56 @@ export type RefreshProps = React.PropsWithChildren<{
  * }
  */
 export function Refresh(props: RefreshProps): JSX.Element;
+
+/**
+ * The props for the `Form` component.
+ *
+ * @property target - The target for the form
+ * @property local - If true, the form will update the parent outlet
+ * @property root - If true, the form will update the root page
+ * @property transition - If true, the form will use React useTransition
+ * @property push - If true, the form will push the route to the history stack
+ * @property replace - If true, the form will replace the current route in the history stack
+ * @property prefetch - If true, the form will be prefetched on mouse or touch events
+ * @property ttl - The time-to-live for the prefetch
+ * @property revalidate - Controls when to revalidate the route cache, defaults to true, set to false to disable revalidation
+ * @property rollback - The time-to-live for in case of a back navigation
+ * @property noCache - If true, the form will not use the cache
+ * @property onNavigate - A callback that is called when the navigation is complete
+ * @property onError - A callback that is called when the navigation fails
+ * @property children - The children to render
+ */
+export type FormProps = Exclude<
+  | React.DetailedHTMLProps<
+      React.FormHTMLAttributes<HTMLFormElement>,
+      HTMLFormElement
+    >
+  | Exclude<LinkProps<string>, "to">,
+  "action" | "method" | "search" | "to"
+>;
+
+/**
+ * A component that renders a form element that navigates to the current route using form data as the query parameters.
+ *
+ * @param props - The props for the component
+ * @returns The form element
+ *
+ * @example
+ *
+ * ```tsx
+ * import { Form } from '@lazarv/react-server/navigation';
+ *
+ * export default function App() {
+ *  return (
+ *   <Form>
+ *     <input type="text" name="name" />
+ *     <button type="submit">Submit</button>
+ *   </Form>
+ *  );
+ * }
+ * ```
+ */
+export function Form(props: FormProps): JSX.Element;
 
 /**
  * The props for the `ReactServerComponent` component.
@@ -139,20 +219,23 @@ export function ReactServerComponent(
 /**
  * A hook that returns the current location.
  *
+ * @param outlet - which outlet to watch (optional, defaults to root)
  * @returns The current location
  */
-export function useLocation(): Location | null;
+export function useLocation(outlet?: string): Location | null;
 
 /**
  * A hook that returns the current search parameters.
  *
+ * @param outlet - which outlet to watch (optional, defaults to root)
  * @returns The current search parameters
  */
-export function useSearchParams(): URLSearchParams | null;
+export function useSearchParams(outlet?: string): URLSearchParams | null;
 
 /**
  * A hook that returns the current pathname.
  *
+ * @param outlet - which outlet to watch (optional, defaults to root)
  * @returns The current pathname
  */
-export function usePathname(): string | null;
+export function usePathname(outlet?: string): string | null;

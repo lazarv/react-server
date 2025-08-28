@@ -1,4 +1,3 @@
-# This workflow is based on https://github.com/vitejs/vite/tree/main/.github/workflows
 name: Documentation 📚
 
 on:
@@ -7,11 +6,12 @@ on:
       - main
     paths:
       - "docs/**"
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
     paths:
       - "docs/**"
-  workflow_dispatch:
+    branches:
+      - main
 
 permissions:
   pull-requests: write
@@ -24,13 +24,21 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
+    environment:
+      name: vercel-preview # Requires manual approval for PRs from forks
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
-      - run: corepack enable
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.0.0
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "pnpm"
 
       - name: Install deps
@@ -50,8 +58,8 @@ jobs:
       - name: Build docs
         run: pnpm run docs-build
 
-      - name: Deploy Project Artifacts to Vercel
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Deploy to Vercel (PR Previews)
+        if: github.event_name == 'pull_request_target'
         working-directory: ./docs
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -60,14 +68,14 @@ jobs:
           echo "VERCEL_URL=${url}" >> $GITHUB_ENV
 
       - uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         with:
           header: pr-docs-preview-url
           message: |
             ✅ Documentation preview deployed to: ${{ env.VERCEL_URL }}
 
-      - name: Deploy Project Artifacts to Vercel Production Environment
-        if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Deploy to Vercel Production
+        if: github.ref == 'refs/heads/main'
         working-directory: ./docs
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

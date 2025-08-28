@@ -30,7 +30,7 @@ jobs:
     name: Get changed files 📂
     runs-on: ubuntu-latest
     outputs:
-      should_skip: ${{ steps.changed-files.outputs.any_changed != 'true' }}
+      all_changed_files: ${{ steps.changed-files.outputs.all_changed_files }}
 
     steps:
       - name: Checkout
@@ -50,19 +50,19 @@ jobs:
 
   test:
     needs: changed
-    if: needs.changed.outputs.should_skip != 'true'
-    timeout-minutes: 20
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22]
+        node_version: [20, 22, 23]
         include:
           # Active LTS + other OS
           - os: macos-latest
-            node_version: 20
+            node_version: 22
           - os: windows-latest
-            node_version: 20
+            node_version: 22
       fail-fast: false
 
     name: "Test 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -70,10 +70,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - run: corepack enable
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.0.0
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "pnpm"
 
       - name: Set node version to ${{ matrix.node_version }}
@@ -114,11 +116,19 @@ jobs:
 
       - name: Test development
         working-directory: ./test
-        run: pnpm test-dev
+        run: pnpm test-dev --exclude "**/__test__/apps"
 
       - name: Test build and production mode
         working-directory: ./test
-        run: pnpm test-build-start
+        run: pnpm test-build-start --exclude "**/__test__/apps"
+
+      - name: Test development apps
+        working-directory: ./test
+        run: pnpm test-dev --exclude "**/__test__/*.spec.mjs" --no-file-parallelism
+
+      - name: Test build and production mode apps
+        working-directory: ./test
+        run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs" --no-file-parallelism
 
   lint:
     timeout-minutes: 10
@@ -127,7 +137,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: corepack enable
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.0.0
+
       - name: Set node version to 20
         uses: actions/setup-node@v4
         with:

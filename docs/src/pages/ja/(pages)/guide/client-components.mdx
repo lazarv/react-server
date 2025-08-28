@@ -1,0 +1,122 @@
+---
+title: クライアントコンポーネント
+order: 4
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# クライアントコンポーネント
+
+クライアントサイドとインタラクティブにやり取りしたい場合、クライアントコンポーネントを使用できます。クライアントコンポーネントもサーバー側でレンダリングされますが、クライアント側でハイドレーションされます。
+
+クライアントコンポーネントはすべて非同期に読み込まれるため、ページのレンダリングを妨げることはありません。すべてESモジュールにコンパイルされ、必要な時だけ読み込まれます。
+
+<Link name="creating-a-client-component">
+## クライアントコンポーネントを作成する
+</Link>
+
+クライアントコンポーネントを作成するには、ファイルの冒頭に`"use client";`を追記してください。
+
+```jsx
+"use client";
+
+export default function MyClientComponent() {
+  return <p>This is a client component</p>;
+}
+```
+
+<Link name="interactive-client-components">
+## インタラクティブなクライアントコンポーネント
+</Link>
+
+クライアントコンポーネントはすべてのReactフックで使用可能です。例えば、`useState`フックや`onClick`のようなイベントハンドラとも併用できます。クライアントコンポーネントはサーバー側とクライアント側の両方でレンダリングされます。
+
+```jsx
+"use client";
+
+import { useState } from "react";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
+  );
+}
+```
+
+<Link name="client-component-serialization">
+## クライアントコンポーネントのシリアル化
+</Link>
+
+クライアントコンポーネントはサーバーコンポーネントからpropsを受け取ることができます。propsはシリアル化された状態でクライアント側に受け渡されます。クライアント側に受け渡す全てのpropsはシリアル化可能なものでなければいけません。propsとして基本的な値、配列、オブジェクトを渡すことができますが、関数を渡すことはできません。
+
+```jsx
+"use client";
+
+export default function MyClientComponent({ name }) {
+  return <p>Hello {name}</p>;
+}
+```
+
+上記のクライアント・コンポーネントをサーバー・コンポーネントから使用する：
+
+```jsx
+import MyClientComponent from "./MyClientComponent";
+
+export default function MyServerComponent() {
+  return <MyClientComponent name="John" />;
+}
+```
+
+サーバーコンポーネントをクライアントコンポーネントでラップすることもできます。React Contextプロバイダーのように、クライアントコンポーネント内でサーバーコンポーネントを使いたいときに非常に便利です。このコンテキストはすべての子コンポーネントで利用できます。コンテキストはクライアント側でのみ作成されるので、サーバーコンポーネントからはアクセスできません。
+
+```jsx
+"use client";
+
+import { createContext } from "react";
+
+const MyContext = createContext("unknown");
+
+export default function MyProvider({ name, children }) {
+  return <MyContext.Provider value={name}>{children}</MyContext.Provider>;
+}
+```
+
+```jsx
+import MyProvider from "./MyProvider";
+
+export default async function MyServerComponent() {
+  const name = await getUserName();
+  return (
+    <MyProvider name={name}>
+      <p>Hello {name}</p>
+    </MyProvider>
+  );
+}
+```
+
+<Link name="client-only-components">
+## クライアント専用コンポーネント
+</Link>
+
+`ClientOnly`コンポーネントでコンポーネントをラップすることで、クライアント専用のコンポーネントを作成できます。`ClientOnly` コンポーネントの子コンポーネントは、クライアント側でのみレンダリングされます。
+
+```jsx
+import { ClientOnly } from "@lazarv/react-server/client";
+
+export default function MyServerComponent() {
+  return (
+    <div>
+      <p>This is rendered on the server side</p>
+      <ClientOnly>
+        <p>This is rendered on the client side</p>
+        <MyClientComponent />
+      </ClientOnly>
+    </div>
+  );
+}
+```

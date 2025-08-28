@@ -1,0 +1,175 @@
+---
+title: Vite
+category: Integrations
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Vite
+
+`@lazarv/react-server`はViteと互換性があるだけでなく、Vite Environment API の上に構築されています。つまり`@lazarv/react-server`でViteのすべての機能と多くのViteプラグインを問題なく使用することができます。
+
+<Link name="configuration">
+## 設定
+</Link>
+
+Viteのすべての設定は`vite.config.js`、`vite.config.ts`、`vite.config.mjs`、または`vite.config.cjs`ファイルに保存することができます。Viteの設定方法については、公式の[Vite設定ガイド](https://ja.vitejs.dev/config/)を参照してください。
+
+<Link name="plugins">
+## プラグイン
+</Link>
+
+すべてのViteプラグインを使用することができます。Viteプラグインの詳細については、[Viteプラグインガイド](https://ja.vitejs.dev/plugins/)を参照してください。
+
+Viteプラグインを使用する場合、以下の3つの環境を想定しています:
+
+- `rsc` - プラグインが React Server Components (RSCペイロード) で使用される場合
+- `ssr` - プラグインがサーバーサイドレンダリング（HTML出力）で使用される場合
+- `client` - プラグインがクライアントコンポーネントで使用される場合
+
+<Link name="migration">
+## マイグレーション
+</Link>
+
+Viteから`@lazarv/react-server`に移行する場合、このガイドに従ってプロジェクトを移行することができます。
+
+### 始める
+
+簡単に新しいVite + Reactのプロジェクトを始められます:
+
+```sh
+pnpm create vite my-react-app --template react
+```
+
+ディレクトリを移動し、依存関係をインストールすればアプリを起動することができます:
+
+```sh
+cd my-react-app
+pnpm install
+pnpm dev
+```
+
+これだけで動作します!
+
+### React Server Components
+
+RSCsを使用したい場合は、まず`index.html`内のすべてを`src/main.jsx`に移動します。そして、クライアントサイドで`App`をレンダリングする代わりに、このRSCレイアウトでコンポーネントとして使用します:
+```jsx
+import App from "./App.jsx";
+import "./index.css";
+
+export default function Html() {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Vite + React</title>
+      </head>
+      <body>
+        <div id="root">
+          <App />
+        </div>
+      </body>
+    </html>
+  );
+}
+```
+
+`charSet`はJSXで使われるときとHTMLで使われるときで大文字と小文字が異なるので修正する必要があります！
+
+とりあえず、`App.jsx`に`"use client";`を追加するだけで、Appコンポーネントが`useState` Reactフックを含んでいるのですぐに動作するようになります。
+
+ここで`react`と`react-dom`をアンインストールしましょう。これらはReact 18だったのでもう必要ありません。代わりに`@lazarv/react-server`をインストールする必要があります:
+
+```sh
+pnpm add @lazarv/react-server@latest
+```
+
+アプリの起動に関するnpmスクリプトを更新します:
+
+```json
+"scripts": {
+  "dev": "react-server ./src/main.jsx",
+  "build": "react-server build ./src/main.jsx",
+  "lint": "eslint .",
+  "start": "react-server start"
+}
+```
+
+`pnpm dev --open`を使ってアプリを起動してみましょう！
+
+### クライアントコンポーネントの最適化
+
+現在の状態では`App`コンポーネント全体がクライアントコンポーネントになっていますが、これは理想的ではありません。インタラクティブなのはカウンター部分だけだからです。またこのクライアントコンポーネントにCSSをアタッチしており、ブラウザ実行時のみ適用されます。これによりページ読み込み時に一瞬のちらつきが発生してしまいます。
+
+新しい`Counter`コンポーネントを`src/Counter.jsx`に作成し、カウンターボタンを新しいコンポーネントに移動しましょう:
+
+```jsx
+"use client";
+
+import { useState } from "react";
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <button onClick={() => setCount((count) => count + 1)}>
+      count is {count}
+    </button>
+  );
+}
+
+export default Counter;
+```
+
+`App`コンポーネントから`"use client";`を削除し、`App.css`のインポートと`Counter`コンポーネントの一部だったコードを削除します。その代わりに`Counter`コンポーネントをインポートしましょう:
+
+```jsx
+import reactLogo from "./assets/react.svg";
+import viteLogo from "/vite.svg";
+import Counter from "./Counter.jsx";
+
+function App() {
+  return (
+    <>
+      <div>
+        <a href="https://vitejs.dev" target="_blank">
+          <img src={viteLogo} className="logo" alt="Vite logo" />
+        </a>
+        <a href="https://react.dev" target="_blank">
+          <img src={reactLogo} className="logo react" alt="React logo" />
+        </a>
+      </div>
+      <h1>Vite + React</h1>
+      <div className="card">
+        <Counter />
+        <p>
+          Edit <code>src/App.jsx</code> and save to test HMR
+        </p>
+      </div>
+      <p className="read-the-docs">
+        Click on the Vite and React logos to learn more
+      </p>
+    </>
+  );
+}
+
+export default App;
+```
+
+CSSの問題を解決する最も簡単な方法は、`main.jsx`で`App.css`をインポートすることです:
+
+```jsx
+import App from "./App.jsx";
+import "./index.css";
+import "./App.css";
+
+export default function Html() {
+  // we don't need to do any change here
+}
+```
+
+これで両方のCSSファイルはページ読み込み時にすぐに読み込まれ、ちらつきがなくなります。カウンターボタンは以前と同様に動作し、クライアントコンポーネントとして新しくリファクタリングしたためです。`App`コンポーネントの他の部分は静的であり、RSCsに含めるのが最適です。また2つのCSSファイルを1つに統合することもできます。2つある理由はないので、`main.jsx`でCSSのインポートを修正してください。

@@ -69,6 +69,7 @@ export function findNearestPackageData(basedir, isRoot = false) {
             packageCache.set(dir, pkgData);
             packagePathCache.set(dir, pkgRoot);
           }
+          pkgData.__pkg_dir__ = pkgRoot;
           return pkgData;
         }
       } catch {

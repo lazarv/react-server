@@ -46,14 +46,14 @@ export default function optimizeDeps() {
             if (hasImportExport) {
               return resolved;
             }
-          } catch (e) {
-            console.log("error", path, e);
+          } catch {
             // ignore
           }
           return { externalize: specifier };
         } else if (
           this.environment.name === "client" &&
           !this.environment.depsOptimizer?.isOptimizedDepFile(specifier) &&
+          !this.environment.depsOptimizer.metadata.discovered[specifier] &&
           path &&
           /\.[cm]?js$/.test(path) &&
           (bareImportRE.test(specifier) ||

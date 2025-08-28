@@ -1,5 +1,14 @@
 import { getContext } from "./context.mjs";
-import { ACTION_CONTEXT } from "./symbols.mjs";
+import { ACTION_CONTEXT, SERVER_FUNCTION_NOT_FOUND } from "./symbols.mjs";
+
+export class ServerFunctionNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = SERVER_FUNCTION_NOT_FOUND;
+    this.message = message;
+    this.stack = new Error().stack;
+  }
+}
 
 export function useActionState(action) {
   const { formData, data, error, actionId } = getContext(ACTION_CONTEXT) ?? {
@@ -8,7 +17,7 @@ export function useActionState(action) {
     error: null,
     actionId: null,
   };
-  if (actionId !== action.$$id) {
+  if (actionId !== action.$$id && error?.name !== SERVER_FUNCTION_NOT_FOUND) {
     return {
       formData: null,
       data: null,

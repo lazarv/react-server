@@ -1,0 +1,76 @@
+---
+title: マークダウン
+category: Router
+order: 7
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# マークダウン
+
+ファイルシステムベースのルーターは、すぐに使用できるMarkdownをサポートしています。標準のMarkdownファイルだけでなく、MDXやRemarkとRehypeの両方のプラグインもサポートします。
+
+<Link name="usage">
+## 使い方
+</Link>
+
+MarkdownまたはMDXを使用するには、`.md`または`.mdx`拡張子のページを作成するだけです。ファイルの内容は、React Server Componentとしてレンダリングされます。
+
+ページのルートディレクトリに、以下のような`readme.mdx`という名前のページを作成します。
+
+```md
+# Hello MDX!
+
+This is an MDX page.
+```
+
+このルートは`/readme`ですぐに利用できるようになります。
+
+Markdown/MDXドキュメントはReact Server Componentとしてレンダリングされるため、クライアントコンポーネント、フォールバックの読み込み、エラーバウンダリなどのすべてのReact機能もサポートされます。すべての標準ページと同様です。
+
+親レイアウトはMarkdown/MDXページにも適用されます。
+
+> **豆知識:** このドキュメントWebサイトも、ファイルシステムベースのルーターとMDXを使用して作成されました。
+
+<Link name="plugins">
+## プラグイン
+</Link>
+
+ファイルシステムベースのルーターでは、任意のRemarkまたはRehypeプラグインを使用できます。プラグインをインストールして、`react-server.config.mjs`ファイルに追加するだけです。以下の例では、`remark-gfm`と`rehype-highlight`を使用しています。
+
+```mjs
+import rehypeHighlight from "rehype-highlight";
+import rehypeMdxCodeProps from "rehype-mdx-code-props";
+import remarkGfm from "remark-gfm";
+
+export default {
+  mdx: {
+    remarkPlugins: [remarkGfm],
+    rehypePlugins: [rehypeHighlight, rehypeMdxCodeProps],
+  },
+};
+```
+
+<Link name="custom-mdx-components">
+## カスタムMDXコンポーネント
+</Link>
+
+カスタムコンポーネントを使用するには、プロジェクトルートに`mdx-components.jsx`または`mdx-components.tsx`ファイルを作成する必要があります。このファイルは、カスタムコンポーネントを含むオブジェクトを返す`useMDXComponents`関数をエクスポートする必要があります。
+
+```jsx
+export default function useMDXComponents() {
+  return {
+    h1: (props) => <h1 style={{ color: "red" }} {...props} />,
+  };
+}
+```
+
+`useMDXComponents`関数をエクスポートするファイルのデフォルトの場所を`react-server.config.mjs`ファイル内のどこに配置するかを指定することもできます。
+
+```mjs
+export default {
+  mdx: {
+    components: "./src/mdx-components.jsx",
+  },
+};
+```

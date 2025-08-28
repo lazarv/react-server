@@ -1,11 +1,14 @@
 ---
 title: Get Started
-order: 0
+order: 1
 ---
 
 import Link from "../../../../components/Link.jsx";
 import Card from "../../../../components/Card.jsx";
 import Pill from "../../../../components/Pill.jsx";
+import { Tabs, Tab } from "../../../../components/Tabs.jsx";
+import Pnpm from "../../../../components/pnpm.jsx";
+import Deno from "../../../../components/Deno.jsx";
 
 # Get Started
 
@@ -15,12 +18,16 @@ Nothing is easier to get started with React Server Components than `@lazarv/reac
 ## Prerequisites
 </Link>
 
-You will only need node.js and a package manager to get started. We suggest the latest node.js runtime and pnpm as the package manager,but you can use any package manager you would like to.
+You will only need node.js and a package manager to get started. We suggest the latest node.js runtime and pnpm as the package manager, but you can use any package manager you would like to.
 
-- [Node.js](https://nodejs.org)
+- [Node.js](https://nodejs.org) v20.10.0 or higher
 - [pnpm](https://pnpm.io)
 
-> Support for other JavaScript runtimes including Bun and Deno is planned. Support for multiple cloud platforms is also planned and contributions are welcome. If you would like to contribute, please open an issue on GitHub.
+or when using Bun as your JavaScript runtime, you don't need anything else, just use Bun.
+
+- [Bun](https://bun.sh) v1.2.9 or higher
+
+> **Note:** Deno is not supported yet. Please check back later for updates.
 
 <Link name="install">
 ## Install
@@ -28,9 +35,39 @@ You will only need node.js and a package manager to get started. We suggest the 
 
 Just add `@lazarv/react-server` to your project. You will not need anything else to get started with a micro-application.
 
+<Tabs name="install">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
 ```sh
 pnpm add @lazarv/react-server
 ```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npm install @lazarv/react-server
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn add @lazarv/react-server
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bun add @lazarv/react-server
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **Note:** Deno is not supported yet. Please check back later for updates.
+
+</Tab>
+
+</Tabs>
 
 <Link name="our-first-application">
 ## Our first application
@@ -50,9 +87,39 @@ export default function App() {
 
 To start your application in development mode, you can use the `react-server` CLI simply by passing the path to your application entry file. By using the `--open` flag, your application will be opened in your default browser on http://localhost:3000.
 
+<Tabs name="development-mode">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
 ```sh
-pnpm exec react-server ./App.jsx
+pnpm react-server ./App.jsx
 ```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npx react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bun --bun react-server ./App.jsx
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **Note:** Deno is not supported yet. Please check back later for updates.
+
+</Tab>
+
+</Tabs>
 
 > **Note:** if you want to open the application in your default browser, you can use the `--open` flag.
 
@@ -62,9 +129,39 @@ pnpm exec react-server ./App.jsx
 
 After you have developed your application, you can build it for production. This will create a `.react-server` folder with all files needed to run your application in production mode.
 
+<Tabs name="build">
+
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
 ```sh
-pnpm exec react-server build ./App.jsx
+pnpm react-server build ./App.jsx
 ```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npx react-server build ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn react-server build ./App.jsx
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bun --bun react-server build ./App.jsx
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **Note:** Deno is not supported yet. Please check back later for updates.
+
+</Tab>
+
+</Tabs>
 
 <Link name="production-mode">
 ## Production mode
@@ -72,11 +169,41 @@ pnpm exec react-server build ./App.jsx
 
 To start your application in production, just use the `start` command. This will start your application in production mode.
 
-```sh
-pnpm exec react-server start
-```
+<Tabs name="production-mode">
 
-> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx` to start your application in development mode.
+<Tab title={<><Pnpm className="w-4 max-h-4" />pnpm</>}>
+```sh
+pnpm react-server start
+```
+</Tab>
+
+<Tab title={<><img src="/npm.svg" alt="npm" className="w-4" />npm</>}>
+```sh
+npx react-server start
+```
+</Tab>
+
+<Tab title={<><img src="/yarn.svg" alt="yarn" className="w-4" />Yarn</>}>
+```sh
+yarn react-server start
+```
+</Tab>
+
+<Tab title={<><img src="/bun.svg" alt="bun" className="w-4" />Bun</>}>
+```sh
+bun --bun react-server start
+```
+</Tab>
+
+<Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
+
+> **Note:** Deno is not supported yet. Please check back later for updates.
+
+</Tab>
+
+</Tabs>
+
+> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx` to start your application in development mode. When using Bun, you can use `bunx --bun @lazarv/react-server` to run the `react-server` CLI.
 
 <Link name="next-steps">
 ## Next steps
@@ -149,9 +276,9 @@ Create a new React application with server-side rendering in just a few steps. S
 
 #### Todo App
 
-##### Using server actions
+##### Using server functions
 
-Build a simple Todo application with server actions. Learn how to interact with the server from your components and manage server-side operations efficiently.
+Build a simple Todo application with server functions. Learn how to interact with the server from your components and manage server-side operations efficiently.
 
     <Pill href="/tutorials/todo-app">
       Read tutorial

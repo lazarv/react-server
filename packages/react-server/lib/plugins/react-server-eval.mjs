@@ -1,13 +1,19 @@
 export default function reactServerEval(options) {
   return {
     name: "react-server:eval",
-    resolveId(id) {
-      if (id === "virtual:react-server-eval.jsx") {
+    resolveId: {
+      filter: {
+        id: /^virtual:react-server-eval\.jsx$/,
+      },
+      async handler(id) {
         return id;
-      }
+      },
     },
-    async load(id) {
-      if (id === "virtual:react-server-eval.jsx") {
+    load: {
+      filter: {
+        id: /^virtual:react-server-eval\.jsx$/,
+      },
+      async handler() {
         if (options.eval) {
           return options.eval;
         } else if (!process.env.CI && !process.stdin.isTTY) {
@@ -19,7 +25,7 @@ export default function reactServerEval(options) {
           return code;
         }
         return "throw new Error('Root module not provided')";
-      }
+      },
     },
   };
 }

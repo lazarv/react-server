@@ -2,13 +2,18 @@ export const LOGGER_CONTEXT = Symbol.for("LOGGER_CONTEXT");
 export const FORM_DATA_PARSER = Symbol.for("FORM_DATA_PARSER");
 export const MAIN_MODULE = Symbol.for("MAIN_MODULE");
 export const SERVER_CONTEXT = Symbol.for("SERVER_CONTEXT");
+export const CLIENT_MODULES_CONTEXT = Symbol.for("CLIENT_MODULES_CONTEXT");
+export const COLLECT_CLIENT_MODULES = Symbol.for("COLLECT_CLIENT_MODULES");
 export const COLLECT_STYLESHEETS = Symbol.for("COLLECT_STYLESHEETS");
 export const HTTP_CONTEXT = Symbol.for("HTTP_CONTEXT");
 export const HTTP_STATUS = Symbol.for("HTTP_STATUS");
 export const HTTP_HEADERS = Symbol.for("HTTP_HEADERS");
 export const HTTP_OUTLET = Symbol.for("HTTP_OUTLET");
+export const HTTP_RESPONSE = Symbol.for("HTTP_RESPONSE");
 export const REDIRECT_CONTEXT = Symbol.for("REDIRECT_CONTEXT");
 export const MODULE_LOADER = Symbol.for("MODULE_LOADER");
+export const ERROR_BOUNDARY = Symbol.for("ERROR_BOUNDARY");
+export const ERROR_COMPONENT = Symbol.for("ERROR_COMPONENT");
 export const ERROR_CONTEXT = Symbol.for("ERROR_CONTEXT");
 export const MEMORY_CACHE_CONTEXT = Symbol.for("MEMORY_CACHE_CONTEXT");
 export const CACHE_CONTEXT = Symbol.for("CACHE_CONTEXT");
@@ -24,11 +29,23 @@ export const STYLES_CONTEXT = Symbol.for("STYLES_CONTEXT");
 export const BUILD_OPTIONS = Symbol.for("BUILD_OPTIONS");
 export const ACTION_CONTEXT = Symbol.for("ACTION_CONTEXT");
 export const RELOAD = Symbol.for("RELOAD");
+export const RENDER = Symbol.for("RENDER");
 export const RENDER_STREAM = Symbol.for("RENDER_STREAM");
 export const RENDER_CONTEXT = Symbol.for("RENDER_CONTEXT");
+export const RENDER_HANDLER = Symbol.for("RENDER_HANDLER");
+export const RENDER_TEMPORARY_REFERENCES = Symbol.for(
+  "RENDER_TEMPORARY_REFERENCES"
+);
+export const RENDER_WAIT = Symbol.for("RENDER_WAIT");
 export const WORKER_THREAD = Symbol.for("WORKER_THREAD");
 export const PRELUDE_HTML = Symbol.for("PRELUDE_HTML");
 export const POSTPONE_STATE = Symbol.for("POSTPONE_STATE");
 export const IMPORT_MAP = Symbol.for("IMPORT_MAP");
 export const CACHE_MISS = Symbol.for("CACHE_MISS");
 export const CACHE_KEY = Symbol.for("CACHE_KEY");
+export const CACHE_PROVIDER = Symbol.for("CACHE_PROVIDER");
+export const CACHE_RESPONSE_TTL = Symbol.for("CACHE_RESPONSE_TTL");
+export const SERVER_FUNCTION_NOT_FOUND = Symbol.for(
+  "SERVER_FUNCTION_NOT_FOUND"
+);
+export const LIVE_IO = Symbol.for("LIVE_IO");

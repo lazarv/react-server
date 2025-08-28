@@ -3,10 +3,10 @@ import "./remote.css";
 import RemoteButton from "./RemoteButton";
 
 const state = { name: "" };
-export default function Remote() {
+export default function Remote({ initialName = "Anonymous", children }) {
   return (
     <>
-      <h3>Hello, {state.name || "Anonymous"}!</h3>
+      <h3>Hello, {state.name || initialName}!</h3>
       {state.name ? (
         <p>It&apos;s nice to meet you!</p>
       ) : (
@@ -22,6 +22,7 @@ export default function Remote() {
         <button type="submit">Submit</button>
       </form>
       <RemoteButton />
+      {children}
     </>
   );
 }

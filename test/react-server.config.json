@@ -2,7 +2,27 @@
   "server": {
     "hmr": false
   },
+  "console": false,
+  "overlay": false,
   "cache": {
+    "providers": {
+      "indexedb": {
+        "driver": "unstorage/drivers/indexedb",
+        "options": {
+          "base": "app",
+          "dbName": "react-server",
+          "storeName": "test"
+        }
+      },
+      "lru": "unstorage/drivers/lru-cache",
+      "rsc": {
+        "driver": "unstorage/drivers/fs",
+        "options": {
+          "type": "rsc",
+          "base": "./.cache"
+        }
+      }
+    },
     "profiles": {
       "default": {
         "ttl": 30000

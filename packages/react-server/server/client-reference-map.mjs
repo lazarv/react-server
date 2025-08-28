@@ -4,7 +4,7 @@ import { MANIFEST } from "@lazarv/react-server/server/symbols.mjs";
 export const clientCache = (globalThis.__react_server_client_components__ =
   globalThis.__react_server_client_components__ || new Map());
 
-export const clientReferenceMap = ({ remote, origin }) =>
+export const clientReferenceMap = ({ remote, origin } = {}) =>
   new Proxy(
     {},
     {
@@ -15,20 +15,29 @@ export const clientReferenceMap = ({ remote, origin }) =>
           const manifest = getContext(MANIFEST);
           if (!manifest) {
             def = {
-              id: remote ? `${origin}/${id}` : id,
+              id,
               chunks: [],
               name,
               async: true,
             };
           } else {
+            const rawId = id.replace(/^(?:__\/)+/, (match) =>
+              match.replace(/__\//g, "../")
+            );
+            const file = Object.values(manifest.browser).find(
+              (entry) =>
+                entry.src?.includes(rawId) || rawId.includes(entry.file)
+            )?.file;
+            if (!file) {
+              throw new Error(
+                `Client reference "${$$id}" (${id.replace(
+                  /^(?:__\/)+/,
+                  (match) => match.replace(/__\//g, "../")
+                )}) not found in the manifest.`
+              );
+            }
             def = {
-              id: `${remote ? origin : ""}/${
-                manifest.browser[
-                  id.replace(/^(?:__\/)+/, (match) =>
-                    match.replace(/__\//g, "../")
-                  )
-                ]?.file
-              }`,
+              id: file ? `${remote ? origin : ""}/${file}` : id,
               chunks: [],
               name,
               async: true,

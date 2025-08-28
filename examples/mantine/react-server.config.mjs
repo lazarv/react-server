@@ -5,13 +5,23 @@ export default {
     exclude: ["@mantine/core"],
   },
   build: {
-    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("@mantine/core")) {
-            return "@mantine/core";
-          }
+        advancedChunks: {
+          groups: [
+            {
+              name: "@mantine/core",
+              test: /@mantine\/core\//,
+            },
+            {
+              name: "@mantine/modals",
+              test: /@mantine\/modals\//,
+            },
+            {
+              name: "@mantine/notifications",
+              test: /@mantine\/notifications\//,
+            },
+          ],
         },
       },
     },

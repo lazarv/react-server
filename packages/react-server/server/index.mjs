@@ -1,6 +1,12 @@
 export { useResponseCache, withCache } from "./cache.mjs";
 export { cookie, deleteCookie, setCookie } from "./cookies.mjs";
-export { headers } from "./http-headers.mjs";
+export {
+  headers,
+  setHeader,
+  appendHeader,
+  deleteHeader,
+  clearHeaders,
+} from "./http-headers.mjs";
 export { status } from "./http-status.mjs";
 export { redirect } from "./redirects.mjs";
 export {
@@ -16,5 +22,8 @@ export {
   useUrl,
 } from "./request.mjs";
 export { revalidate } from "./revalidate.mjs";
-export { invalidate, useCache } from "../memory-cache/index.mjs";
+export { invalidate, useCache } from "../cache/index.mjs";
 export { reload } from "./reload.mjs";
+export { useRender } from "./render.mjs";
+export { getRuntime } from "./runtime.mjs";
+export { version } from "./version.mjs";

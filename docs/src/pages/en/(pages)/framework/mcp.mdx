@@ -1,0 +1,233 @@
+---
+title: MCP
+category: Framework
+order: 14
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# MCP (Model Context Protocol)
+
+MCP (Model Context Protocol) is a structured way to expose server-side functions, tools, and resources to language models and other automated agents. In the context of `@lazarv/react-server`, MCP enables you to define typed server functions that can be discovered, validated, and invoked through a standardized interface. This makes it easy to integrate AI tooling, build interactive developer workflows, or expose internal capabilities for automation in a safe and extensible way.
+
+> **Warning:** MCP is an experimental feature in `@lazarv/react-server` and may change in future releases. It is not yet recommended for production use, but you can try it out in your applications to explore its capabilities and give feedback.
+
+<Link name="why-mcp">
+## Why MCP?
+</Link>
+
+Traditional APIs are often too rigid, untyped, or verbose for seamless interaction with language models and automation agents. MCP provides a lightweight, declarative format that makes server functions self-describing, type-safe, and LLM-friendly. By adopting MCP in `@lazarv/react-server`, you can expose tools, resources, and prompts directly from your application without building complex wrappers or extra infrastructure—enabling better automation, devtools, and AI integrations out of the box.
+
+While MCP handlers — such as tools, resources, and prompts—are implemented as regular React Server Functions using `"use server"`, they add an extra layer of semantic meaning and metadata. A Server Function alone is just a callable function on the server, but an MCP handler is a self-describing unit with a defined id, title, input schema, and invocation template. This makes MCP handlers discoverable by LLMs, compatible with structured toolchains, and easier to integrate into automated workflows — without giving up the simplicity and ergonomics of native Server Functions.
+
+<Link name="how-to-implement">
+## How to implement
+</Link>
+
+To implement MCP in your `@lazarv/react-server` application, you can use the `createServer` function from the `@lazarv/react-server/mcp` package. This function allows you to define MCP handlers such as tools, resources, and prompts that can be discovered and invoked by language models or other automated agents.
+
+```javascript filename="mcp.server.mjs"
+import { createServer } from "@lazarv/react-server/mcp";
+
+export default createServer({
+  tools: {
+    // Define your tools here
+  },
+  resources: {
+    // Define your resources here
+  },
+  prompts: {
+    // Define your prompts here
+  },
+});
+```
+
+This will create an MCP server that exposes the defined tools, resources, and prompts. You can then use these handlers in your application to provide functionality that can be discovered and invoked by language models or other automated agents.
+
+It's best to organize your MCP handlers in separate files or directories, such as `mcp/tools`, `mcp/resources`, and `mcp/prompts`, to keep your codebase clean and maintainable. Each handler can be defined using the `createTool`, `createResource`, or `createPrompt` functions from the `@lazarv/react-server/mcp` package.
+
+You can expose your MCP handlers in a `mcp.server.mjs` file, which will be automatically discovered by the file-system based router in `@lazarv/react-server`. Using an API route like this allows you to create a public endpoint that can be accessed by language models or other automated agents to discover and invoke your MCP handlers. If the `mcp.server.mjs` file is placed in the root of your application, it will be automatically registered as an MCP server and will expose the defined handlers at the `/mcp` route.
+
+<Link name="mcp-handlers">
+## MCP handlers
+</Link>
+
+MCP handlers are the core building blocks of the Model Context Protocol in `@lazarv/react-server`. They allow you to define server-side functionality that can be discovered and invoked by language models or other automated agents. The main types of MCP handlers are:
+
+- **Tools**: These are server functions that perform specific actions or computations. They can be used to expose functionality such as data processing, external API calls, or any other server-side logic that can be invoked by language models.
+- **Resources**: These are server functions that provide access to data or state. They can be used to expose data sources, configuration settings, or any other server-side resources that can be accessed by language models.
+- **Prompts**: These are server functions that provide predefined prompts or templates for language models. They can be used to guide the interaction with language models, providing context or instructions for generating responses.
+
+<Link name="tools">
+## Tools
+</Link>
+
+MCP tools are server functions that perform specific actions or computations. They can be used to expose functionality such as data processing, external API calls, or any other server-side logic that can be invoked by language models. To create an MCP tool, you can use the `createTool` function from the `@lazarv/react-server/mcp` package.
+
+```js
+"use server";
+
+import { createTool } from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+export const myTool = createTool({
+  id: "my-tool",
+  title: "My Tool",
+  description: "This is a sample tool",
+  inputSchema: {
+    input: z.string().describe("Input for the tool"),
+  },
+  async handler({ input }) {
+    // Perform some action with the input
+    return `Processed input: ${input}`;
+  },
+});
+```
+
+This will create an MCP tool with the specified id, title, description, and input schema. The `handler` function will be invoked when the tool is called, and it can perform any server-side logic needed to process the input and return a result.
+
+<Link name="resources">
+## Resources
+</Link>
+
+MCP resources are server functions that provide access to data or state. They can be used to expose data sources, configuration settings, or any other server-side resources that can be accessed by language models. To create an MCP resource, you can use the `createResource` function from the `@lazarv/react-server/mcp` package.
+
+```js
+"use server";
+
+import { createResource } from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+export const myResource = createResource({
+  id: "my-resource",
+  template: "my-resource://{id}",
+  title: "My Resource",
+  description: "This is a sample resource",
+  async handler({ id }) {
+    // Fetch or compute the resource data
+    return `Resource data for ${id}`;
+  },
+});
+```
+
+This will create an MCP resource with the specified id, template, title, and description. The `handler` function will be invoked when the resource is accessed, and it can perform any server-side logic needed to fetch or compute the resource data.
+
+<Link name="prompts">
+## Prompts
+</Link>
+
+MCP prompts are server functions that provide predefined prompts or templates for language models. They can be used to guide the interaction with language models, providing context or instructions for generating responses. To create an MCP prompt, you can use the `createPrompt` function from the `@lazarv/react-server/mcp` package.
+
+```js
+"use server";
+
+import { createPrompt } from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+export const myPrompt = createPrompt({
+  id: "my-prompt",
+  title: "My Prompt",
+  description: "This is a sample prompt",
+  argsSchema: {
+    context: z.string().describe("Context for the prompt"),
+  },
+  async handler({ context }) {
+    // Generate a response based on the context
+    return `Generated response for context: ${context}`;
+  },
+});
+```
+
+This will create an MCP prompt with the specified id, title, description, and input schema. The `handler` function will be invoked when the prompt is used, and it can perform any server-side logic needed to generate a response based on the provided context.
+
+<Link name="invoking-handlers">
+## Invoking handlers
+</Link> 
+
+To integrate MCP handlers into your `@lazarv/react-server` application, you can import them and use them in your components or server functions. For example, you can use an MCP tool in a React Server Component like this:
+
+```jsx
+import { myTool } from "../mcp/tools/my-tool.mjs";
+export default async function MyServerFunction() {
+  const result = await myTool({ input: "Hello, world!" });
+
+  return <div>Tool result: {result}</div>;
+}
+```
+
+This will invoke the `myTool` MCP tool with the specified input and render the result in the component. You can also use MCP resources and prompts in a similar way, allowing you to build rich, interactive applications that leverage the power of the Model Context Protocol.
+
+You can also use MCP handlers in your client components by importing them and invoking them as needed. For example, you can use an MCP resource in a client component like this:
+
+```jsx
+"use client";
+
+import { myTool } from "../mcp/tools/my-tool.mjs";
+
+export default async function MyClientComponent() {
+  return (
+    <div>
+      <h1>My Client Component</h1>
+      <button
+        onClick={async () => {
+          const data = await myTool({ input: "Hello, world!" });
+          console.log("Tool result:", data);
+        }}
+      >
+        Fetch Tool Data
+      </button>
+    </div>
+  );
+}
+```
+
+This will allow you to fetch the resource data when the button is clicked, demonstrating how MCP handlers can be used in both server and client components to provide a seamless experience.
+
+Don't forget to annotate your MCP handlers with the `"use server"` directive to ensure they are treated as server-side functions. This is important for the `@lazarv/react-server` framework to correctly expose the handlers and allow them to be invoked by your application.
+
+MCP handlers are called using Server Functions in your application, while exposed to MCP clients using the `createServer` function. This allows you to define your handlers in a way that is compatible with both the `@lazarv/react-server` framework and the Model Context Protocol, enabling seamless integration and interaction with language models and other automated agents.
+
+<Link name="authentication">
+## Authentication
+</Link>
+
+`@lazarv/react-server` does not currently support MCP authentication, so you will need to implement your own authentication mechanism if you want to secure your MCP handlers. You can use the framework's built-in hooks, such as `cookie` or `headers`, to manage authentication and authorization for your MCP endpoints.
+
+<Link name="sessions">
+## Sessions
+</Link>
+
+MCP sessions are a way to maintain state across multiple requests, allowing you to create interactive workflows that can remember user input or context. However, `@lazarv/react-server` does not currently implement MCP sessions, so you will need to manage state in your application using other methods, such as React state or server-side storage.
+
+All `@lazarv/react-server` server-side APIs are available for you tu use in MCP handlers, so you can use these to handle session and state management for stateful interactions. For example, you can use the `cookie` or `headers` hook to manage the session, or use a database or in-memory store to persist state across requests.
+
+<Link name="example-application">
+## Example application
+</Link>
+
+You can find examples of MCP handlers in the [examples/mcp](https://github.com/lazarv/react-server/tree/main/examples/mcp) directory of the React Server repository.
+
+<Link name="mcp-inspector">
+## MCP Inspector
+</Link>
+
+The MCP Inspector is a tool that allows you to explore and interact with the MCP handlers defined in your `@lazarv/react-server` application or other MCP servers. It provides a user-friendly interface for discovering available tools, resources, and prompts, as well as testing their functionality.
+
+To start the MCP Inspector, you can run the following command in your terminal:
+
+```bash
+DANGEROUSLY_OMIT_AUTH=true npx @modelcontextprotocol/inspector
+```
+
+As MCP authentication is not supported in `@lazarv/react-server`, you can use the `DANGEROUSLY_OMIT_AUTH` flag to bypass authentication and access the MCP handlers directly.
+
+`@lazarv/react-server` always exposes your MCP handlers using streaming HTTP. `stdio` and Server-Sent Events (SSE) are not supported, so the MCP Inspector will not work with those protocols. Instead, it has to use streaming HTTP to interact with the MCP handlers.
+
+<Link name="read-more">
+## Read more
+</Link>
+
+Some useful resources for learning more about the Model Context Protocol include:
+
+- [Model Context Protocol Specification](https://modelcontextprotocol.org/specification)
+- [Model Context Protocol TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)

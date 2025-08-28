@@ -1,71 +1,173 @@
-import { realpathSync } from "node:fs";
 import { register } from "node:module";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parentPort } from "node:worker_threads";
 
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
-import {
-  ESModulesEvaluator,
-  ModuleRunner,
-  RemoteRunnerTransport,
-} from "vite/module-runner";
+import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
 
 import { ContextManager } from "../async-local-storage.mjs";
+import { clientAlias } from "../build/resolve.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
-import { findPackageRoot } from "../utils/module.mjs";
 
 sys.experimentalWarningSilence();
 alias();
 register("../loader/node-loader.mjs", import.meta.url);
 
-const cwd = sys.cwd();
+const loggerMethods = [
+  "debug",
+  "dir",
+  "error",
+  "info",
+  "log",
+  "table",
+  "time",
+  "timeEnd",
+  "timeLog",
+  "trace",
+  "warn",
+];
+Object.keys(console).forEach((method) => {
+  if (typeof console[method] === "function" && loggerMethods.includes(method)) {
+    const originalMethod = console[method].bind(console);
+    console[method] = (...args) => {
+      import("react").then(({ default: React }) => {
+        try {
+          React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
+            {
+              A: null,
+              TaintRegistryPendingRequests: new Set(),
+              TaintRegistryObjects: new Map(),
+              TaintRegistryValues: new Map(),
+              TaintRegistryByteLengths: new Map(),
+            };
+          import("react-server-dom-webpack/server.browser").then(
+            ({ renderToReadableStream }) => {
+              delete React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+              const cwd = process.cwd();
+              const normalizedArgs = args.map((arg) => {
+                if (arg instanceof Error) {
+                  const stacklines = arg.stack
+                    .split("\n")
+                    .filter((it) => it.trim().startsWith("at "))
+                    .map((it) =>
+                      it
+                        .trim()
+                        .replace(location.origin, it.includes(cwd) ? "" : cwd)
+                        .replace("/@fs", "")
+                        .replace(/\?v=[a-z0-9]+/, "")
+                    );
+                  arg.stack = stacklines.join("\n");
+                }
+                return arg;
+              });
 
-const remoteTransport = new RemoteRunnerTransport({
-  send: (data) => {
-    parentPort.postMessage({ type: "import", data });
-  },
-  onMessage: (listener) =>
-    parentPort.on("message", (payload) => {
-      if (payload.type === "import") {
-        listener(payload.data);
-      }
-    }),
-  timeout: 5000,
+              const stream = renderToReadableStream({
+                method,
+                args: normalizedArgs,
+              });
+              (async () => {
+                let data = "";
+
+                const decoder = new TextDecoder("utf-8");
+                for await (const chunk of stream) {
+                  data += decoder.decode(chunk);
+                }
+                try {
+                  parentPort.postMessage({
+                    type: "react-server:console",
+                    data,
+                  });
+                } catch {
+                  originalMethod(...args);
+                }
+              })();
+            }
+          );
+        } catch {
+          // ignore
+        }
+      });
+    };
+  }
 });
-remoteTransport.fetchModule = async (id, importer) => {
-  if (
-    [
-      "react",
-      "react/jsx-runtime",
-      "react/jsx-dev-runtime",
-      "react-dom/client",
-      "react-server-dom-webpack/client.edge",
-    ].includes(id)
-  ) {
-    return { externalize: id };
-  }
-  try {
-    return await remoteTransport.resolve("fetchModule", id, importer);
-  } catch {
-    try {
-      const packageRoot = realpathSync(findPackageRoot(importer));
-      let parentPath = join(packageRoot, "..");
-      while (basename(parentPath) !== "node_modules") {
-        parentPath = join(parentPath, "..");
-      }
-      parentPath = join(parentPath, "..");
-      return await remoteTransport.resolve("fetchModule", id, parentPath);
-    } catch {
-      return { externalize: id };
+
+const cwd = sys.cwd();
+const clientAliasEntries = clientAlias(true).reduce(
+  (acc, { id, replacement }) => {
+    if (replacement) {
+      acc[id] = replacement;
     }
-  }
-};
+    return acc;
+  },
+  {}
+);
+
+let runnerOnMessage;
 const moduleRunner = new ModuleRunner(
   {
     root: cwd,
-    transport: remoteTransport,
+    transport: {
+      send: async ({ type, event, data }) => {
+        if (type === "custom" && event === "vite:invoke") {
+          const {
+            name,
+            id,
+            data: [specifier],
+          } = data;
+
+          const aliased = Object.entries(clientAliasEntries).find(
+            ([, url]) => specifier.includes(url) || url.includes(specifier)
+          )?.[0];
+
+          if (aliased) {
+            const payload = {
+              type,
+              event,
+              data: {
+                name,
+                id: `response:${id.split(":")[1]}`,
+                data: {
+                  result: {
+                    externalize: aliased,
+                    type: "commonjs",
+                  },
+                },
+              },
+            };
+
+            setImmediate(() => runnerOnMessage(payload));
+            return;
+          }
+
+          parentPort.postMessage({
+            type: "import",
+            data: { type, event, data },
+          });
+        }
+      },
+      connect({ onMessage, onDisconnection }) {
+        runnerOnMessage = onMessage;
+        parentPort.on("message", ({ type, data }) => {
+          if (type === "import") {
+            try {
+              onMessage(data);
+            } catch {
+              onMessage({
+                ...data,
+                data: {
+                  result: {
+                    externalize: data.data.result.externalize,
+                  },
+                },
+              });
+            }
+          }
+        });
+        parentPort.on("close", onDisconnection);
+      },
+    },
   },
   new ESModulesEvaluator()
 );

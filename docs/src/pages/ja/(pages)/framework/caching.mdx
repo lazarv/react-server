@@ -1,0 +1,165 @@
+---
+title: キャッシュ
+category: Framework
+order: 1
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# キャッシュ
+
+`@lazarv/react-server`は、レンダリングレスポンスのキャッシュ機構を提供しており、TTLや複合キャッシュキーのための組み込みのインメモリキャッシュを提供しています。
+
+<Link name="レスポンスキャッシュ">
+## レスポンスキャッシュ
+</Link>
+
+`withCache` ラッパーや `useResponseCache` フックを使用してサーバコンポーネントを使用する場合、レスポンスのキャッシュを有効にすることができます。ラップされたコンポーネントやキャッシュフックを使用したコンポーネントだけでなく、キャッシュが有効になっている HTTP レスポンス全体がキャッシュされます。
+
+レスポンスキャッシュは、キャッシュプロバイダとHTTP Cache-Control（stale-while-revalidate付き）の両方を使用しています。サーバ側のキャッシュは、キャッシュが無効になるまでリクエストに使用されます。クライアント側のキャッシュは、同じクライアントからのリクエストに使用されます。
+
+```jsx
+import { withCache } from "@lazarv/react-server";
+
+export default withCache(async function App() {
+  return <div>{Math.random()}</div>;
+}, 30 * 1000);
+```
+
+```jsx
+import { useResponseCache } from "@lazarv/react-server";
+
+export default async function App() {
+  useResponseCache(30 * 1000);
+
+  return <div>{Math.random()}</div>;
+}
+```
+
+<Link name="インメモリキャッシュ">
+## インメモリキャッシュ
+</Link>
+
+`@lazarv/react-server` から `useCache` ヘルパー関数をインポートすることで、インメモリキャッシュを使用することができます。このキャッシュを使用して、TTL が無効で複合キャッシュキーを持つ非同期の値をキャッシュすることができます。キャッシュは全てのサーバコンポーネントで共有されます。
+
+```jsx
+import { useCache } from "@lazarv/react-server";
+import { readFile } from "node:fs/promises";
+
+export default async function FileContent({ filename }) {
+  const file = await useCache(
+    ["file", filename],
+    async () => readFile(filename, "utf-8"),
+    30 * 1000,
+  );
+
+  return <pre>{file}</pre>;
+}
+```
+
+<Link name="revalidate">
+## Revalidate
+</Link>
+
+`revalidate`関数を使用すると、複合キーを使用してキャッシュを再検証することができます。この関数を呼び出すと、指定したキーのキャッシュが即座に無効になります。この関数はサーバコンポーネントでのみ使用できます。
+
+```jsx
+import { revalidate } from "@lazarv/react-server";
+
+export default async function App() {
+  return (
+    <div>
+      <FileContent filename="temp.txt" />
+      <form
+        action={async () => {
+          "use server";
+          revalidate(["file", filename]);
+          redirect("/");
+        }}
+      >
+        <button type="submit">Refresh</button>
+      </form>
+    </div>
+  );
+}
+```
+
+<Link name="use-cache">
+## "use cache" ディレクティブ
+</Link>
+
+`use cache` ディレクティブを使うと、どの関数でもキャッシュを有効にすることができます。このディレクティブは `profile`、`ttl`、`tags` オプションを受け付けます。`profile` オプションは使用するキャッシュプロファイルを指定するために使用します。これはキャッシュプロファイルの `ttl` オプションよりも優先されます。`tags` オプションはキャッシュキーのタグを指定するために使用します。
+
+`tags` オプションを使用すると、特定のタググループのキャッシュを無効にするときに指定するタグのリストをカンマ区切りで指定することができます。例えば、todosを取得する関数があり、すべてのtodosのキャッシュを無効にしたい場合、`tags`オプションを使用して、`todos`タグをキャッシュキーに追加することができます。
+
+```jsx filename="App.jsx"
+import { invalidate } from "@lazarv/react-server";
+
+async function getTodos() {
+  "use cache; ttl=200; tags=todos";
+  const res = await fetch("https://jsonplaceholder.typicode.com/todos");
+  return {
+    timestamp: Date.now(),
+    data: await res.json(),
+  };
+}
+
+export default async function App() {
+  const todos = await getTodos();
+  return (
+    <form
+      action={async () => {
+        "use server";
+        invalidate(getTodos);
+      }}
+    >
+      <button type="submit">Refresh</button>
+      <pre>{JSON.stringify(todos, null, 2)}</pre>
+    </form>
+  );
+}
+```
+
+`use cache`ディレクティブと `use server`ディレクティブはどちらもサーバ専用なので、同じファイル内で使うことができます。
+
+`invalidate`は将来的にどのようなキャッシュの実装にも対応できるように非同期関数ですが、`use cache`ディレクティブは現在デフォルトでインメモリキャッシュを使用しており、インメモリキャッシュは同期的なので、`invalidate`関数を待つ必要はありません。
+
+キャッシュプロファイルはサーバの設定で定義します。キャッシュプロファイルはいくつでも指定することができ、`use cache` ディレクティブの中で名前を指定して参照することができます。キャッシュプロファイルには `ttl` と `tags` オプションを含めることができ、 `use cache` ディレクティブで指定しなかった場合に使用されます。
+
+```json filename="react-server.config.json"
+{
+  "cache": {
+    "profiles": {
+      "todos": { "ttl": 30000, "tags": "todos" }
+    }
+  }
+}
+```
+キャッシュプロファイルを定義した後は、`use cache` ディレクティブでその名前を参照することができます。
+
+```jsx filename="App.jsx"
+async function getTodos() {
+  "use cache; profile=todos";
+  const res = await fetch("https://jsonplaceholder.typicode.com/todos");
+  return {
+    timestamp: Date.now(),
+    data: await res.json(),
+  };
+}
+```
+
+`use cache` ディレクティブは現在のところインメモリキャッシュを使用します。カスタムキャッシュアダプタは `use cache` ディレクティブではまだサポートされていません。
+
+<Link name="キャッシュアダプタ">
+## キャッシュアダプタ
+</Link>
+
+デフォルトのインメモリキャッシュの代わりに使用するキャッシュアダプタを指定することができます。デフォルトのキャッシュアダプタは `@lazarv/react-server/memory-cache` にあります。サーバ設定で `cache` オプションを使用することで、別のキャッシュアダプタを指定することができます  。キャッシュアダプタは、キャッシュインスタンスを返す `init$` 関数をエクスポートするモジュールでなければなりません。キャッシュは `@lazarv/react-server` の `ReactServerCache` インタフェースを実装しなければなりません。キャッシュアダプタの実装例は `@lazarv/react-server/memory-cache` モジュールで、[packages/react-server/memory-cache/index.mjs](https://github.com/lazarv/react-server/blob/main/packages/react-server/memory-cache/index.mjs) にあります。
+
+```mjs filename="react-server.config.json"
+export default {
+  cache: {
+    module: "./src/custom-cache",
+  },
+};
+```

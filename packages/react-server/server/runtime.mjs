@@ -9,11 +9,6 @@ export function getRuntime(type) {
   return store?.[type];
 }
 
-/**
- * @template T
- * @param {string | Symbol} type
- * @param {T} context
- * */
 export function runtime$(type, context) {
   const store = RuntimeContextStorage.getStore();
   const delta = typeof type === "object" ? type : { [type]: context };

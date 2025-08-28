@@ -3,10 +3,8 @@
 import { Link, usePathname } from "@lazarv/react-server/navigation";
 import { NavLink } from "@mantine/core";
 
-export function MainNavigation({ serverPathname }: { serverPathname: string }) {
-  const clientPathname = usePathname();
-  const pathname =
-    typeof window !== "undefined" ? clientPathname : serverPathname;
+export function MainNavigation() {
+  const pathname = usePathname();
 
   return (
     <>

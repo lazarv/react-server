@@ -128,7 +128,7 @@ export default function useServerInline(profiles, providers = {}, type) {
                 name: cacheKey(node),
                 identifier:
                   node.type === "FunctionDeclaration"
-                    ? node.id?.name ?? "_default"
+                    ? (node.id?.name ?? "_default")
                     : null,
                 params: [],
                 locals: [],

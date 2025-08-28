@@ -1,0 +1,35 @@
+{
+  "name": "hello-world-aws",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "react-server build",
+    "dev": "react-server",
+    "noop": "echo No operation",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-aws": "workspace:^",
+    "aws-cdk-lib": "^2.173.1",
+    "constructs": "^10.4.2",
+    "source-map-support": "^0.5.21",
+    "sst": "3.4.25"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.146",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.3.0",
+    "aws-cdk": "^2.173.1",
+    "serverless": "3.40.0",
+    "serverless-cloudfront-invalidate": "^1.12.2",
+    "serverless-s3-sync": "^3.3.0",
+    "serverless-scriptable-plugin": "^1.3.1",
+    "tsx": "^4.19.2"
+  }
+}

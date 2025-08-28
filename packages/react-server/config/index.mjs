@@ -136,8 +136,8 @@ export async function loadConfig(initialConfig, options = {}) {
   const configKeys = Object.keys(config);
   const root = configKeys.includes(".")
     ? "."
-    : configKeys.find((key) => configKeys.every((it) => it.startsWith(key))) ??
-      ".";
+    : (configKeys.find((key) => configKeys.every((it) => it.startsWith(key))) ??
+      ".");
   config[CONFIG_ROOT] = config[root] = merge(
     {},
     defaultConfig,

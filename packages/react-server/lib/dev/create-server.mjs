@@ -399,7 +399,7 @@ export default async function createServer(root, options) {
 
   const viteConfig =
     typeof config.vite === "function"
-      ? config.vite(devServerConfig) ?? devServerConfig
+      ? (config.vite(devServerConfig) ?? devServerConfig)
       : merge(devServerConfig, config.vite);
 
   if (options.force) {
@@ -730,7 +730,7 @@ export default async function createServer(root, options) {
 
   runtime$(
     typeof config.runtime === "function"
-      ? config.runtime(initialRuntime) ?? initialRuntime
+      ? (config.runtime(initialRuntime) ?? initialRuntime)
       : {
           ...initialRuntime,
           ...config.runtime,
@@ -799,7 +799,7 @@ export default async function createServer(root, options) {
     createMiddleware(
       compose(
         typeof config.handlers === "function"
-          ? config.handlers(initialHandlers) ?? initialHandlers
+          ? (config.handlers(initialHandlers) ?? initialHandlers)
           : [...initialHandlers, ...(config.handlers ?? [])]
       )
     )

@@ -604,7 +604,7 @@ function getFlightResponse(url, options = {}) {
       activeChunk.set(options.outlet || url, cache.get(options.outlet || url));
     } else if (!options.fromScript) {
       const src = new URL(
-        url === PAGE_ROOT ? location.href : options.url ?? url,
+        url === PAGE_ROOT ? location.href : (options.url ?? url),
         location
       );
       const outlet =

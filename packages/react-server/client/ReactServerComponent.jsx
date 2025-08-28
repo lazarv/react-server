@@ -299,7 +299,7 @@ export default function ReactServerComponent({
         isolate={isolate}
         request={request}
         remoteProps={remoteProps}
-        live={live ? url ?? parent.url ?? true : false}
+        live={live ? (url ?? parent.url ?? true) : false}
       >
         {children}
       </FlightComponent>

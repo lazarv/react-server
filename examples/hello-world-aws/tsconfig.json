@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "jsx": "preserve",
+    "strict": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["react/experimental", "react-dom/experimental", "node"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "plugins": [{ "name": "typescript-plugin-css-modules" }],
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}

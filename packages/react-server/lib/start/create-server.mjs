@@ -50,7 +50,7 @@ export default async function createServer(root, options) {
   };
   runtime$(
     typeof config.runtime === "function"
-      ? config.runtime(initialRuntime) ?? initialRuntime
+      ? (config.runtime(initialRuntime) ?? initialRuntime)
       : {
           ...initialRuntime,
           ...config.runtime,
@@ -89,7 +89,7 @@ export default async function createServer(root, options) {
   const middlewares = createMiddleware(
     compose(
       typeof config.handlers === "function"
-        ? config.handlers(initialHandlers) ?? initialHandlers
+        ? (config.handlers(initialHandlers) ?? initialHandlers)
         : [...initialHandlers, ...(config.handlers ?? [])]
     ),
     {

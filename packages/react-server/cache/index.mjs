@@ -66,7 +66,7 @@ export async function useCache(
 
   let cache = provider
     ? cacheInstances.get(provider.name)
-    : getContext(MEMORY_CACHE_CONTEXT) ?? cacheInstances.get("default");
+    : (getContext(MEMORY_CACHE_CONTEXT) ?? cacheInstances.get("default"));
 
   if (provider && !cacheInstances.has(provider.name)) {
     const config = forRoot()?.cache?.providers?.[provider.name];

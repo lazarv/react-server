@@ -5,7 +5,7 @@ export class ServerFunctionNotFoundError extends Error {
   constructor(message) {
     super(message);
     this.name = SERVER_FUNCTION_NOT_FOUND;
-    this.message = message;
+    this.message = message ?? "Server Function Not Found";
     this.stack = new Error().stack;
   }
 }
@@ -21,7 +21,7 @@ export function useActionState(action) {
     return {
       formData: null,
       data: null,
-      error: null,
+      error: error ?? null,
       actionId: action.$$id,
     };
   }

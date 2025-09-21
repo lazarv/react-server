@@ -26,7 +26,7 @@ export default function visit(node, context) {
             attr.name === "name" &&
             attr.value.startsWith("$ACTION_ID_")
           ) {
-            props.name = "remote:" + attr.value;
+            props.name = "remote://" + attr.value;
             return props;
           }
           if (

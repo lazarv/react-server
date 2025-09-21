@@ -19,14 +19,14 @@ export let serverLogs;
 export const testCwd = process.cwd();
 
 console.log = (...args) => {
-  logs.push(args.join(" "));
-  serverLogs.push(args.join(" "));
+  logs?.push(args.join(" "));
+  serverLogs?.push(args.join(" "));
 };
 
 const consoleError = console.error;
 console.error = (...args) => {
-  logs.push(args.join(" "));
-  serverLogs.push(args.join(" "));
+  logs?.push(args.join(" "));
+  serverLogs?.push(args.join(" "));
   consoleError(...args);
 };
 

@@ -20,7 +20,6 @@ import {
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
   CONFIG_ROOT,
-  FORM_DATA_PARSER,
   IMPORT_MAP,
   LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
@@ -31,13 +30,7 @@ import {
 import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
-import {
-  compose,
-  cookie,
-  cors,
-  createMiddleware,
-  parseMultipartFormData,
-} from "../http/index.mjs";
+import { compose, cookie, cors, createMiddleware } from "../http/index.mjs";
 import {
   alias,
   moduleAliases,
@@ -662,7 +655,6 @@ export default async function createServer(root, options) {
           }),
         }
       : null,
-    [FORM_DATA_PARSER]: parseMultipartFormData,
     [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
     [COLLECT_STYLESHEETS]: function collectCss(rootModule) {
       const styles = [];

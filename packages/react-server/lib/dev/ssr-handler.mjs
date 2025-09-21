@@ -15,7 +15,6 @@ import {
   CONFIG_CONTEXT,
   ERROR_BOUNDARY,
   ERROR_CONTEXT,
-  FORM_DATA_PARSER,
   HTTP_CONTEXT,
   IMPORT_MAP,
   LOGGER_CONTEXT,
@@ -45,7 +44,6 @@ export default async function ssrHandler(root) {
   const ssrLoadModule = getRuntime(MODULE_LOADER);
   const importMap = getRuntime(IMPORT_MAP);
   const logger = getRuntime(LOGGER_CONTEXT);
-  const formDataParser = getRuntime(FORM_DATA_PARSER);
   const memoryCacheContext = getRuntime(MEMORY_CACHE_CONTEXT);
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
@@ -74,7 +72,6 @@ export default async function ssrHandler(root) {
                   "/"
                 )
             ),
-            [FORM_DATA_PARSER]: formDataParser,
             [MEMORY_CACHE_CONTEXT]: noCache ? null : memoryCacheContext,
             [REDIRECT_CONTEXT]: {},
             [COLLECT_CLIENT_MODULES]: collectClientModules,
@@ -119,6 +116,7 @@ export default async function ssrHandler(root) {
               }
 
               const handler = async () => {
+                let middlewareError = null;
                 try {
                   const middlewares = await root_init$?.();
                   if (middlewares) {
@@ -134,7 +132,12 @@ export default async function ssrHandler(root) {
                   if (redirect?.response) {
                     return redirect.response;
                   } else {
-                    throw e;
+                    middlewareError = new Error(
+                      e?.message ?? "Internal Server Error",
+                      {
+                        cause: e,
+                      }
+                    );
                   }
                 }
 
@@ -153,7 +156,7 @@ export default async function ssrHandler(root) {
                 context$(STYLES_CONTEXT, styles);
 
                 await module_loader_init$?.(ssrLoadModule, moduleCacheStorage);
-                return render(Component);
+                return render(Component, {}, { middlewareError });
               };
 
               context$(RENDER_HANDLER, handler);

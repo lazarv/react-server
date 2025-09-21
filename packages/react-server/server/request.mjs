@@ -1,6 +1,5 @@
 import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
 import {
-  FORM_DATA_PARSER,
   HTTP_CONTEXT,
   HTTP_OUTLET,
   HTTP_RESPONSE,
@@ -44,7 +43,7 @@ export async function useResponse() {
   return getContext(HTTP_RESPONSE);
 }
 
-export async function useFormData(handleFile) {
+export async function useFormData() {
   const request = getContext(HTTP_CONTEXT).request;
   if (request.headers.get("content-type") !== "multipart/form-data") {
     const body = await request.text();
@@ -55,9 +54,7 @@ export async function useFormData(handleFile) {
     }
     return formData;
   }
-  return getContext(FORM_DATA_PARSER)(request, {
-    handleFile,
-  });
+  return request.formData();
 }
 
 const urlProperties = Object.getOwnPropertyNames(URL.prototype).filter(

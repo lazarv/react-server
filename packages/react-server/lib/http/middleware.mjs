@@ -98,7 +98,13 @@ export function createMiddleware(handler, options = {}) {
           response.headers.append("set-cookie", c);
       res.statusCode = response.status;
       for (const [k, v] of response.headers.entries()) res.setHeader(k, v);
-      if (req.method === "HEAD" || !response.body) return res.end();
+      if (req.method === "HEAD" || !response.body) {
+        res.end();
+        if (res.statusCode === 413 && !response.body) {
+          req.resume();
+        }
+        return;
+      }
       // Use Web Streams pipeTo into a Web Writable mapped from Node's ServerResponse
       // and abort the pipe if the client disconnects.
       const controller = new AbortController();

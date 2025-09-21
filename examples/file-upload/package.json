@@ -1,0 +1,16 @@
+{
+  "name": "@lazarv/react-server-example-file-upload",
+  "private": true,
+  "description": "@lazarv/react-server File Upload example application",
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^"
+  }
+}

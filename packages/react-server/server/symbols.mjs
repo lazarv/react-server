@@ -1,5 +1,4 @@
 export const LOGGER_CONTEXT = Symbol.for("LOGGER_CONTEXT");
-export const FORM_DATA_PARSER = Symbol.for("FORM_DATA_PARSER");
 export const MAIN_MODULE = Symbol.for("MAIN_MODULE");
 export const SERVER_CONTEXT = Symbol.for("SERVER_CONTEXT");
 export const CLIENT_MODULES_CONTEXT = Symbol.for("CLIENT_MODULES_CONTEXT");

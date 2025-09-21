@@ -19,7 +19,6 @@ import {
   CONFIG_ROOT,
   ERROR_BOUNDARY,
   ERROR_CONTEXT,
-  FORM_DATA_PARSER,
   HTTP_CONTEXT,
   HTTP_HEADERS,
   HTTP_STATUS,
@@ -99,7 +98,6 @@ export default async function ssrHandler(root, options = {}) {
   const mainModule = getRuntime(MAIN_MODULE)?.map((mod) =>
     `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")
   );
-  const formDataParser = getRuntime(FORM_DATA_PARSER);
   const moduleLoader = getRuntime(MODULE_LOADER);
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const manifest = getRuntime(MANIFEST);
@@ -203,7 +201,6 @@ export default async function ssrHandler(root, options = {}) {
             [ERROR_CONTEXT]: errorHandler,
             [LOGGER_CONTEXT]: logger,
             [MAIN_MODULE]: mainModule,
-            [FORM_DATA_PARSER]: formDataParser,
             [MODULE_LOADER]: moduleLoader,
             [IMPORT_MAP]: importMap,
             [MEMORY_CACHE_CONTEXT]: memoryCache,
@@ -231,6 +228,7 @@ export default async function ssrHandler(root, options = {}) {
               useErrorComponent(GlobalErrorComponent, globalErrorModule);
             }
 
+            let middlewareError = null;
             try {
               const middlewares = await root_init$?.();
               if (middlewares) {
@@ -247,15 +245,21 @@ export default async function ssrHandler(root, options = {}) {
               const redirect = getContext(REDIRECT_CONTEXT);
               if (redirect?.response) {
                 return resolve(redirect.response);
+              } else {
+                middlewareError = new Error(
+                  e?.message ?? "Internal Server Error",
+                  {
+                    cause: e,
+                  }
+                );
               }
-              logger.error(e);
             }
 
             if (renderContext.flags.isUnknown) {
               return resolve();
             }
 
-            render(Component).then(resolve, reject);
+            render(Component, {}, { middlewareError }).then(resolve, reject);
           }
         );
       } catch (e) {

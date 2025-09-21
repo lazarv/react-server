@@ -7,7 +7,6 @@ import {
   cookie,
   cors,
   createMiddleware,
-  parseMultipartFormData,
 } from "@lazarv/react-server/http";
 import { Server } from "socket.io";
 
@@ -18,7 +17,6 @@ import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
-  FORM_DATA_PARSER,
   HTTP_CONTEXT,
   LIVE_IO,
   MEMORY_CACHE_CONTEXT,
@@ -46,7 +44,6 @@ export default async function createServer(root, options) {
 
   const initialRuntime = {
     [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
-    [FORM_DATA_PARSER]: parseMultipartFormData,
   };
   runtime$(
     typeof config.runtime === "function"

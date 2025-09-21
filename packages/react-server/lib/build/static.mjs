@@ -19,11 +19,9 @@ import {
 } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
-  FORM_DATA_PARSER,
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
-import { parseMultipartFormData } from "../http/index.mjs";
 import ssrHandler from "../start/ssr-handler.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
@@ -75,7 +73,6 @@ export default async function staticSiteGenerator(root, options) {
 
     const initialRuntime = {
       [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
-      [FORM_DATA_PARSER]: parseMultipartFormData,
     };
     runtime$(
       typeof config.runtime === "function"

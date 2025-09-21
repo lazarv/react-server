@@ -30,7 +30,6 @@ import {
   ERROR_COMPONENT,
   ERROR_CONTEXT,
   FLIGHT_CACHE,
-  FORM_DATA_PARSER,
   HTML_CACHE,
   HTTP_CONTEXT,
   HTTP_HEADERS,
@@ -109,135 +108,143 @@ export async function render(Component, props = {}, options = {}) {
             throw new ServerFunctionNotFoundError();
           };
           let input = [];
-          if (isFormData) {
-            const files = {};
-            const multipartFormData = await getContext(FORM_DATA_PARSER)(
-              context.request,
-              {
-                handleFile: async ({ body, ...info }) => {
-                  const chunks = [];
-                  for await (const chunk of body) {
-                    chunks.push(chunk);
-                  }
-                  const key = `__react_server_file_${info.name}__`;
-                  files[key] = {
-                    info,
-                    file: new Blob(chunks, {
-                      type: info.contentType,
-                    }),
-                  };
-
-                  return key;
-                },
-              }
-            );
-
-            const formData = new FormData();
-            for (const [key, value] of multipartFormData.entries()) {
-              if (files[value]) {
-                const { info, file } = files[value];
-                formData.append(key, file, info.filename);
-              } else {
-                formData.append(key.replace(/^remote:/, ""), value);
-              }
+          try {
+            if (options.middlewareError) {
+              throw options.middlewareError;
             }
-            try {
-              input = await server.decodeReply(formData, serverReferenceMap);
-            } catch (e) {
-              input = formData;
+            if (isFormData) {
+              const multipartFormData = await context.request.formData();
+              const formData = new FormData();
+              for (const [key, value] of multipartFormData.entries()) {
+                formData.append(key.replace(/^remote:\/\//, ""), value);
+              }
+              try {
+                input = await server.decodeReply(formData, serverReferenceMap);
+              } catch (e) {
+                input = formData;
+              }
+            } else {
+              input = await server.decodeReply(
+                await context.request.text(),
+                serverReferenceMap
+              );
             }
-          } else {
-            input = await server.decodeReply(
-              await context.request.text(),
-              serverReferenceMap
-            );
+          } catch (error) {
+            logger?.error(error);
+            action = async () => {
+              return {
+                data: null,
+                actionId: null,
+                error,
+              };
+            };
+            if (renderContext.flags.isRSC) {
+              callServerComponent = true;
+              serverFunctionResult = Promise.reject(error);
+            }
+            callServer = true;
+            input = error;
+
+            context$(ACTION_CONTEXT, {
+              formData: null,
+              data: null,
+              error,
+              actionId: null,
+            });
           }
 
-          if ("__react_server_function_args__" in input) {
+          if (
+            typeof input === "object" &&
+            "__react_server_function_args__" in input
+          ) {
             body = input["__react_server_remote_props__"];
             input = input["__react_server_function_args__"] ?? [];
           }
 
-          if (serverActionHeader && serverActionHeader !== "null") {
-            const [serverReferenceModule, serverReferenceName] =
-              serverActionHeader.split("#");
-            action = async () => {
-              try {
-                const mod = await globalThis.__webpack_require__(
-                  serverReferenceModule
-                );
-                const fn = mod[serverReferenceName];
-                if (typeof fn !== "function") {
-                  throw new ServerFunctionNotFoundError();
+          if (!(input instanceof Error)) {
+            if (serverActionHeader && serverActionHeader !== "null") {
+              const [serverReferenceModule, serverReferenceName] =
+                serverActionHeader.split("#");
+              action = async () => {
+                try {
+                  const mod = await globalThis.__webpack_require__(
+                    serverReferenceModule
+                  );
+                  const fn = mod[serverReferenceName];
+                  if (typeof fn !== "function") {
+                    throw new ServerFunctionNotFoundError();
+                  }
+                  const boundFn = fn.bind(null, ...input);
+                  const data = await boundFn();
+                  return {
+                    data,
+                    actionId: serverActionHeader,
+                    error: null,
+                  };
+                } catch (error) {
+                  return {
+                    data: null,
+                    actionId: serverActionHeader,
+                    error,
+                  };
                 }
-                const boundFn = fn.bind(null, ...input);
-                const data = await boundFn();
-                return {
-                  data,
-                  actionId: serverActionHeader,
-                  error: null,
-                };
-              } catch (error) {
-                return {
-                  data: null,
-                  actionId: serverActionHeader,
-                  error,
-                };
-              }
-            };
-          } else {
-            action = await server.decodeAction(
-              input[input.length - 1] ?? input,
-              serverReferenceMap
-            );
-          }
+              };
+            } else {
+              action = await server.decodeAction(
+                input[input.length - 1] ?? input,
+                serverReferenceMap
+              );
+            }
 
-          if (typeof action !== "function") {
-            const e = new Error("Server Function Not Found");
-            e.digest = e.message;
-            throw e;
+            if (typeof action !== "function") {
+              const e = new ServerFunctionNotFoundError();
+              e.digest = e.message;
+              throw e;
+            }
           }
 
           const { data, actionId, error } = await action();
 
           if (error?.name === SERVER_FUNCTION_NOT_FOUND) {
-            const e = new Error("Server Function Not Found");
+            const e = new ServerFunctionNotFoundError();
             e.digest = e.message;
             throw e;
           }
 
-          callServer = true;
-          if (!isFormData) {
-            serverFunctionResult = error
-              ? Promise.reject(error)
-              : data instanceof Buffer
-                ? data.buffer.slice(
-                    data.byteOffset,
-                    data.byteOffset + data.byteLength
-                  )
-                : data;
-          } else {
-            const formState = await server.decodeFormState(
-              data,
-              input[input.length - 1] ?? input,
-              serverReferenceMap
-            );
-
-            if (formState) {
-              const [result, key] = formState;
-              serverFunctionResult = result;
-              callServerHeaders = {
-                "React-Server-Action-Key": encodeURIComponent(key),
-              };
-            } else {
-              callServerComponent = true;
-              serverFunctionResult =
-                data instanceof Buffer
+          if (!callServer) {
+            callServer = true;
+            if (!isFormData) {
+              serverFunctionResult = error
+                ? Promise.reject(error)
+                : data instanceof Buffer
                   ? data.buffer.slice(
                       data.byteOffset,
                       data.byteOffset + data.byteLength
                     )
                   : data;
+            } else {
+              const formState = await server.decodeFormState(
+                data,
+                input[input.length - 1] ?? input,
+                serverReferenceMap
+              );
+
+              if (formState) {
+                const [result, key] = formState;
+                serverFunctionResult = result;
+                callServerHeaders = {
+                  "React-Server-Action-Key": encodeURIComponent(key),
+                };
+              } else {
+                callServerComponent = true;
+                serverFunctionResult =
+                  data instanceof Buffer
+                    ? data.buffer.slice(
+                        data.byteOffset,
+                        data.byteOffset + data.byteLength
+                      )
+                    : data;
+              }
             }
           }
 
@@ -246,18 +253,23 @@ export async function render(Component, props = {}, options = {}) {
             return resolve(redirect.response);
           }
 
-          context$(ACTION_CONTEXT, {
-            formData: input[input.length - 1] ?? input,
-            data,
-            error: redirect?.response ? null : error,
-            actionId,
-          });
+          if (!(input instanceof Error)) {
+            context$(ACTION_CONTEXT, {
+              formData: input[input.length - 1] ?? input,
+              data,
+              error: redirect?.response ? null : error,
+              actionId,
+            });
+          }
+        } else if (options.middlewareError) {
+          throw options.middlewareError;
         }
 
         const temporaryReferences = createTemporaryReferenceSet();
         context$(RENDER_TEMPORARY_REFERENCES, temporaryReferences);
 
         if (
+          !options.middlewareError &&
           context.request.body &&
           context.request.body instanceof ReadableStream &&
           !context.request.body.locked

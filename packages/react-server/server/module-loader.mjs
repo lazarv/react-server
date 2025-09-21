@@ -51,7 +51,11 @@ export async function init$(
                     error: new ServerFunctionNotFoundError(),
                   };
                 }
-                return { data: await action(...args), actionId: action.$$id };
+                return {
+                  data: (await action(...args)) ?? null,
+                  error: null,
+                  actionId: action.$$id,
+                };
               } catch (e) {
                 return { error: e, actionId: action?.$$id ?? null };
               }

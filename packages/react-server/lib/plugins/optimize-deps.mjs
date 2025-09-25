@@ -30,9 +30,11 @@ export default function optimizeDeps() {
           (bareImportRE.test(specifier) ||
             (specifier[0] !== "." && specifier[0] !== "/")) &&
           applyAlias(alias, specifier) === specifier &&
-          !isModule(path) &&
           tryStat(path)?.isFile()
         ) {
+          if (!isModule(path)) {
+            return { externalize: specifier };
+          }
           try {
             const content = await readFile(path, "utf-8");
             const ast = this.parse(content);

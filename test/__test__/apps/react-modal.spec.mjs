@@ -8,6 +8,7 @@ process.chdir(join(process.cwd(), "../examples/react-modal"));
 test("react-modal load", async () => {
   await server("./App.jsx");
   await page.goto(hostname);
+  await page.waitForLoadState("networkidle");
   await waitForHydration();
 
   const showModal = page.getByText("Show Modal");

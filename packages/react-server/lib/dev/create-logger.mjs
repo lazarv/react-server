@@ -45,6 +45,11 @@ export default function createLogger(level = "info", options) {
     if (args.length === 0) return args;
 
     const [formatString, ...params] = args;
+
+    if (typeof formatString !== "string") {
+      return args;
+    }
+
     const formatSpecifiers = formatString.match(/%%|%[sdifoOjc]/g) || [];
     const styleIndices = [];
     let paramIndex = 0;

@@ -197,12 +197,9 @@ export default async function createServer(root, options) {
         },
         {
           find: /^react-server-highlight\.js\/styles/,
-          replacement: sys.normalizePath(
-            dirname(__require.resolve("highlight.js/lib/core")).replace(
-              "/lib",
-              "/styles"
-            )
-          ),
+          replacement: sys
+            .normalizePath(dirname(__require.resolve("highlight.js/lib/core")))
+            .replace("/lib", "/styles"),
         },
         {
           find: /^@jridgewell\/trace-mapping$/,

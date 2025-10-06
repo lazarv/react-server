@@ -45,7 +45,6 @@ Object.keys(console).forEach((method) => {
           import("react-server-dom-webpack/server.browser").then(
             ({ renderToReadableStream }) => {
               delete React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
-              const cwd = process.cwd();
               const normalizedArgs = args.map((arg) => {
                 if (arg instanceof Error) {
                   const stacklines = arg.stack
@@ -54,7 +53,6 @@ Object.keys(console).forEach((method) => {
                     .map((it) =>
                       it
                         .trim()
-                        .replace(location.origin, it.includes(cwd) ? "" : cwd)
                         .replace("/@fs", "")
                         .replace(/\?v=[a-z0-9]+/, "")
                     );

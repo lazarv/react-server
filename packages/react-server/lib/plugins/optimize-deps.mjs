@@ -6,6 +6,7 @@ import {
   bareImportRE,
   isModule,
   isRootModule,
+  nodeResolve,
   tryStat,
 } from "../utils/module.mjs";
 
@@ -33,7 +34,9 @@ export default function optimizeDeps() {
           tryStat(path)?.isFile()
         ) {
           if (!isModule(path)) {
-            return { externalize: specifier };
+            return {
+              externalize: nodeResolve(specifier, importer),
+            };
           }
           try {
             const content = await readFile(path, "utf-8");
@@ -51,7 +54,9 @@ export default function optimizeDeps() {
           } catch {
             // ignore
           }
-          return { externalize: specifier };
+          return {
+            externalize: nodeResolve(specifier, importer),
+          };
         } else if (
           this.environment.name === "client" &&
           !this.environment.depsOptimizer?.isOptimizedDepFile(specifier) &&
@@ -82,9 +87,15 @@ export default function optimizeDeps() {
             // ignore
           }
         }
-        return resolved || { externalize: specifier };
+        return (
+          resolved || {
+            externalize: nodeResolve(specifier, importer),
+          }
+        );
       } catch {
-        return { externalize: specifier };
+        return {
+          externalize: nodeResolve(specifier, importer),
+        };
       }
     },
   };

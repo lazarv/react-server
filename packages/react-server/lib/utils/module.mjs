@@ -2,6 +2,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { ResolverFactory } from "oxc-resolver";
+
 import * as sys from "../sys.mjs";
 
 const cwd = sys.cwd();
@@ -175,4 +177,51 @@ export function hasServerAction(filePath) {
     // no use server
   }
   return false;
+}
+
+function getExportSubpath(pkg, id) {
+  if (!pkg?.name) return null;
+  if (id === pkg.name) return ".";
+
+  let idx = id.indexOf(pkg.name);
+  if (idx === -1) return null;
+
+  idx += pkg.name.length + 1;
+  return "./" + id.slice(idx);
+}
+
+export function isSubpathExported(pkg, id) {
+  if (pkg?.name === id || pkg?.exports?.[id]) return true;
+  if (!pkg?.exports) return false;
+
+  const rel = getExportSubpath(pkg, id);
+  if (!rel) return false;
+
+  for (const key of Object.keys(pkg.exports)) {
+    if (key === rel) return true;
+    if (key.includes("*")) {
+      const prefix = key.split("*")[0];
+      if (rel.startsWith(prefix)) return true;
+    }
+  }
+  return false;
+}
+
+const resolve = new ResolverFactory({
+  conditionNames: ["module", "import", "require", "node", "default"],
+});
+export function nodeResolve(specifier, importer) {
+  try {
+    if (bareImportRE.test(specifier)) {
+      return (
+        resolve.sync(
+          /\.(?:m?[jt]sx?)|json$/.test(importer) ? dirname(importer) : importer,
+          specifier
+        ).path || specifier
+      );
+    }
+    return specifier;
+  } catch {
+    return specifier;
+  }
 }

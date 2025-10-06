@@ -40,7 +40,7 @@ try {
 
   // Check Node.js version
   if (cli.matchedCommand.__react_server_check_node_version__ !== false) {
-    if (checkJSRuntimeVersion()) {
+    if (cli.options.check !== false && checkJSRuntimeVersion()) {
       exit(1);
     }
   }
@@ -62,7 +62,7 @@ try {
     cli.matchedCommand &&
     cli.matchedCommand.__react_server_check_deps__ !== false
   ) {
-    if (await checkReactDependencies()) {
+    if (cli.options.check !== false && (await checkReactDependencies())) {
       exit(1);
     }
   }

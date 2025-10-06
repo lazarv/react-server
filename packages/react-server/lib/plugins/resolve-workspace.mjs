@@ -1,11 +1,11 @@
 import { realpathSync } from "node:fs";
-import { basename, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, join } from "node:path";
 
-import * as sys from "../sys.mjs";
-import { bareImportRE, findPackageRoot } from "../utils/module.mjs";
-
-const cwd = sys.cwd();
+import {
+  bareImportRE,
+  findPackageRoot,
+  nodeResolve,
+} from "../utils/module.mjs";
 
 export default function resolveWorkspace() {
   return {
@@ -14,13 +14,13 @@ export default function resolveWorkspace() {
       filter: {
         id: bareImportRE,
       },
-      async handler(id, importer) {
+      async handler(specifier, importer) {
         if (
           this.environment.mode === "build" ||
           (this.environment.name === "client" &&
-            bareImportRE.test(id) &&
-            !id.startsWith("\0") &&
-            !id.startsWith("virtual:"))
+            bareImportRE.test(specifier) &&
+            !specifier.startsWith("\0") &&
+            !specifier.startsWith("virtual:"))
         ) {
           try {
             const packageRoot = realpathSync(findPackageRoot(importer));
@@ -32,10 +32,7 @@ export default function resolveWorkspace() {
               parentPath = join(parentPath, "..");
             }
             parentPath = join(parentPath, "..");
-            return (
-              (await this.resolve(id, parentPath)) ||
-              fileURLToPath(relative(cwd, import.meta.resolve(id)))
-            );
+            return nodeResolve(specifier, importer);
           } catch {
             return null;
           }

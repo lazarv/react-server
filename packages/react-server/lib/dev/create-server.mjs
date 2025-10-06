@@ -53,7 +53,7 @@ import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
-import { findPackageRoot, tryStat } from "../utils/module.mjs";
+import { findPackageRoot, nodeResolve, tryStat } from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
@@ -147,11 +147,11 @@ export default async function createServer(root, options) {
         "react-server-dom-webpack/server.browser",
         "react-is",
         "@jridgewell/trace-mapping",
-        "highlight.js/lib/core",
-        "highlight.js/lib/languages/diff",
-        "highlight.js/lib/languages/javascript",
-        "highlight.js/lib/languages/json",
-        "highlight.js/lib/languages/xml",
+        "react-server-highlight.js/lib/core",
+        "react-server-highlight.js/lib/languages/diff",
+        "react-server-highlight.js/lib/languages/javascript",
+        "react-server-highlight.js/lib/languages/json",
+        "react-server-highlight.js/lib/languages/xml",
         "socket.io-client",
         "web-streams-polyfill/polyfill",
         ...(config.optimizeDeps?.include ?? []),
@@ -190,19 +190,23 @@ export default async function createServer(root, options) {
       alias: [
         ...resolvedClientAlias,
         {
-          find: /^highlight\.js\/lib/,
+          find: /^react-server-highlight\.js\/lib/,
           replacement: sys.normalizePath(
             dirname(__require.resolve("highlight.js/lib/core"))
           ),
         },
         {
+          find: /^react-server-highlight\.js\/styles/,
+          replacement: sys
+            .normalizePath(dirname(__require.resolve("highlight.js/lib/core")))
+            .replace("/lib", "/styles"),
+        },
+        {
           find: /^@jridgewell\/trace-mapping$/,
           replacement: sys.normalizePath(
-            typeof import.meta.resolve === "function"
-              ? import.meta.resolve("@jridgewell/trace-mapping")
-              : __require
-                  .resolve("@jridgewell/trace-mapping")
-                  .replace(/\.umd\.js$/, ".mjs")
+            __require
+              .resolve("@jridgewell/trace-mapping")
+              .replace(/\.umd\.js$/, ".mjs")
           ),
         },
         { find: /^@lazarv\/react-server$/, replacement: sys.rootDir },
@@ -342,7 +346,7 @@ export default async function createServer(root, options) {
                     "picocolors",
                     "unstorage",
                     "@modelcontextprotocol/sdk",
-                    "highlight.js",
+                    "react-server-highlight.js",
                   ],
                   alias: [
                     {
@@ -512,8 +516,7 @@ export default async function createServer(root, options) {
           } catch {
             return {
               result: {
-                externalize: specifier,
-                type: "module",
+                externalize: nodeResolve(specifier, parentId),
               },
             };
           }
@@ -561,7 +564,7 @@ export default async function createServer(root, options) {
       } = payload.data.data;
 
       let result = {
-        externalize: specifier,
+        externalize: nodeResolve(specifier, parentId),
       };
 
       if (!isBuiltin(specifier)) {

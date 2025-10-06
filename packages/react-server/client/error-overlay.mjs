@@ -214,7 +214,7 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
       const link = document.createElement("link");
       link.rel = "stylesheet";
       const { default: href } = await import(
-        "highlight.js/styles/github-dark.css?url"
+        "react-server-highlight.js/styles/github-dark.css?url"
       );
       link.href = href;
       overlay.shadowRoot.appendChild(link);

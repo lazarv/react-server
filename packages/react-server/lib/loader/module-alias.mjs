@@ -26,7 +26,9 @@ export function moduleAliases(condition) {
     // noop
   }
 
+  let reactClient = react;
   if (condition === "react-server") {
+    reactClient = react;
     react = react.replace(/index\.js$/, "react.react-server.js");
     reactJsxRuntime = reactJsxRuntime.replace(
       /jsx-runtime\.js$/,
@@ -39,6 +41,7 @@ export function moduleAliases(condition) {
     reactDom = reactDom.replace(/index\.js$/, "react-dom.react-server.js");
   } else {
     react = react.replace(/react\.react-server\.js$/, "index.js");
+    reactClient = react;
     reactJsxRuntime = reactJsxRuntime.replace(
       /jsx-runtime\.react-server\.js$/,
       "jsx-runtime.js"
@@ -76,6 +79,9 @@ export function moduleAliases(condition) {
   const unstorageDriversSessionStorage = normalizePath(
     __require.resolve("unstorage/drivers/session-storage")
   );
+  const reactServerHighlightJs = normalizePath(
+    __require.resolve("highlight.js")
+  );
   let vite;
   try {
     vite = normalizePath(__require.resolve("rolldown-vite")).replace(
@@ -88,6 +94,7 @@ export function moduleAliases(condition) {
 
   const moduleAliases = {
     react,
+    "react/client": reactClient,
     "react/jsx-runtime": reactJsxRuntime,
     "react/jsx-dev-runtime": reactJsxDevRuntime,
     "react-dom": reactDom,
@@ -102,6 +109,7 @@ export function moduleAliases(condition) {
     "unstorage/drivers/session-storage": unstorageDriversSessionStorage,
     vite,
     scheduler,
+    "react-server-highlight.js": reactServerHighlightJs,
   };
 
   return moduleAliases;

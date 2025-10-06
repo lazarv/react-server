@@ -1,8 +1,8 @@
 import { createRequire } from "node:module";
 
 import { useRender, useUrl } from "@lazarv/react-server";
-import hljs from "highlight.js";
-import "highlight.js/styles/github-dark.min.css";
+import hljs from "react-server-highlight.js";
+import "react-server-highlight.js/styles/github-dark.min.css";
 
 import { style, remoteStyle } from "./error-styles.mjs";
 import { prepareError } from "../lib/handlers/error.mjs";
@@ -78,6 +78,7 @@ export default async function GlobalError({ error }) {
               <code
                 className="hljs"
                 dangerouslySetInnerHTML={{
+                  // __html: `<pre>${error.code.trim()}</pre>`,
                   __html: hljs.highlight(error.code, { language: "javascript" })
                     .value,
                 }}

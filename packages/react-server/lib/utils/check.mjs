@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { join } from "node:path";
 
 import colors from "picocolors";
 import semver from "semver";
@@ -54,13 +55,24 @@ export async function checkReactDependencies() {
         const pkgPath = __require.resolve(`${pkg}/package.json`, {
           paths: [process.cwd()],
         });
-        const {
-          default: { version: userPkgVersion },
-        } = await import(pkgPath, { with: { type: "json" } });
+        const [
+          {
+            default: { version: userPkgVersion },
+          },
+          userPkg,
+        ] = await Promise.all([
+          import(pkgPath, { with: { type: "json" } }),
+          import(join(process.cwd(), "package.json"), {
+            with: { type: "json" },
+          }),
+        ]);
         const systemPkgVersion =
           packageJson.dependencies?.[pkg] ||
           packageJson.peerDependencies?.[pkg];
-        if (userPkgVersion !== systemPkgVersion) {
+        if (
+          userPkgVersion !== systemPkgVersion &&
+          (userPkg.dependencies?.[pkg] || userPkg.devDependencies?.[pkg])
+        ) {
           uninstall.push(
             `  ${colors.cyan(`${pkg}@${userPkgVersion}`)} ${colors.red(`expected: ${pkg}@${systemPkgVersion}`)} \n`
           );

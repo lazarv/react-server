@@ -1,8 +1,8 @@
-import hljs from "highlight.js/lib/core";
-import diff from "highlight.js/lib/languages/diff";
-import javascript from "highlight.js/lib/languages/javascript";
-import json from "highlight.js/lib/languages/json";
-import xml from "highlight.js/lib/languages/xml";
+import hljs from "react-server-highlight.js/lib/core";
+import diff from "react-server-highlight.js/lib/languages/diff";
+import javascript from "react-server-highlight.js/lib/languages/javascript";
+import json from "react-server-highlight.js/lib/languages/json";
+import xml from "react-server-highlight.js/lib/languages/xml";
 
 hljs.registerLanguage("diff", diff);
 hljs.registerLanguage("javascript", javascript);

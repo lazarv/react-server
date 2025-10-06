@@ -12,6 +12,7 @@ export default (cli) =>
       }
     )
     .option("--no-color", "disable color output", { default: false })
+    .option("--no-check", "skip dependency checks", { default: false })
     .option("--server", "[boolean] build server", { default: true })
     .option("--client", "[boolean] build client", { default: true })
     .option("--export", "[boolean] static export")

@@ -20,6 +20,7 @@ export default (cli) =>
       default: false,
     })
     .option("--no-color", "disable color output", { default: false })
+    .option("--no-check", "skip dependency checks", { default: false })
     .option("-e, --eval <code>", "evaluate code", { type: "string" })
     .option("-o, --outDir <dir>", "[string] output directory", {
       default: ".react-server",

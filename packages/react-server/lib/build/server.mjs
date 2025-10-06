@@ -28,7 +28,12 @@ import {
 } from "../utils/plugins.mjs";
 import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
-import { bareImportRE, findNearestPackageData } from "../utils/module.mjs";
+import {
+  bareImportRE,
+  findNearestPackageData,
+  isSubpathExported,
+  nodeResolve,
+} from "../utils/module.mjs";
 import { realpathSync } from "node:fs";
 
 const __require = createRequire(import.meta.url);
@@ -70,6 +75,7 @@ export default async function serverBuild(root, options) {
       "picocolors",
       "unstorage",
       /^unstorage\/drivers\//,
+      /^react-server-highlight\.js/,
       ...(Array.isArray(config.build?.rollupOptions?.external)
         ? config.build?.rollupOptions?.external
         : []),
@@ -95,14 +101,14 @@ export default async function serverBuild(root, options) {
     }
     return false;
   };
-  const rscExternal = (id) => {
+  const rscExternal = (id, importer) => {
     if (isBuiltin(id)) {
       return true;
     }
 
     if (bareImportRE.test(id)) {
       try {
-        const mod = __require.resolve(id, { paths: [cwd] });
+        const mod = nodeResolve(id, realpathSync(importer));
         let pkg = findNearestPackageData(mod);
         const prev = pkg;
         if (pkg) {
@@ -121,7 +127,8 @@ export default async function serverBuild(root, options) {
         if (
           /[cm]?js$/.test(mod) &&
           !(pkg?.type === "module" || pkg?.module || pkg?.exports) &&
-          ![...(config.ssr?.noExternal ?? [])].includes(id)
+          ![...(config.ssr?.noExternal ?? [])].includes(id) &&
+          isSubpathExported(pkg, id)
         ) {
           return true;
         }

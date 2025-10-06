@@ -34,6 +34,36 @@ const BASE_PORT = 3000;
 const MAX_PORT = 32767;
 let portCounter = 0;
 
+async function cleanup() {
+  try {
+    if (!process.env.CI && testCwd !== process.cwd()) {
+      const files = [
+        ...(await readdir(process.cwd(), { withFileTypes: true })),
+        ...(await readdir(join(process.cwd(), "node_modules"), {
+          withFileTypes: true,
+        })),
+      ];
+      await Promise.all(
+        files
+          .filter(
+            (file) => file.isDirectory() && file.name.includes(".react-server")
+          )
+          .map(async (file) => {
+            try {
+              return await rm(join(file.parentPath, file.name), {
+                recursive: true,
+              });
+            } catch {
+              // ignore
+            }
+          })
+      );
+    }
+  } catch {
+    // ignore
+  }
+}
+
 beforeAll(async ({ name, id }) => {
   const wsEndpoint = inject("wsEndpoint");
   browser = await chromium.connect(wsEndpoint);
@@ -162,15 +192,5 @@ afterEach(async () => {
 afterAll(async () => {
   await page?.close();
   await browser?.close();
-
-  if (!process.env.CI && testCwd !== process.cwd()) {
-    const files = await readdir(process.cwd(), { withFileTypes: true });
-    await Promise.all(
-      files
-        .filter(
-          (file) => file.isDirectory() && file.name.includes(".react-server")
-        )
-        .map((file) => rm(join(process.cwd(), file.name), { recursive: true }))
-    );
-  }
+  await cleanup();
 });

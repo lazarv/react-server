@@ -74,7 +74,6 @@ beforeAll(async ({ name, id }) => {
   server = (root, initialConfig) =>
     new Promise(async (resolve, reject) => {
       try {
-        await cleanup();
         logs = [];
         serverLogs = [];
         const hashValue = createHash("sha256")

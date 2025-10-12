@@ -98,6 +98,10 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
           ],
         };
       }
+    } else if (typeof error.message === "string" && !error.details) {
+      const [message, ...details] = error.message.split("\n\n");
+      error.message = message;
+      error.details = details.map((line) => argToPre(line)) || [];
     }
     error.plugin = "@lazarv/react-server";
     const cwd =
@@ -143,7 +147,9 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
 
     if (error.id) {
       try {
-        const sourceFile = await fetch(error.id.replace(/^file:\/\//, "/@fs"));
+        const sourceFile = await fetch(
+          `/__react_server_src__?filename=${encodeURIComponent(error.id.replace(/^file:\/\//, ""))}`
+        );
         error.id = error.id.replace(/^file:\/\//, "");
         error.loc.file = error.id;
         let code = await sourceFile.text();
@@ -154,9 +160,12 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
             ? JSON.parse(
                 atob(sourceMappingURL.split("data:application/json;base64,")[1])
               )
-            : await fetch(new URL(sourceMappingURL, new URL(error.id))).then(
-                (res) => res.json()
-              );
+            : await fetch(
+                new URL(
+                  `/__react_server_src__?filename=${encodeURIComponent(sourceMappingURL)}`,
+                  new URL(error.id)
+                )
+              ).then((res) => res.json());
           if (!error.plugin) {
             const { TraceMap, originalPositionFor } = await import(
               "@jridgewell/trace-mapping"
@@ -186,6 +195,8 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
                   .split("\n")
                   .slice(0, -1)
                   .join("\n");
+        } else {
+          error.code = code;
         }
       } catch (e) {
         console.error(e);
@@ -280,6 +291,9 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
       let code;
       let codeContent = [];
       error.details.forEach((d, di) => {
+        if (typeof d === "string") {
+          d = argToPre(d);
+        }
         const content = d.textContent.trim();
 
         if (d.firstChild && d.firstChild.tagName === "CODE") {
@@ -780,6 +794,7 @@ console.error = (...args) => {
 
 const originalConsoleWarn = console.warn;
 console.warn = (...args) => {
+  // TODO: strip ANSI codes from message
   const [ctrl, style, server] = args;
   if (
     // check and detect server error proxy message

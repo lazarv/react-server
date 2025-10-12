@@ -66,6 +66,7 @@ export default async function GlobalError({ error }) {
         <h1>{error.message || "Global Error"}</h1>
         {error.digest && error.digest !== error.message ? (
           <p
+            className="react-server-global-error-digest"
             dangerouslySetInnerHTML={{
               __html: error.digest.replace(/`([^`]+)`/g, "<code>$1</code>"),
             }}
@@ -78,7 +79,6 @@ export default async function GlobalError({ error }) {
               <code
                 className="hljs"
                 dangerouslySetInnerHTML={{
-                  // __html: `<pre>${error.code.trim()}</pre>`,
                   __html: hljs.highlight(error.code, { language: "javascript" })
                     .value,
                 }}

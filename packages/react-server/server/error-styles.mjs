@@ -55,6 +55,10 @@ export const style = `${remoteStyle}
     padding: 0;
   }
 
+  .react-server-global-error .react-server-global-error-digest {
+    margin-bottom: 1rem;
+  }
+
   .react-server-global-error .react-server-global-error-code {
     padding: 0;
     max-height: 25vh;

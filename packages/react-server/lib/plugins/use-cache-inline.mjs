@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import colors from "picocolors";
 
 import * as sys from "../sys.mjs";
@@ -53,7 +55,8 @@ export default function useServerInline(profiles, providers = {}, type) {
         id: /\.m?[jt]sx?$/,
       },
       async handler(code, id) {
-        if (!code.includes("use cache")) return null;
+        if (!code.includes("use cache") && !code.includes("use static"))
+          return null;
 
         const ast = await parse(code, id);
 
@@ -63,8 +66,18 @@ export default function useServerInline(profiles, providers = {}, type) {
             this.environment?.name === "ssr" ||
             type === "client");
 
+        const serverProvider = {
+          driver: "unstorage/drivers/memory",
+          options: {
+            type: "rsc",
+            prerender: true,
+          },
+        };
         const availableProviders = {
           default: "unstorage/drivers/memory",
+          server: serverProvider,
+          static: serverProvider,
+          client: "unstorage/drivers/memory",
           local: "unstorage/drivers/localstorage",
           session: "unstorage/drivers/session-storage",
           memory: "unstorage/drivers/memory",
@@ -79,18 +92,26 @@ export default function useServerInline(profiles, providers = {}, type) {
         let useCacheNode = null;
         let useCache = null;
 
+        const hash = createHash("md5").update(id).digest("hex");
+        const impl = createHash("md5").update(code).digest("hex");
         const cacheKey = (node) =>
-          `__react_server_cache__line${node.loc.start.line}_col${node.loc.start.column}__`;
+          `__react_server_cache__id${hash}_line${node.loc.start.line}_col${node.loc.start.column}_impl${impl}__`;
 
         walk(ast, {
           enter(node) {
             node.parent = parent;
 
-            const directive = node.body?.body?.find?.(
+            let directive = node.body?.body?.find?.(
               (node) =>
                 node.type === "ExpressionStatement" &&
-                node.directive?.startsWith("use cache")
+                (node.directive?.startsWith("use cache") ||
+                  node.directive === "use static")
             )?.directive;
+
+            if (directive === "use static") {
+              directive = "use cache: static";
+            }
+
             if (directive) {
               const directiveProvider =
                 directive.split(";")[0].split(":")[1]?.trim() ??
@@ -199,6 +220,7 @@ export default function useServerInline(profiles, providers = {}, type) {
                     (n) => n !== useCache.parent
                   );
               } else if (useCache.parent?.type === "ExportDefaultDeclaration") {
+                useCache.identifier = "_default";
                 useCache.name = "_default";
                 useCache.parent.parent.body =
                   useCache.parent.parent.body.filter(
@@ -516,7 +538,28 @@ export default function useServerInline(profiles, providers = {}, type) {
                                 name: `__react_server_cache_driver_${cache.provider}__`,
                               },
                             },
-                            ...(resolvedProviders[cache.provider]?.options
+                            {
+                              type: "Property",
+                              kind: "init",
+                              key: {
+                                type: "Identifier",
+                                name: "driverPath",
+                              },
+                              value: {
+                                type: "Literal",
+                                value:
+                                  typeof availableProviders[cache.provider] ===
+                                  "string"
+                                    ? availableProviders[cache.provider]
+                                    : Array.isArray(
+                                          availableProviders[cache.provider]
+                                        )
+                                      ? availableProviders[cache.provider][0]
+                                      : availableProviders[cache.provider]
+                                          ?.driver,
+                              },
+                            },
+                            ...(availableProviders[cache.provider]?.options
                               ? [
                                   {
                                     type: "Property",
@@ -526,15 +569,15 @@ export default function useServerInline(profiles, providers = {}, type) {
                                       name: "options",
                                     },
                                     value: toAST(
-                                      resolvedProviders[cache.provider].options
+                                      availableProviders[cache.provider].options
                                     ),
                                   },
                                 ]
                               : []),
                             ...((this.environment?.name === "rsc" ||
                               type === "server") &&
-                            resolvedProviders[cache.provider]?.options?.type ===
-                              "rsc"
+                            availableProviders[cache.provider]?.options
+                              ?.type === "rsc"
                               ? [
                                   {
                                     type: "Property",

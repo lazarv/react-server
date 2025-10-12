@@ -325,7 +325,7 @@ export async function render(Component, props = {}, options = {}) {
           const styles = getContext(STYLES_CONTEXT);
           return (
             <>
-              {styles.map((link) => {
+              {styles?.map((link) => {
                 const href = linkHref(link);
                 return (
                   <link
@@ -353,7 +353,7 @@ export async function render(Component, props = {}, options = {}) {
                 const modules = getContext(CLIENT_MODULES_CONTEXT);
                 return (
                   <>
-                    {modules.map((mod) => (
+                    {modules?.map((mod) => (
                       <link
                         key={mod}
                         rel="modulepreload"
@@ -654,7 +654,7 @@ export async function render(Component, props = {}, options = {}) {
           );
 
           const contextStore = ContextStorage.getStore();
-          const { onPostponed } = context;
+          const { onPostponed, prerender } = context;
           const prelude = getContext(PRELUDE_HTML);
           const postponed = getContext(POSTPONE_STATE);
           const importMap = getContext(IMPORT_MAP);
@@ -764,6 +764,7 @@ export async function render(Component, props = {}, options = {}) {
             onPostponed,
             prelude,
             postponed,
+            prerender,
             remote,
             origin,
             importMap,

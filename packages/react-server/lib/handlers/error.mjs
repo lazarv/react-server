@@ -22,12 +22,13 @@ import * as sys from "../sys.mjs";
 import { replaceError } from "../utils/error.mjs";
 import { fixStacktrace } from "../utils/fix-stacktrace.mjs";
 
-function cleanStack(stack) {
+export function cleanStack(stack) {
   return stack
     .split(/\n/g)
     .filter((l) => /^\s*at/.test(l))
     .map((l) => l.trim())
-    .join("\n");
+    .join("\n")
+    .replace(/\(file:\/\/\//g, "(/");
 }
 
 export async function prepareError(err) {
@@ -35,12 +36,19 @@ export async function prepareError(err) {
     if (!err.id) {
       const viteDevServer = getContext(SERVER_CONTEXT);
 
+      const stacklines = err.stack
+        .split("\n")
+        .filter((line) => line.trim().length > 0);
+      const stackIndex = stacklines.findIndex((line) =>
+        line.trim().startsWith("at ")
+      );
+      const stack = stacklines.slice(stackIndex);
       const [id] =
-        err.stack
-          .split("\n")[1]
+        stack[0]
           .match(/\((.*:[0-9]+:[0-9]+)\)/)?.[1]
           .replace(/^\s*file:\/\//, "")
           .split(":") ?? [];
+      err.id = id;
 
       if (
         viteDevServer.environments.ssr.moduleGraph.idToModuleMap.has(id) ||
@@ -53,8 +61,8 @@ export async function prepareError(err) {
         }
 
         const [, line, column] =
-          err.stack
-            .split("\n")[1]
+          cleanStack(err.stack)
+            .split("\n")[0]
             .match(/\((.*:[0-9]+:[0-9]+)\)/)?.[1]
             .replace(/^\s*file:\/\//, "")
             .split(":") ?? [];
@@ -66,18 +74,15 @@ export async function prepareError(err) {
             sourcesContent: [await readFile(id, "utf-8")],
           };
 
-        err.id = id;
-        if (!err.loc) {
-          err.loc = {
-            file: id,
-            column: parseInt(column, 10),
-            line: parseInt(line, 10),
-            length: 0,
-            lineText: "",
-            namespace: "",
-            suggestion: "",
-          };
-        }
+        err.loc = {
+          file: id,
+          column: parseInt(column, 10),
+          line: parseInt(line, 10),
+          length: 0,
+          lineText: "",
+          namespace: "",
+          suggestion: "",
+        };
 
         if (!err.frame) {
           const lines = map.sourcesContent[0].split("\n");
@@ -116,9 +121,16 @@ export async function prepareError(err) {
   } catch (e) {
     console.error(colors.red(e.stack));
   }
+  const [message, ...details] = err.message.split("\n\n");
   return {
-    message: strip(err.message),
-    digest: typeof err.digest === "string" ? strip(err.digest) : err.digest,
+    message: strip(message),
+    details: details.map((line) => strip(line)),
+    digest:
+      details.length > 0
+        ? strip(details.join("\n\n"))
+        : typeof err.digest === "string"
+          ? strip(err.digest)
+          : err.digest,
     stack: strip(cleanStack(err.stack || "")),
     id: err.id,
     frame: strip(err.frame || ""),

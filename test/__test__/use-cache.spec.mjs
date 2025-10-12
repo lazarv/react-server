@@ -4,6 +4,7 @@ import {
   server,
   serverLogs,
   waitForChange,
+  waitForHydration,
 } from "playground/utils";
 import { expect, test } from "vitest";
 
@@ -129,14 +130,29 @@ test("use cache browser", async () => {
 test("rsc serialization", async () => {
   await server("fixtures/rsc.jsx");
   await page.goto(hostname);
+  await page.waitForLoadState("networkidle");
+  await waitForHydration();
 
   expect(await page.textContent("#serialized")).toContain(
     process.env.NODE_ENV === "production"
       ? `1:I["/client/fixtures/counter.`
       : `4:I["fixtures/counter.jsx",[],"default",1]`
   );
-  expect(await page.getByRole("button").count()).toBe(2);
+  expect(await page.getByRole("button").count()).toBe(3);
   expect(
     await page.getByRole("button", { name: "0", exact: true }).textContent()
   ).toBe("0");
+
+  const serverFunction = await page.getByRole("button", {
+    name: "Call Server Function",
+    exact: true,
+  });
+  await serverFunction.click();
+  await waitForChange(
+    () => serverFunction.click(),
+    () => serverLogs.length
+  );
+  expect(serverLogs).toContain(
+    "Server Function called from cached component RSC Form Value bar"
+  );
 });

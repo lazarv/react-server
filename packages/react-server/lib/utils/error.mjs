@@ -1,3 +1,5 @@
+import colors from "picocolors";
+
 export function replaceError(e) {
   if (!e || !e.message) {
     return e;
@@ -48,4 +50,14 @@ export function deleteLastXLines(x) {
     // move cursor X lines up again to return to the original position
     process.stdout.write("\u001b[" + x + "A");
   }
+}
+
+export function dynamicHookWarning(hookName) {
+  return `${colors.italic(`${hookName}()`)} is a dynamic hook.`;
+}
+
+export function dynamicHookError(hookName) {
+  return new Error(
+    `${colors.italic(`\`${hookName}()\``)} is a dynamic hook and cannot be called during static pre-rendering.`
+  );
 }

@@ -40,8 +40,11 @@ export async function useCache(
   try {
     let result = await cache.get(keys);
     if (force || result === CACHE_MISS) {
-      result = typeof value === "function" ? value() : value;
-      await cache.set(keys, result, ttl);
+      result = await cache.set(
+        keys,
+        typeof value === "function" ? value() : value,
+        ttl
+      );
     }
 
     lock.delete(key);

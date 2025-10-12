@@ -1,13 +1,7 @@
-import { unstable_postpone as postpone } from "react";
+import { usePostpone as _usePostpone } from "./postpone.mjs";
 
-import { getContext } from "@lazarv/react-server/server/context.mjs";
-import { HTTP_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
-
-export function usePrerender(reason) {
-  if (typeof getContext(HTTP_CONTEXT)?.onPostponed === "function") {
-    postpone(reason);
-  }
-}
+export const usePostpone = _usePostpone;
+export const usePrerender = _usePostpone;
 
 export function withPrerender(Component) {
   return function WithPrerender(props) {

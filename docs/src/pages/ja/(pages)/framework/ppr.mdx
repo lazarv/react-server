@@ -9,16 +9,22 @@ contents: false
 
 静的なレイアウトと動的コンテンツを含むページがある場合、Partial pre-renderingを使用して静的コンテンツのみをプリレンダリングできます。その後、フレームワークはプリレンダリングされたコンテンツと JSON ファイルに保存された状態を使用して、オンデマンドでの動的コンテンツのレンダリングを続行します。
 
-Suspense を使用して JSX を静的コンテンツと動的コンテンツに分割し、`usePrerender` フックまたは `withPrerender` 高階コンポーネントヘルパー関数を使用して動的コンポーネントをマークすることができます。マークされたコンポーネントのレンダリングは、事前にレンダリングされた HTML コンテンツと JSON の状態を使用して、本番サーバーで実行時にレンダリングするために 「延期」 されます。
+Suspense を使用して JSX を静的コンテンツと動的コンテンツに分割し、`'use dynamic'` ディレクティブを使用して動的コンポーネントをマークできます。マークされたコンポーネントのレンダリングは、「延期」され、本番サーバーでの実行時にプリレンダリングされた HTML コンテンツ、レンダリング再開に使用される JSON の状態、そして 'use static' ディレクティブを使用してマークされたすべてのコンポーネントのキャッシュエントリを利用して行われます。
+
+`'use static'` ディレクティブを使用すると、コンポーネントをビルド時にキャッシュし、静的データとして利用するようマークできます。このディレクティブは、実行時にデータをキャッシュする `'use cache'` ディレクティブの特化バージョンです。`'use static'` でマークされたコンポーネントのキャッシュエントリはビルド出力に保存され、実行時に読み込まれてコンポーネントのレンダリング時に利用されます。これにより、日付や時刻などビルド時と実行時で値が変化する非決定的なデータにも対応できます。このディレクティブを使用しない場合、コンポーネントは実行時に再レンダリングされ、ビルド時に表示された値と異なる値が表示されてハイドレーションミスマッチが発生する可能性があります。
 
 ```jsx
 import { Suspense } from "react";
-import { usePrerender } from "@lazarv/react-server/prerender";
 
 async function DynamicComponent() {
-  usePrerender();
+  "use dynamic";
   await new Promise((resolve) => setTimeout(resolve, 1000));
   return <div>Dynamic content</div>;
+}
+
+function StaticComponent() {
+  "use static";
+  return <div>Built at {new Date().toISOString()}</div>;
 }
 
 export default function App() {
@@ -28,6 +34,7 @@ export default function App() {
       <Suspense fallback={<div>Loading...</div>}>
         <DynamicComponent data={data} />
       </Suspense>
+      <StaticComponent />
     </div>
   );
 }

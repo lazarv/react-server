@@ -2,23 +2,30 @@
 title: Partial pre-rendering
 category: Framework
 order: 5
-contents: false
 ---
+
+import Link from "../../../../components/Link.jsx";
 
 # Partial pre-rendering
 
 When you have a page that contains a static shell and dynamic content, you can use partial pre-rendering to pre-render only the static content and then the framework will use the pre-rendered content and a state stored in a JSON file to continue rendering the dynamic content on demand.
 
-You can split your JSX to static and dynamic content by using Suspense and marking dynamic components by using the `usePrerender` hook or the `withPrerender` higher-order component helper function. The marked component's rendering will be "postponed" for rendering it at runtime in the production server using the pre-rendered HTML content and the JSON state.
+You can split your JSX to static and dynamic content by using Suspense and marking dynamic components by using the `'use dynamic'` directive. The marked component's rendering will be "postponed" for rendering it at runtime in the production server using the pre-rendered HTML content, the JSON state used to resume rendering and the cache entries of all components using the `'use static'` directive.
+
+With the `'use static'` directive, you can mark components to be cached at build time and used as static data. This directive is a specialized version of the `'use cache'` directive that is used to cache data at runtime. The cache entries of the components marked with the `'use static'` directive will be stored in the build output and are loaded at runtime to be used when rendering the marked components. This helps with non-deterministic data that changes between build time and runtime, such as date/time. Without this directive, the component would be re-rendered at runtime and would show a different value than the one shown at build time, causing a hydration mismatch.
 
 ```jsx
 import { Suspense } from "react";
-import { usePrerender } from "@lazarv/react-server/prerender";
 
 async function DynamicComponent() {
-  usePrerender();
+  "use dynamic";
   await new Promise((resolve) => setTimeout(resolve, 1000));
   return <div>Dynamic content</div>;
+}
+
+function StaticComponent() {
+  "use static";
+  return <div>Built at {new Date().toISOString()}</div>;
 }
 
 export default function App() {
@@ -28,6 +35,7 @@ export default function App() {
       <Suspense fallback={<div>Loading...</div>}>
         <DynamicComponent data={data} />
       </Suspense>
+      <StaticComponent />
     </div>
   );
 }
@@ -46,6 +54,10 @@ export default {
 };
 ```
 
+<Link name="prerender-disable">
+## Disable partial pre-rendering
+</Link>
+
 When you run the `build` command, the framework will pre-render the pages you have exported and store the pre-rendered content in the `.react-server` folder of your project. The pre-rendered content will be used by the production server to render the pages faster.
 
 To disable partial pre-rendering, add `prerender: false` to your `react-server.config.mjs`:
@@ -53,5 +65,30 @@ To disable partial pre-rendering, add `prerender: false` to your `react-server.c
 ```js
 export default {
   prerender: false
+};
+```
+
+<Link name="prerender-timeout">
+## Pre-render timeout
+</Link>
+
+You can define a timeout for the pre-rendering process by adding `prerender.timeout` to your `react-server.config.mjs`. The timeout is defined in milliseconds and the default value is `5000` (5 seconds). If the pre-rendering process takes longer than the defined timeout, the pre-render gets aborted and only the already finished parts are stored as pre-rendered static content, while all subsequent components will be rendered at runtime.
+
+```js
+export default {
+  prerender: { timeout: 10000 } // 10 seconds
+};
+```
+
+You can also define the pre-render timeout for each individual route by adding a `prerender.timeout` property to the path definition of a static export in your `react-server.config.mjs`:
+
+```js
+export default {
+  export(paths) {
+    return [
+      ...paths,
+      { path: "/", prerender: { timeout: 10000 } },
+    ];
+  }
 };
 ```

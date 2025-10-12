@@ -1,4 +1,6 @@
+import { dynamicHookError } from "../lib/utils/error.mjs";
 import { getContext } from "./context.mjs";
+import { usePostpone } from "./postpone.mjs";
 import { ACTION_CONTEXT, SERVER_FUNCTION_NOT_FOUND } from "./symbols.mjs";
 
 export class ServerFunctionNotFoundError extends Error {
@@ -11,6 +13,8 @@ export class ServerFunctionNotFoundError extends Error {
 }
 
 export function useActionState(action) {
+  usePostpone(dynamicHookError("useActionState"));
+
   const { formData, data, error, actionId } = getContext(ACTION_CONTEXT) ?? {
     formData: null,
     data: null,

@@ -4,6 +4,7 @@ import colors from "picocolors";
 import { createLogger as createViteLogger } from "rolldown-vite";
 import strip from "strip-ansi";
 
+import { prepareError } from "../handlers/error.mjs";
 import { deleteLastXLines, replaceError } from "../utils/error.mjs";
 
 const formatRegExp = /%[oOjdisfc%]/g;
@@ -187,11 +188,11 @@ export default function createLogger(level = "info", options) {
           }
         );
       } else {
-        let msg = e?.message;
+        let msg = e?.message?.replace(/\n\n/g, " ") ?? e;
         if (!msg) {
           try {
             if (typeof e !== "string") {
-              msg = JSON.stringify(e);
+              msg = JSON.stringify(prepareError(e));
             } else {
               msg = addColors(format(e, ...rest));
             }

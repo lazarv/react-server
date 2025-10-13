@@ -36,6 +36,35 @@ export async function init$(
             [name]: implementation,
           };
         }
+      } else if (/^react-server-reference:/.test(specifier)) {
+        const match = /^react-server-reference:(?<id>.+)#(?<name>.+)$/.exec(
+          specifier
+        );
+        const { id, name } = match?.groups ?? {};
+        if (id && name) {
+          const implementation = function () {
+            throw new Error(
+              `Attempted to call ${id}() from the server but ${id} is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.`
+            );
+          };
+          Object.defineProperties(implementation, {
+            $$typeof: { value: Symbol.for("react.server.reference") },
+            $$id: { value: `${id}#${name}` },
+            $$bound: { value: null, writable: true },
+            bind: {
+              value: (_, ...args) => {
+                Object.defineProperty(implementation, "$$bound", {
+                  value: args,
+                });
+                return implementation;
+              },
+              writable: true,
+            },
+          });
+          return {
+            [name]: implementation,
+          };
+        }
       } else if (specifier.startsWith("server://")) {
         const mod = ssrLoadModule(
           specifier.replace("server://", ""),

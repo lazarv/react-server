@@ -2,7 +2,7 @@ import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { init$ as cache_init$ } from "../../cache/index.mjs";
+import { init$ as cache_init$, useCache } from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
@@ -30,6 +30,8 @@ import {
   MODULE_LOADER,
   POSTPONE_STATE,
   PRELUDE_HTML,
+  PRERENDER_CACHE,
+  PRERENDER_CACHE_DATA,
   REDIRECT_CONTEXT,
   RENDER,
   RENDER_CONTEXT,
@@ -83,6 +85,7 @@ export default async function ssrHandler(root, options = {}) {
     { default: Component, init$: root_init$ },
     { default: GlobalErrorComponent },
     { default: ErrorBoundary },
+    rscSerializer,
   ] = await Promise.all([
     import(pathToFileURL(entryModule)),
     import(pathToFileURL(rootModule)),
@@ -90,6 +93,7 @@ export default async function ssrHandler(root, options = {}) {
     errorBoundary
       ? import(pathToFileURL(errorBoundary))
       : Promise.resolve({ default: null }),
+    import("../../cache/rsc.mjs"),
   ]);
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
@@ -213,11 +217,52 @@ export default async function ssrHandler(root, options = {}) {
             [RENDER_STREAM]: renderStream,
             [PRELUDE_HTML]: getPrerender(PRELUDE_HTML),
             [POSTPONE_STATE]: getPrerender(POSTPONE_STATE),
+            [PRERENDER_CACHE]: httpContext.prerenderCache ?? null,
             [ERROR_BOUNDARY]: ErrorBoundary,
           },
           async () => {
             if (!noCache) {
               await cache_init$?.();
+            }
+
+            let expiredPrerenderCache = false;
+            const prerenderCacheData = getPrerender(PRERENDER_CACHE_DATA);
+            if (prerenderCacheData?.length > 0) {
+              await Promise.all(
+                prerenderCacheData.map(async (entry) => {
+                  const [kBuffer, vBuffer, timestamp, ttl, provider] = entry;
+                  if (Date.now() < timestamp + (ttl ?? Infinity)) {
+                    const [keys, result, { default: driver }] =
+                      await Promise.all([
+                        rscSerializer.fromBuffer(
+                          Buffer.from(kBuffer, "base64")
+                        ),
+                        rscSerializer.fromBuffer(
+                          Buffer.from(vBuffer, "base64")
+                        ),
+                        typeof provider.driverPath === "string"
+                          ? import(provider.driverPath || provider.driver)
+                          : Promise.resolve({ default: null }),
+                      ]);
+                    return useCache(keys, result, ttl ?? Infinity, false, {
+                      ...provider,
+                      driver,
+                      serializer:
+                        provider?.serializer === "rsc"
+                          ? rscSerializer
+                          : undefined,
+                      prerenderCache: true,
+                    });
+                  }
+                  expiredPrerenderCache = true;
+                  return null;
+                })
+              );
+            }
+
+            if (noCache || expiredPrerenderCache) {
+              context$(PRELUDE_HTML, null);
+              context$(POSTPONE_STATE, null);
             }
 
             const renderContext = createRenderContext(httpContext);

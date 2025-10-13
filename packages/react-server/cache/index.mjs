@@ -3,6 +3,7 @@ import colors from "picocolors";
 import memoryDriver from "unstorage/drivers/memory";
 
 import { forRoot } from "../config/index.mjs";
+import { ContextManager } from "../lib/async-local-storage.mjs";
 import { context$, getContext } from "../server/context.mjs";
 import {
   CACHE_CONTEXT,
@@ -12,9 +13,15 @@ import {
   HTTP_CONTEXT,
   LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
+  PRERENDER_CACHE,
 } from "../server/symbols.mjs";
 
 export { StorageCache, memoryDriver as default, CACHE_MISS };
+
+export const CacheContext = new ContextManager();
+export function getCacheContext() {
+  return CacheContext.getStore();
+}
 
 const cacheDrivers = new Map();
 const cacheInstances = new Map();
@@ -73,7 +80,7 @@ export async function useCache(
     cacheDrivers.set(provider.name, provider.driver);
     cache = new StorageCache(
       provider.driver,
-      config?.options,
+      config?.options ?? provider.options,
       provider.serializer
     );
     cacheInstances.set(provider.name, cache);
@@ -91,22 +98,52 @@ export async function useCache(
     lock.set(key, new Promise((resolve) => (release = resolve)));
   }
 
+  let error;
+  let result;
   try {
-    let result = await cache.get(keys);
+    result = await cache.get(keys);
 
     if (force || result === CACHE_MISS) {
-      result = typeof promise === "function" ? promise() : promise;
-      await cache.set(keys, result, ttl);
+      let value = promise;
+
+      if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
+        value =
+          typeof promise === "function"
+            ? await new Promise(async (resolve, reject) => {
+                CacheContext.run({ ttl, provider }, async () => {
+                  try {
+                    resolve(await promise());
+                  } catch (e) {
+                    reject(e);
+                  }
+                });
+              })
+            : promise;
+      } else {
+        value = typeof promise === "function" ? await promise() : promise;
+      }
+
+      if (error) throw error;
+      result = await cache.set(keys, value, ttl ?? Infinity);
+
+      getContext(PRERENDER_CACHE)?.add({
+        keys,
+        result,
+        ttl: ttl ?? Infinity,
+        provider,
+      });
     }
 
     lock.delete(key);
     release?.();
-
-    return result;
-  } catch {
+  } catch (e) {
     lock.delete(key);
     release?.();
+    error = e;
   }
+
+  if (error) throw error;
+  return result;
 }
 
 export function invalidate(key, provider) {
@@ -123,7 +160,7 @@ export function invalidate(key, provider) {
       (typeof key === "function" && key[CACHE_PROVIDER]
         ? key[CACHE_PROVIDER]
         : "default")
-  ); // ?? getContext(MEMORY_CACHE_CONTEXT);
+  );
 
   if (typeof key === "function" && key[CACHE_KEY]) {
     return cache?.delete(key[CACHE_KEY]);

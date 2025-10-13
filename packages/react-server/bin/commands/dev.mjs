@@ -28,6 +28,7 @@ export default (cli) =>
     .option("-n, --name <name>", "[string] server name", {
       default: "react-server",
     })
+    .option("--inspect", "enable inspector", { default: false })
     .action(async (...args) => {
       setEnv("NODE_ENV", "development");
       return (await import("../../lib/dev/action.mjs")).default(...args);

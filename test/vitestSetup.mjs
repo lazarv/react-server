@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { readdir, rm } from "node:fs/promises";
-import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import { afterEach } from "node:test";
 import { Worker } from "node:worker_threads";
@@ -84,101 +83,92 @@ beforeAll(async ({ name, id }) => {
         const hash = hashValue.toString("hex");
         const port =
           BASE_PORT + (hashValue.readUInt32BE(0) % (MAX_PORT - BASE_PORT));
-        if (process.env.NODE_ENV !== "production") {
-          const { reactServer } = await import("@lazarv/react-server/dev");
-          const server = await reactServer(
-            root?.[0] === "." || !root
-              ? root
-              : join(process.cwd(), dirname(name), "..", root),
-            {
-              outDir: `.react-server-dev-${id}-${hash}`,
-              force: true,
-              port,
-              cacheDir: `.reaact-server-dev-${id}-${hash}-vite-cache`,
-            },
-            {
-              server: {
-                hmr: {
-                  port: port + 1,
-                },
-              },
-              customLogger: {
-                info() {},
-                warn() {},
-                error() {},
-              },
-              ...initialConfig,
-            }
-          );
-          const { middlewares } = server;
 
-          httpServer = createServer(middlewares);
-          httpServer.once("listening", () => {
-            hostname = `http://localhost:${port}`;
-            logs = [];
-            serverLogs = [];
-            resolve();
-          });
-          httpServer.on("error", (err) => {
-            reject(err);
-          });
-          httpServer.on("close", () => {
-            server.ws.close();
-          });
-          httpServer.listen(port);
-        } else {
+        const options =
+          process.env.NODE_ENV === "production"
+            ? {
+                outDir: `.react-server-build-${id}-${hash}`,
+                server: true,
+                client: true,
+                export: false,
+                adapter: ["false"],
+                minify: false,
+              }
+            : {
+                outDir: `.react-server-dev-${id}-${hash}`,
+                force: true,
+                port,
+                cacheDir: `.reaact-server-dev-${id}-${hash}-vite-cache`,
+              };
+
+        if (process.env.NODE_ENV === "production") {
           const { default: build } = await import(
             "@lazarv/react-server/lib/build/action.mjs"
           );
-          const options = {
-            outDir: `.react-server-build-${id}-${hash}`,
-            server: true,
-            client: true,
-            export: false,
-            adapter: ["false"],
-            minify: false,
-          };
           await build(
             root?.[0] === "." || !root
               ? root
               : join(process.cwd(), dirname(name), "..", root),
             options
           );
-          const worker = new Worker(new URL("./server.mjs", import.meta.url), {
+        }
+
+        const worker = new Worker(
+          new URL(
+            process.env.NODE_ENV === "production"
+              ? "./server.node.mjs"
+              : "./server.dev.mjs",
+            import.meta.url
+          ),
+          {
             workerData: {
+              root:
+                root?.[0] === "." || !root
+                  ? root
+                  : join(process.cwd(), dirname(name), "..", root),
               options,
-              initialConfig,
+              initialConfig:
+                process.env.NODE_ENV === "production"
+                  ? initialConfig
+                  : {
+                      server: {
+                        hmr: {
+                          port: port + 1,
+                        },
+                      },
+                      ...initialConfig,
+                    },
               port,
             },
-          });
-          worker.on("message", (msg) => {
-            if (msg.port) {
-              hostname = `http://localhost:${msg.port}`;
-              process.env.ORIGIN = hostname;
-              logs = [];
-              serverLogs = [];
-              resolve();
-            } else if (msg.console) {
-              console.log(...msg.console);
-            } else if (msg.error) {
-              worker.terminate();
-              reject(new Error(msg.error));
-            }
-          });
-          worker.on("error", (e) => {
-            consoleError(e);
-            reject(e);
-          });
-          worker.on("exit", (code) => {
-            if (code !== 0) {
-              consoleError(new Error(`Worker stopped with exit code ${code}`));
-              reject(new Error(`Worker stopped with exit code ${code}`));
-            }
-          });
-          httpServer = {
-            close: () => worker.terminate(),
-          };
-        }
+          }
+        );
+        worker.on("message", (msg) => {
+          if (msg.port) {
+            hostname = `http://localhost:${msg.port}`;
+            process.env.ORIGIN = hostname;
+            logs = [];
+            serverLogs = [];
+            resolve();
+          } else if (msg.console) {
+            console.log(...msg.console);
+          } else if (msg.error) {
+            worker.terminate();
+            reject(new Error(msg.error));
+          }
+        });
+        worker.on("error", (e) => {
+          consoleError(e);
+          reject(e);
+        });
+        worker.on("exit", (code) => {
+          if (code !== 0) {
+            consoleError(new Error(`Worker stopped with exit code ${code}`));
+            reject(new Error(`Worker stopped with exit code ${code}`));
+          }
+        });
+        httpServer = {
+          close: () => worker.terminate(),
+        };
       } catch (e) {
         reject(e);
       }

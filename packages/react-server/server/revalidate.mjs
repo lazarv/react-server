@@ -1,11 +1,15 @@
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 
+import { dynamicHookError } from "../lib/utils/error.mjs";
+import { usePostpone } from "./postpone.mjs";
 import { useUrl } from "./request.mjs";
 import { CACHE_CONTEXT } from "./symbols.mjs";
 
 const revalidateQueue = [];
 
 export function revalidate(key) {
+  usePostpone(dynamicHookError("revalidate"));
+
   revalidateQueue.push(async () => {
     const url = useUrl();
     const cache = getContext(CACHE_CONTEXT);

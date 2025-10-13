@@ -1,6 +1,8 @@
-import { generate } from "astring";
+import { generate, GENERATOR } from "astring";
 import { parseAsync } from "oxc-parser";
 import { SourceMapGenerator } from "source-map";
+
+import { getEnv } from "../sys.mjs";
 
 function computeLineOffsets(code) {
   const lineOffsets = [0];
@@ -108,12 +110,21 @@ export function walk(node, visitor, context = { visited: new Set() }) {
   visitor.leave?.(node);
 }
 
+const generator = new Proxy(GENERATOR, {
+  get(target, prop) {
+    if (!(prop in target)) {
+      throw new Error(`Unknown AST node type: ${prop}`);
+    }
+    return target[prop];
+  },
+});
 export function codegen(ast, id) {
   const map = new SourceMapGenerator({
     file: id,
   });
   const gen = generate(ast, {
     sourceMap: map,
+    generator: getEnv("REACT_SERVER_AST_DEBUG") ? generator : GENERATOR,
   });
 
   return {

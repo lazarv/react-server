@@ -44,6 +44,16 @@ function detectSplitUTF8(chunk) {
   return cutIndex < bytes.length ? bytes.slice(cutIndex) : null;
 }
 
+class Postponed extends Error {
+  constructor() {
+    super("Partial Pre-Rendering postponed");
+    this.name = "PostponedPartialPreRendering";
+    this.digest = "POSTPONED";
+  }
+}
+
+const PRERENDER_TIMEOUT = 30000;
+
 export const createRenderer = ({
   moduleCacheStorage,
   linkQueueStorage,
@@ -64,6 +74,7 @@ export const createRenderer = ({
     preludeChunk,
     preludeDone,
     postponed,
+    prerender: prerenderConfig,
     remote,
     origin,
     importMap,
@@ -175,11 +186,25 @@ export const createRenderer = ({
                     const linkSent = new Set();
 
                     let html;
+                    const prerenderController = new AbortController();
 
                     if (isPrerender) {
+                      const prerenderTimeoutId = setTimeout(() => {
+                        prerenderController.abort(new Postponed());
+                      }, prerenderConfig?.timeout ?? PRERENDER_TIMEOUT);
+
                       const { postponed, prelude } = await prerender(tree, {
+                        signal: prerenderController.signal,
                         formState,
+                        onError(e) {
+                          if (e.digest !== "POSTPONED") {
+                            error = e;
+                          }
+                        },
                       });
+
+                      clearTimeout(prerenderTimeoutId);
+
                       html = prelude;
                       if (postponed) {
                         parentPort.postMessage({

@@ -4,6 +4,9 @@ import {
   REDIRECT_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 
+import { dynamicHookError } from "../lib/utils/error.mjs";
+import { usePostpone } from "./postpone.mjs";
+
 export class RedirectError extends Error {
   constructor(url, status) {
     super("Redirect");
@@ -14,6 +17,8 @@ export class RedirectError extends Error {
 }
 
 export function redirect(url, status = 302) {
+  usePostpone(dynamicHookError("redirect"));
+
   const store = getContext(REDIRECT_CONTEXT);
   if (store) {
     const request = getContext(HTTP_CONTEXT).request;

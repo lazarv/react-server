@@ -25,6 +25,7 @@ import {
 import ssrHandler from "../start/ssr-handler.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
+import { toBuffer } from "../../cache/rsc.mjs";
 
 const cwd = sys.cwd();
 
@@ -40,6 +41,7 @@ function log(
   gzipStat,
   brotliStat,
   postponedStat,
+  prerenderCacheStat,
   maxFilenameLength
 ) {
   console.log(
@@ -49,7 +51,7 @@ function log(
     )} ${`${" ".repeat(
       Math.max(0, maxFilenameLength - normalizedBasename.length)
     )}${colors.gray(colors.bold(size(htmlStat.size)))}${colors.dim(
-      `${gzipStat.size ? ` │ gzip: ${size(gzipStat.size)}` : ""}${brotliStat.size ? ` │ brotli: ${size(brotliStat.size)}` : ""}${postponedStat.size ? ` │ postponed: ${size(postponedStat.size)}` : ""}`
+      `${gzipStat.size ? ` │ gzip: ${size(gzipStat.size)}` : ""}${brotliStat.size ? ` │ brotli: ${size(brotliStat.size)}` : ""}${postponedStat.size ? ` │ partial pre-render: ${size(postponedStat.size)}` : ""}${prerenderCacheStat.size ? ` │ pre-render cache: ${size(prerenderCacheStat.size)}` : ""}`
     )}`}`
   );
 }
@@ -154,94 +156,139 @@ export default async function staticSiteGenerator(root, options) {
 
       const render = await ssrHandler(null, options);
       await Promise.all(
-        paths.map(async ({ path, filename: out, method, headers }) => {
-          try {
-            const url = new URL(
-              `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}`
-            );
-            if (!out) {
-              await mkdir(join(cwd, options.outDir, "dist", path), {
-                recursive: true,
-              });
-            }
-            const normalizedPath = path
-              .replace(/^\/+/g, "")
-              .replace(/\/+$/g, "");
-            const normalizedBasename = (
-              out ?? `${normalizedPath}/index.html`
-            ).replace(/^\/+/g, "");
-            const filename = join(
-              cwd,
-              options.outDir,
-              "dist",
-              normalizedBasename
-            );
-
-            let postponed;
-            const stream = await render({
-              url,
-              method: method ?? "GET",
-              request: {
-                url: url.toString(),
-                method: method ?? "GET",
-                headers: new Headers({
-                  accept: "text/html",
-                  ...headers,
-                }),
-              },
-              onPostponed:
-                configRoot.prerender === false
-                  ? null
-                  : (_postponed) => (postponed = _postponed),
-            });
-
-            if (out) {
-              const content = await stream.text();
-              await mkdir(dirname(filename), { recursive: true });
-              await writeFile(filename, content, "utf8");
-              const outStat = await stat(filename);
-
-              log(
-                options.outDir,
-                normalizedBasename,
-                outStat,
-                { size: 0 },
-                { size: 0 },
-                { size: 0 },
-                maxFilenameLength
+        paths.map(
+          async ({ path, filename: out, method, headers, prerender }) => {
+            try {
+              const url = new URL(
+                `http${config.server?.https ? "s" : ""}://${config.host ?? "localhost"}:${config.port ?? 3000}${path}`
               );
-            } else {
-              const html = await stream.text();
+              if (!out) {
+                await mkdir(join(cwd, options.outDir, "dist", path), {
+                  recursive: true,
+                });
+              }
+              const normalizedPath = path
+                .replace(/^\/+/g, "")
+                .replace(/\/+$/g, "");
+              const normalizedBasename = (
+                out ?? `${normalizedPath}/index.html`
+              ).replace(/^\/+/g, "");
+              const filename = join(
+                cwd,
+                options.outDir,
+                "dist",
+                normalizedBasename
+              );
 
-              const files = [];
-              if (compression) {
-                const gzip = createGzip();
-                const brotli = createBrotliCompress();
-                const gzipWriteStream = createWriteStream(`${filename}.gz`);
-                const brotliWriteStream = createWriteStream(`${filename}.br`);
-                files.push(
-                  pipeline(Readable.from(html), gzip, gzipWriteStream),
-                  pipeline(Readable.from(html), brotli, brotliWriteStream),
-                  writeFile(filename, html, "utf8")
+              let postponed;
+              const prerenderCache = new Set();
+              const stream = await render({
+                url,
+                method: method ?? "GET",
+                request: {
+                  url: url.toString(),
+                  method: method ?? "GET",
+                  headers: new Headers({
+                    accept: "text/html",
+                    ...headers,
+                  }),
+                },
+                prerender: prerender ?? configRoot.prerender,
+                prerenderCache,
+                onPostponed:
+                  configRoot.prerender === false
+                    ? null
+                    : (_postponed) => (postponed = _postponed),
+              });
+
+              if (out) {
+                const content = await stream.text();
+                await mkdir(dirname(filename), { recursive: true });
+                await writeFile(filename, content, "utf8");
+                const outStat = await stat(filename);
+
+                log(
+                  options.outDir,
+                  normalizedBasename,
+                  outStat,
+                  { size: 0 },
+                  { size: 0 },
+                  { size: 0 },
+                  maxFilenameLength
                 );
               } else {
-                files.push(writeFile(filename, html, "utf8"));
-              }
+                const html = await stream.text();
 
-              const postponedFilename = `${filename}.postponed.json`;
-              if (postponed) {
-                files.push(
-                  writeFile(
-                    postponedFilename,
-                    JSON.stringify(postponed),
-                    "utf8"
-                  )
-                );
-              }
-              await Promise.all(files);
+                const files = [];
+                if (compression) {
+                  const gzip = createGzip();
+                  const brotli = createBrotliCompress();
+                  const gzipWriteStream = createWriteStream(`${filename}.gz`);
+                  const brotliWriteStream = createWriteStream(`${filename}.br`);
+                  files.push(
+                    pipeline(Readable.from(html), gzip, gzipWriteStream),
+                    pipeline(Readable.from(html), brotli, brotliWriteStream),
+                    writeFile(filename, html, "utf8")
+                  );
+                } else {
+                  files.push(writeFile(filename, html, "utf8"));
+                }
 
-              const [htmlStat, gzipStat, brotliStat, postponedStat] =
-                await Promise.all([
+                const postponedFilename = `${filename}.postponed.json`;
+                if (postponed) {
+                  files.push(
+                    writeFile(
+                      postponedFilename,
+                      JSON.stringify(postponed),
+                      "utf8"
+                    )
+                  );
+                }
+                const cacheFilename = `${filename}.prerender-cache.json`;
+                if (prerenderCache.size > 0) {
+                  files.push(
+                    writeFile(
+                      cacheFilename,
+                      `[${(
+                        await Promise.all(
+                          Array.from(prerenderCache)
+                            .filter(
+                              (entry) => entry.provider?.options?.prerender
+                            )
+                            .map(async (entry) => {
+                              const [kBuffer, vBuffer] = await Promise.all([
+                                toBuffer(entry.keys),
+                                toBuffer(entry.result),
+                              ]);
+                              const cacheEntry = [
+                                kBuffer.toString("base64"),
+                                vBuffer.toString("base64"),
+                                Date.now(),
+                                entry.ttl,
+                                {
+                                  ...entry?.provider,
+                                  serializer: entry.provider?.serializer
+                                    ? "rsc"
+                                    : undefined,
+                                },
+                              ];
+                              return JSON.stringify(cacheEntry);
+                            })
+                        )
+                      ).join(",")}]`,
+                      "utf8"
+                    )
+                  );
+                }
+                await Promise.all(files);
+
+                const [
+                  htmlStat,
+                  gzipStat,
+                  brotliStat,
+                  postponedStat,
+                  prerenderCacheStat,
+                ] = await Promise.all([
                   stat(filename),
                   compression
                     ? stat(`${filename}.gz`)
@@ -252,22 +299,27 @@ export default async function staticSiteGenerator(root, options) {
                   postponed
                     ? stat(postponedFilename)
                     : Promise.resolve({ size: 0 }),
+                  prerenderCache.size > 0
+                    ? stat(cacheFilename)
+                    : Promise.resolve({ size: 0 }),
                 ]);
 
-              log(
-                options.outDir,
-                normalizedBasename,
-                htmlStat,
-                gzipStat,
-                brotliStat,
-                postponedStat,
-                maxFilenameLength
-              );
+                log(
+                  options.outDir,
+                  normalizedBasename,
+                  htmlStat,
+                  gzipStat,
+                  brotliStat,
+                  postponedStat,
+                  prerenderCacheStat,
+                  maxFilenameLength
+                );
+              }
+            } catch (e) {
+              console.error(e);
             }
-          } catch (e) {
-            console.error(e);
           }
-        })
+        )
       );
 
       await Promise.all(

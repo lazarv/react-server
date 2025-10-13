@@ -29,6 +29,22 @@ export function toStream(model, options = {}) {
 function createManifest() {
   return {
     serverConsumerManifest: {
+      serverModuleMap: new Proxy(
+        {},
+        {
+          get(target, prop) {
+            if (!target[prop]) {
+              const [id, name] = prop.split("#");
+              target[prop] = {
+                id: `react-server-reference:${id}#${name}`,
+                name,
+                chunks: [],
+              };
+            }
+            return target[prop];
+          },
+        }
+      ),
       moduleMap: new Proxy(
         {},
         {

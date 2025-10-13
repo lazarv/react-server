@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { createRequire, isBuiltin, register } from "node:module";
 import { dirname, join, relative } from "node:path";
 import { Worker } from "node:worker_threads";
@@ -12,6 +12,7 @@ import {
 } from "rolldown-vite";
 import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
 import memoryDriver from "unstorage/drivers/memory";
+import inspect from "vite-plugin-inspect";
 
 import StorageCache from "../../cache/storage-cache.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
@@ -47,6 +48,7 @@ import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import useCacheInline from "../plugins/use-cache-inline.mjs";
 import useClient from "../plugins/use-client.mjs";
+import useDynamic from "../plugins/use-dynamic.mjs";
 import useServer from "../plugins/use-server.mjs";
 import useServerInline from "../plugins/use-server-inline.mjs";
 import * as sys from "../sys.mjs";
@@ -162,6 +164,13 @@ export default async function createServer(root, options) {
       postcss: cwd,
     },
     plugins: [
+      ...(options.inspect
+        ? [
+            inspect({
+              ...config.inspect,
+            }),
+          ]
+        : []),
       !root || root === "@lazarv/react-server/file-router"
         ? fileRouter(options)
         : [],
@@ -175,6 +184,7 @@ export default async function createServer(root, options) {
       useServer(),
       useServerInline(),
       useCacheInline(config.cache?.profiles, config.cache?.providers),
+      useDynamic(),
       ...filterOutVitePluginReact(config.plugins),
       asset(),
       optimizeDeps(),
@@ -776,6 +786,18 @@ export default async function createServer(root, options) {
             }),
             { headers: { "Content-Type": "application/json" } }
           );
+        }
+      } else if (context.url.pathname === "/__react_server_src__") {
+        const filename = context.url.searchParams.get("filename");
+        const mod =
+          viteDevServer.environments.rsc.moduleGraph.getModuleById(filename) ??
+          viteDevServer.environments.ssr.moduleGraph.getModuleById(filename) ??
+          viteDevServer.environments.client.moduleGraph.getModuleById(filename);
+        if (mod || existsSync(filename)) {
+          const code = await readFile(filename, "utf-8");
+          return new Response(mod?.transformResult?.code ?? code, {
+            headers: { "Content-Type": "text/plain" },
+          });
         }
       }
     },

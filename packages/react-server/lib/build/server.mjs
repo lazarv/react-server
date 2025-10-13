@@ -19,6 +19,7 @@ import rollupUseClient from "../plugins/use-client.mjs";
 import rollupUseServerInline from "../plugins/use-server-inline.mjs";
 import rollupUseServer from "../plugins/use-server.mjs";
 import rollupUseCacheInline from "../plugins/use-cache-inline.mjs";
+import rollupUseDynamic from "../plugins/use-dynamic.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import merge from "../utils/merge.mjs";
@@ -76,6 +77,9 @@ export default async function serverBuild(root, options) {
       "unstorage",
       /^unstorage\/drivers\//,
       /^react-server-highlight\.js/,
+      "@lazarv/react-server/rsc",
+      "@lazarv/react-server/memory-cache",
+      "@lazarv/react-server/storage-cache",
       ...(Array.isArray(config.build?.rollupOptions?.external)
         ? config.build?.rollupOptions?.external
         : []),
@@ -369,6 +373,7 @@ export default async function serverBuild(root, options) {
             config.cache?.providers,
             "server"
           ),
+          rollupUseDynamic(),
           rootModule(root),
           configPrebuilt(),
           {
@@ -489,6 +494,7 @@ export default async function serverBuild(root, options) {
               config.cache?.providers,
               "client"
             ),
+            rollupUseDynamic(),
             ...(config.build?.rollupOptions?.plugins ?? []),
           ],
         },

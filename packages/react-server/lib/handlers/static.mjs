@@ -6,7 +6,11 @@ import { pathToFileURL } from "node:url";
 import mime from "mime";
 
 import { prerender$ } from "../../server/prerender-storage.mjs";
-import { POSTPONE_STATE, PRELUDE_HTML } from "../../server/symbols.mjs";
+import {
+  POSTPONE_STATE,
+  PRELUDE_HTML,
+  PRERENDER_CACHE_DATA,
+} from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 
 const cwd = sys.cwd();
@@ -60,13 +64,22 @@ export default async function staticHandler(dir, options = {}) {
     if (exists(`${basename}.postponed.json`)) {
       prelude = basename;
       pathname = basename;
-      const { default: postponed } = await import(
-        pathToFileURL(join(dir, `${basename}.postponed.json`)),
-        {
-          with: { type: "json" },
-        }
-      );
+      const [{ default: postponed }, { default: cacheData }] =
+        await Promise.all([
+          import(pathToFileURL(join(dir, `${basename}.postponed.json`)), {
+            with: { type: "json" },
+          }),
+          exists(`${basename}.prerender-cache.json`)
+            ? import(
+                pathToFileURL(join(dir, `${basename}.prerender-cache.json`)),
+                {
+                  with: { type: "json" },
+                }
+              )
+            : Promise.resolve({ default: [] }),
+        ]);
       prerender$(POSTPONE_STATE, postponed);
+      prerender$(PRERENDER_CACHE_DATA, cacheData);
     } else if (isBrotli && exists(`${basename}.br`)) {
       pathname = `${basename}.br`;
       contentEncoding = "br";
@@ -116,7 +129,11 @@ export default async function staticHandler(dir, options = {}) {
               res = new ReadableStream({
                 type: "bytes",
                 async start(controller) {
-                  controller.enqueue(new Uint8Array(sys.copyBytesFrom(buffer)));
+                  if (buffer.byteLength > 0) {
+                    controller.enqueue(
+                      new Uint8Array(sys.copyBytesFrom(buffer))
+                    );
+                  }
                   controller.close();
                 },
               });

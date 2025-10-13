@@ -6,19 +6,29 @@ import {
   RENDER_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 
+import { dynamicHookError, dynamicHookWarning } from "../lib/utils/error.mjs";
+import { usePostpone } from "./postpone.mjs";
+
 export function useHttpContext() {
+  usePostpone(dynamicHookWarning("useHttpContext"));
   return getContext(HTTP_CONTEXT);
 }
 
 export function useUrl() {
+  usePostpone(dynamicHookWarning("useUrl"));
+
   return getContext(HTTP_CONTEXT).url;
 }
 
 export function usePathname() {
+  usePostpone(dynamicHookWarning("usePathname"));
+
   return getContext(HTTP_CONTEXT).url.pathname;
 }
 
 export function useSearchParams() {
+  usePostpone(dynamicHookWarning("useSearchParams"));
+
   const searchParams = getContext(HTTP_CONTEXT).url.searchParams;
   return searchParams
     ? Array.from(searchParams.entries()).reduce((params, [key, value]) => {
@@ -36,14 +46,18 @@ export function useSearchParams() {
 }
 
 export function useRequest() {
+  usePostpone(dynamicHookWarning("useRequest"));
   return getContext(HTTP_CONTEXT).request;
 }
 
 export async function useResponse() {
+  usePostpone(dynamicHookWarning("useResponse"));
   return getContext(HTTP_RESPONSE);
 }
 
 export async function useFormData() {
+  usePostpone(dynamicHookError("useFormData"));
+
   const request = getContext(HTTP_CONTEXT).request;
   if (request.headers.get("content-type") !== "multipart/form-data") {
     const body = await request.text();
@@ -64,6 +78,8 @@ const urlProperties = Object.getOwnPropertyNames(URL.prototype).filter(
   }
 );
 export function rewrite(pathname) {
+  usePostpone(dynamicHookError("rewrite"));
+
   const httpContext = getContext(HTTP_CONTEXT);
   const url =
     typeof pathname === "string"

@@ -11,7 +11,10 @@ export default class StorageCache {
     this.index = new Map();
     const driver = storageDriver(options);
     this.storage = createStorage({ driver });
-    this.type = driver.name === "memory" ? "raw" : options?.type;
+    this.type =
+      options?.type ??
+      (driver.name === "memory" ? "raw" : options?.type) ??
+      (this.serializer ? "rsc" : undefined);
     this.encoding = this.type === "rsc" ? options?.encoding : null;
     this.serializer = serializer;
   }
@@ -123,6 +126,8 @@ export default class StorageCache {
       }
       s.add(ckey);
     }
+
+    return this.get(tags);
   }
 
   async getById(id) {

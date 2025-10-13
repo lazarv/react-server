@@ -124,7 +124,8 @@ export async function prepareError(err) {
   const [message, ...details] = err.message.split("\n\n");
   return {
     message: strip(message),
-    details: details.map((line) => strip(line)),
+    details:
+      details.length > 0 ? details.map((line) => strip(line)) : undefined,
     digest:
       details.length > 0
         ? strip(details.join("\n\n"))

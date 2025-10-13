@@ -1,9 +1,9 @@
-import { createRequire } from "node:module";
+import Module, { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 
 import moduleAlias from "module-alias";
 
-import { normalizePath } from "../sys.mjs";
+import { getEnv, normalizePath } from "../sys.mjs";
 
 const __require = createRequire(import.meta.url);
 
@@ -117,6 +117,10 @@ export function moduleAliases(condition) {
 
 export function alias(condition) {
   moduleAlias.addAliases(moduleAliases(condition));
+
+  if (condition === "react-server" && getEnv("NODE_ENV") !== "production") {
+    reactServerPatchCjs();
+  }
 }
 
 export const reactClientFunctions = [
@@ -188,4 +192,26 @@ export async function reactServerBunAliasPlugin() {
       },
     });
   }
+}
+
+export function reactServerPatchCjs() {
+  const originalLoad = Module._load;
+  Module._load = function (request, parent, isMain) {
+    if (request === "react") {
+      return new Proxy(originalLoad(request, parent, isMain), {
+        get(target, prop) {
+          if (reactClientFunctions.includes(prop)) {
+            return function () {
+              const err = new ReferenceError(`${prop} is not defined`);
+              Error.captureStackTrace(err, target[prop]);
+              err.digest = `You are trying to use \`${prop}\` in a React Server Component. \`${prop}\` is only available in client components. Add \`'use client';\` at the top of your source file where you are using \`${prop}\` to make it a client component file.`;
+              throw err;
+            };
+          }
+          return target[prop];
+        },
+      });
+    }
+    return originalLoad(request, parent, isMain);
+  };
 }

@@ -44,18 +44,21 @@ export async function resolve(specifier, context, nextResolve) {
   }
 }
 
-export async function load(url, context, nextLoad) {
-  if (url === reactUrl.href || url === reactClientUrl.href) {
-    const format = "commonjs";
-    const code = await readFile(fileURLToPath(reactUrl), "utf8");
-    const source = reactServerPatch(code);
+export const load =
+  process.env.NODE_ENV === "production"
+    ? undefined
+    : async function load(url, context, nextLoad) {
+        if (url === reactUrl.href || url === reactClientUrl.href) {
+          const format = "commonjs";
+          const code = await readFile(fileURLToPath(reactUrl), "utf8");
+          const source = reactServerPatch(code);
 
-    return {
-      format,
-      source,
-      shortCircuit: true,
-    };
-  }
+          return {
+            format,
+            source,
+            shortCircuit: true,
+          };
+        }
 
-  return nextLoad(url, context);
-}
+        return nextLoad(url, context);
+      };

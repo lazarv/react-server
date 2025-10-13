@@ -101,7 +101,9 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
     } else if (typeof error.message === "string" && !error.details) {
       const [message, ...details] = error.message.split("\n\n");
       error.message = message;
-      error.details = details.map((line) => argToPre(line)) || [];
+      if (details.length > 0) {
+        error.details = details.map((line) => argToPre(line)) || [];
+      }
     }
     error.plugin = "@lazarv/react-server";
     const cwd =

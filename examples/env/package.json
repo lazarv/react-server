@@ -1,0 +1,16 @@
+{
+  "name": "@lazarv/react-server-example-env",
+  "private": true,
+  "description": "@lazarv/react-server Environment Variables example application",
+  "scripts": {
+    "dev": "REACT_SERVER_VALUE=1 react-server ./App.jsx",
+    "build": "REACT_SERVER_VALUE=1 react-server build ./App.jsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^"
+  }
+}

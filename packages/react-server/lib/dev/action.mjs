@@ -74,9 +74,11 @@ export default async function dev(root, options) {
                   onWatch(watcher) {
                     configWatcher = watcher;
                   },
-                  async onChange() {
+                  async onChange(e) {
                     getRuntime(LOGGER_CONTEXT)?.warn?.(
-                      `Configuration changed, restarting server...`
+                      e?.startsWith?.(".env")
+                        ? `${colors.green(e)} changed, restarting server...`
+                        : `Configuration changed, restarting server...`
                     );
                     await restartServer();
                   },

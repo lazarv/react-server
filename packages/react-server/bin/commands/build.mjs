@@ -26,6 +26,7 @@ export default (cli) =>
     .option("--outDir <dir>", "[string] output directory", {
       default: ".react-server",
     })
+    .option("--mode <mode>", "[string] mode", { default: "production" })
     .action(async (root, options) => {
       setEnv("NODE_ENV", "production");
       return (await import("../../lib/build/action.mjs")).default(

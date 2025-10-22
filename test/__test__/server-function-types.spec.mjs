@@ -47,6 +47,14 @@ const validator = {
       "timestamp"
     );
   },
+  "redirect-action": async (page) => {
+    await page.waitForFunction(
+      () => window.location.pathname === "/some-other-page"
+    );
+    expect(await page.evaluate(() => window.location.pathname)).toBe(
+      "/some-other-page"
+    );
+  },
   "stream-action": async (page) => {
     await page.waitForFunction(
       () => window.__react_server_result__ !== undefined

@@ -1,6 +1,6 @@
 "use server";
 
-import { reload, status } from "@lazarv/react-server";
+import { redirect, reload, status } from "@lazarv/react-server";
 
 export async function serverAction() {
   console.log("submitted server-action!");
@@ -98,4 +98,9 @@ export async function reloadAction() {
   console.log("submitted reload-action!");
   reload("/", "rsf");
   return { hello: "world", timestamp: Date.now() };
+}
+
+export async function redirectAction() {
+  console.log("submitted redirect-action!");
+  redirect("/some-other-page");
 }

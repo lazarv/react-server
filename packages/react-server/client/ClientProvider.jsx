@@ -519,6 +519,15 @@ export const streamOptions = ({
                       emit(outlet, url, {});
                     }
                   } catch (e) {
+                    if (
+                      e?.message === "Redirect" &&
+                      e?.digest.startsWith("Location=")
+                    ) {
+                      navigate(e.digest.slice(9), {
+                        outlet: target,
+                        external: target !== PAGE_ROOT,
+                      });
+                    }
                     reject(e);
                   }
                 }

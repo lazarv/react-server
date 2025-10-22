@@ -11,6 +11,7 @@ import {
   noContentAction,
   errorAction,
   reloadAction,
+  redirectAction,
   streamAction,
   iteratorAction,
 } from "./actions.mjs";
@@ -122,6 +123,13 @@ export default function ServerFunctionTypes() {
         }
       >
         reload-action
+      </button>
+      <button
+        onClick={async () =>
+          console.log((window.__react_server_result__ = await redirectAction()))
+        }
+      >
+        redirect-action
       </button>
     </>
   );

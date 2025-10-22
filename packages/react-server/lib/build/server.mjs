@@ -174,6 +174,21 @@ export default async function serverBuild(root, options) {
   const buildConfig = {
     root: cwd,
     configFile: false,
+    mode: options.mode || "production",
+    define: config.define,
+    envDir: config.envDir,
+    envPrefix:
+      config.envDir !== false
+        ? [
+            "VITE_",
+            "REACT_SERVER_",
+            ...(typeof config.envPrefix !== "undefined"
+              ? Array.isArray(config.envPrefix)
+                ? config.envPrefix
+                : [config.envPrefix]
+              : []),
+          ]
+        : undefined,
     resolve: {
       ...config.resolve,
       preserveSymlinks: true,

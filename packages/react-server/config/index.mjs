@@ -28,11 +28,19 @@ export async function loadConfig(initialConfig, options = {}) {
       : "**/{react-server,+*,vite}.{development,runtime,server}.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
     "!**/node_modules",
     "!*/**/vite.config.{json,js,ts,mjs,mts,ts.mjs,mts.mjs}",
+    ...(options.command === "build"
+      ? []
+      : [
+          ".env",
+          ".env.local",
+          `.env.${options.mode}`,
+          `.env.${options.mode}.local`,
+        ]),
   ];
   if (options.onChange) {
     const watcher = watch(configPatterns, { cwd, ignoreInitial: true });
-    const handler = () => {
-      options.onChange();
+    const handler = (e) => {
+      options.onChange(e);
     };
     options.onWatch?.(watcher);
     watcher.on("add", handler);
@@ -53,84 +61,107 @@ export async function loadConfig(initialConfig, options = {}) {
       return 0;
     });
 
-  for await (const file of configFiles) {
-    try {
-      const key = dirname(file);
-      const filename = basename(file);
+  const configModules = await Promise.all(
+    configFiles
+      .filter((file) => !file.startsWith(".env"))
+      .map(async (file) => {
+        try {
+          const key = dirname(file);
+          const filename = basename(file);
 
-      let configModule;
-      const src = join(cwd, key, filename);
-      if (/\.m?ts$/.test(filename)) {
-        const hash = createHash("shake256", { outputLength: 4 })
-          .update(await readFile(src, "utf8"))
-          .digest("hex");
-        try {
-          await stat(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
-        } catch {
-          const { build } = await import("rolldown");
-          await build({
-            input: src,
-            output: {
-              file: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
-              minify: options.minify ?? false,
-            },
-            external: (id) => {
-              if (typeof config["."]?.resolve?.external !== "undefined") {
-                const external = config["."]?.resolve?.external;
-                if (external instanceof RegExp) {
-                  return external.test(id);
-                } else if (Array.isArray(external)) {
-                  for (const pattern of external) {
-                    if (typeof pattern === "string" && pattern === id) {
-                      return true;
-                    } else if (pattern instanceof RegExp && pattern.test(id)) {
-                      return true;
+          let configModule;
+          const src = join(cwd, key, filename);
+          if (/\.m?ts$/.test(filename)) {
+            const hash = createHash("shake256", { outputLength: 4 })
+              .update(await readFile(src, "utf8"))
+              .digest("hex");
+            try {
+              await stat(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
+            } catch {
+              const { build } = await import("rolldown");
+              await build({
+                input: src,
+                output: {
+                  file: `${join(cwd, outDir, key, filename)}.${hash}.mjs`,
+                  minify: options.minify ?? false,
+                },
+                external: (id) => {
+                  if (typeof config["."]?.resolve?.external !== "undefined") {
+                    const external = config["."]?.resolve?.external;
+                    if (external instanceof RegExp) {
+                      return external.test(id);
+                    } else if (Array.isArray(external)) {
+                      for (const pattern of external) {
+                        if (typeof pattern === "string" && pattern === id) {
+                          return true;
+                        } else if (
+                          pattern instanceof RegExp &&
+                          pattern.test(id)
+                        ) {
+                          return true;
+                        }
+                      }
+                      return false;
+                    } else if (typeof external === "function") {
+                      return external(id);
+                    } else if (typeof external === "string") {
+                      return external === id;
                     }
+                    return false;
                   }
-                  return false;
-                } else if (typeof external === "function") {
-                  return external(id);
-                } else if (typeof external === "string") {
-                  return external === id;
-                }
-                return false;
-              }
-              try {
-                const resolved = __require.resolve(id, { paths: [cwd] });
-                return /node_modules/.test(resolved);
-              } catch {
-                return false;
-              }
-            },
-            resolve: {
-              tsconfigFilename: join(cwd, "tsconfig.json"),
-            },
-          });
-        }
-        try {
-          const src = `${join(cwd, outDir, key, filename)}.${hash}.mjs`;
-          configModule = (
-            await import(
-              /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`
-            )
-          ).default;
+                  try {
+                    const resolved = __require.resolve(id, { paths: [cwd] });
+                    return /node_modules/.test(resolved);
+                  } catch {
+                    return false;
+                  }
+                },
+                resolve: {
+                  tsconfigFilename: join(cwd, "tsconfig.json"),
+                },
+              });
+            }
+            try {
+              const src = `${join(cwd, outDir, key, filename)}.${hash}.mjs`;
+              configModule = (
+                await import(
+                  /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}`
+                )
+              ).default;
+            } catch (e) {
+              console.error("[react-server]", e);
+              await rm(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
+            }
+          } else {
+            configModule = (
+              await import(
+                /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}${extname(filename)}`,
+                filename.endsWith(".json")
+                  ? { with: { type: "json" } }
+                  : undefined
+              )
+            ).default;
+          }
+
+          if (/^vite\.config\./.test(filename)) {
+            if (typeof configModule === "function") {
+              configModule = await configModule({
+                command: options.command || "serve",
+                mode: options.mode || "development",
+              });
+            }
+            configModule = { ...configModule };
+          }
+
+          return [key, configModule];
         } catch (e) {
           console.error("[react-server]", e);
-          await rm(`${join(cwd, outDir, key, filename)}.${hash}.mjs`);
         }
-      } else {
-        configModule = (
-          await import(
-            /* @vite-ignore */ `${pathToFileURL(src)}?_=${Math.floor((await stat(src)).mtimeMs)}${extname(filename)}`,
-            filename.endsWith(".json") ? { with: { type: "json" } } : undefined
-          )
-        ).default;
-      }
+      })
+  );
 
-      config[key] = merge(config[key] ?? {}, configModule);
-    } catch (e) {
-      console.error("[react-server]", e);
-    }
+  for (const [key, configModule] of configModules) {
+    config[key] = merge(config[key] ?? {}, configModule);
   }
 
   const configKeys = Object.keys(config);

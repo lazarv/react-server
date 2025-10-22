@@ -9,6 +9,7 @@ import {
   createRunnableDevEnvironment,
   createServer as createViteDevServer,
   DevEnvironment,
+  loadEnv,
 } from "rolldown-vite";
 import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
 import memoryDriver from "unstorage/drivers/memory";
@@ -102,6 +103,18 @@ export default async function createServer(root, options) {
     {}
   );
 
+  const envPrefix =
+    config.envDir !== false
+      ? [
+          "VITE_",
+          "REACT_SERVER_",
+          ...(typeof config.envPrefix !== "undefined"
+            ? Array.isArray(config.envPrefix)
+              ? config.envPrefix
+              : [config.envPrefix]
+            : []),
+        ]
+      : undefined;
   const devServerConfig = {
     ...config,
     server: {
@@ -134,6 +147,9 @@ export default async function createServer(root, options) {
     root: cwd,
     appType: "custom",
     configFile: false,
+    envDir: false,
+    envPrefix,
+    mode: options.mode || "development",
     optimizeDeps: {
       holdUntilCrawlEnd: true,
       ...config.optimizeDeps,
@@ -418,6 +434,25 @@ export default async function createServer(root, options) {
   }
 
   const viteDevServer = await createViteDevServer(viteConfig);
+
+  if (config.envDir !== false) {
+    if (globalThis.__react_server_prev_env_keys__) {
+      for (const key of globalThis.__react_server_prev_env_keys__) {
+        delete process.env[key];
+      }
+    }
+    const userEnv = loadEnv(options.mode, config.envDir || cwd, "");
+    globalThis.__react_server_prev_env_keys__ = new Set();
+    Object.keys(userEnv).forEach((key) => {
+      if (envPrefix.some((prefix) => key.startsWith(prefix))) {
+        viteDevServer.config.env[key] = userEnv[key];
+      } else if (typeof process.env[key] === "undefined") {
+        globalThis.__react_server_prev_env_keys__.add(key);
+        process.env[key] = userEnv[key];
+      }
+      delete userEnv[key];
+    });
+  }
 
   Object.assign(
     viteDevServer.config.plugins.find((p) => p.name === "alias"),

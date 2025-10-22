@@ -29,6 +29,7 @@ export default (cli) =>
       default: "react-server",
     })
     .option("--inspect", "enable inspector", { default: false })
+    .option("--mode <mode>", "[string] mode", { default: "development" })
     .action(async (...args) => {
       setEnv("NODE_ENV", "development");
       return (await import("../../lib/dev/action.mjs")).default(...args);

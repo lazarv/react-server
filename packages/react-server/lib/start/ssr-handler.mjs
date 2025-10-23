@@ -275,15 +275,20 @@ export default async function ssrHandler(root, options = {}) {
 
             let middlewareError = null;
             try {
-              const middlewares = await root_init$?.();
-              if (middlewares) {
-                const response = await middlewares(httpContext);
-                if (response) {
-                  return resolve(
-                    typeof response === "function"
-                      ? await response(httpContext)
-                      : response
-                  );
+              const middlewareHandler = await root_init$?.();
+              if (middlewareHandler) {
+                const middlewares = Array.isArray(middlewareHandler)
+                  ? middlewareHandler
+                  : [middlewareHandler];
+                for (const middleware of middlewares) {
+                  const response = await middleware(httpContext);
+                  if (response) {
+                    return resolve(
+                      typeof response === "function"
+                        ? await response(httpContext)
+                        : response
+                    );
+                  }
                 }
               }
             } catch (e) {

@@ -226,6 +226,12 @@ importers:
         specifier: ^18.3.0
         version: 18.3.0
 
+  examples/file-router:
+    dependencies:
+      '@lazarv/react-server':
+        specifier: workspace:^
+        version: link:../../packages/react-server
+
   examples/file-upload:
     dependencies:
       '@lazarv/react-server':

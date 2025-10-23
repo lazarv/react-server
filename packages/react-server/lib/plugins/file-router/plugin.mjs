@@ -65,6 +65,7 @@ const PAGE_EXTENSION_TYPES = [
   "metadata",
   "template",
   "static",
+  "middleware",
 ];
 
 const reactServerRouterDtsTemplate = await readFile(
@@ -84,6 +85,7 @@ export default function viteReactServerRouter(options = {}) {
   };
   const manifest = {
     pages: [],
+    middlewares: [],
   };
   let config = {};
   let configRoot = {};
@@ -187,8 +189,8 @@ export default function viteReactServerRouter(options = {}) {
     return paramCount;
   }
 
-  function createManifest() {
-    manifest.pages = [...entry.pages, ...entry.layouts]
+  function getRoutes(routes) {
+    return routes
       .map(({ directory, filename, src }) => {
         const normalized = [];
         let current = "";
@@ -279,6 +281,11 @@ export default function viteReactServerRouter(options = {}) {
           aPath.localeCompare(bPath) ||
           (bType === "page") - (aType === "page")
       );
+  }
+
+  function createManifest() {
+    manifest.pages = getRoutes([...entry.pages, ...entry.layouts]);
+    manifest.middlewares = getRoutes(entry.middlewares);
 
     if (viteCommand === "serve" && viteServer) {
       const manifestModule = viteServer.moduleGraph.getModuleById(
@@ -465,6 +472,7 @@ export default function viteReactServerRouter(options = {}) {
       entry.middlewares = [];
       entry.api = [];
       manifest.pages = [];
+      manifest.middlewares = [];
 
       config = await loadConfig({}, options);
       configRoot = forRoot(config);
@@ -626,11 +634,13 @@ export default function viteReactServerRouter(options = {}) {
           if (isMiddleware(src)) {
             includeInRouter = true;
             entry.middlewares.push(...source([src], rootDir, root));
+            createManifest();
           }
 
           if (isApi(src)) {
             includeInRouter = true;
             entry.api.push(...source([src], rootDir, root));
+            createManifest();
           }
 
           if (src.endsWith(".md") || src.endsWith(".mdx")) {
@@ -654,6 +664,22 @@ export default function viteReactServerRouter(options = {}) {
                 manifestModule
               );
             }
+
+            Array.from(
+              viteServer.environments.rsc.moduleGraph.urlToModuleMap.entries()
+            ).forEach(([url, mod]) => {
+              if (
+                url.includes(src) ||
+                url.startsWith("virtual:") ||
+                (isLayout(src) &&
+                  url.includes("__react_server_router_page__") &&
+                  url.includes(dirname(src))) ||
+                (isMiddleware(src) &&
+                  url.includes("__react_server_router_page__"))
+              ) {
+                viteServer.environments.rsc.moduleGraph.invalidateModule(mod);
+              }
+            });
           }
 
           if (initialFiles.has(src)) {
@@ -689,11 +715,13 @@ export default function viteReactServerRouter(options = {}) {
             entry.middlewares = entry.middlewares.filter(
               (middleware) => middleware.src !== src
             );
+            createManifest();
           }
 
           if (isApi(src)) {
             includeInRouter = true;
             entry.api = entry.api.filter((api) => api.src !== src);
+            createManifest();
           }
 
           if (src.endsWith(".md") || src.endsWith(".mdx")) {
@@ -710,7 +738,15 @@ export default function viteReactServerRouter(options = {}) {
           Array.from(
             viteServer.environments.rsc.moduleGraph.urlToModuleMap.entries()
           ).forEach(([url, mod]) => {
-            if (url.includes(src) || url.startsWith("virtual:")) {
+            if (
+              url.includes(src) ||
+              url.startsWith("virtual:") ||
+              (isLayout(src) &&
+                url.includes("__react_server_router_page__") &&
+                url.includes(dirname(src))) ||
+              (isMiddleware(src) &&
+                url.includes("__react_server_router_page__"))
+            ) {
               viteServer.environments.rsc.moduleGraph.invalidateModule(mod);
             }
           });
@@ -840,19 +876,14 @@ export default function viteReactServerRouter(options = {}) {
     load(id) {
       if (id === "virtual:@lazarv/react-server/file-router/manifest") {
         const code = `
-          ${entry.middlewares
-            .map(
-              ({ src }, i) =>
-                `import * as __react_server_router_middleware_${i}__ from "${src}";`
-            )
-            .join("\n")}
-
           const middlewares = [
-            ${new Array(entry.middlewares.length)
-              .fill(0)
-              .map((_, i) => `__react_server_router_middleware_${i}__`)
+            ${manifest.middlewares
+              .map(
+                ([src, path]) =>
+                  `["${path}", async () => { return import("${src}"); }]`
+              )
               .join(",\n")}
-          ].toSorted((a, b) => (b.priority ?? 0) - (a.priority ?? 0)).map(({ default: middleware }) => middleware);
+          ];
           const routes = [
               ${entry.api
                 .map(({ directory, filename, src }) => {

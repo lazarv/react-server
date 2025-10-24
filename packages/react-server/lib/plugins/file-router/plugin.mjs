@@ -673,7 +673,7 @@ export default function viteReactServerRouter(options = {}) {
                 url.startsWith("virtual:") ||
                 (isLayout(src) &&
                   url.includes("__react_server_router_page__") &&
-                  url.includes(dirname(src))) ||
+                  url.includes(`${dirname(src)}/`)) ||
                 (isMiddleware(src) &&
                   url.includes("__react_server_router_page__"))
               ) {
@@ -743,7 +743,7 @@ export default function viteReactServerRouter(options = {}) {
               url.startsWith("virtual:") ||
               (isLayout(src) &&
                 url.includes("__react_server_router_page__") &&
-                url.includes(dirname(src))) ||
+                url.includes(`${dirname(src)}/`)) ||
               (isMiddleware(src) &&
                 url.includes("__react_server_router_page__"))
             ) {
@@ -945,7 +945,7 @@ export default function viteReactServerRouter(options = {}) {
             ([layoutSrc, layoutPath, , type]) =>
               type === "layout" &&
               path.includes(layoutPath) &&
-              dirname(src).includes(dirname(layoutSrc))
+              `${dirname(src)}/`.includes(`${dirname(layoutSrc)}/`)
           )
           .toSorted(
             ([a], [b]) =>
@@ -956,7 +956,7 @@ export default function viteReactServerRouter(options = {}) {
             (type === "page" || type === "default") &&
             name &&
             layouts.some(([layoutSrc]) =>
-              dirname(outletSrc).includes(dirname(layoutSrc))
+              `${dirname(outletSrc)}/`.includes(`${dirname(layoutSrc)}/`)
             )
         );
         const errorBoundaries = manifest.pages.filter(
@@ -1217,7 +1217,9 @@ export default function viteReactServerRouter(options = {}) {
                   .filter(
                     ([outletSrc, , , type]) =>
                       type === "page" &&
-                      dirname(outletSrc).includes(dirname(layoutSrc))
+                      `${dirname(outletSrc)}/`.includes(
+                        `${dirname(layoutSrc)}/`
+                      )
                   )
                   .map(([, path, outlet], o) => {
                     const key = `${i}_${outlet}_${o}`;
@@ -1279,7 +1281,9 @@ export default function viteReactServerRouter(options = {}) {
                       .filter(
                         ([outletSrc, , , type]) =>
                           type === "page" &&
-                          dirname(outletSrc).includes(dirname(layoutSrc))
+                          `${dirname(outletSrc)}/`.includes(
+                            `${dirname(layoutSrc)}/`
+                          )
                       )
                       .reduce((props, [, path, outlet], o) => {
                         if (props[outlet]) {

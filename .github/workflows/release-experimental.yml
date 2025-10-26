@@ -74,16 +74,12 @@ jobs:
         working-directory: ./packages/react-server
         run: |
           jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
-          rm ./README.md
-          cp ../../README.md ./README.md
 
       - name: Publish @lazarv/react-server
         id: publish-react-server
         if: steps.prepare-react-server.outcome == 'success'
         working-directory: ./packages/react-server
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-        run: pnpm publish --access=public --no-git-checks
+        run: pnpm publish --provenance --access=public --no-git-checks
 
       - name: Create release
         if: steps.publish-react-server.outcome == 'success'
@@ -109,9 +105,7 @@ jobs:
       - name: Publish @lazarv/create-react-server
         if: steps.prepare-create-react-server.outcome == 'success'
         working-directory: ./packages/create-react-server
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-        run: pnpm publish --access=public --no-git-checks
+        run: pnpm publish --provenance --access=public --no-git-checks
 
       - name: Prepare @lazarv/react-server-adapter-core
         id: prepare-react-server-adapter-core
@@ -123,9 +117,7 @@ jobs:
       - name: Publish @lazarv/react-server-adapter-core
         if: steps.prepare-react-server-adapter-core.outcome == 'success'
         working-directory: ./packages/react-server-adapter-core
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-        run: pnpm publish --access=public --no-git-checks
+        run: pnpm publish --provenance --access=public --no-git-checks
 
       - name: Prepare @lazarv/react-server-adapter-vercel
         id: prepare-react-server-adapter-vercel
@@ -137,6 +129,4 @@ jobs:
       - name: Publish @lazarv/react-server-adapter-vercel
         if: steps.prepare-react-server-adapter-vercel.outcome == 'success'
         working-directory: ./packages/react-server-adapter-vercel
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-        run: pnpm publish --access=public --no-git-checks
+        run: pnpm publish --provenance --access=public --no-git-checks

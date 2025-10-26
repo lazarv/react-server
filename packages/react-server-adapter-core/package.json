@@ -29,6 +29,10 @@
   "bugs": {
     "url": "https://github.com/lazarv/react-server/issues"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "dependencies": {
     "@vercel/nft": "^0.29.4",
     "cli-progress": "^3.12.0",

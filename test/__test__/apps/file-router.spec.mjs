@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import { hostname, page, server } from "playground/utils";
+import { hostname, page, server, waitForChange } from "playground/utils";
 import { expect, test } from "vitest";
 
 process.chdir(join(process.cwd(), "../examples/file-router"));
@@ -24,9 +24,10 @@ test("file-router plugin", async () => {
   const noteInput = await page.$('textarea[name="note"]');
   await titleInput.fill("Test Title");
   await noteInput.fill("This is a test note.");
+  const prevBody = await page.textContent("body");
   await page.click('button[type="submit"]');
   await page.waitForLoadState("networkidle");
-  await page.waitForNavigation();
+  await waitForChange(null, () => page.textContent("body"), prevBody);
   expect(await page.textContent("body")).toContain(
     "Welcome to the File Router Example"
   );

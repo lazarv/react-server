@@ -12,5 +12,9 @@
   "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
   }
 }

@@ -127,10 +127,7 @@ export class ErrorBoundary extends Component {
       this.props;
     const { didCatch, error } = this.state;
 
-    if (
-      error?.message === "Redirect" &&
-      error?.digest.startsWith("Location=")
-    ) {
+    if (error?.digest.startsWith("Location=")) {
       error.redirectTo = error.digest.slice(9);
     }
 

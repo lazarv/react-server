@@ -6,6 +6,10 @@ export default function IndexPage() {
       <a href="/about">Go to About Page</a>
       <br />
       <a href="/auth">Go to Login Page</a>
+      <br />
+      <a href="/forms">Go to Forms Page</a>
+      <br />
+      <a href="/forms-simple">Go to Simple Forms Page</a>
     </div>
   );
 }

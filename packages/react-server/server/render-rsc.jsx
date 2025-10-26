@@ -214,14 +214,15 @@ export async function render(Component, props = {}, options = {}) {
           if (!callServer) {
             callServer = true;
             if (!isFormData) {
-              serverFunctionResult = error
-                ? Promise.reject(error)
-                : data instanceof Buffer
-                  ? data.buffer.slice(
-                      data.byteOffset,
-                      data.byteOffset + data.byteLength
-                    )
-                  : data;
+              serverFunctionResult =
+                renderContext.flags.isRSC && error
+                  ? Promise.reject(error)
+                  : data instanceof Buffer
+                    ? data.buffer.slice(
+                        data.byteOffset,
+                        data.byteOffset + data.byteLength
+                      )
+                    : data;
             } else {
               const formState = await server.decodeFormState(
                 data,
@@ -231,26 +232,39 @@ export async function render(Component, props = {}, options = {}) {
 
               if (formState) {
                 const [result, key] = formState;
-                serverFunctionResult = result;
                 callServerHeaders = {
                   "React-Server-Action-Key": encodeURIComponent(key),
                 };
+                if (renderContext.flags.isRSC && error) {
+                  serverFunctionResult = Promise.reject(error);
+                } else {
+                  serverFunctionResult = result;
+                }
               } else {
-                callServerComponent = true;
-                serverFunctionResult =
-                  data instanceof Buffer
-                    ? data.buffer.slice(
-                        data.byteOffset,
-                        data.byteOffset + data.byteLength
-                      )
-                    : data;
+                if (renderContext.flags.isRSC && error) {
+                  callServerComponent = true;
+                  serverFunctionResult = Promise.reject(error);
+                } else {
+                  callServerComponent = true;
+                  serverFunctionResult =
+                    data instanceof Buffer
+                      ? data.buffer.slice(
+                          data.byteOffset,
+                          data.byteOffset + data.byteLength
+                        )
+                      : data;
+                }
               }
             }
           }
 
           const redirect = getContext(REDIRECT_CONTEXT);
-          if (renderContext.flags.isHTML && redirect?.response) {
-            return resolve(redirect.response);
+          if (redirect?.response) {
+            if (renderContext.flags.isHTML) {
+              return resolve(redirect.response);
+            } else {
+              rewrite(redirect.location);
+            }
           }
 
           if (!(input instanceof Error)) {

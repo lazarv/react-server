@@ -509,24 +509,38 @@ export const streamOptions = ({
                   const rsc = await result;
                   try {
                     const value = await rsc.at(-1);
-                    resolve(value);
 
                     const url = res.headers.get("React-Server-Render");
                     const outlet = res.headers.get("React-Server-Outlet");
 
                     if (url && outlet) {
-                      cache.set(outlet, rsc.slice(0, -1));
-                      emit(outlet, url, {});
-                    }
-                  } catch (e) {
-                    if (
-                      e?.message === "Redirect" &&
-                      e?.digest.startsWith("Location=")
-                    ) {
-                      navigate(e.digest.slice(9), {
-                        outlet: target,
-                        external: target !== PAGE_ROOT,
+                      flightCache.set(`${outlet}:${url}`, rsc.slice(0, -1));
+                      flightCache.set(`${outlet}:${url}:timestamp`, Date.now());
+                      navigate(url, {
+                        outlet,
+                        replace: true,
+                        fromCache: true,
                       });
+                    }
+
+                    resolve(typeof value === "undefined" ? args[0] : value);
+                  } catch (e) {
+                    const location = e?.digest?.startsWith("Location=")
+                      ? e.digest.slice(9)
+                      : res.headers.get("Location");
+                    if (location) {
+                      const value = rsc.slice(0, -1);
+                      flightCache.set(`${outlet}:${location}`, value);
+                      flightCache.set(
+                        `${outlet}:${location}:timestamp`,
+                        Date.now()
+                      );
+                      navigate(location, {
+                        outlet,
+                        replace: true,
+                        fromCache: true,
+                      });
+                      return resolve(args[0]);
                     }
                     reject(e);
                   }

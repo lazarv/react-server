@@ -9,7 +9,7 @@ export type Photo = {
 const photos: Photo[] = new Array(9).fill(null).map((_, index) => ({
   id: `${index}`,
   username: faker.internet.userName(),
-  imageSrc: faker.image.urlPicsumPhotos(),
+  imageSrc: process.env.CI ? "/placeholder.svg" : faker.image.urlPicsumPhotos(),
 }));
 
 export default photos;

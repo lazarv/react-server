@@ -284,7 +284,9 @@ export default function viteReactServerRouter(options = {}) {
   }
 
   function createManifest() {
-    manifest.pages = getRoutes([...entry.pages, ...entry.layouts]);
+    manifest.pages = getRoutes(
+      Array.from(new Set([...entry.pages, ...entry.layouts]))
+    );
     manifest.middlewares = getRoutes(entry.middlewares);
 
     if (viteCommand === "serve" && viteServer) {

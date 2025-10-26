@@ -2,7 +2,12 @@ import { dirname } from "node:path";
 
 import { Suspense } from "react";
 
-import { status, useOutlet, useResponseCache } from "@lazarv/react-server";
+import {
+  status,
+  useOutlet,
+  usePathname,
+  useResponseCache,
+} from "@lazarv/react-server";
 import {
   middlewares,
   pages,
@@ -16,12 +21,15 @@ import {
 } from "@lazarv/react-server/server/symbols.mjs";
 import ErrorBoundary from "@lazarv/react-server/error-boundary";
 
+const PAGE_PATH = Symbol("PAGE_PATH");
 const PAGE_MATCH = Symbol("PAGE_MATCH");
 const PAGE_COMPONENT = Symbol("PAGE_COMPONENT");
+const PAGE_SELECTOR = Symbol("PAGE_SELECTOR");
 
 export async function init$() {
   return [
     async (context) => {
+      context$(PAGE_PATH, usePathname());
       const initMiddlewares = await Promise.all(
         middlewares.reduce((acc, [path, init$]) => {
           const params = useMatch(path);
@@ -193,36 +201,40 @@ export async function init$() {
         return;
       }
 
-      for (const [path, type, outlet, lazy, src] of pages) {
-        match =
-          type === "page" && !outlet ? useMatch(path, { exact: true }) : null;
-        if (match) {
-          const { default: Component, init$: page_init$ } = await lazy();
-          await page_init$?.();
-          context$(PAGE_COMPONENT, Component);
-          context$(PAGE_MATCH, match);
-          break;
-        }
-
-        match =
-          type === "page" && outlet ? useMatch(path, { exact: true }) : null;
-        if (match) {
-          const [, , , lazy] =
-            pages.find(
-              ([, type, outlet, , pageSrc]) =>
-                type === "page" &&
-                !outlet &&
-                dirname(src).includes(dirname(pageSrc))
-            ) ?? [];
-          if (lazy) {
+      const selector = async () => {
+        for (const [path, type, outlet, lazy, src] of pages) {
+          match =
+            type === "page" && !outlet ? useMatch(path, { exact: true }) : null;
+          if (match) {
             const { default: Component, init$: page_init$ } = await lazy();
             await page_init$?.();
             context$(PAGE_COMPONENT, Component);
             context$(PAGE_MATCH, match);
             break;
           }
+
+          match =
+            type === "page" && outlet ? useMatch(path, { exact: true }) : null;
+          if (match) {
+            const [, , , lazy] =
+              pages.find(
+                ([, type, outlet, , pageSrc]) =>
+                  type === "page" &&
+                  !outlet &&
+                  dirname(src).includes(dirname(pageSrc))
+              ) ?? [];
+            if (lazy) {
+              const { default: Component, init$: page_init$ } = await lazy();
+              await page_init$?.();
+              context$(PAGE_COMPONENT, Component);
+              context$(PAGE_MATCH, match);
+              break;
+            }
+          }
         }
-      }
+      };
+      context$(PAGE_SELECTOR, selector);
+      await selector();
     },
     () => {
       if (!getContext(PAGE_COMPONENT)) {
@@ -237,8 +249,20 @@ export async function init$() {
 }
 
 export default async function App() {
-  const match = getContext(PAGE_MATCH) ?? null;
-  const Page =
+  const prevPathname = getContext(PAGE_PATH);
+  const currentPathname = usePathname();
+
+  // If the pathname has changed, we need to re-run the selector to load the new page
+  if (prevPathname !== currentPathname) {
+    const selector = getContext(PAGE_SELECTOR);
+    if (typeof selector === "function") {
+      await selector();
+      context$(PAGE_PATH, currentPathname);
+    }
+  }
+
+  let match = getContext(PAGE_MATCH) ?? null;
+  let Page =
     getContext(PAGE_COMPONENT) ??
     (() => {
       status(404);

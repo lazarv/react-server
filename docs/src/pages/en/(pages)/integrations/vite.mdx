@@ -16,6 +16,13 @@ import Link from "../../../../components/Link.jsx";
 
 You can keep all the Vite configuration in the `vite.config.js`, `vite.config.ts`, `vite.config.mjs` or `vite.config.cjs` file. You can follow the [Vite configuration guide](https://vitejs.dev/config/) to configure Vite.
 
+<Link name="env-variables">
+## Env Variables
+</Link>
+
+Similar to Vite, `@lazarv/react-server` loads environment variables from `.env` and `.env.[mode]` files. Only `VITE_SOME_KEY` will be exposed as `import.meta.env.VITE_SOME_KEY`.
+For more informations checkout [Vite documentation](https://vite.dev/guide/env-and-mode) or the [react-server env example](https://github.com/lazarv/react-server/tree/main/examples/env) with a custom vite config.
+
 <Link name="plugins">
 ## Plugins
 </Link>

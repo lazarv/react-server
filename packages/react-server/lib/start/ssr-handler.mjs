@@ -28,6 +28,7 @@ import {
   MANIFEST,
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
+  POSTPONE_CONTEXT,
   POSTPONE_STATE,
   PRELUDE_HTML,
   PRERENDER_CACHE,
@@ -309,6 +310,9 @@ export default async function ssrHandler(root, options = {}) {
               return resolve();
             }
 
+            if (getContext(POSTPONE_CONTEXT) === null) {
+              context$(POSTPONE_CONTEXT, true);
+            }
             render(Component, {}, { middlewareError }).then(resolve, reject);
           }
         );

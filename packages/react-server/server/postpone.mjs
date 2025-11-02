@@ -5,10 +5,14 @@ import { getContext } from "@lazarv/react-server/server/context.mjs";
 import {
   HTTP_CONTEXT,
   LOGGER_CONTEXT,
+  POSTPONE_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 
 export function usePostpone(reason) {
-  if (typeof getContext(HTTP_CONTEXT)?.onPostponed === "function") {
+  if (
+    typeof getContext(HTTP_CONTEXT)?.onPostponed === "function" &&
+    getContext(POSTPONE_CONTEXT)
+  ) {
     postpone(reason);
   }
 

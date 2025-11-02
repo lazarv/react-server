@@ -25,7 +25,8 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": true,
+    "tag": "latest"
   },
   "dependencies": {
     "@inquirer/checkbox": "^4.0.1",

@@ -27,7 +27,8 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": true,
+    "tag": "latest"
   },
   "devDependencies": {
     "@lazarv/react-server": "workspace:^",

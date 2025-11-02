@@ -42,7 +42,7 @@ jobs:
   release:
     name: Release 📦
     needs: changed
-    if: github.repository == 'lazarv/react-server' && needs.changed.outputs.should_skip != 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push'
+    if: github.repository == 'lazarv/react-server' && needs.changed.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

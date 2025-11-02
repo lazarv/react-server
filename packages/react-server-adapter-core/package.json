@@ -31,7 +31,8 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": true,
+    "tag": "latest"
   },
   "dependencies": {
     "@vercel/nft": "^0.29.4",

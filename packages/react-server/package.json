@@ -108,7 +108,8 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": true,
+    "tag": "latest"
   },
   "dependencies": {
     "@babel/core": "^7.26.0",

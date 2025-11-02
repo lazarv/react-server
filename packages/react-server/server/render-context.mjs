@@ -17,11 +17,13 @@ export function createRenderContext(httpContext) {
     outlet: null,
   };
   if (!match) {
-    context.type = httpContext.request.headers
-      .get("accept")
-      ?.includes("text/html")
-      ? RENDER_TYPE.HTML
-      : RENDER_TYPE.Unknown;
+    const acceptHeader = httpContext.request.headers.get("accept");
+    context.type =
+      acceptHeader?.includes("text/html") ||
+      !acceptHeader ||
+      acceptHeader === "*/*"
+        ? RENDER_TYPE.HTML
+        : RENDER_TYPE.Unknown;
   } else {
     const { outlet, type } = match.groups;
     context.type = RENDER_TYPE.RSC;

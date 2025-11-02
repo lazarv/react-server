@@ -80,7 +80,9 @@ export async function render(Component, props = {}, options = {}) {
         revalidate$();
 
         const origin = context.request.headers.get("origin");
-        const protocol = origin && new URL(origin).protocol;
+        const originURL = origin ? new URL(origin) : null;
+        const originHostname = originURL?.hostname;
+        const protocol = originURL?.protocol;
         const host = context.request.headers.get("host");
         const renderContext = getContext(RENDER_CONTEXT);
         const remote = renderContext.flags.isRemote;
@@ -332,7 +334,7 @@ export async function render(Component, props = {}, options = {}) {
           ? (link) => `/${config.base}/${link?.id || link}`.replace(/\/+/g, "/")
           : (link) => link?.id || link;
         const linkHref =
-          remote || (origin && host !== origin)
+          remote || (origin && host !== originHostname)
             ? (link) => `${protocol}//${host}${configBaseHref(link)}`
             : configBaseHref;
         const Styles = () => {
@@ -362,7 +364,7 @@ export async function render(Component, props = {}, options = {}) {
 
         const ModulePreloads =
           configModulePreload !== false &&
-          !(remote || (origin && host !== origin))
+          !(remote || (origin && host !== originHostname))
             ? () => {
                 const modules = getContext(CLIENT_MODULES_CONTEXT);
                 return (

@@ -19,6 +19,7 @@ import {
 } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
+  LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
@@ -75,6 +76,7 @@ export default async function staticSiteGenerator(root, options) {
 
     const initialRuntime = {
       [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
+      [LOGGER_CONTEXT]: console,
     };
     runtime$(
       typeof config.runtime === "function"

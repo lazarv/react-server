@@ -16,6 +16,7 @@ import {
 import { useMatch } from "@lazarv/react-server/router";
 import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
 import {
+  POSTPONE_CONTEXT,
   REDIRECT_CONTEXT,
   ROUTE_MATCH,
 } from "@lazarv/react-server/server/symbols.mjs";
@@ -29,6 +30,7 @@ const PAGE_SELECTOR = Symbol("PAGE_SELECTOR");
 export async function init$() {
   return [
     async (context) => {
+      context$(POSTPONE_CONTEXT, false);
       context$(PAGE_PATH, usePathname());
       const initMiddlewares = await Promise.all(
         middlewares.reduce((acc, [path, init$]) => {

@@ -41,6 +41,7 @@ export const PRELUDE_HTML = Symbol.for("PRELUDE_HTML");
 export const PRERENDER_CACHE = Symbol.for("PRERENDER_CACHE");
 export const PRERENDER_CACHE_DATA = Symbol.for("PRERENDER_CACHE_DATA");
 export const POSTPONE_STATE = Symbol.for("POSTPONE_STATE");
+export const POSTPONE_CONTEXT = Symbol.for("POSTPONE_CONTEXT");
 export const IMPORT_MAP = Symbol.for("IMPORT_MAP");
 export const CACHE_MISS = Symbol.for("CACHE_MISS");
 export const CACHE_KEY = Symbol.for("CACHE_KEY");

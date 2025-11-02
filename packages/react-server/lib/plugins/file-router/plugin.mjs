@@ -516,7 +516,7 @@ export default function viteReactServerRouter(options = {}) {
 
       if (viteCommand === "build") {
         const sourceFiles = await glob(
-          ["**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}", "!**/node_modules/**"],
+          ["**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx,json}", "!**/node_modules/**"],
           {
             cwd: join(cwd, root),
             absolute: true,
@@ -574,7 +574,7 @@ export default function viteReactServerRouter(options = {}) {
         const initialFiles = new Set(
           await glob(
             [
-              "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}",
+              "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx,json}",
               "!**/node_modules/**",
               routerConfig.mdx?.components ?? "mdx-components.{jsx,tsx}",
             ],
@@ -586,7 +586,7 @@ export default function viteReactServerRouter(options = {}) {
         );
         sourceWatcher = watch(
           [
-            "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx}",
+            "**/*.{jsx,tsx,js,ts,mjs,mts,md,mdx,json}",
             "!**/node_modules/**",
             routerConfig.mdx?.components ?? "mdx-components.{jsx,tsx}",
           ],
@@ -988,7 +988,7 @@ export default function viteReactServerRouter(options = {}) {
           import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
           import { ${
             viteCommand === "build" ? "MANIFEST, " : ""
-          }COLLECT_STYLESHEETS, STYLES_CONTEXT, COLLECT_CLIENT_MODULES, CLIENT_MODULES_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
+          }COLLECT_STYLESHEETS, STYLES_CONTEXT, COLLECT_CLIENT_MODULES, CLIENT_MODULES_CONTEXT, POSTPONE_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
           import { useMatch } from "@lazarv/react-server/router";
           ${
             errorBoundaries.length > 0
@@ -1251,6 +1251,7 @@ export default function viteReactServerRouter(options = {}) {
               .join("\n")}
 
             const styles = getContext(STYLES_CONTEXT);
+            context$(POSTPONE_CONTEXT, true);
             return (
               <>
               {styles.map((link) => {

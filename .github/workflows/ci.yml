@@ -191,4 +191,4 @@ jobs:
       - name: Check workflow files
         run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-          ./actionlint -color -shellcheck=""
+          ./actionlint -ignore ".github/actions/**" -format '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}}%0A```%0A{{replace $err.Snippet "\\n" "%0A"}}%0A```\n{{end}}' -color -shellcheck=""

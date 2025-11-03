@@ -62,7 +62,7 @@ jobs:
             node_version: 24
       fail-fast: false
 
-    name: "Test (development base) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    name: "Test dev base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -93,7 +93,7 @@ jobs:
             node_version: 24
       fail-fast: false
 
-    name: "Test (production base) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    name: "Test prod base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -124,7 +124,7 @@ jobs:
             node_version: 24
       fail-fast: false
 
-    name: "Test (development apps) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    name: "Test dev apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -155,7 +155,7 @@ jobs:
             node_version: 24
       fail-fast: false
 
-    name: "Test (production apps) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    name: "Test prod apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -71,6 +71,8 @@ jobs:
         with:
           node_version: ${{ matrix.node_version }}
       - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
 
       - name: Test development
         working-directory: ./test
@@ -102,6 +104,8 @@ jobs:
         with:
           node_version: ${{ matrix.node_version }}
       - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
 
       - name: Test build and production mode
         working-directory: ./test
@@ -133,6 +137,8 @@ jobs:
         with:
           node_version: ${{ matrix.node_version }}
       - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
 
       - name: Test development apps
         working-directory: ./test
@@ -164,6 +170,8 @@ jobs:
         with:
           node_version: ${{ matrix.node_version }}
       - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
 
       - name: Test build and production mode apps
         working-directory: ./test

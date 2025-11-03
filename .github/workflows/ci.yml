@@ -64,6 +64,9 @@ jobs:
 
     name: "Test (development base) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - uses: ./.github/workflows/actions/common-setup
         with:
           node_version: ${{ matrix.node_version }}
@@ -92,6 +95,9 @@ jobs:
 
     name: "Test (production base) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - uses: ./.github/workflows/actions/common-setup
         with:
           node_version: ${{ matrix.node_version }}
@@ -120,6 +126,9 @@ jobs:
 
     name: "Test (development apps) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - uses: ./.github/workflows/actions/common-setup
         with:
           node_version: ${{ matrix.node_version }}
@@ -148,6 +157,9 @@ jobs:
 
     name: "Test (production apps) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - uses: ./.github/workflows/actions/common-setup
         with:
           node_version: ${{ matrix.node_version }}
@@ -162,6 +174,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Lint 🧹
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - uses: ./.github/workflows/actions/common-setup
         with:
           node_version: 24

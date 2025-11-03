@@ -20,3 +20,4 @@ runs:
 
     - name: Install deps
       run: pnpm install
+      shell: bash

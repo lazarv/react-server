@@ -20,8 +20,7 @@ You can keep all the Vite configuration in the `vite.config.js`, `vite.config.ts
 ## Env Variables
 </Link>
 
-Similar to Vite, `@lazarv/react-server` loads environment variables from `.env` and `.env.[mode]` files. Only `VITE_SOME_KEY` will be exposed as `import.meta.env.VITE_SOME_KEY`.
-For more information checkout [Vite documentation](https://vite.dev/guide/env-and-mode) or the [react-server env example](https://github.com/lazarv/react-server/tree/main/examples/env) with a custom vite config.
+`@lazarv/react-server` uses the same environment variable [loading convention as Vite](https://vite.dev/guide/env-and-mode), sourcing values from `.env` and `.env.[mode]` files. Any variable prefixed with `VITE_` or `REACT_SERVER_` is automatically exposed via `import.meta.env` (for example, `import.meta.env.VITE_SOME_KEY` or `import.meta.env.REACT_SERVER_SOME_KEY`) and can be accessed from both client and server components.
 
 <Link name="plugins">
 ## Plugins

@@ -338,7 +338,7 @@ export default async function createServer(root, options) {
                     {
                       find: /^@lazarv\/react-server\/memory-cache$/,
                       replacement: sys.normalizePath(
-                        join(sys.rootDir, "cache/index.mjs")
+                        join(sys.rootDir, "cache/client.mjs")
                       ),
                     },
                     {

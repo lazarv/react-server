@@ -1,4 +1,4 @@
-import { Writable } from "node:stream";
+import { Readable } from "node:stream";
 
 import { parse as __cookieParse, serialize as __cookieSerialize } from "cookie";
 
@@ -105,35 +105,35 @@ export function createMiddleware(handler, options = {}) {
         }
         return;
       }
-      // Use Web Streams pipeTo into a Web Writable mapped from Node's ServerResponse
-      // and abort the pipe if the client disconnects.
-      const controller = new AbortController();
+      // Convert the Web ReadableStream to a Node Readable and pipe into ServerResponse.
+      // Abort piping if the client disconnects.
+      const nodeReadable = Readable.fromWeb(response.body);
       const onAbort = () => {
-        if (!controller.signal.aborted) {
-          try {
-            controller.abort();
-          } catch {
-            // no-op
-          }
+        try {
+          nodeReadable.destroy(new Error("aborted"));
+        } catch {
+          // no-op
         }
       };
       res.once("close", onAbort);
       req.once("aborted", onAbort);
 
       try {
-        const webWritable = Writable.toWeb(res);
-        await response.body.pipeTo(webWritable, { signal: controller.signal });
-      } catch (err) {
-        // Ignore expected aborts; rethrow others
-        if (!(controller.signal.aborted || res.destroyed || req.aborted)) {
-          throw err;
-        }
+        await new Promise((resolve, reject) => {
+          const onFinish = () => resolve();
+          nodeReadable.on("error", reject);
+          res.on("error", reject);
+          res.once("finish", onFinish);
+          // End dest when source ends (default true)
+          nodeReadable.pipe(res);
+        });
       } finally {
         res.off("close", onAbort);
         req.off("aborted", onAbort);
       }
     } catch (e) {
-      next ? next(e) : internalError(res, e);
+      if (next) next(e);
+      else internalError(res, e);
     }
   };
 }

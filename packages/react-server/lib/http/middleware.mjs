@@ -118,11 +118,15 @@ export function createMiddleware(handler, options = {}) {
       res.once("close", onAbort);
       req.once("aborted", onAbort);
 
+      let onReadableError;
+      let onResError;
       try {
         await new Promise((resolve, reject) => {
           const onFinish = () => resolve();
-          nodeReadable.on("error", reject);
-          res.on("error", reject);
+          onReadableError = (err) => reject(err);
+          onResError = (err) => reject(err);
+          nodeReadable.on("error", onReadableError);
+          res.on("error", onResError);
           res.once("finish", onFinish);
           // End dest when source ends (default true)
           nodeReadable.pipe(res);
@@ -130,6 +134,13 @@ export function createMiddleware(handler, options = {}) {
       } finally {
         res.off("close", onAbort);
         req.off("aborted", onAbort);
+        // Cleanup error listeners attached during piping to avoid leaks
+        try {
+          if (onReadableError) nodeReadable.off("error", onReadableError);
+          if (onResError) res.off("error", onResError);
+        } catch {
+          // no-op cleanup
+        }
       }
     } catch (e) {
       if (next) next(e);

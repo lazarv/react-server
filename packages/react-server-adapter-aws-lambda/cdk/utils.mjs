@@ -7,12 +7,12 @@ export function makeStaticAssetsRoutingTable(staticFiles) {
   }; // other types are ignored
 
   const staticAssetsRoutingTabel = Object.keys(staticFiles).flatMap(
-    (filetyp) => {
-      if (fileTypeMap?.[filetyp]) {
-        return staticFiles[filetyp].flatMap((path) => {
+    (fileType) => {
+      if (fileTypeMap?.[fileType]) {
+        return staticFiles[fileType].flatMap((path) => {
           return {
             key: path,
-            value: fileTypeMap[filetyp],
+            value: fileTypeMap[fileType],
           };
         });
       }

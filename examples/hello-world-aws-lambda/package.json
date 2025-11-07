@@ -1,0 +1,25 @@
+{
+  "name": "@lazarv/react-server-example-hello-world",
+  "private": true,
+  "description": "@lazarv/react-server Hello World example application",
+  "scripts": {
+    "dev": "react-server",
+    "dev:app": "react-server ./App.jsx",
+    "build": "react-server build",
+    "build:app": "react-server build ./App.jsx",
+    "start": "react-server start",
+    "test:lambda": "pnpm dlx lambda-handler-tester@latest",
+    "clean": "rm -rf .react-server .aws-lambda"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-aws-lambda": "workspace:^"
+  },
+  "devDependencies": {
+    "aws-cdk-lib": "^2.221.1",
+    "constructs": "^10.4.2"
+  }
+}

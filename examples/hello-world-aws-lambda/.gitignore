@@ -1,0 +1,3 @@
+.aws-lambda/
+.react-server/
+cdk.out/

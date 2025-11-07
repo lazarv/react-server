@@ -1,0 +1,11 @@
+{
+  "root": "src/pages",
+  "public": "src/public",
+  "adapter": [
+    "@lazarv/react-server-adapter-aws-lambda",
+    {
+      "streaming": true,
+      "routingMode": "pathBehaviors"
+    }
+  ]
+}

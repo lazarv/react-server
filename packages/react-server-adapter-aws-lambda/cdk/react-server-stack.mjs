@@ -117,22 +117,22 @@ export class ReactServerAwsStack extends Stack {
       const staticFiles = JSON.parse(
         readFileSync(join(outDir, "static_files.json"), { encoding: "utf8" })
       );
-      const staticAssetsRoutingTabel =
+      const staticAssetsRoutingTable =
         makeStaticAssetsRoutingTable(staticFiles);
-      const staticAssetsRoutingTabelData = JSON.stringify({
-        data: staticAssetsRoutingTabel,
+      const staticAssetsRoutingTableData = JSON.stringify({
+        data: staticAssetsRoutingTable,
       });
-      const staticAssetsRoutingTabelDataHash = createHash("sha256")
-        .update(staticAssetsRoutingTabelData)
+      const staticAssetsRoutingTableDataHash = createHash("sha256")
+        .update(staticAssetsRoutingTableData)
         .digest("hex")
         .substring(0, 10);
 
-      const staticAssetsRoutingTabelKVStore = new cloudfront.KeyValueStore(
+      const staticAssetsRoutingTableKVStore = new cloudfront.KeyValueStore(
         this,
-        "staticAssetsRoutingTabel" + staticAssetsRoutingTabelDataHash,
+        "staticAssetsRoutingTable" + staticAssetsRoutingTableDataHash,
         {
           source: cloudfront.ImportSource.fromInline(
-            staticAssetsRoutingTabelData
+            staticAssetsRoutingTableData
           ),
         }
       );
@@ -146,7 +146,7 @@ import cf from "cloudfront";
 
 const STATIC_PUBLIC_S3 = "${staticBucket.bucketRegionalDomainName}";
 const ASSETS_CLIENT_S3 = "${staticBucket.bucketRegionalDomainName}";
-const domainNameOrginStaticAssetsMap = {
+const domainNameOriginStaticAssetsMap = {
   s: STATIC_PUBLIC_S3,
   a: ASSETS_CLIENT_S3,
   c: ASSETS_CLIENT_S3,
@@ -167,12 +167,12 @@ async function handler(event) {
     }
     try {
       const uriType = await kvsHandle.get(key);
-      const domainNameOrginStaticAssets = domainNameOrginStaticAssetsMap[uriType];
-      if (domainNameOrginStaticAssets === undefined) {
+      const domainNameOriginStaticAssets = domainNameOriginStaticAssetsMap[uriType];
+      if (domainNameOriginStaticAssets === undefined) {
         throw new Error("No origin found for the key");
       }
       cf.updateRequestOrigin({
-        domainName: domainNameOrginStaticAssets,
+        domainName: domainNameOriginStaticAssets,
         originAccessControlConfig: {
           enabled: true,
           signingBehavior: "always",
@@ -189,7 +189,7 @@ async function handler(event) {
   }
   return event.request;
 }`),
-          keyValueStore: staticAssetsRoutingTabelKVStore,
+          keyValueStore: staticAssetsRoutingTableKVStore,
         }
       );
     }

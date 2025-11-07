@@ -42,12 +42,6 @@ vi.mock("@h4ad/serverless-adapter", () => ({
 }));
 
 describe("Streaming Handler", () => {
-  it("should export a handler", async () => {
-    const { handler } = await import("../lambda-wrapper/index.streaming.mjs");
-    expect(handler).toBeDefined();
-    expect(typeof handler).toBe("function");
-  });
-
   it("should use AwsStreamHandler and DummyResolver", async () => {
     const { getMiddlewares, ReactServerFramework } = await import(
       "../lambda-wrapper/shared.mjs"

@@ -116,7 +116,7 @@ npx react-server build --deploy
 
 Set in `lambdaEnv` config or via AWS CLI:
 
-- `DEBUG_AWS_LAMBDA_ADAPTER=1` - Enable adapter status/http reques logging
+- `DEBUG_AWS_LAMBDA_ADAPTER=1` - Enable adapter status/http request logging
 - `DEBUG_AWS_LAMBDA_ADAPTER=2` - Enable lambda event logging
 - `ORIGIN` - CloudFront domain (auto-set during deployment)
 

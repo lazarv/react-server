@@ -6,7 +6,7 @@ export function makeStaticAssetsRoutingTable(staticFiles) {
     public: "p",
   }; // other types are ignored
 
-  const staticAssetsRoutingTabel = Object.keys(staticFiles).flatMap(
+  const staticAssetsRoutingTable = Object.keys(staticFiles).flatMap(
     (fileType) => {
       if (fileTypeMap?.[fileType]) {
         return staticFiles[fileType].flatMap((path) => {
@@ -19,5 +19,5 @@ export function makeStaticAssetsRoutingTable(staticFiles) {
       return [];
     }
   );
-  return staticAssetsRoutingTabel;
+  return staticAssetsRoutingTable;
 }

@@ -10,7 +10,7 @@ export default async function HelloPage() {
         alt="placeholder"
         className="w-full max-w-full h-auto"
       />
-      <p>A This is placeholder for a Textblock. {new Date().toISOString()}</p>
+      <p>This is placeholder for a Textblock. {new Date().toISOString()}</p>
       <Link to="/" className="mt-4 inline-block underline">
         Return home
       </Link>

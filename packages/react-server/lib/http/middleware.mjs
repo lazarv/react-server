@@ -106,41 +106,49 @@ export function createMiddleware(handler, options = {}) {
         return;
       }
       // Convert the Web ReadableStream to a Node Readable and pipe into ServerResponse.
-      // Abort piping if the client disconnects.
+      // Use AbortController to coordinate cleanup when client disconnects or stream completes.
       const nodeReadable = Readable.fromWeb(response.body);
-      const onAbort = () => {
-        try {
-          nodeReadable.destroy(new Error("aborted"));
-        } catch {
-          // no-op
-        }
-      };
-      res.once("close", onAbort);
-      req.once("aborted", onAbort);
+      const abortController = new AbortController();
+      const { signal } = abortController;
 
-      let onReadableError;
-      let onResError;
+      // Destroy stream when aborted (client disconnect or error)
+      signal.addEventListener(
+        "abort",
+        () => {
+          try {
+            nodeReadable.destroy(new Error("aborted"));
+          } catch {
+            // no-op
+          }
+        },
+        { once: true }
+      );
+
+      // Abort on client disconnect
+      const onDisconnect = () => abortController.abort();
+      res.once("close", onDisconnect);
+      req.once("aborted", onDisconnect);
+
       try {
         await new Promise((resolve, reject) => {
+          // Use { once: true } for auto-cleanup
           const onFinish = () => resolve();
-          onReadableError = (err) => reject(err);
-          onResError = (err) => reject(err);
-          nodeReadable.on("error", onReadableError);
-          res.on("error", onResError);
+          const onReadableError = (err) => reject(err);
+          const onResError = (err) => reject(err);
+
+          nodeReadable.once("error", onReadableError);
+          res.once("error", onResError);
           res.once("finish", onFinish);
+
           // End dest when source ends (default true)
           nodeReadable.pipe(res);
         });
       } finally {
-        res.off("close", onAbort);
-        req.off("aborted", onAbort);
-        // Cleanup error listeners attached during piping to avoid leaks
-        try {
-          if (onReadableError) nodeReadable.off("error", onReadableError);
-          if (onResError) res.off("error", onResError);
-        } catch {
-          // no-op cleanup
-        }
+        // Trigger abort to clean up the signal listener
+        abortController.abort();
+        // Remove disconnect listeners
+        res.off("close", onDisconnect);
+        req.off("aborted", onDisconnect);
       }
     } catch (e) {
       if (next) next(e);

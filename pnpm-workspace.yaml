@@ -4,3 +4,12 @@ packages:
   - "docs"
   - "test"
 gitChecks: false
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "@parcel/watcher"
+  - "@swc/core"
+  - "@vercel/speed-insights"
+  - better-sqlite3
+  - esbuild
+  - playwright-chromium
+  - simple-git-hooks

@@ -18,9 +18,11 @@ import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
 import {
   POSTPONE_CONTEXT,
   REDIRECT_CONTEXT,
+  RENDER_CONTEXT,
   ROUTE_MATCH,
 } from "@lazarv/react-server/server/symbols.mjs";
 import ErrorBoundary from "@lazarv/react-server/error-boundary";
+import { RENDER_TYPE } from "../../../server/render-context.mjs";
 
 const PAGE_PATH = Symbol("PAGE_PATH");
 const PAGE_MATCH = Symbol("PAGE_MATCH");
@@ -241,7 +243,11 @@ export async function init$() {
     () => {
       if (!getContext(PAGE_COMPONENT)) {
         status(404);
-        if (import.meta.env.DEV) {
+        const renderContext = getContext(RENDER_CONTEXT);
+        if (
+          import.meta.env.DEV &&
+          renderContext?.type === RENDER_TYPE.Unknown
+        ) {
           throw new Error("Page not found");
         }
         return new Response(null, { status: 404 });

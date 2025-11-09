@@ -338,7 +338,7 @@ export default async function createServer(root, options) {
                     {
                       find: /^@lazarv\/react-server\/memory-cache$/,
                       replacement: sys.normalizePath(
-                        join(sys.rootDir, "cache/index.mjs")
+                        join(sys.rootDir, "cache/client.mjs")
                       ),
                     },
                     {
@@ -750,7 +750,9 @@ export default async function createServer(root, options) {
           if (!mod) return;
 
           if (mod.__react_server_client_component__) {
-            modules.unshift(`/@fs${moduleId}`);
+            modules.unshift(
+              `/@fs/${sys.normalizePath(moduleId)}`.replace(/\/+/g, "/")
+            );
           } else {
             if (/node_modules/.test(moduleId)) return;
 

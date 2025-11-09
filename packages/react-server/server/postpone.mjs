@@ -16,7 +16,11 @@ export function usePostpone(reason) {
     postpone(reason);
   }
 
-  if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
+  if (
+    typeof import.meta.env !== "undefined" &&
+    import.meta.env.DEV &&
+    typeof getCacheContext === "function"
+  ) {
     const cacheContext = getCacheContext();
     if (cacheContext) {
       const logger = getContext(LOGGER_CONTEXT);

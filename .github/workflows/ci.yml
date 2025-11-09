@@ -45,7 +45,7 @@ jobs:
             test/**
             .github/workflows/ci.yml
 
-  test:
+  test-dev-base:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
@@ -62,89 +62,132 @@ jobs:
             node_version: 24
       fail-fast: false
 
-    name: "Test 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    name: "Test dev base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4.0.0
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/workflows/actions/common-setup
         with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Set node version to ${{ matrix.node_version }}
-        uses: actions/setup-node@v4
+          node_version: ${{ matrix.node_version }}
+      - uses: ./.github/workflows/actions/common-playwright
         with:
-          node-version: ${{ matrix.node_version }}
-          cache: "pnpm"
-
-      - name: Install deps
-        run: pnpm install
-
-      # Install playwright's binary under custom directory to cache
-      - name: (non-windows) Set Playwright path and Get playwright version
-        if: runner.os != 'Windows'
-        run: |
-          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/playwright-bin" >> $GITHUB_ENV
-          PLAYWRIGHT_VERSION="$(pnpm ls --depth 0 --json -w playwright-chromium | jq --raw-output '.[0].devDependencies["playwright-chromium"].version')"
-          echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
-      - name: (windows) Set Playwright path and Get playwright version
-        if: runner.os == 'Windows'
-        run: |
-          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME\.cache\playwright-bin" >> $env:GITHUB_ENV
-          $env:PLAYWRIGHT_VERSION="$(pnpm ls --depth 0 --json -w playwright-chromium | jq --raw-output '.[0].devDependencies["playwright-chromium"].version')"
-          echo "PLAYWRIGHT_VERSION=$env:PLAYWRIGHT_VERSION" >> $env:GITHUB_ENV
-
-      - name: Cache Playwright's binary
-        uses: actions/cache@v4
-        with:
-          key: ${{ runner.os }}-playwright-bin-v1-${{ env.PLAYWRIGHT_VERSION }}
-          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-bin-v1-
-
-      - name: Install Playwright
-        working-directory: ./test
-        # does not need to explicitly set chromium after https://github.com/microsoft/playwright/issues/14862 is solved
-        run: pnpm playwright install chromium
+          os: ${{ runner.os }}
 
       - name: Test development
         working-directory: ./test
         run: pnpm test-dev --exclude "**/__test__/apps"
 
+  test-build-start-base:
+    needs: changed
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    timeout-minutes: 30
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node_version: [20, 22, 24]
+        include:
+          # Active LTS + other OS
+          - os: macos-latest
+            node_version: 24
+          - os: windows-latest
+            node_version: 24
+      fail-fast: false
+
+    name: "Test prod base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+        with:
+          node_version: ${{ matrix.node_version }}
+      - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
+
       - name: Test build and production mode
         working-directory: ./test
         run: pnpm test-build-start --exclude "**/__test__/apps"
 
+  test-dev-apps:
+    needs: changed
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    timeout-minutes: 30
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node_version: [20, 22, 24]
+        include:
+          # Active LTS + other OS
+          - os: macos-latest
+            node_version: 24
+          - os: windows-latest
+            node_version: 24
+      fail-fast: false
+
+    name: "Test dev apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+        with:
+          node_version: ${{ matrix.node_version }}
+      - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
+
       - name: Test development apps
         working-directory: ./test
-        run: pnpm test-dev --exclude "**/__test__/*.spec.mjs" --no-file-parallelism
+        run: pnpm test-dev --exclude "**/__test__/*.spec.mjs"
+
+  test-build-start-apps:
+    needs: changed
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    timeout-minutes: 30
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node_version: [20, 22, 24]
+        include:
+          # Active LTS + other OS
+          - os: macos-latest
+            node_version: 24
+          - os: windows-latest
+            node_version: 24
+      fail-fast: false
+
+    name: "Test prod apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+        with:
+          node_version: ${{ matrix.node_version }}
+      - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
 
       - name: Test build and production mode apps
         working-directory: ./test
-        run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs" --no-file-parallelism
+        run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs"
 
   lint:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     name: Lint 🧹
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4.0.0
-
-      - name: Set node version to 20
-        uses: actions/setup-node@v4
+      - uses: ./.github/workflows/actions/common-setup
         with:
-          node-version: 20
-          cache: "pnpm"
-
-      - name: Install deps
-        run: pnpm install
+          node_version: 24
 
       - name: Lint
         run: pnpm run lint
@@ -156,4 +199,4 @@ jobs:
       - name: Check workflow files
         run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-          ./actionlint -color -shellcheck=""
+          ./actionlint -format '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}}%0A```%0A{{replace $err.Snippet "\\n" "%0A"}}%0A```\n{{end}}' -color -shellcheck="" .github/workflows/*.yml

@@ -1,0 +1,23 @@
+name: Common Setup
+description: Shared setup for all Node + pnpm jobs
+inputs:
+  node_version:
+    description: Node.js version to install
+    required: false
+    default: "24"
+
+runs:
+  using: composite
+  steps:
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4.0.0
+
+    - name: Setup Node ${{ inputs.node_version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: "pnpm"
+
+    - name: Install deps
+      run: pnpm install
+      shell: bash

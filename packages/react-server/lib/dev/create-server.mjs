@@ -750,7 +750,9 @@ export default async function createServer(root, options) {
           if (!mod) return;
 
           if (mod.__react_server_client_component__) {
-            modules.unshift(`/@fs${moduleId}`);
+            modules.unshift(
+              `/@fs/${sys.normalizePath(moduleId)}`.replace(/\/+/g, "/")
+            );
           } else {
             if (/node_modules/.test(moduleId)) return;
 

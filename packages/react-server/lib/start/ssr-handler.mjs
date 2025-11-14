@@ -123,7 +123,7 @@ export default async function ssrHandler(root, options = {}) {
       hookRequire: false,
       handleUncaughtExceptions: false,
     });
-    logger.log("Source map support enabled");
+    logger.info("Source map stack trace mapping support enabled");
   } catch {
     // Sourcemaps not available
   }

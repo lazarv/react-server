@@ -1,3 +1,4 @@
+import { access, constants as fsConstants } from "node:fs/promises";
 import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -38,6 +39,7 @@ import {
   RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
+  SOURCEMAP_ENABLED,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
 import { ContextManager } from "../async-local-storage.mjs";
@@ -108,6 +110,25 @@ export default async function ssrHandler(root, options = {}) {
   const manifest = getRuntime(MANIFEST);
   const moduleCacheStorage = new ContextManager();
   await module_loader_init$(moduleLoader, moduleCacheStorage);
+
+  // Check if sourcemaps are available by checking if entryModule has a .map file
+  let sourcemapEnabled = false;
+  try {
+    await access(`${entryModule}.map`, fsConstants.R_OK);
+    sourcemapEnabled = true;
+    // Dynamically import and install source-map-support only when source maps are available
+    const { default: sourceMapSupport } = await import("source-map-support");
+    sourceMapSupport.install({
+      environment: "node",
+      hookRequire: false,
+      handleUncaughtExceptions: false,
+    });
+    console.log("[SourceMap] Source map support enabled");
+  } catch {
+    // Sourcemaps not available
+    console.log("[SourceMap] No source maps found");
+  }
+  runtime$(SOURCEMAP_ENABLED, sourcemapEnabled);
 
   const importMap =
     configRoot.importMap || configRoot.resolve?.shared

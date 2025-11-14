@@ -14,6 +14,7 @@ import {
   CONFIG_ROOT,
   LOGGER_CONTEXT,
   SERVER_CONTEXT,
+  SOURCEMAP_ENABLED,
 } from "../../server/symbols.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import getServerAddresses from "../utils/server-address.mjs";
@@ -45,6 +46,9 @@ async function worker(root, options, config) {
 
   await runtime_init$(async () => {
     runtime$(CONFIG_CONTEXT, config);
+    // Check if sourcemaps are available by looking for .map files in build output
+    // This will be set to true if sourcemaps were generated during build
+    runtime$(SOURCEMAP_ENABLED, false);
     const logger = await createLogger(configRoot);
     const server = await createServer(root, options);
     const { port, listenerHost } = getServerConfig(configRoot, options);

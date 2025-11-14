@@ -123,10 +123,9 @@ export default async function ssrHandler(root, options = {}) {
       hookRequire: false,
       handleUncaughtExceptions: false,
     });
-    console.log("[SourceMap] Source map support enabled");
+    logger.log("Source map support enabled");
   } catch {
     // Sourcemaps not available
-    console.log("[SourceMap] No source maps found");
   }
   runtime$(SOURCEMAP_ENABLED, sourcemapEnabled);
 

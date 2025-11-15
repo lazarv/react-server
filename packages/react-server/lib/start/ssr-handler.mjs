@@ -1,4 +1,4 @@
-import { access, constants as fsConstants } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -39,12 +39,13 @@ import {
   RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
-  SOURCEMAP_ENABLED,
+  SOURCEMAP_SUPPORT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
 import { ContextManager } from "../async-local-storage.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
+import { tryStat } from "../utils/module.mjs";
 import { init$ as manifest_init$ } from "./manifest.mjs";
 
 alias("react-server");
@@ -85,12 +86,14 @@ export default async function ssrHandler(root, options = {}) {
   }
   const [
     { render },
+    entryModuleCode,
     { default: Component, init$: root_init$ },
     { default: GlobalErrorComponent },
     { default: ErrorBoundary },
     rscSerializer,
   ] = await Promise.all([
     import(pathToFileURL(entryModule)),
+    readFile(entryModule, "utf-8"),
     import(pathToFileURL(rootModule)),
     import(pathToFileURL(globalErrorModule)),
     errorBoundary
@@ -111,23 +114,22 @@ export default async function ssrHandler(root, options = {}) {
   const moduleCacheStorage = new ContextManager();
   await module_loader_init$(moduleLoader, moduleCacheStorage);
 
-  // Check if sourcemaps are available by checking if entryModule has a .map file
+  // Check if sourcemaps are available by checking if entryModule has a .map file or a sourceMappingURL comment
   let sourcemapEnabled = false;
-  try {
-    await access(`${entryModule}.map`, fsConstants.R_OK);
-    sourcemapEnabled = true;
+  const hasSourcemap = tryStat(`${entryModule}.map`);
+  const hookRequire = /\/\/# sourceMappingURL=/.test(entryModuleCode);
+  if (hookRequire) {
     // Dynamically import and install source-map-support only when source maps are available
     const { default: sourceMapSupport } = await import("source-map-support");
+    sourcemapEnabled = true;
     sourceMapSupport.install({
       environment: "node",
-      hookRequire: false,
+      hookRequire: hookRequire && !hasSourcemap,
       handleUncaughtExceptions: false,
     });
     logger.info("Source map stack trace mapping support enabled");
-  } catch {
-    // Sourcemaps not available
   }
-  runtime$(SOURCEMAP_ENABLED, sourcemapEnabled);
+  runtime$(SOURCEMAP_SUPPORT, sourcemapEnabled);
 
   const importMap =
     configRoot.importMap || configRoot.resolve?.shared

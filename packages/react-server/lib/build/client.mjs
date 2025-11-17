@@ -169,6 +169,15 @@ export default async function clientBuild(_, options) {
         preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: (id, external) => {
+            if (
+              id.includes("/react/") ||
+              id.includes("/react-dom/") ||
+              id.includes("/react-server-dom-webpack/") ||
+              id.includes("/jsx-runtime") ||
+              id.includes("/jsx-dev-runtime")
+            ) {
+              return true;
+            }
             if (id.includes("/web-streams-polyfill/")) {
               return true;
             } else if (

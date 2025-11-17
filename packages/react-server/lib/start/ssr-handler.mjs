@@ -39,7 +39,7 @@ import {
   RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
-  SOURCEMAP_ENABLED,
+  SOURCEMAP_SUPPORT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
 import { ContextManager } from "../async-local-storage.mjs";
@@ -127,7 +127,7 @@ export default async function ssrHandler(root, options = {}) {
   } catch {
     // Sourcemaps not available
   }
-  runtime$(SOURCEMAP_ENABLED, sourcemapEnabled);
+  runtime$(SOURCEMAP_SUPPORT, sourcemapEnabled);
 
   const importMap =
     configRoot.importMap || configRoot.resolve?.shared

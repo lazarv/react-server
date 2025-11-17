@@ -163,6 +163,7 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "source-map": "^0.7.4",
+    "source-map-support": "^0.5.21",
     "strip-ansi": "^7.1.0",
     "style-to-js": "^1.1.12",
     "unstorage": "^1.16.0",

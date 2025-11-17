@@ -52,6 +52,34 @@ import {
 import { ServerFunctionNotFoundError } from "./action-state.mjs";
 import { cwd } from "../lib/sys.mjs";
 
+/**
+ * Helper to log errors with source-mapped stack traces.
+ * Forces Error.prepareStackTrace to run if installed by source-map-support.
+ */
+function logErrorWithStackTrace(logger, error) {
+  if (!error) return;
+  if (
+    error.stack.startsWith(
+      "Error: An error occurred in the Server Components render."
+    )
+  )
+    return;
+
+  // Access .stack to trigger Error.prepareStackTrace if it's been set
+  // source-map-support hooks into this to provide mapped stack traces
+  const stack = error.stack;
+
+  // Log the error with its prepared stack trace
+  if (logger?.error) {
+    logger.error(error);
+  } else {
+    console.error(error);
+  }
+
+  // Return the stack for potential further processing
+  return stack;
+}
+
 const serverReferenceMap = new Proxy(
   {},
   {
@@ -522,6 +550,10 @@ export async function render(Component, props = {}, options = {}) {
                   temporaryReferences,
                   onError(e) {
                     hasError = true;
+                    // Log error with source-mapped stack trace
+                    if (import.meta.env.PROD) {
+                      logErrorWithStackTrace(logger, e);
+                    }
                     const redirect = getContext(REDIRECT_CONTEXT);
                     if (redirect?.response) {
                       return `Location=${redirect.response.headers.get("location")}`;
@@ -660,6 +692,10 @@ export async function render(Component, props = {}, options = {}) {
               temporaryReferences,
               onError(e) {
                 hasError = true;
+                // Log error with source-mapped stack trace
+                if (import.meta.env.PROD) {
+                  logErrorWithStackTrace(logger, e);
+                }
                 const redirect = getContext(REDIRECT_CONTEXT);
                 if (redirect?.response) {
                   return resolve(redirect.response);
@@ -763,7 +799,8 @@ export async function render(Component, props = {}, options = {}) {
               if (!e.digest && digest) {
                 e.digest = digest;
               }
-              (logger ?? console).error(e);
+              // Log error with source-mapped stack trace
+              logErrorWithStackTrace(logger, e);
               hasError = true;
               if (!isStarted) {
                 ContextStorage.run(contextStore, async () => {
@@ -822,13 +859,15 @@ export async function render(Component, props = {}, options = {}) {
           );
         }
       } catch (e) {
-        logger.error(e);
+        // Log error with source-mapped stack trace
+        logErrorWithStackTrace(logger, e);
         getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
       }
     });
     return streaming;
   } catch (e) {
-    logger.error(e);
+    // Log error with source-mapped stack trace
+    logErrorWithStackTrace(logger, e);
     return new Response(null, {
       status: 500,
       statusText: "Internal Server Error",

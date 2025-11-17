@@ -1,6 +1,7 @@
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { init$ as cache_init$, useCache } from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
@@ -83,12 +84,16 @@ export default async function ssrHandler(root, options = {}) {
   }
   const [
     { render },
+    { default: buildMetadata },
     { default: Component, init$: root_init$ },
     { default: GlobalErrorComponent },
     { default: ErrorBoundary },
     rscSerializer,
   ] = await Promise.all([
     import(pathToFileURL(entryModule)),
+    import(pathToFileURL(join(cwd, options.outDir, "server/build-meta.json")), {
+      with: { type: "json" },
+    }),
     import(pathToFileURL(rootModule)),
     import(pathToFileURL(globalErrorModule)),
     errorBoundary
@@ -108,6 +113,34 @@ export default async function ssrHandler(root, options = {}) {
   const manifest = getRuntime(MANIFEST);
   const moduleCacheStorage = new ContextManager();
   await module_loader_init$(moduleLoader, moduleCacheStorage);
+
+  if (buildMetadata.sourcemap && buildMetadata.sourcemap !== false) {
+    const { default: sourceMapSupport } = await import("source-map-support");
+    sourceMapSupport.install({
+      environment: "node",
+      hookRequire: buildMetadata.sourcemap === "inline",
+      handleUncaughtExceptions: false,
+      retrieveSourceMap:
+        buildMetadata.sourcemap === "hidden"
+          ? (source) => {
+              logger.info(`Retrieving source map for ${source}`);
+              if (source.startsWith("file:")) {
+                const mapFilePath = fileURLToPath(source) + ".map";
+                if (existsSync(mapFilePath)) {
+                  return {
+                    url: source,
+                    map: readFileSync(mapFilePath, "utf8"),
+                  };
+                }
+              }
+              return null;
+            }
+          : undefined,
+    });
+    logger.info(
+      `Source map (${buildMetadata.sourcemap === true ? "file" : buildMetadata.sourcemap}) stack trace mapping support enabled`
+    );
+  }
 
   const importMap =
     configRoot.importMap || configRoot.resolve?.shared

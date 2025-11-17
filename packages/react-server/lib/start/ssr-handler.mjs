@@ -1,7 +1,7 @@
-import { access, constants as fsConstants } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { init$ as cache_init$, useCache } from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
@@ -39,7 +39,6 @@ import {
   RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
-  SOURCEMAP_SUPPORT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
 import { ContextManager } from "../async-local-storage.mjs";
@@ -85,12 +84,16 @@ export default async function ssrHandler(root, options = {}) {
   }
   const [
     { render },
+    { default: buildMetadata },
     { default: Component, init$: root_init$ },
     { default: GlobalErrorComponent },
     { default: ErrorBoundary },
     rscSerializer,
   ] = await Promise.all([
     import(pathToFileURL(entryModule)),
+    import(pathToFileURL(join(cwd, options.outDir, "server/build-meta.json")), {
+      with: { type: "json" },
+    }),
     import(pathToFileURL(rootModule)),
     import(pathToFileURL(globalErrorModule)),
     errorBoundary
@@ -111,23 +114,33 @@ export default async function ssrHandler(root, options = {}) {
   const moduleCacheStorage = new ContextManager();
   await module_loader_init$(moduleLoader, moduleCacheStorage);
 
-  // Check if sourcemaps are available by checking if entryModule has a .map file
-  let sourcemapEnabled = false;
-  try {
-    await access(`${entryModule}.map`, fsConstants.R_OK);
-    sourcemapEnabled = true;
-    // Dynamically import and install source-map-support only when source maps are available
+  if (buildMetadata.sourcemap && buildMetadata.sourcemap !== false) {
     const { default: sourceMapSupport } = await import("source-map-support");
     sourceMapSupport.install({
       environment: "node",
-      hookRequire: false,
+      hookRequire: buildMetadata.sourcemap === "inline",
       handleUncaughtExceptions: false,
+      retrieveSourceMap:
+        buildMetadata.sourcemap === "hidden"
+          ? (source) => {
+              logger.info(`Retrieving source map for ${source}`);
+              if (source.startsWith("file:")) {
+                const mapFilePath = fileURLToPath(source) + ".map";
+                if (existsSync(mapFilePath)) {
+                  return {
+                    url: source,
+                    map: readFileSync(mapFilePath, "utf8"),
+                  };
+                }
+              }
+              return null;
+            }
+          : undefined,
     });
-    logger.info("Source map stack trace mapping support enabled");
-  } catch {
-    // Sourcemaps not available
+    logger.info(
+      `Source map (${buildMetadata.sourcemap === true ? "file" : buildMetadata.sourcemap}) stack trace mapping support enabled`
+    );
   }
-  runtime$(SOURCEMAP_SUPPORT, sourcemapEnabled);
 
   const importMap =
     configRoot.importMap || configRoot.resolve?.shared

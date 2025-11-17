@@ -531,5 +531,17 @@ export default async function serverBuild(root, options) {
       "utf8"
     );
   }
+
+  // Write build metadata with sourcemap option
+  await writeFile(
+    join(cwd, options.outDir, "server/build-meta.json"),
+    JSON.stringify({
+      sourcemap:
+        options.sourcemap !== false ? options.sourcemap || true : false,
+      buildTime: new Date().toISOString(),
+    }),
+    "utf8"
+  );
+
   return true;
 }

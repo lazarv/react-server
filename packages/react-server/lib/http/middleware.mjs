@@ -1,4 +1,4 @@
-import { Writable } from "node:stream";
+import { Readable } from "node:stream";
 
 import { parse as __cookieParse, serialize as __cookieSerialize } from "cookie";
 
@@ -105,35 +105,54 @@ export function createMiddleware(handler, options = {}) {
         }
         return;
       }
-      // Use Web Streams pipeTo into a Web Writable mapped from Node's ServerResponse
-      // and abort the pipe if the client disconnects.
-      const controller = new AbortController();
-      const onAbort = () => {
-        if (!controller.signal.aborted) {
+      // Convert the Web ReadableStream to a Node Readable and pipe into ServerResponse.
+      // Use AbortController to coordinate cleanup when client disconnects or stream completes.
+      const nodeReadable = Readable.fromWeb(response.body);
+      const abortController = new AbortController();
+      const { signal } = abortController;
+
+      // Destroy stream when aborted (client disconnect or error)
+      signal.addEventListener(
+        "abort",
+        () => {
           try {
-            controller.abort();
+            nodeReadable.destroy(new Error("aborted"));
           } catch {
             // no-op
           }
-        }
-      };
-      res.once("close", onAbort);
-      req.once("aborted", onAbort);
+        },
+        { once: true }
+      );
+
+      // Abort on client disconnect
+      const onDisconnect = () => abortController.abort();
+      res.once("close", onDisconnect);
+      req.once("aborted", onDisconnect);
 
       try {
-        const webWritable = Writable.toWeb(res);
-        await response.body.pipeTo(webWritable, { signal: controller.signal });
-      } catch (err) {
-        // Ignore expected aborts; rethrow others
-        if (!(controller.signal.aborted || res.destroyed || req.aborted)) {
-          throw err;
-        }
+        await new Promise((resolve, reject) => {
+          // Use { once: true } for auto-cleanup
+          const onFinish = () => resolve();
+          const onReadableError = (err) => reject(err);
+          const onResError = (err) => reject(err);
+
+          nodeReadable.once("error", onReadableError);
+          res.once("error", onResError);
+          res.once("finish", onFinish);
+
+          // End dest when source ends (default true)
+          nodeReadable.pipe(res);
+        });
       } finally {
-        res.off("close", onAbort);
-        req.off("aborted", onAbort);
+        // Trigger abort to clean up the signal listener
+        abortController.abort();
+        // Remove disconnect listeners
+        res.off("close", onDisconnect);
+        req.off("aborted", onDisconnect);
       }
     } catch (e) {
-      next ? next(e) : internalError(res, e);
+      if (next) next(e);
+      else internalError(res, e);
     }
   };
 }

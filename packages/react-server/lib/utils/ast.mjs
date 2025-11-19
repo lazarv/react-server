@@ -1,5 +1,5 @@
 import { generate, GENERATOR } from "astring";
-import { parseAsync } from "oxc-parser";
+import { parse as oxcParse } from "oxc-parser";
 import { SourceMapGenerator } from "source-map";
 
 import { getEnv } from "../sys.mjs";
@@ -58,7 +58,7 @@ export function addLocation(ast, code) {
 }
 
 export async function parse(code, id, options) {
-  const { program: ast } = await parseAsync(id, code, {
+  const { program: ast } = await oxcParse(id, code, {
     preserveParens: false,
     ...options,
   });

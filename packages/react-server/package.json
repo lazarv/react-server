@@ -143,7 +143,7 @@
     "mime": "^3.0.0",
     "module-alias": "^2.2.3",
     "open": "^9.1.0",
-    "oxc-parser": "^0.61.2",
+    "oxc-parser": "^0.98.0",
     "oxc-resolver": "^11.9.0",
     "parse5": "^7.1.2",
     "picocolors": "^1.0.1",

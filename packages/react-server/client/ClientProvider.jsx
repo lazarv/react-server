@@ -686,6 +686,7 @@ function getFlightResponse(url, options = {}) {
             try {
               response = await fetch(srcString, {
                 ...options.request,
+                redirect: "manual",
                 method: options.method ?? (options.body ? "POST" : "GET"),
                 body: options.body,
                 headers: {
@@ -698,6 +699,13 @@ function getFlightResponse(url, options = {}) {
                 credentials: "include",
                 signal: abortController?.signal,
               });
+
+              if (response.status < 200 || response.status >= 300) {
+                // this does not work properly - @lazarv: I need your help to handle this properly
+                throw new Error(
+                  `Failed to load RSC component at ${srcString} - ${response.status} ${response.statusText}`
+                );
+              }
               const { body } = response;
 
               window.dispatchEvent(

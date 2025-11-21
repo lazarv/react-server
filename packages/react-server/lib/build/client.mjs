@@ -68,6 +68,8 @@ export default async function clientBuild(_, options) {
   banner("client", options.dev);
   const config = forRoot();
 
+  const reactPattern = /\/react\/|\/react-dom\/|\/react-server-dom-webpack\//;
+
   const buildConfig = {
     root: cwd,
     configFile: false,
@@ -169,6 +171,9 @@ export default async function clientBuild(_, options) {
         preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: (id, external) => {
+            if (reactPattern.test(id)) {
+              return true;
+            }
             if (id.includes("/web-streams-polyfill/")) {
               return true;
             } else if (
@@ -215,7 +220,7 @@ export default async function clientBuild(_, options) {
             groups: [
               {
                 name: "react",
-                test: /\/react\/|\/react-dom\/|\/react-server-dom-webpack\//,
+                test: reactPattern,
               },
               {
                 name: "react-server/client/context",

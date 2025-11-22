@@ -13,17 +13,27 @@ export default function IndexPage() {
       <br />
       <a href="/forms-simple">Go to Simple Forms Page</a>
       <br />
-      <Link to="/notexisting">404 Route not found</Link>
+      <Link to="/notexisting" id="notexisting">
+        404 Route not found
+      </Link>
       <br />
-      <b>Redirect:</b>
+      <b>Redirect by Middleware:</b>
       <br />
-      <Link to="/redirect-notfound">404 Route not found</Link>
+      <Link to="/redirect-notfound" id="redirect-notfound">
+        404 Route not found
+      </Link>
       <br />
-      <Link to="/redirect-external">External</Link>
+      <Link to="/redirect-external" id="redirect-external">
+        External
+      </Link>
       <br />
-      <Link to="/redirect-api-external">External with API</Link>
+      <Link to="/redirect-api-external" id="redirect-api-external">
+        External with API
+      </Link>
       <br />
-      <Link to="/about">Internal redirect to existing about page</Link>
+      <Link to="/redirect-exists" id="redirect-exists">
+        Internal redirect to existing about page
+      </Link>
     </div>
   );
 }

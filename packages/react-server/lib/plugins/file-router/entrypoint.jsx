@@ -8,6 +8,7 @@ import {
   usePathname,
   useResponseCache,
 } from "@lazarv/react-server";
+import ReloadHandler from "@lazarv/react-server/client/ReloadHandler.jsx";
 import {
   middlewares,
   pages,
@@ -21,7 +22,6 @@ import {
   RENDER_CONTEXT,
   ROUTE_MATCH,
 } from "@lazarv/react-server/server/symbols.mjs";
-import ErrorBoundary from "@lazarv/react-server/error-boundary";
 import { RENDER_TYPE } from "../../../server/render-context.mjs";
 
 const PAGE_PATH = Symbol("PAGE_PATH");
@@ -111,20 +111,11 @@ export async function init$() {
         for (const [path, , , , , lazy] of outlets) {
           const match = useMatch(path, { exact: true });
           if (match) {
-            let errorBoundary =
-              pages.find(
-                ([errorPath, type, outlet]) =>
-                  type === "error" &&
-                  outlet === reactServerOutlet &&
-                  errorPath === path
-              )?.[5] ??
-              pages.find(
-                ([errorPath, type, outlet]) =>
-                  type === "error" &&
-                  outlet === reactServerOutlet &&
-                  useMatch(errorPath)
-              )?.[5] ??
-              (() => ({ default: null }));
+            // Note: Error boundary components cannot be used in file-router because
+            // they are server components that would need to be passed as props to
+            // the client ErrorBoundary component, which violates RSC rules.
+            // Errors will propagate to default error handling instead.
+
             let fallback =
               pages.find(
                 ([fallbackPath, type, outlet]) =>
@@ -156,15 +147,9 @@ export async function init$() {
 
             const [
               { default: Component, ttl, init$: page_init$ },
-              { default: ErrorComponent },
-              { default: FallbackComponent },
+              { default: _FallbackComponent },
               { default: LoadingComponent },
-            ] = await Promise.all([
-              lazy(),
-              errorBoundary(),
-              fallback(),
-              loading(),
-            ]);
+            ] = await Promise.all([lazy(), fallback(), loading()]);
 
             await page_init$?.();
             if (typeof ttl === "number") {
@@ -173,22 +158,7 @@ export async function init$() {
 
             context$(PAGE_MATCH, match);
 
-            if (ErrorComponent) {
-              context$(PAGE_COMPONENT, (match) => (
-                <ErrorBoundary
-                  component={ErrorComponent}
-                  fallback={
-                    FallbackComponent ? (
-                      <FallbackComponent />
-                    ) : LoadingComponent ? (
-                      <LoadingComponent />
-                    ) : null
-                  }
-                >
-                  <Component {...match} />
-                </ErrorBoundary>
-              ));
-            } else if (LoadingComponent) {
+            if (LoadingComponent) {
               context$(PAGE_COMPONENT, (match) => (
                 <Suspense fallback={<LoadingComponent />}>
                   <Component {...match} />
@@ -242,7 +212,6 @@ export async function init$() {
     },
     () => {
       if (!getContext(PAGE_COMPONENT)) {
-        status(404);
         const renderContext = getContext(RENDER_CONTEXT);
         if (
           import.meta.env.DEV &&
@@ -250,7 +219,15 @@ export async function init$() {
         ) {
           throw new Error("Page not found");
         }
-        return new Response(null, { status: 404 });
+        // For RSC requests, return ReloadHandler to trigger full page reload
+        // This allows the HTML request to render custom error components with HTTP 404
+        if (renderContext?.flags?.isRSC) {
+          context$(PAGE_COMPONENT, () => <ReloadHandler />);
+          return;
+        }
+        // For HTML requests, set 404 status and let rendering continue
+        // The error will be caught by root error boundary if it exists
+        status(404);
       }
     },
   ];
@@ -260,7 +237,7 @@ export default async function App() {
   const prevPathname = getContext(PAGE_PATH);
   const currentPathname = usePathname();
 
-  // If the pathname has changed, we need to re-run the selector to load the new page
+  // If the pathname has changed (or this is first render), run the selector
   if (prevPathname !== currentPathname) {
     const selector = getContext(PAGE_SELECTOR);
     if (typeof selector === "function") {
@@ -274,10 +251,15 @@ export default async function App() {
     getContext(PAGE_COMPONENT) ??
     (() => {
       status(404);
-      if (import.meta.env.DEV) {
-        throw new Error("Page not found");
-      }
-      return null;
+      // Return a simple 404 message
+      // Note: Custom error components from (root).error.tsx won't work here
+      // because the error boundary is set up in plugin-generated code per route
+      return (
+        <div>
+          <h1>404 - Page Not Found</h1>
+          <p>The page you're looking for doesn't exist.</p>
+        </div>
+      );
     });
 
   return <Page {...match} />;

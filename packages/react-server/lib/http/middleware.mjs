@@ -110,22 +110,32 @@ export function createMiddleware(handler, options = {}) {
       const nodeReadable = Readable.fromWeb(response.body);
       const abortController = new AbortController();
       const { signal } = abortController;
+      let aborted = false;
 
-      // Destroy stream when aborted (client disconnect or error)
+      // Gracefully end stream & response on abort (client disconnect)
       signal.addEventListener(
         "abort",
         () => {
+          aborted = true;
           try {
-            nodeReadable.destroy(new Error("aborted"));
+            // destroy silently (no error object to avoid noisy logs)
+            if (!nodeReadable.destroyed) nodeReadable.destroy();
           } catch {
-            // no-op
+            /* ignore abort destroy error */
+          }
+          try {
+            if (!res.writableEnded) res.end();
+          } catch {
+            /* ignore abort end error */
           }
         },
         { once: true }
       );
 
       // Abort on client disconnect
-      const onDisconnect = () => abortController.abort();
+      const onDisconnect = () => {
+        if (!signal.aborted) abortController.abort();
+      };
       res.once("close", onDisconnect);
       req.once("aborted", onDisconnect);
 
@@ -133,8 +143,8 @@ export function createMiddleware(handler, options = {}) {
         await new Promise((resolve, reject) => {
           // Use { once: true } for auto-cleanup
           const onFinish = () => resolve();
-          const onReadableError = (err) => reject(err);
-          const onResError = (err) => reject(err);
+          const onReadableError = (err) => (aborted ? resolve() : reject(err));
+          const onResError = (err) => (aborted ? resolve() : reject(err));
 
           nodeReadable.once("error", onReadableError);
           res.once("error", onResError);
@@ -144,9 +154,8 @@ export function createMiddleware(handler, options = {}) {
           nodeReadable.pipe(res);
         });
       } finally {
-        // Trigger abort to clean up the signal listener
-        abortController.abort();
-        // Remove disconnect listeners
+        // Trigger abort only if not already aborted (cleanup listeners)
+        if (!signal.aborted) abortController.abort();
         res.off("close", onDisconnect);
         req.off("aborted", onDisconnect);
       }

@@ -15,4 +15,8 @@ export default function RedirectMiddleware() {
     console.log("Redirecting to /api-redirect");
     redirect("/api-redirect");
   }
+  if (pathname.startsWith("/redirect-exists")) {
+    console.log("Redirecting to /about");
+    redirect("/about");
+  }
 }

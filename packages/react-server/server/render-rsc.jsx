@@ -51,6 +51,8 @@ import {
 } from "@lazarv/react-server/server/symbols.mjs";
 import { ServerFunctionNotFoundError } from "./action-state.mjs";
 import { cwd } from "../lib/sys.mjs";
+import { isRedirectError } from "./redirects.mjs";
+import RedirectHandler from "../client/RedirectHandler.jsx";
 
 const serverReferenceMap = new Proxy(
   {},
@@ -73,9 +75,49 @@ export async function render(Component, props = {}, options = {}) {
   const logger = getContext(LOGGER_CONTEXT);
   const renderStream = getContext(RENDER_STREAM);
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
+
+  // Track middleware and action redirect URLs to set headers later
+  let middlewareRedirectUrl = null;
+  let actionRedirectUrl = null;
+
+  // Save request body BEFORE any rewrite/middleware processing
+  // This prevents "Body has already been read" errors
+  const context = getContext(HTTP_CONTEXT);
+  let savedBodyText = null;
+  let savedFormData = null;
+
+  const isFormData = context.request.headers
+    .get("content-type")
+    ?.includes("multipart/form-data");
+
+  if (
+    context.request.body &&
+    context.request.body instanceof ReadableStream &&
+    !context.request.body.locked
+  ) {
+    if (isFormData) {
+      // Save form data before any processing
+      savedFormData = await context.request.formData();
+    } else {
+      // Save text body before any processing
+      savedBodyText = await context.request.text();
+    }
+  }
+
+  // Handle middleware errors
+  if (options.middlewareError) {
+    if (isRedirectError(options.middlewareError)) {
+      // For all RSC redirects, keep the middleware error to render RedirectHandler
+      // This will trigger a client-side navigation to the redirect URL
+      // Don't try to rewrite here because component resolution has already happened
+    } else {
+      // Throw non-redirect middleware errors early
+      throw options.middlewareError;
+    }
+  }
+
   try {
     const streaming = new Promise(async (resolve, reject) => {
-      const context = getContext(HTTP_CONTEXT);
       try {
         revalidate$();
 
@@ -88,14 +130,16 @@ export async function render(Component, props = {}, options = {}) {
         const remote = renderContext.flags.isRemote;
         const outlet = useOutlet();
         let body = "";
+
+        // Use saved body instead of trying to read it again
+        if (savedBodyText !== null) {
+          body = savedBodyText || "{}";
+        }
+
         let serverFunctionResult,
           callServer,
           callServerHeaders,
           callServerComponent;
-
-        const isFormData = context.request.headers
-          .get("content-type")
-          ?.includes("multipart/form-data");
         let formState;
         const serverActionHeader = decodeURIComponent(
           context.request.headers.get("react-server-action") ?? null
@@ -111,11 +155,10 @@ export async function render(Component, props = {}, options = {}) {
           };
           let input = [];
           try {
-            if (options.middlewareError) {
-              throw options.middlewareError;
-            }
             if (isFormData) {
-              const multipartFormData = await context.request.formData();
+              // Use saved form data instead of reading it again
+              const multipartFormData =
+                savedFormData || (await context.request.formData());
               const formData = new FormData();
               for (const [key, value] of multipartFormData.entries()) {
                 formData.append(key.replace(/^remote:\/\//, ""), value);
@@ -126,10 +169,10 @@ export async function render(Component, props = {}, options = {}) {
                 input = formData;
               }
             } else {
-              input = await server.decodeReply(
-                await context.request.text(),
-                serverReferenceMap
-              );
+              // Use saved text body instead of calling context.request.text() again
+              const requestText =
+                savedBodyText || (await context.request.text());
+              input = await server.decodeReply(requestText, serverReferenceMap);
             }
           } catch (error) {
             logger?.error(error);
@@ -213,11 +256,33 @@ export async function render(Component, props = {}, options = {}) {
             throw e;
           }
 
+          // Handle redirect errors from actions
+          let redirectHandled = false;
+          if (renderContext.flags.isRSC && isRedirectError(error)) {
+            const redirectUrl = error.url || error.digest?.slice(9); // Extract URL from digest "Location=..."
+            // Check if it's a relative URL (starts with /)
+            if (
+              redirectUrl &&
+              redirectUrl.startsWith("/") &&
+              !redirectUrl.startsWith("//")
+            ) {
+              // For relative URLs, use rewrite to internally redirect and continue rendering
+              rewrite(redirectUrl);
+              redirectHandled = true;
+              // Store redirect URL to set headers later
+              actionRedirectUrl = redirectUrl;
+              // Don't throw - let rendering continue with the new path
+            } else {
+              // For absolute/external URLs, throw to trigger client-side redirect
+              throw error;
+            }
+          }
+
           if (!callServer) {
             callServer = true;
             if (!isFormData) {
               serverFunctionResult =
-                renderContext.flags.isRSC && error
+                renderContext.flags.isRSC && error && !redirectHandled
                   ? Promise.reject(error)
                   : data instanceof Buffer
                     ? data.buffer.slice(
@@ -237,13 +302,15 @@ export async function render(Component, props = {}, options = {}) {
                 callServerHeaders = {
                   "React-Server-Action-Key": encodeURIComponent(key),
                 };
-                if (renderContext.flags.isRSC && error) {
+                if (renderContext.flags.isRSC && error && !redirectHandled) {
                   serverFunctionResult = Promise.reject(error);
                 } else {
                   serverFunctionResult = result;
                 }
               } else {
-                if (renderContext.flags.isRSC && error) {
+                // Initialize callServerHeaders even when there's no formState
+                callServerHeaders = {};
+                if (renderContext.flags.isRSC && error && !redirectHandled) {
                   callServerComponent = true;
                   serverFunctionResult = Promise.reject(error);
                 } else {
@@ -269,7 +336,9 @@ export async function render(Component, props = {}, options = {}) {
             }
           }
 
-          if (!(input instanceof Error)) {
+          // Only set ACTION_CONTEXT if we didn't handle a redirect via rewrite
+          // When redirectHandled=true, we're rendering a different page that doesn't need action context
+          if (!(input instanceof Error) && !redirectHandled) {
             context$(ACTION_CONTEXT, {
               formData: input[input.length - 1] ?? input,
               data,
@@ -277,25 +346,11 @@ export async function render(Component, props = {}, options = {}) {
               actionId,
             });
           }
-        } else if (options.middlewareError) {
-          throw options.middlewareError;
         }
 
         const temporaryReferences = createTemporaryReferenceSet();
         context$(RENDER_TEMPORARY_REFERENCES, temporaryReferences);
 
-        if (
-          !options.middlewareError &&
-          context.request.body &&
-          context.request.body instanceof ReadableStream &&
-          !context.request.body.locked
-        ) {
-          const decoder = new TextDecoder();
-          for await (const chunk of context.request.body) {
-            body += decoder.decode(chunk);
-          }
-          body = body || "{}";
-        }
         if (body) {
           const remoteProps = await decodeReply(body, serverReferenceMap, {
             temporaryReferences,
@@ -406,7 +461,11 @@ export async function render(Component, props = {}, options = {}) {
             )}
             <Styles />
             <ModulePreloads />
-            <Component {...props} />
+            {options.middlewareError ? (
+              <RedirectHandler url={options.middlewareError.url} />
+            ) : (
+              <Component {...props} />
+            )}
           </>
         );
 
@@ -416,6 +475,24 @@ export async function render(Component, props = {}, options = {}) {
             ...callServerHeaders,
             "React-Server-Render": reload.url.toString(),
             "React-Server-Outlet": reload.outlet,
+          };
+        }
+
+        // Set headers for middleware redirect (if rewrite was used)
+        if (middlewareRedirectUrl) {
+          callServerHeaders = {
+            ...callServerHeaders,
+            "React-Server-Render": middlewareRedirectUrl,
+            "React-Server-Outlet": "PAGE_ROOT",
+          };
+        }
+
+        // Set headers for action redirect (if rewrite was used)
+        if (actionRedirectUrl) {
+          callServerHeaders = {
+            ...callServerHeaders,
+            "React-Server-Render": actionRedirectUrl,
+            "React-Server-Outlet": "PAGE_ROOT",
           };
         }
 
@@ -440,10 +517,13 @@ export async function render(Component, props = {}, options = {}) {
             "React-Server-Data": "rsc",
           };
           app =
-            reload || redirect?.response || callServerComponent ? (
+            reload ||
+            redirect?.response ||
+            callServerComponent ||
+            actionRedirectUrl ? (
               <>
                 {ComponentWithStyles}
-                {serverFunctionResult}
+                {actionRedirectUrl ? null : serverFunctionResult}
               </>
             ) : (
               <>{[serverFunctionResult]}</>
@@ -558,6 +638,13 @@ export async function render(Component, props = {}, options = {}) {
                 if (value) {
                   payload.push(copyBytesFrom(value));
                 }
+              }
+
+              // Check for redirect after initial render
+              const redirect = getContext(REDIRECT_CONTEXT);
+              if (redirect?.response) {
+                controller.close();
+                return resolve(redirect.response);
               }
 
               controller.enqueue(new Uint8Array(concat(payload)));
@@ -814,12 +901,9 @@ export async function render(Component, props = {}, options = {}) {
             },
           });
         } else {
-          return resolve(
-            new Response(null, {
-              status: 404,
-              statusText: "Not Found",
-            })
-          );
+          const notFoundError = new Error("Not Found");
+          notFoundError.digest = "404";
+          throw notFoundError;
         }
       } catch (e) {
         logger.error(e);

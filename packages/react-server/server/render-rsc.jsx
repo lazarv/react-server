@@ -76,8 +76,6 @@ export async function render(Component, props = {}, options = {}) {
   const renderStream = getContext(RENDER_STREAM);
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
 
-  // Track middleware and action redirect URLs to set headers later
-  let middlewareRedirectUrl = null;
   let actionRedirectUrl = null;
 
   // Save request body BEFORE any rewrite/middleware processing
@@ -461,7 +459,8 @@ export async function render(Component, props = {}, options = {}) {
             )}
             <Styles />
             <ModulePreloads />
-            {options.middlewareError ? (
+            {isRedirectError(options.middlewareError) &&
+            options.middlewareError?.url ? (
               <RedirectHandler url={options.middlewareError.url} />
             ) : (
               <Component {...props} />
@@ -475,15 +474,6 @@ export async function render(Component, props = {}, options = {}) {
             ...callServerHeaders,
             "React-Server-Render": reload.url.toString(),
             "React-Server-Outlet": reload.outlet,
-          };
-        }
-
-        // Set headers for middleware redirect (if rewrite was used)
-        if (middlewareRedirectUrl) {
-          callServerHeaders = {
-            ...callServerHeaders,
-            "React-Server-Render": middlewareRedirectUrl,
-            "React-Server-Outlet": "PAGE_ROOT",
           };
         }
 
@@ -523,7 +513,7 @@ export async function render(Component, props = {}, options = {}) {
             actionRedirectUrl ? (
               <>
                 {ComponentWithStyles}
-                {actionRedirectUrl ? null : serverFunctionResult}
+                {serverFunctionResult}
               </>
             ) : (
               <>{[serverFunctionResult]}</>

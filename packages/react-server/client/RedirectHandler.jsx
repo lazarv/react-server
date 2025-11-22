@@ -10,11 +10,11 @@ export default function RedirectHandler({ url }) {
     if (isRedirectingRef.current) {
       return;
     }
-    if (!url || typeof window === "undefined") {
+    if (!url) {
       return;
     }
     isRedirectingRef.current = true;
-    window.location.href = url;
+    window.location.assign(url);
   }, [url]);
 
   return null;

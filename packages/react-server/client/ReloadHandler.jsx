@@ -11,11 +11,9 @@ export default function ReloadHandler() {
       return;
     }
 
-    if (typeof window !== "undefined") {
-      isReloadingRef.current = true;
-      // Reload the page to get the full HTML response with error component
-      window.location.reload();
-    }
+    isReloadingRef.current = true;
+    // Reload the page to get the full HTML response with error component
+    window.location.reload();
   }, []);
 
   return null;

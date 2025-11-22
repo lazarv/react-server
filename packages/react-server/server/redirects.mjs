@@ -42,10 +42,15 @@ export function redirect(url, status = 302) {
     const shouldCreateResponse = !isComponentRequest;
 
     if (shouldCreateResponse) {
+      const escapedUrl = url
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
       store.response =
         request.method !== "GET"
           ? new Response(
-              `<html><head><meta http-equiv="refresh" content="0; url=${url}" /></head></html>`,
+              `<html><head><meta http-equiv="refresh" content="0; url=${escapedUrl}" /></head></html>`,
               {
                 status,
                 headers: {

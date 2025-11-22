@@ -2,6 +2,7 @@ import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
+import { isRedirectError } from "../../server/redirects.mjs";
 import {
   createRenderContext,
   RENDER_TYPE,
@@ -140,9 +141,7 @@ export default async function ssrHandler(root) {
                     accept.includes("text/x-component");
 
                   // Check if this is a redirect error
-                  const isRedirect =
-                    e?.message === "Redirect" &&
-                    e?.digest?.startsWith("Location=");
+                  const isRedirect = isRedirectError(e);
 
                   if (isRedirect && redirect?.response) {
                     // Redirect with HTTP response (non-RSC request) - return it directly
@@ -151,6 +150,8 @@ export default async function ssrHandler(root) {
                     // RSC component request with redirect (no response created)
                     // Pass as middlewareError to serialize in RSC stream with RedirectHandler
                     middlewareError = e;
+                  } else if (e.message === "Page not found") {
+                    return;
                   } else {
                     middlewareError = new Error(
                       e?.message ?? "Internal Server Error",

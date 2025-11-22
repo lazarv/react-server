@@ -6,7 +6,6 @@ import {
   createElement,
   isValidElement,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -15,7 +14,6 @@ import {
   FlightContext,
   FlightComponentContext,
   useClient,
-  PAGE_ROOT,
 } from "./context.mjs";
 
 const ErrorBoundaryContext = createContext(null);
@@ -127,10 +125,6 @@ export class ErrorBoundary extends Component {
       this.props;
     const { didCatch, error } = this.state;
 
-    if (error?.digest.startsWith("Location=")) {
-      error.redirectTo = error.digest.slice(9);
-    }
-
     let childToRender = children;
 
     if (didCatch) {
@@ -185,22 +179,6 @@ function FallbackRenderComponent({
   fallbackRender,
   ...props
 }) {
-  const { outlet } = useContext(FlightContext);
-  const client = useClient();
-  const { navigate } = client;
-  const { error } = props;
-  const { redirectTo } = error;
-
-  useEffect(() => {
-    if (redirectTo) {
-      navigate(redirectTo, { outlet, external: outlet !== PAGE_ROOT });
-    }
-  }, [redirectTo, navigate, outlet]);
-
-  if (redirectTo) {
-    return null;
-  }
-
   return (
     <>
       {FallbackComponent && typeof FallbackComponent === "function" ? (

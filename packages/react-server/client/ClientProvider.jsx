@@ -686,6 +686,7 @@ function getFlightResponse(url, options = {}) {
             try {
               response = await fetch(srcString, {
                 ...options.request,
+                redirect: "manual",
                 method: options.method ?? (options.body ? "POST" : "GET"),
                 body: options.body,
                 headers: {
@@ -698,6 +699,23 @@ function getFlightResponse(url, options = {}) {
                 credentials: "include",
                 signal: abortController?.signal,
               });
+
+              if (response.status < 200 || response.status >= 300) {
+                // this does not work properly - @lazarv: I need your help to handle this properly
+                const error = new Error(
+                  `Failed to load RSC component at ${srcString} - ${response.status} ${response.statusText}`
+                );
+                window.dispatchEvent(
+                  new CustomEvent(
+                    `__react_server_flight_error_${options.outlet}__`,
+                    {
+                      detail: { error, options, url },
+                    }
+                  )
+                );
+                options.onError?.(error, response);
+                throw error;
+              }
               const { body } = response;
 
               window.dispatchEvent(

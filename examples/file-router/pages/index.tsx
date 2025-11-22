@@ -1,3 +1,5 @@
+import { Link } from "@lazarv/react-server/navigation";
+
 export default function IndexPage() {
   return (
     <div>
@@ -10,6 +12,28 @@ export default function IndexPage() {
       <a href="/forms">Go to Forms Page</a>
       <br />
       <a href="/forms-simple">Go to Simple Forms Page</a>
+      <br />
+      <Link to="/notexisting" id="notexisting">
+        404 Route not found
+      </Link>
+      <br />
+      <b>Redirect by Middleware:</b>
+      <br />
+      <Link to="/redirect-notfound" id="redirect-notfound">
+        404 Route not found
+      </Link>
+      <br />
+      <Link to="/redirect-external" id="redirect-external">
+        External
+      </Link>
+      <br />
+      <Link to="/redirect-api-external" id="redirect-api-external">
+        External with API
+      </Link>
+      <br />
+      <Link to="/redirect-exists" id="redirect-exists">
+        Internal redirect to existing about page
+      </Link>
     </div>
   );
 }

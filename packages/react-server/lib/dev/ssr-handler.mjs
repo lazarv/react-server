@@ -2,6 +2,7 @@ import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
+import { isRedirectError } from "../../server/redirects.mjs";
 import {
   createRenderContext,
   RENDER_TYPE,
@@ -134,8 +135,23 @@ export default async function ssrHandler(root) {
                   }
                 } catch (e) {
                   const redirect = getContext(REDIRECT_CONTEXT);
-                  if (redirect?.response) {
+                  const request = httpContext.request;
+                  const accept = request.headers.get("accept") || "";
+                  const isComponentRequest =
+                    accept.includes("text/x-component");
+
+                  // Check if this is a redirect error
+                  const isRedirect = isRedirectError(e);
+
+                  if (isRedirect && redirect?.response) {
+                    // Redirect with HTTP response (non-RSC request) - return it directly
                     return redirect.response;
+                  } else if (isComponentRequest && isRedirect) {
+                    // RSC component request with redirect (no response created)
+                    // Pass as middlewareError to serialize in RSC stream with RedirectHandler
+                    middlewareError = e;
+                  } else if (e.message === "Page not found") {
+                    return;
                   } else {
                     middlewareError = new Error(
                       e?.message ?? "Internal Server Error",
@@ -146,7 +162,12 @@ export default async function ssrHandler(root) {
                   }
                 }
 
-                if (renderContext.type === RENDER_TYPE.Unknown) {
+                // If no component found and no middleware error, just return (let it 404 normally)
+                // But if there's a middleware error (e.g., redirect), we need to render to handle it
+                if (
+                  renderContext.type === RENDER_TYPE.Unknown &&
+                  !middlewareError
+                ) {
                   return;
                 }
 

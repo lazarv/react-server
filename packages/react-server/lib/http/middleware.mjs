@@ -151,8 +151,10 @@ export function createMiddleware(handler, options = {}) {
         req.off("aborted", onDisconnect);
       }
     } catch (e) {
-      if (next) next(e);
-      else internalError(res, e);
+      if (e.name !== "AbortError") {
+        if (next) next(e);
+        else internalError(res, e);
+      }
     }
   };
 }

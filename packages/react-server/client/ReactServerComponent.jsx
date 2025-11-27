@@ -236,6 +236,10 @@ function FlightComponent({
     } else {
       throw error;
     }
+  } else if (
+    Component?.[0]?._payload?.reason?.digest?.startsWith("Location=")
+  ) {
+    componentToRender = prevComponent.current;
   } else {
     prevComponent.current = Component;
   }

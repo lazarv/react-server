@@ -1,15 +1,29 @@
+import { Link } from "@lazarv/react-server/navigation";
+
 export default function IndexPage() {
   return (
     <div>
       <h1>Welcome to the File Router Example</h1>
       <p>This is the home page of the file-based routing example.</p>
-      <a href="/about">Go to About Page</a>
+      <Link to="/about">Go to About Page</Link>
       <br />
-      <a href="/auth">Go to Login Page</a>
+      <Link to="/auth">Go to Login Page</Link>
       <br />
-      <a href="/forms">Go to Forms Page</a>
+      <Link to="/forms">Go to Forms Page</Link>
       <br />
-      <a href="/forms-simple">Go to Simple Forms Page</a>
+      <Link to="/forms-simple">Go to Simple Forms Page</Link>
+      <br />
+      <Link to="/notexisting">404 Route not found</Link>
+      <h2>Redirect:</h2>
+      <Link to="/redirect-notfound">404 Route not found</Link>
+      <br />
+      <Link to="/redirect-external">External</Link>
+      <br />
+      <Link to="/redirect-api-external">External with API</Link>
+      <br />
+      <Link to="/redirect-about">Internal redirect to existing about page</Link>
+      <h2>Error:</h2>
+      <Link to="/middleware-error">Throw error in middleware</Link>
     </div>
   );
 }

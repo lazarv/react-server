@@ -111,6 +111,11 @@ export default async function GlobalError({ error }) {
             </script>
           </>
         )}
+        <script type="module">
+          {`window.addEventListener("popstate", () => {
+  location.reload();
+});`}
+        </script>
       </body>
     </html>
   );

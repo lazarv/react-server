@@ -30,7 +30,8 @@ export function createRenderContext(httpContext) {
     context.outlet = outlet ?? null;
     context.remote = type === RENDER_TYPE.Remote;
 
-    httpContext.url.pathname = pathname.replace(match[0], "");
+    httpContext.url.pathname =
+      pathname.replace(match[0], "").replace(/\/+$/, "") || "/";
   }
 
   return {

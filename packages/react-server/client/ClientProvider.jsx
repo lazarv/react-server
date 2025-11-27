@@ -686,8 +686,10 @@ function getFlightResponse(url, options = {}) {
             try {
               response = await fetch(srcString, {
                 ...options.request,
-                method: options.method ?? (options.body ? "POST" : "GET"),
-                body: options.body,
+                method:
+                  options.method ??
+                  (options.body && options.body !== "{}" ? "POST" : "GET"),
+                body: options.body === "{}" ? undefined : options.body,
                 headers: {
                   ...options.request?.headers,
                   accept: "text/x-component",
@@ -698,6 +700,13 @@ function getFlightResponse(url, options = {}) {
                 credentials: "include",
                 signal: abortController?.signal,
               });
+
+              if (!response.body) {
+                throw new Error(
+                  `The fetch to ${srcString} did not return a readable body.`
+                );
+              }
+
               const { body } = response;
 
               window.dispatchEvent(
@@ -716,17 +725,49 @@ function getFlightResponse(url, options = {}) {
                 return;
               }
 
+              let chunks = 0;
+              let redirectTo = null;
               const reader = body.getReader();
+              const decoder = new TextDecoder();
               while (true) {
                 const { done, value } = await reader.read();
                 if (value) {
+                  if (!redirectTo) {
+                    const decodedValue = decoder.decode(value);
+                    redirectTo = decodedValue.match(
+                      /1:E\{"digest":"Location=(?<location>[^"]+)"/
+                    )?.groups.location;
+                  }
+
                   controller.enqueue(value);
+                  chunks++;
                 }
                 if (done) {
                   break;
                 }
               }
+
+              if (chunks === 0) {
+                throw new Error(
+                  `The fetch to ${srcString} returned an empty body.`
+                );
+              }
+
               controller.close();
+
+              if (redirectTo) {
+                const url = new URL(redirectTo, location.origin);
+
+                if (url.origin === location.origin) {
+                  navigate(redirectTo, {
+                    outlet: options.outlet,
+                    external: options.outlet !== PAGE_ROOT,
+                    push: false,
+                  });
+                } else {
+                  location.replace(redirectTo);
+                }
+              }
 
               if (outletAbortControllers.has(options.outlet || url)) {
                 const abortControllers = outletAbortControllers.get(
@@ -759,7 +800,11 @@ function getFlightResponse(url, options = {}) {
                 const encoder = new TextEncoder();
                 await new Promise((resolve) => setTimeout(resolve, 0));
 
-                controller.enqueue(encoder.encode(`0:["$L1"]\n1:null\n`));
+                controller.enqueue(
+                  encoder.encode(
+                    `0:["$L1"]\n1:E{"digest":"${e.digest}","message":"${e.message}","env":"${e.environmentName}","stack":[],"owner":null}\n`
+                  )
+                );
                 controller.close();
                 resolve();
               });

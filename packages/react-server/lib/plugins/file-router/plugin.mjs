@@ -809,8 +809,7 @@ export default function viteReactServerRouter(options = {}) {
                 const exportEntry = pathToFileURL(
                   join(cwd, outDir, "static", `${hash}.mjs`)
                 );
-                config.build.rollupOptions.input[join("static", hash)] =
-                  staticSrc;
+                config.build.rollupOptions.input[`static/${hash}`] = staticSrc;
                 paths.push(async () => {
                   let staticPaths = (await import(exportEntry)).default;
                   if (typeof staticPaths === "function") {

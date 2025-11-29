@@ -335,6 +335,19 @@ export function useRender(): {
    * ```
    */
   lock(): () => void;
+
+  isRemote: boolean;
+  isFunction: boolean;
+
+  /** Render type. */
+  type: "Unknown" | "HTML" | "RSC" | "Remote";
+};
+
+/**
+ * Render types.
+ */
+export declare const RenderType: {
+  [K in "Unknown" | "HTML" | "RSC" | "Remote"]: K;
 };
 
 /**

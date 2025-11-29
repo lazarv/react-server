@@ -24,6 +24,6 @@ export {
 export { revalidate } from "./revalidate.mjs";
 export { invalidate, useCache } from "@lazarv/react-server/memory-cache";
 export { reload } from "./reload.mjs";
-export { useRender } from "./render.mjs";
+export { useRender, RenderType } from "./render.mjs";
 export { getRuntime } from "./runtime.mjs";
 export { version } from "./version.mjs";

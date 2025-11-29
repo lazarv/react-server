@@ -137,12 +137,16 @@ export default async function ssrHandler(root) {
                   if (redirect?.response) {
                     return redirect.response;
                   } else {
-                    middlewareError = new Error(
-                      e?.message ?? "Internal Server Error",
-                      {
-                        cause: e,
-                      }
-                    );
+                    if (e instanceof Error) {
+                      middlewareError = e;
+                    } else {
+                      middlewareError = new Error(
+                        e?.message ?? "Internal Server Error",
+                        {
+                          cause: e,
+                        }
+                      );
+                    }
                   }
                 }
 

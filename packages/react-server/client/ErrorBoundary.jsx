@@ -193,7 +193,16 @@ function FallbackRenderComponent({
 
   useEffect(() => {
     if (redirectTo) {
-      navigate(redirectTo, { outlet, external: outlet !== PAGE_ROOT });
+      const url = new URL(redirectTo, location.origin);
+      if (url.origin === location.origin) {
+        navigate(redirectTo, {
+          outlet,
+          external: outlet !== PAGE_ROOT,
+          push: false,
+        });
+      } else {
+        location.replace(redirectTo);
+      }
     }
   }, [redirectTo, navigate, outlet]);
 

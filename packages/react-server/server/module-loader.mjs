@@ -70,27 +70,38 @@ export async function init$(
           specifier.replace("server://", ""),
           linkQueueStorage
         );
-        const proxy = new Proxy(mod, {
-          get(_, prop) {
-            return async (...args) => {
-              const action = (await mod)[prop];
-              try {
-                if (!action) {
+        const proxy = new Proxy(
+          {},
+          {
+            getOwnPropertyDescriptor() {
+              return {
+                value: async () => {},
+                writable: false,
+                enumerable: true,
+                configurable: true,
+              };
+            },
+            get(_, prop) {
+              return async (...args) => {
+                const action = (await mod)[prop];
+                try {
+                  if (!action) {
+                    return {
+                      error: new ServerFunctionNotFoundError(),
+                    };
+                  }
                   return {
-                    error: new ServerFunctionNotFoundError(),
+                    data: (await action(...args)) ?? null,
+                    error: null,
+                    actionId: action.$$id,
                   };
+                } catch (e) {
+                  return { error: e, actionId: action?.$$id ?? null };
                 }
-                return {
-                  data: (await action(...args)) ?? null,
-                  error: null,
-                  actionId: action.$$id,
-                };
-              } catch (e) {
-                return { error: e, actionId: action?.$$id ?? null };
-              }
-            };
-          },
-        });
+              };
+            },
+          }
+        );
         moduleCache.set(specifier, proxy);
         return proxy;
       } else {

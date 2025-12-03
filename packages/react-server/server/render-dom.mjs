@@ -48,7 +48,7 @@ class Postponed extends Error {
   constructor() {
     super("Partial Pre-Rendering postponed");
     this.name = "PostponedPartialPreRendering";
-    this.digest = "POSTPONED";
+    this.digest = "REACT_SERVER_POSTPONED";
   }
 }
 
@@ -197,8 +197,10 @@ export const createRenderer = ({
                         signal: prerenderController.signal,
                         formState,
                         onError(e) {
-                          if (e.digest !== "POSTPONED") {
+                          if (!e.digest?.startsWith("REACT_SERVER_POSTPONED")) {
                             error = e;
+                          } else {
+                            prerenderController.abort(e);
                           }
                         },
                       });

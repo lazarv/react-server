@@ -1,5 +1,3 @@
-import { unstable_postpone as postpone } from "react";
-
 import { getCacheContext } from "@lazarv/react-server/memory-cache";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 import {
@@ -8,12 +6,20 @@ import {
   POSTPONE_CONTEXT,
 } from "@lazarv/react-server/server/symbols.mjs";
 
+class Postponed extends Error {
+  constructor(reason) {
+    super(reason || "Partial Pre-Rendering postponed");
+    this.name = "REACT_SERVER_POSTPONED";
+    this.digest = "REACT_SERVER_POSTPONED";
+  }
+}
+
 export function usePostpone(reason) {
   if (
     typeof getContext(HTTP_CONTEXT)?.onPostponed === "function" &&
     getContext(POSTPONE_CONTEXT)
   ) {
-    postpone(reason);
+    throw new Postponed(reason);
   }
 
   if (

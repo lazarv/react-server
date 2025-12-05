@@ -1,3 +1,5 @@
+import { Link } from "@lazarv/react-server/navigation";
+
 export default function LoginPage() {
   return (
     <div>
@@ -15,7 +17,7 @@ export default function LoginPage() {
         <br />
         <button type="submit">Login</button>
       </form>
-      <a href="/">Go to Home Page</a>
+      <Link to="/">Go to Home Page</Link>
     </div>
   );
 }

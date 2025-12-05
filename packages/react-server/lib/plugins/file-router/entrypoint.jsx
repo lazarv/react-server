@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import { Suspense } from "react";
 
 import {
+  redirect,
   status,
   useOutlet,
   usePathname,
@@ -15,6 +16,7 @@ import {
 } from "@lazarv/react-server/file-router/manifest";
 import { useMatch } from "@lazarv/react-server/router";
 import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
+import { rscErrorResponse } from "@lazarv/react-server/server/render.mjs";
 import {
   POSTPONE_CONTEXT,
   REDIRECT_CONTEXT,
@@ -88,11 +90,25 @@ export async function init$() {
           context.request.params = match;
 
           const handler = await route();
-          return await (
+          const response = await (
             handler[context.request.method] ??
             handler.default ??
             (() => {})
           )(context);
+
+          if (
+            response.headers.get("Location") &&
+            response.status >= 300 &&
+            response.status < 400
+          ) {
+            const renderContext = getContext(RENDER_CONTEXT);
+            if (renderContext?.flags.isRSC) {
+              return redirect(response.headers.get("Location"), response.status)
+                .response;
+            }
+          }
+
+          return response;
         } catch (e) {
           const redirect = getContext(REDIRECT_CONTEXT);
           if (redirect?.response) {
@@ -245,8 +261,9 @@ export async function init$() {
         status(404);
         const renderContext = getContext(RENDER_CONTEXT);
         if (
-          import.meta.env.DEV &&
-          renderContext?.type === RENDER_TYPE.Unknown
+          (import.meta.env.DEV &&
+            renderContext?.type === RENDER_TYPE.Unknown) ||
+          renderContext?.flags.isRSC
         ) {
           throw new Error("Page not found");
         }

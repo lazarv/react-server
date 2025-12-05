@@ -40,19 +40,42 @@ class ErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
+    if (error.digest && error.digest.startsWith("Location=")) {
+      return initialState;
+    }
     return { didCatch: true, error, info: null };
+  }
+
+  componentDidMount() {
+    window.addEventListener("popstate", this.resetErrorBoundary);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("popstate", this.resetErrorBoundary);
   }
 
   componentDidCatch(error, info) {
     for (const [key, value] of this.context.state.cache.entries()) {
       if (findRef(error, value)) {
-        this.setState({
-          didCatch: true,
-          error,
-          info,
-          outlet: key,
-          url: this.context.state.outlets.get(key) || PAGE_ROOT,
-        });
+        if (error.digest && error.digest.startsWith("Location=")) {
+          this.context.invalidate(key, { noEmit: true });
+          const digestLocation = error.digest.replace("Location=", "").trim();
+          this.context.state.outlets.set(key, digestLocation || PAGE_ROOT);
+          this.context.navigate(digestLocation || PAGE_ROOT, {
+            outlet: key,
+            external: key !== PAGE_ROOT,
+            push: false,
+          });
+          this.setState(initialState);
+        } else {
+          this.setState({
+            didCatch: true,
+            error,
+            info,
+            outlet: key,
+            url: this.context.state.outlets.get(key) || PAGE_ROOT,
+          });
+        }
         break;
       }
     }
@@ -64,15 +87,34 @@ class ErrorBoundary extends Component {
       if (outlet !== PAGE_ROOT) {
         self[`__flightHydration__${PAGE_ROOT}__`] = false;
       }
-      this.context.invalidate(outlet, { noEmit: true });
-      this.context.getFlightResponse(outlet, {
-        outlet,
-        remote: outlet !== PAGE_ROOT && self[`__flightStream__${outlet}__`],
-        url,
-        onFetch: () => {
-          this.setState(initialState);
-        },
-      });
+      if (error.digest.startsWith("Location=")) {
+        const digestLocation = error.digest.replace("Location=", "").trim();
+        if (digestLocation) {
+          const url = new URL(digestLocation, location.origin);
+          if (url.origin === location.origin) {
+            this.setState(initialState);
+            this.context.state.outlets.set(outlet, digestLocation);
+            this.context.navigate(digestLocation, {
+              outlet,
+              external: outlet !== PAGE_ROOT,
+              push: false,
+            });
+          } else {
+            debugger;
+            location.replace(digestLocation);
+          }
+        }
+      } else {
+        this.context.invalidate(outlet, { noEmit: true });
+        this.context.getFlightResponse(outlet, {
+          outlet,
+          remote: outlet !== PAGE_ROOT && self[`__flightStream__${outlet}__`],
+          url,
+          onFetch: () => {
+            this.setState(initialState);
+          },
+        });
+      }
     } else {
       this.setState(initialState);
     }

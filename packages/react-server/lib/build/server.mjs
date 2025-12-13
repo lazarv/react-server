@@ -5,6 +5,7 @@ import { join, relative, extname } from "node:path";
 import replace from "@rollup/plugin-replace";
 import glob from "fast-glob";
 import { build as viteBuild } from "rolldown-vite";
+import colors from "picocolors";
 
 import { forRoot } from "../../config/index.mjs";
 import configPrebuilt from "../plugins/config-prebuilt.mjs";
@@ -36,6 +37,8 @@ import {
   nodeResolve,
 } from "../utils/module.mjs";
 import { realpathSync } from "node:fs";
+import { clientAlias } from "./resolve.mjs";
+import { createTreeshake, REACT_RE } from "./shared.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -54,32 +57,13 @@ export default async function serverBuild(root, options) {
     ...filterOutVitePluginReact(config.plugins),
   ];
 
-  const external = (id, parentId, isResolved) => {
+  const createExternal = (defaultExternals) => (id, parentId, isResolved) => {
     if (isBuiltin(id)) {
       return true;
     }
 
     const external = [
-      /manifest\.json/,
-      "bun",
-      /^bun:/,
-      /^node:/,
-      "react",
-      "react/jsx-runtime",
-      "react-dom",
-      "react-dom/client",
-      "react-dom/server.edge",
-      "react-server-dom-webpack/client.browser",
-      "react-server-dom-webpack/client.edge",
-      "react-server-dom-webpack/server.edge",
-      "react-is",
-      "picocolors",
-      "unstorage",
-      /^unstorage\/drivers\//,
-      /^react-server-highlight\.js/,
-      "@lazarv/react-server/rsc",
-      "@lazarv/react-server/memory-cache",
-      "@lazarv/react-server/storage-cache",
+      ...(defaultExternals ?? []),
       ...(Array.isArray(config.build?.rollupOptions?.external)
         ? config.build?.rollupOptions?.external
         : []),
@@ -105,6 +89,35 @@ export default async function serverBuild(root, options) {
     }
     return false;
   };
+  const external = createExternal([
+    /manifest\.json/,
+    "bun",
+    /^bun:/,
+    /^node:/,
+    "react",
+    "react/jsx-runtime",
+    "react-dom",
+    "react-dom/client",
+    "react-dom/server.edge",
+    "react-server-dom-webpack/client.browser",
+    "react-server-dom-webpack/client.edge",
+    "react-server-dom-webpack/server.edge",
+    "react-is",
+    "picocolors",
+    "unstorage",
+    /^unstorage\/drivers\//,
+    /^react-server-highlight\.js/,
+    "@lazarv/react-server/rsc",
+    "@lazarv/react-server/memory-cache",
+    "@lazarv/react-server/storage-cache",
+  ]);
+  const ssrExternal = createExternal([
+    /manifest\.json/,
+    "bun",
+    /^bun:/,
+    /^node:/,
+    "@lazarv/react-server/memory-cache",
+  ]);
   const rscExternal = (id, importer) => {
     if (isBuiltin(id)) {
       return true;
@@ -307,6 +320,7 @@ export default async function serverBuild(root, options) {
             return [
               "server/__react_server_config__/prebuilt",
               "server/render",
+              "server/render-dom",
               "server/index",
               "server/error",
             ].includes(name) || name.startsWith("static/")
@@ -318,6 +332,9 @@ export default async function serverBuild(root, options) {
             groups: [
               {
                 name(id) {
+                  if (REACT_RE.test(id)) {
+                    return "react";
+                  }
                   const clientModules = Array.from(clientManifest.values());
                   if (
                     clientModules.includes(id) &&
@@ -458,12 +475,19 @@ export default async function serverBuild(root, options) {
 
   await viteBuild(viteConfig);
 
-  if (clientManifest.size > 0) {
+  if (
+    clientManifest.size > 0 ||
+    options.ssrWorker === false ||
+    config.ssr?.worker === false
+  ) {
     const viteConfigClientComponents = {
       ...viteConfig,
       resolve: {
         ...viteConfig.resolve,
         alias: [
+          ...(options.ssrWorker === false || config.ssr?.worker === false
+            ? clientAlias()
+            : []),
           {
             find: /^@lazarv\/react-server\/http-context$/,
             replacement: join(sys.rootDir, "server/http-context.mjs"),
@@ -485,14 +509,28 @@ export default async function serverBuild(root, options) {
         manifest: "server/client-manifest.json",
         rollupOptions: {
           ...viteConfig.build.rollupOptions,
-          input: Array.from(clientManifest.entries()).reduce(
-            (input, [key, value]) => {
-              input["server/client/" + key] = value;
-              return input;
-            },
-            {}
-          ),
-          external,
+          treeshake: createTreeshake(config),
+          input: {
+            ...Array.from(clientManifest.entries()).reduce(
+              (input, [key, value]) => {
+                input["server/client/" + key] = value;
+                return input;
+              },
+              {}
+            ),
+            ...(options.ssrWorker === false || config.ssr?.worker === false
+              ? {
+                  "server/render-dom": __require.resolve(
+                    "@lazarv/react-server/server/render-dom.mjs",
+                    { paths: [cwd] }
+                  ),
+                }
+              : {}),
+          },
+          external:
+            options.ssrWorker === false || config.ssr?.worker === false
+              ? ssrExternal
+              : external,
           plugins: [
             resolveWorkspace(),
             replace({
@@ -523,6 +561,13 @@ export default async function serverBuild(root, options) {
     // empty line
     console.log();
     banner("ssr", options.dev);
+    if (options.ssrWorker === false || config.ssr?.worker === false) {
+      console.log(
+        colors.yellow(
+          "Building client components for in-process SSR (worker disabled)..."
+        )
+      );
+    }
     await viteBuild(viteConfigClientComponents);
   } else {
     await writeFile(

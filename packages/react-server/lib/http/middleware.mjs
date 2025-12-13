@@ -151,8 +151,10 @@ export function createMiddleware(handler, options = {}) {
         req.off("aborted", onDisconnect);
       }
     } catch (e) {
-      if (next) next(e);
-      else internalError(res, e);
+      if (e.name !== "AbortError" && e.message !== "aborted") {
+        if (next) next(e);
+        else internalError(res, e);
+      }
     }
   };
 }
@@ -162,8 +164,8 @@ function headerFirst(h) {
   return h;
 }
 function internalError(res, e) {
+  console.error(e);
   res.statusCode = 500;
   res.setHeader("content-type", "text/plain; charset=utf-8");
   res.end("Internal Server Error");
-  console.error(e);
 }

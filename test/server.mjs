@@ -1,8 +1,13 @@
 import { createServer } from "node:http";
 import { parentPort, workerData } from "node:worker_threads";
 
+const originalConsoleLog = console.log;
 console.log = (...args) => {
-  parentPort.postMessage({ console: args });
+  try {
+    parentPort.postMessage({ console: args });
+  } catch {
+    originalConsoleLog("Failed to send log to parent port:", ...args);
+  }
 };
 
 export function createReactServer(reactServer, useRoot = false) {

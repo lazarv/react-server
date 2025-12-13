@@ -108,6 +108,10 @@ If you use an adapter in your `react-server.config.mjs` file, the adapter will p
 
 **outDir:** Output directory for the build. Default is `.react-server`.
 
+**mode:** Set the mode for the build. Default is `production`.
+
+**no-ssr-worker:** Disable SSR worker. Default is `false`. When enabled, the server-side rendering will be done in a worker thread. You can disable this if you want to run the server-side rendering in the main thread.
+
 <Link name="start-options">
 ## Start options
 </Link>

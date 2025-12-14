@@ -27,6 +27,9 @@ export default (cli) =>
       default: ".react-server",
     })
     .option("--mode <mode>", "[string] mode", { default: "production" })
+    .option("--no-ssr-worker", "[boolean] disable ssr worker", {
+      default: true,
+    })
     .action(async (root, options) => {
       setEnv("NODE_ENV", "production");
       return (await import("../../lib/build/action.mjs")).default(

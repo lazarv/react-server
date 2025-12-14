@@ -17,7 +17,7 @@ import * as sys from "../sys.mjs";
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
-export async function init$(type = "server", options = {}) {
+export async function init$(options = {}) {
   const outDir = options.outDir ?? ".react-server";
   const serverManifest = __require.resolve(
     `./${outDir}/server/server-manifest.json`,
@@ -95,26 +95,35 @@ export async function init$(type = "server", options = {}) {
       }
       return import(pathToFileURL(specifier));
     }
+    let entry;
     const browserEntry = Object.values(manifest.browser).find(
       (entry) => entry.file === id
     );
-    const entry =
-      type === "client" && browserEntry
-        ? Object.values(manifest.client).find((entry) => {
-            try {
-              return (
-                entry.isEntry && entry.name === `server/${browserEntry.name}`
-              );
-            } catch {
-              return false;
-            }
-          })
-        : Object.values(manifest.server).find(
-            (entry) =>
-              entry.src &&
-              (join(cwd, entry.src) === `/${id}` ||
-                sys.normalizePath(join(cwd, entry.src)) === id)
-          );
+    if (browserEntry) {
+      entry = Object.values(manifest.client).find((entry) => {
+        try {
+          return entry.isEntry && entry.name === `server/${browserEntry.name}`;
+        } catch {
+          return false;
+        }
+      });
+    }
+    if (!entry) {
+      entry = Object.values(manifest.server).find(
+        (entry) =>
+          entry.src &&
+          (join(cwd, entry.src) === `/${id}` ||
+            sys.normalizePath(join(cwd, entry.src)) === id)
+      );
+    }
+    if (!entry) {
+      const clientEntry = Object.values(manifest.client).find(
+        (entry) => entry.file === id
+      );
+      if (clientEntry) {
+        entry = clientEntry;
+      }
+    }
     if (!entry) {
       throw new Error(`Module not found: ${$$id}`);
     }

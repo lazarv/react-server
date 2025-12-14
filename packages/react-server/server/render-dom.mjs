@@ -7,11 +7,11 @@ import {
 } from "react-server-dom-webpack/client.edge";
 
 import { HttpContextStorage } from "@lazarv/react-server/http-context";
-import { getEnv, immediate } from "@lazarv/react-server/lib/sys.mjs";
-import { ssrManifest } from "@lazarv/react-server/server/ssr-manifest.mjs";
 import { Parser } from "parse5";
 
+import { getEnv, immediate } from "../lib/sys.mjs";
 import dom2flight from "./dom-flight.mjs";
+import { ssrManifest } from "./ssr-manifest.mjs";
 import { remoteTemporaryReferences } from "./temporary-references.mjs";
 
 const streamMap = new Map();

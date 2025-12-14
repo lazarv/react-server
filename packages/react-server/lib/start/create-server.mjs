@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { Worker } from "node:worker_threads";
 
 import {
   compose,
@@ -27,6 +26,7 @@ import staticHandler from "../handlers/static.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import * as sys from "../sys.mjs";
 import { getServerCors } from "../utils/server-config.mjs";
+import { createRenderer, hasRenderer } from "./render-dom.mjs";
 import ssrHandler from "./ssr-handler.mjs";
 
 const cwd = sys.cwd();
@@ -35,9 +35,16 @@ export default async function createServer(root, options) {
   if (!options.outDir) {
     options.outDir = ".react-server";
   }
-  const worker = new Worker(new URL("./render-stream.mjs", import.meta.url), {
-    workerData: { root, options },
-  });
+
+  let worker;
+  if (hasRenderer(options)) {
+    worker = await createRenderer({ root, options });
+  } else {
+    const { Worker } = await import("node:worker_threads");
+    worker = new Worker(new URL("./render-stream.mjs", import.meta.url), {
+      workerData: { root, options },
+    });
+  }
   runtime$(WORKER_THREAD, worker);
 
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};

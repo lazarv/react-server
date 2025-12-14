@@ -18,7 +18,7 @@ setEnv("NODE_ENV", "production");
 await runtime_init$(async () => {
   const moduleCacheStorage = new ContextManager();
   const linkQueueStorage = new ContextManager();
-  await manifest_init$("client", workerData.options);
+  await manifest_init$(workerData.options);
   const moduleLoader = getRuntime(MODULE_LOADER);
   await module_loader_init$(moduleLoader, moduleCacheStorage, linkQueueStorage);
 

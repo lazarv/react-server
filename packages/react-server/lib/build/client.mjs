@@ -25,6 +25,7 @@ import { chunks } from "./chunks.mjs";
 import customLogger from "./custom-logger.mjs";
 import { clientAlias } from "./resolve.mjs";
 import { bareImportRE } from "../utils/module.mjs";
+import { createTreeshake, REACT_RE } from "./shared.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -38,7 +39,13 @@ export default async function clientBuild(_, options) {
         with: { type: "json" },
       }
     );
-    if (Object.keys(_clientManifest).length > 0) {
+    if (
+      Object.keys(_clientManifest).length > 0 &&
+      !(
+        Object.keys(_clientManifest).length === 1 &&
+        Object.values(_clientManifest)[0].name === "server/render-dom"
+      )
+    ) {
       clientManifest = _clientManifest;
     }
   } catch (e) {
@@ -67,8 +74,6 @@ export default async function clientBuild(_, options) {
   }
   banner("client", options.dev);
   const config = forRoot();
-
-  const reactPattern = /\/react\/|\/react-dom\/|\/react-server-dom-webpack\//;
 
   const buildConfig = {
     root: cwd,
@@ -169,40 +174,7 @@ export default async function clientBuild(_, options) {
       rollupOptions: {
         ...config.build?.rollupOptions,
         preserveEntrySignatures: "strict",
-        treeshake: {
-          moduleSideEffects: (id, external) => {
-            if (reactPattern.test(id)) {
-              return true;
-            }
-            if (id.includes("/web-streams-polyfill/")) {
-              return true;
-            } else if (
-              typeof config.build?.rollupOptions?.treeshake
-                ?.moduleSideEffects === "function"
-            ) {
-              return config.build.rollupOptions.treeshake.moduleSideEffects(
-                id,
-                external
-              );
-            } else if (
-              Array.isArray(
-                config.build?.rollupOptions?.treeshake?.moduleSideEffects
-              )
-            ) {
-              return config.build.rollupOptions.treeshake.moduleSideEffects.some(
-                (pattern) =>
-                  (typeof pattern === "string" && id.includes(pattern)) ||
-                  (pattern instanceof RegExp && pattern.test(id))
-              );
-            } else if (
-              config.build?.rollupOptions?.treeshake?.moduleSideEffects === true
-            ) {
-              return true;
-            }
-            return false;
-          },
-          ...config.build?.rollupOptions?.treeshake,
-        },
+        treeshake: createTreeshake(config),
         external: [
           ...(Object.keys(config.importMap?.imports ?? {}) ?? []).filter(
             (key) => bareImportRE.test(key)
@@ -220,7 +192,7 @@ export default async function clientBuild(_, options) {
             groups: [
               {
                 name: "react",
-                test: reactPattern,
+                test: REACT_RE,
               },
               {
                 name: "react-server/client/context",
@@ -245,7 +217,7 @@ export default async function clientBuild(_, options) {
             return input;
           }, {}),
           ...Object.values(clientManifest).reduce((input, value) => {
-            if (value.isEntry) {
+            if (value.isEntry && value.name !== "server/render-dom") {
               input[value.name.replace(/^server\//, "")] = value.src;
             }
             return input;

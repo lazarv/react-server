@@ -46,3 +46,17 @@ export async function waitForHydration() {
     await nextAnimationFrame();
   }
 }
+
+export async function waitForBodyUpdate(fn) {
+  try {
+    const originalBody = await page.textContent("body");
+    await fn?.();
+    let newBody = originalBody;
+    while (newBody === originalBody) {
+      await nextAnimationFrame();
+      newBody = await page.textContent("body");
+    }
+  } catch {
+    // awaited
+  }
+}

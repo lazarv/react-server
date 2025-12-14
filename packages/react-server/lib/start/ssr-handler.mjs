@@ -174,6 +174,10 @@ export default async function ssrHandler(root, options = {}) {
     <a href="${getContext(HTTP_CONTEXT)?.url.pathname}">
       <button>Retry</button>
     </a>
+    <script type="module">
+      window.addEventListener("popstate", () => {
+        location.reload();
+      });
   </body>
 </html>`;
 
@@ -298,12 +302,16 @@ export default async function ssrHandler(root, options = {}) {
                 if (redirect?.response) {
                   return resolve(redirect.response);
                 } else {
-                  middlewareError = new Error(
-                    e?.message ?? "Internal Server Error",
-                    {
-                      cause: e,
-                    }
-                  );
+                  if (e instanceof Error) {
+                    middlewareError = e;
+                  } else {
+                    middlewareError = new Error(
+                      e?.message ?? "Internal Server Error",
+                      {
+                        cause: e,
+                      }
+                    );
+                  }
                 }
               }
 

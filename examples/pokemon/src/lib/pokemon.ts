@@ -23,6 +23,9 @@ export async function getAllPokemons(): Promise<Pokemon[]> {
   let next = `https://pokeapi.co/api/v2/pokemon?limit=${process.env.POKEMON_LIMIT || 1000}`;
   while (next) {
     const response = await fetch(next);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Pokemons");
+    }
     const data = await response.json();
     pokemons = pokemons.concat(data.results);
     next = data.next;
@@ -68,6 +71,9 @@ export async function getPokemons(
 export async function getPokemon(name: string): Promise<Pokemon> {
   "use cache";
   const pokemonData = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
+  if (!pokemonData.ok) {
+    throw new Error(`Failed to fetch Pokemon: ${name}`);
+  }
   return pokemonData.json();
 }
 
@@ -87,6 +93,9 @@ export type AbilityDetails = {
 export async function getAbility(name: string): Promise<AbilityDetails> {
   "use cache";
   const abilityData = await fetch(`https://pokeapi.co/api/v2/ability/${name}`);
+  if (!abilityData.ok) {
+    throw new Error(`Failed to fetch Ability: ${name}`);
+  }
   return abilityData.json();
 }
 
@@ -101,6 +110,9 @@ export type TypeDetails = {
 export async function getType(name: string): Promise<TypeDetails> {
   "use cache";
   const typeData = await fetch(`https://pokeapi.co/api/v2/type/${name}`);
+  if (!typeData.ok) {
+    throw new Error(`Failed to fetch Type: ${name}`);
+  }
   return typeData.json();
 }
 
@@ -125,29 +137,37 @@ export async function getSpecies(name: string): Promise<SpeciesDetails> {
   const speciesData = await fetch(
     `https://pokeapi.co/api/v2/pokemon-species/${name}`
   );
+  if (!speciesData.ok) {
+    throw new Error(`Failed to fetch Species: ${name}`);
+  }
   return speciesData.json();
 }
 
 export async function getPokemonDetails(name: string): Promise<
-  Omit<Pokemon, "abilities" | "types" | "species"> & {
-    abilities: AbilityDetails[];
-    types: TypeDetails[];
-    species: SpeciesDetails;
-  }
+  | (Omit<Pokemon, "abilities" | "types" | "species"> & {
+      abilities: AbilityDetails[];
+      types: TypeDetails[];
+      species: SpeciesDetails;
+    })
+  | null
 > {
   "use cache";
-  const pokemon = await getPokemon(name);
+  try {
+    const pokemon = await getPokemon(name);
 
-  if (!pokemon) {
-    throw new Error(`Pokemon "${name}" not found`);
+    if (!pokemon) {
+      throw new Error(`Pokemon "${name}" not found`);
+    }
+
+    const abilities = await Promise.all(
+      pokemon.abilities.map((ability) => getAbility(ability.ability.name))
+    );
+    const types = await Promise.all(
+      pokemon.types.map((type) => getType(type.type.name))
+    );
+    const species = await getSpecies(pokemon.species.name);
+    return { ...pokemon, abilities, types, species };
+  } catch {
+    return null;
   }
-
-  const abilities = await Promise.all(
-    pokemon.abilities.map((ability) => getAbility(ability.ability.name))
-  );
-  const types = await Promise.all(
-    pokemon.types.map((type) => getType(type.type.name))
-  );
-  const species = await getSpecies(pokemon.species.name);
-  return { ...pokemon, abilities, types, species };
 }

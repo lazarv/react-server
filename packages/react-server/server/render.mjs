@@ -1,12 +1,16 @@
 import { immediate } from "../lib/sys.mjs";
 import { context$, getContext } from "./context.mjs";
+import { RENDER_TYPE } from "./render-context.mjs";
 import { RENDER, RENDER_CONTEXT, RENDER_WAIT } from "./symbols.mjs";
 
 const RENDER_LOCK = Symbol("RENDER_LOCK");
 
+export const RenderType = RENDER_TYPE;
+
 export function useRender() {
   const render = getContext(RENDER);
   const context = getContext(RENDER_CONTEXT);
+  const type = context?.type ?? RENDER_TYPE.Unknown;
   const isRemote = context?.flags.isRemote;
   const isFunction = context?.flags.isFunction;
 
@@ -40,5 +44,17 @@ export function useRender() {
     });
   };
 
-  return { render, lock, isRemote, isFunction };
+  return { render, lock, isRemote, isFunction, type };
+}
+
+export function rscErrorResponse(error) {
+  return new Response(
+    `0:["$L1"]\n1:E{"digest":"${error.digest ?? ""}","message":"${error.message}","env":"server","stack":[],"owner":null}\n`,
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "text/x-component",
+      },
+    }
+  );
 }

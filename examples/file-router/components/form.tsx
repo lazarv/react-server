@@ -1,6 +1,9 @@
 "use client";
+
 import { useActionState } from "react";
 import { useState } from "react";
+
+import { Link } from "@lazarv/react-server/navigation";
 
 import { createOrUpdateNote, Note } from "../actions";
 
@@ -42,9 +45,9 @@ export default function NoteForm({ note }: { note: Note }) {
       )) ??
         (state.error && <p className="error">{state.error?.toString()}</p>)}
       <div className="button-group">
-        <a href="/forms" className="button">
+        <Link to="/" className="button">
           Cancel
-        </a>
+        </Link>
         <button type="submit" className="button primary" disabled={isPending}>
           Save Note
         </button>

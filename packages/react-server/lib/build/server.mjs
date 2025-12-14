@@ -110,13 +110,17 @@ export default async function serverBuild(root, options) {
     "@lazarv/react-server/rsc",
     "@lazarv/react-server/memory-cache",
     "@lazarv/react-server/storage-cache",
+    "@lazarv/react-server/http-context",
   ]);
   const ssrExternal = createExternal([
     /manifest\.json/,
     "bun",
     /^bun:/,
     /^node:/,
+    "@lazarv/react-server/rsc",
     "@lazarv/react-server/memory-cache",
+    "@lazarv/react-server/storage-cache",
+    "@lazarv/react-server/http-context",
   ]);
   const rscExternal = (id, importer) => {
     if (isBuiltin(id)) {

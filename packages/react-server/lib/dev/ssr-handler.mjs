@@ -164,8 +164,16 @@ export default async function ssrHandler(root) {
                 styles.unshift(...(getContext(STYLES_CONTEXT) ?? []));
                 context$(STYLES_CONTEXT, styles);
 
-                await module_loader_init$?.(ssrLoadModule, moduleCacheStorage);
-                return render(Component, {}, { middlewareError });
+                await module_loader_init$?.(
+                  ssrLoadModule,
+                  moduleCacheStorage,
+                  null,
+                  "rsc"
+                );
+
+                return moduleCacheStorage.run(new Map(), async () => {
+                  return render(Component, {}, { middlewareError });
+                });
               };
 
               context$(RENDER_HANDLER, handler);

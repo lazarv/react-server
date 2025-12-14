@@ -7,11 +7,11 @@ import {
 } from "react-server-dom-webpack/client.edge";
 
 import { HttpContextStorage } from "@lazarv/react-server/http-context";
-import { getEnv, immediate } from "@lazarv/react-server/lib/sys.mjs";
-import { ssrManifest } from "@lazarv/react-server/server/ssr-manifest.mjs";
 import { Parser } from "parse5";
 
+import { getEnv, immediate } from "../lib/sys.mjs";
 import dom2flight from "./dom-flight.mjs";
+import { ssrManifest } from "./ssr-manifest.mjs";
 import { remoteTemporaryReferences } from "./temporary-references.mjs";
 
 const streamMap = new Map();
@@ -48,7 +48,7 @@ class Postponed extends Error {
   constructor() {
     super("Partial Pre-Rendering postponed");
     this.name = "PostponedPartialPreRendering";
-    this.digest = "POSTPONED";
+    this.digest = "REACT_SERVER_POSTPONED";
   }
 }
 
@@ -197,8 +197,10 @@ export const createRenderer = ({
                         signal: prerenderController.signal,
                         formState,
                         onError(e) {
-                          if (e.digest !== "POSTPONED") {
+                          if (!e.digest?.startsWith("REACT_SERVER_POSTPONED")) {
                             error = e;
+                          } else {
+                            prerenderController.abort(e);
                           }
                         },
                       });

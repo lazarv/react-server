@@ -93,6 +93,7 @@ beforeAll(async ({ name, id }) => {
                 export: false,
                 adapter: ["false"],
                 minify: false,
+                ssrWorker: process.env.NO_SSR_WORKER ? false : undefined,
               }
             : {
                 outDir: `.react-server-dev-${id}-${hash}`,

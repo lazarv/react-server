@@ -59,7 +59,7 @@ export default async function ssrHandler(root, options = {}) {
   const config = getRuntime(CONFIG_CONTEXT);
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 
-  await manifest_init$("server", options);
+  await manifest_init$(options);
 
   const entryModule = __require.resolve(`./${outDir}/server/render.mjs`, {
     paths: [cwd],
@@ -107,7 +107,7 @@ export default async function ssrHandler(root, options = {}) {
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const manifest = getRuntime(MANIFEST);
   const moduleCacheStorage = new ContextManager();
-  await module_loader_init$(moduleLoader, moduleCacheStorage);
+  await module_loader_init$(moduleLoader, moduleCacheStorage, null, "rsc");
 
   const importMap =
     configRoot.importMap || configRoot.resolve?.shared
@@ -202,128 +202,130 @@ export default async function ssrHandler(root, options = {}) {
 
     return new Promise((resolve, reject) => {
       try {
-        ContextStorage.run(
-          {
-            [SERVER_CONTEXT]: getRuntime(SERVER_CONTEXT),
-            [CONFIG_CONTEXT]: config,
-            [HTTP_CONTEXT]: httpContext,
-            [ERROR_CONTEXT]: errorHandler,
-            [LOGGER_CONTEXT]: logger,
-            [MAIN_MODULE]: mainModule,
-            [MODULE_LOADER]: moduleLoader,
-            [IMPORT_MAP]: importMap,
-            [MEMORY_CACHE_CONTEXT]: memoryCache,
-            [MANIFEST]: manifest,
-            [REDIRECT_CONTEXT]: {},
-            [COLLECT_CLIENT_MODULES]: collectClientModules,
-            [CLIENT_MODULES_CONTEXT]: clientModules,
-            [COLLECT_STYLESHEETS]: collectStylesheets,
-            [STYLES_CONTEXT]: styles,
-            [RENDER_STREAM]: renderStream,
-            [PRELUDE_HTML]: getPrerender(PRELUDE_HTML),
-            [POSTPONE_STATE]: getPrerender(POSTPONE_STATE),
-            [PRERENDER_CACHE]: httpContext.prerenderCache ?? null,
-            [ERROR_BOUNDARY]: ErrorBoundary,
-          },
-          async () => {
-            if (!noCache) {
-              await cache_init$?.();
-            }
+        moduleCacheStorage.run(new Map(), async () => {
+          ContextStorage.run(
+            {
+              [SERVER_CONTEXT]: getRuntime(SERVER_CONTEXT),
+              [CONFIG_CONTEXT]: config,
+              [HTTP_CONTEXT]: httpContext,
+              [ERROR_CONTEXT]: errorHandler,
+              [LOGGER_CONTEXT]: logger,
+              [MAIN_MODULE]: mainModule,
+              [MODULE_LOADER]: moduleLoader,
+              [IMPORT_MAP]: importMap,
+              [MEMORY_CACHE_CONTEXT]: memoryCache,
+              [MANIFEST]: manifest,
+              [REDIRECT_CONTEXT]: {},
+              [COLLECT_CLIENT_MODULES]: collectClientModules,
+              [CLIENT_MODULES_CONTEXT]: clientModules,
+              [COLLECT_STYLESHEETS]: collectStylesheets,
+              [STYLES_CONTEXT]: styles,
+              [RENDER_STREAM]: renderStream,
+              [PRELUDE_HTML]: getPrerender(PRELUDE_HTML),
+              [POSTPONE_STATE]: getPrerender(POSTPONE_STATE),
+              [PRERENDER_CACHE]: httpContext.prerenderCache ?? null,
+              [ERROR_BOUNDARY]: ErrorBoundary,
+            },
+            async () => {
+              if (!noCache) {
+                await cache_init$?.();
+              }
 
-            let expiredPrerenderCache = false;
-            const prerenderCacheData = getPrerender(PRERENDER_CACHE_DATA);
-            if (prerenderCacheData?.length > 0) {
-              await Promise.all(
-                prerenderCacheData.map(async (entry) => {
-                  const [kBuffer, vBuffer, timestamp, ttl, provider] = entry;
-                  if (Date.now() < timestamp + (ttl ?? Infinity)) {
-                    const [keys, result, { default: driver }] =
-                      await Promise.all([
-                        rscSerializer.fromBuffer(
-                          Buffer.from(kBuffer, "base64")
-                        ),
-                        rscSerializer.fromBuffer(
-                          Buffer.from(vBuffer, "base64")
-                        ),
-                        typeof provider.driverPath === "string"
-                          ? import(provider.driverPath || provider.driver)
-                          : Promise.resolve({ default: null }),
-                      ]);
-                    return useCache(keys, result, ttl ?? Infinity, false, {
-                      ...provider,
-                      driver,
-                      serializer:
-                        provider?.serializer === "rsc"
-                          ? rscSerializer
-                          : undefined,
-                      prerenderCache: true,
-                    });
+              let expiredPrerenderCache = false;
+              const prerenderCacheData = getPrerender(PRERENDER_CACHE_DATA);
+              if (prerenderCacheData?.length > 0) {
+                await Promise.all(
+                  prerenderCacheData.map(async (entry) => {
+                    const [kBuffer, vBuffer, timestamp, ttl, provider] = entry;
+                    if (Date.now() < timestamp + (ttl ?? Infinity)) {
+                      const [keys, result, { default: driver }] =
+                        await Promise.all([
+                          rscSerializer.fromBuffer(
+                            Buffer.from(kBuffer, "base64")
+                          ),
+                          rscSerializer.fromBuffer(
+                            Buffer.from(vBuffer, "base64")
+                          ),
+                          typeof provider.driverPath === "string"
+                            ? import(provider.driverPath || provider.driver)
+                            : Promise.resolve({ default: null }),
+                        ]);
+                      return useCache(keys, result, ttl ?? Infinity, false, {
+                        ...provider,
+                        driver,
+                        serializer:
+                          provider?.serializer === "rsc"
+                            ? rscSerializer
+                            : undefined,
+                        prerenderCache: true,
+                      });
+                    }
+                    expiredPrerenderCache = true;
+                    return null;
+                  })
+                );
+              }
+
+              if (noCache || expiredPrerenderCache) {
+                context$(PRELUDE_HTML, null);
+                context$(POSTPONE_STATE, null);
+              }
+
+              const renderContext = createRenderContext(httpContext);
+              context$(RENDER_CONTEXT, renderContext);
+              context$(RENDER, render);
+
+              if (GlobalErrorComponent) {
+                useErrorComponent(GlobalErrorComponent, globalErrorModule);
+              }
+
+              let middlewareError = null;
+              try {
+                const middlewareHandler = await root_init$?.();
+                if (middlewareHandler) {
+                  const middlewares = Array.isArray(middlewareHandler)
+                    ? middlewareHandler
+                    : [middlewareHandler];
+                  for (const middleware of middlewares) {
+                    const response = await middleware(httpContext);
+                    if (response) {
+                      return resolve(
+                        typeof response === "function"
+                          ? await response(httpContext)
+                          : response
+                      );
+                    }
                   }
-                  expiredPrerenderCache = true;
-                  return null;
-                })
-              );
-            }
-
-            if (noCache || expiredPrerenderCache) {
-              context$(PRELUDE_HTML, null);
-              context$(POSTPONE_STATE, null);
-            }
-
-            const renderContext = createRenderContext(httpContext);
-            context$(RENDER_CONTEXT, renderContext);
-            context$(RENDER, render);
-
-            if (GlobalErrorComponent) {
-              useErrorComponent(GlobalErrorComponent, globalErrorModule);
-            }
-
-            let middlewareError = null;
-            try {
-              const middlewareHandler = await root_init$?.();
-              if (middlewareHandler) {
-                const middlewares = Array.isArray(middlewareHandler)
-                  ? middlewareHandler
-                  : [middlewareHandler];
-                for (const middleware of middlewares) {
-                  const response = await middleware(httpContext);
-                  if (response) {
-                    return resolve(
-                      typeof response === "function"
-                        ? await response(httpContext)
-                        : response
+                }
+              } catch (e) {
+                const redirect = getContext(REDIRECT_CONTEXT);
+                if (redirect?.response) {
+                  return resolve(redirect.response);
+                } else {
+                  if (e instanceof Error) {
+                    middlewareError = e;
+                  } else {
+                    middlewareError = new Error(
+                      e?.message ?? "Internal Server Error",
+                      {
+                        cause: e,
+                      }
                     );
                   }
                 }
               }
-            } catch (e) {
-              const redirect = getContext(REDIRECT_CONTEXT);
-              if (redirect?.response) {
-                return resolve(redirect.response);
-              } else {
-                if (e instanceof Error) {
-                  middlewareError = e;
-                } else {
-                  middlewareError = new Error(
-                    e?.message ?? "Internal Server Error",
-                    {
-                      cause: e,
-                    }
-                  );
-                }
+
+              if (renderContext.flags.isUnknown) {
+                return resolve();
               }
-            }
 
-            if (renderContext.flags.isUnknown) {
-              return resolve();
+              if (getContext(POSTPONE_CONTEXT) === null) {
+                context$(POSTPONE_CONTEXT, true);
+              }
+              render(Component, {}, { middlewareError }).then(resolve, reject);
             }
-
-            if (getContext(POSTPONE_CONTEXT) === null) {
-              context$(POSTPONE_CONTEXT, true);
-            }
-            render(Component, {}, { middlewareError }).then(resolve, reject);
-          }
-        );
+          );
+        });
       } catch (e) {
         logger.error(e);
         errorHandler(e)?.then(resolve);

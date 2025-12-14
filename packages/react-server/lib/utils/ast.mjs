@@ -110,7 +110,44 @@ export function walk(node, visitor, context = { visited: new Set() }) {
   visitor.leave?.(node);
 }
 
-const generator = new Proxy(GENERATOR, {
+// Statement types that need sourcemap mappings at their start position.
+// astring only emits mappings for identifiers and literals by default,
+// which leaves gaps in the sourcemap for keywords like throw, if, return, etc.
+const STATEMENT_TYPES = [
+  "BreakStatement",
+  "ContinueStatement",
+  "DebuggerStatement",
+  "DoWhileStatement",
+  "ForInStatement",
+  "ForOfStatement",
+  "ForStatement",
+  "IfStatement",
+  "LabeledStatement",
+  "ReturnStatement",
+  "SwitchStatement",
+  "ThrowStatement",
+  "TryStatement",
+  "VariableDeclaration",
+  "WhileStatement",
+  "WithStatement",
+];
+
+// Custom generator that wraps statement handlers to emit a sourcemap mapping
+// at the start of each statement, then delegates to the original astring handler.
+const statementMappingGenerator = Object.assign({}, GENERATOR);
+for (const type of STATEMENT_TYPES) {
+  const original = GENERATOR[type];
+  if (original) {
+    statementMappingGenerator[type] = function (node, state) {
+      // Emit an empty string with the node to create a mapping at this position
+      state.write("", node);
+      // Delegate to the original astring handler
+      return original.call(this, node, state);
+    };
+  }
+}
+
+const generator = new Proxy(statementMappingGenerator, {
   get(target, prop) {
     if (!(prop in target)) {
       throw new Error(`Unknown AST node type: ${prop}`);
@@ -118,13 +155,16 @@ const generator = new Proxy(GENERATOR, {
     return target[prop];
   },
 });
+
 export function codegen(ast, id) {
   const map = new SourceMapGenerator({
     file: id,
   });
   const gen = generate(ast, {
     sourceMap: map,
-    generator: getEnv("REACT_SERVER_AST_DEBUG") ? generator : GENERATOR,
+    generator: getEnv("REACT_SERVER_AST_DEBUG")
+      ? generator
+      : statementMappingGenerator,
   });
 
   return {

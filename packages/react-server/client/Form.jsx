@@ -58,6 +58,10 @@ export default function Form({
     rollback,
     noCache,
     revalidate,
+    navigate,
+    onNavigate,
+    _url,
+    onError,
   ]);
 
   const handleNavigate = useCallback(

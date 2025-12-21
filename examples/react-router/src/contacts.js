@@ -9,7 +9,7 @@ export async function getContacts(query) {
   if (query) {
     contacts = matchSorter(contacts, query, { keys: ["first", "last"] });
   }
-  return contacts.sort(sortBy("last", "createdAt"));
+  return contacts.toSorted(sortBy("last", "createdAt"));
 }
 
 export async function createContact() {

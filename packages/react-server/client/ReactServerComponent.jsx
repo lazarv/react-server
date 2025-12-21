@@ -2,9 +2,11 @@
 
 import {
   startTransition,
+  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -150,6 +152,10 @@ function FlightComponent({
       unregisterOutlet();
       unsubscribe();
     };
+    // Intentionally omitting: registerOutlet, remoteProps, defer, live, abort,
+    // createTemporaryReferenceSet, encodeReply - these are stable module-level
+    // functions or props that should not trigger re-subscription
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, outlet, remote, request, subscribe, getFlightResponse]);
 
   useEffect(() => {
@@ -161,6 +167,9 @@ function FlightComponent({
         Component: children,
       }));
     }
+    // Intentionally omitting outlet and Component - this effect should only
+    // run when children changes, not when Component state updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [children]);
 
   useEffect(() => {
@@ -183,7 +192,7 @@ function FlightComponent({
           body,
           defer,
           request,
-          fromScript: defer ? false : true,
+          fromScript: !defer,
           onReady: (nextComponent) => {
             if (nextComponent) {
               startTransition(() =>
@@ -199,6 +208,9 @@ function FlightComponent({
         });
       });
     }
+    // Intentionally omitting: remoteProps, createTemporaryReferenceSet, encodeReply -
+    // these are stable or should not trigger re-fetching when changed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, outlet, remote, defer, request, getFlightResponse]);
 
   useEffect(() => {
@@ -274,36 +286,65 @@ export default function ReactServerComponent({
   const { navigate, abort } = useClient();
   const parent = useContext(FlightContext);
 
+  const contextUrl = url || parent.url;
+
+  const refreshFn = useCallback(
+    (options = {}) => refresh(outlet, options),
+    [outlet]
+  );
+
+  const prefetchFn = useCallback(
+    (url, options = {}) => prefetch(url, { outlet, ...options }),
+    [outlet]
+  );
+
+  const navigateFn = useCallback(
+    (to, options = {}) => navigate(to, { outlet, ...options }),
+    [navigate, outlet]
+  );
+
+  const replaceFn = useCallback(
+    (to, options = {}) => replace(to, { outlet, ...options }),
+    [outlet]
+  );
+
+  const abortFn = useCallback(
+    (reason) => abort(outlet, reason),
+    [abort, outlet]
+  );
+
+  const contextValue = useMemo(
+    () => ({
+      url: contextUrl,
+      outlet,
+      live,
+      refresh: refreshFn,
+      prefetch: prefetchFn,
+      navigate: navigateFn,
+      replace: replaceFn,
+      abort: abortFn,
+    }),
+    [
+      contextUrl,
+      outlet,
+      live,
+      refreshFn,
+      prefetchFn,
+      navigateFn,
+      replaceFn,
+      abortFn,
+    ]
+  );
+
   return (
-    <FlightContext.Provider
-      value={{
-        url: url || parent.url,
-        outlet,
-        live,
-        refresh(options = {}) {
-          return refresh(outlet, options);
-        },
-        prefetch(url, options = {}) {
-          return prefetch(url, { outlet, ...options });
-        },
-        navigate(to, options = {}) {
-          return navigate(to, { outlet, ...options });
-        },
-        replace(to, options = {}) {
-          return replace(to, { outlet, ...options });
-        },
-        abort(reason) {
-          return abort(outlet, reason);
-        },
-      }}
-    >
+    <FlightContext.Provider value={contextValue}>
       <FlightComponent
         remote={remote}
         defer={defer}
         isolate={isolate}
         request={request}
         remoteProps={remoteProps}
-        live={live ? url ?? parent.url ?? true : false}
+        live={live ? (url ?? parent.url ?? true) : false}
       >
         {children}
       </FlightComponent>

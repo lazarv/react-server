@@ -2,6 +2,9 @@
   "name": "@lazarv/react-server-example-remote",
   "private": true,
   "description": "@lazarv/react-server RemoteComponent example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev:host": "react-server ./index.jsx --port 3000 --name host",
     "dev:remote": "react-server ./remote.jsx --host ::1 --port 3001 --name remote",
@@ -31,9 +34,6 @@
     "start:context": "react-server start --outDir .react-server-context --port 3007",
     "start": "run-p start:host start:remote start:static start:streaming start:live start:navigation start:form start:context"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^"
   },

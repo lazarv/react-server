@@ -26,14 +26,14 @@ export function cookie(defaults) {
 
     // Wrap with defaults merge
     ctx.setCookie = function (name, value, options = {}) {
-      const merged = { ...(defaults || {}), ...(options || {}) };
+      const merged = { ...defaults, ...options };
       return baseSet(name, value, merged);
     };
 
     ctx.deleteCookie = function (name, options = {}) {
       const merged = {
-        ...(defaults || {}),
-        ...(options || {}),
+        ...defaults,
+        ...options,
         expires: new Date(0),
       };
       return baseSet(name, "", merged);

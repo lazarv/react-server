@@ -107,7 +107,7 @@ export default async (context) => {
     ...(context.props.preset?.features ?? []),
     ...(context.env.options.features?.split(",") ??
       (!context.props.custom || context.env.hasOptions
-        ? context.props.preset.features ?? []
+        ? (context.props.preset.features ?? [])
         : await checkbox(
             {
               message: "Enabled features",

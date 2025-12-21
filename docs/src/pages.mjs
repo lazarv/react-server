@@ -38,11 +38,11 @@ export function getPages(pathname, lang) {
         )
     )
   )
-    .sort(([a], [b]) => categories.indexOf(a) - categories.indexOf(b))
+    .toSorted(([a], [b]) => categories.indexOf(a) - categories.indexOf(b))
     .map(([category, pages]) => ({
       category,
       pages: pages
-        .sort(
+        .toSorted(
           ([, { frontmatter: a }], [, { frontmatter: b }]) =>
             (a?.order ?? 0) - (b?.order ?? 0)
         )

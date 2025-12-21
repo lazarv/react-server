@@ -2,14 +2,14 @@
   "name": "@lazarv/react-server-example-hello-world",
   "private": true,
   "description": "@lazarv/react-server Hello World example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "react-server ./App.jsx",
     "build": "react-server build ./App.jsx",
     "start": "react-server start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^"
   }

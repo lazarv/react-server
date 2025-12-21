@@ -103,9 +103,8 @@ beforeAll(async ({ name, id }) => {
               };
 
         if (process.env.NODE_ENV === "production") {
-          const { default: build } = await import(
-            "@lazarv/react-server/lib/build/action.mjs"
-          );
+          const { default: build } =
+            await import("@lazarv/react-server/lib/build/action.mjs");
           await build(
             root?.[0] === "." || !root
               ? root

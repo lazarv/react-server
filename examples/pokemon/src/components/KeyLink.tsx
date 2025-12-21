@@ -40,7 +40,7 @@ export default function KeyLink<T>({
     );
 
     return () => abortController.abort();
-  }, [to]);
+  }, [to, eventKey, target, fallback, revalidate, navigate]);
 
   return (
     <Link

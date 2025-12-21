@@ -65,6 +65,8 @@ export default function Link({
     Component,
     onNavigate,
     onError,
+    navigate,
+    url,
   ]);
 
   const handleNavigate = useCallback(
@@ -82,13 +84,14 @@ export default function Link({
 
   const handlePrefetch = (handler) => (e) => {
     handler?.(e);
-    prefetchEnabled === true &&
+    if (prefetchEnabled === true) {
       prefetch(to, {
         outlet: target || (local ? outlet : root ? "PAGE_ROOT" : undefined),
         ttl,
         noCache,
         revalidate,
       });
+    }
   };
 
   return (

@@ -19,7 +19,11 @@ export function argv() {
 }
 
 export function exit(code) {
-  typeof Deno !== "undefined" ? Deno.exit(code) : process.exit(code);
+  if (typeof Deno !== "undefined") {
+    Deno.exit(code);
+  } else {
+    process.exit(code);
+  }
 }
 
 export function getEnv(name) {
@@ -27,9 +31,11 @@ export function getEnv(name) {
 }
 
 export function setEnv(name, value) {
-  typeof Deno !== "undefined"
-    ? Deno.env.set(name, value)
-    : (process.env[name] = value);
+  if (typeof Deno !== "undefined") {
+    Deno.env.set(name, value);
+  } else {
+    process.env[name] = value;
+  }
 }
 
 export function copyBytesFrom(buffer) {

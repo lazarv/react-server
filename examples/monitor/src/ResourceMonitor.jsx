@@ -20,8 +20,8 @@ function getCpuUsage() {
 }
 
 const FRAMES = 1000;
-const cpu = new Array(FRAMES).fill(0);
-const memory = new Array(FRAMES).fill(0);
+const cpu = Array.from({ length: FRAMES }, () => 0);
+const memory = Array.from({ length: FRAMES }, () => 0);
 let monitoring = false;
 
 export default async function* ResourceMonitor() {

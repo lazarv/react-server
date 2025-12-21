@@ -7,5 +7,5 @@
   "quoteProps": "as-needed",
   "trailingComma": "es5",
   "bracketSpacing": true,
-  "bracketSameLine": false
+  "bracketSameLine": false,
 }

@@ -231,7 +231,7 @@ export function match(route, path, options = {}) {
           currentPathIndex += part.value.length;
         } else if (part.type === "param" || part.type === "optionalParam") {
           const nextPathIndex = nextPart
-            ? pathSegment?.indexOf(nextPart.value, currentPathIndex) ?? 0
+            ? (pathSegment?.indexOf(nextPart.value, currentPathIndex) ?? 0)
             : pathSegment.length;
           const paramValue =
             pathSegment?.slice(currentPathIndex, nextPathIndex) ?? "";

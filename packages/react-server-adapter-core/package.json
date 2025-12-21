@@ -2,38 +2,38 @@
   "name": "@lazarv/react-server-adapter-core",
   "version": "0.0.0",
   "description": "React Server Adapter core library",
-  "module": "index.mjs",
-  "type": "module",
-  "sideEffects": true,
-  "exports": {
-    ".": {
-      "import": "./index.mjs",
-      "types": "./index.d.ts"
-    }
-  },
-  "scripts": {},
   "keywords": [
-    "react",
-    "ssr",
+    "deployment",
     "esm",
+    "react",
     "server",
     "serverless",
-    "deployment"
+    "ssr"
   ],
-  "author": "lazarv",
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
   "license": "MIT",
+  "author": "lazarv",
   "repository": {
     "type": "git",
     "url": "https://github.com/lazarv/react-server.git"
   },
-  "bugs": {
-    "url": "https://github.com/lazarv/react-server/issues"
+  "type": "module",
+  "sideEffects": true,
+  "module": "index.mjs",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs"
+    }
   },
   "publishConfig": {
     "access": "public",
     "provenance": true,
     "tag": "latest"
   },
+  "scripts": {},
   "dependencies": {
     "@vercel/nft": "^0.29.4",
     "cli-progress": "^3.12.0",

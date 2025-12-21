@@ -2,14 +2,14 @@
   "name": "@lazarv/react-server-example-mantine",
   "private": true,
   "description": "@lazarv/react-server Mantine UI example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "react-server",
     "build": "react-server build",
     "start": "react-server start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "@mantine/carousel": "^7.12.2",

@@ -5,11 +5,11 @@ export default function EditPage({ pathname }) {
   const lang = useLanguage();
   const filename =
     pathname.split("/").length > 3
-      ? pages
+      ? (pages
           .find(([filename]) =>
             filename.includes(pathname.replace(`/${lang}`, `/${lang}/(pages)`))
           )?.[0]
-          ?.replace(/^\.\//, "/") ?? `/pages${pathname}.mdx`
+          ?.replace(/^\.\//, "/") ?? `/pages${pathname}.mdx`)
       : pathname === `/${lang}/team`
         ? `/pages/${lang}/(pages)/team/index.mdx`
         : pathname === `/${lang}`

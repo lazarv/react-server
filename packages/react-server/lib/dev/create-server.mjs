@@ -422,7 +422,7 @@ export default async function createServer(root, options) {
 
   const viteConfig =
     typeof config.vite === "function"
-      ? config.vite(devServerConfig) ?? devServerConfig
+      ? (config.vite(devServerConfig) ?? devServerConfig)
       : merge(devServerConfig, config.vite);
 
   if (options.force) {
@@ -490,10 +490,6 @@ export default async function createServer(root, options) {
   };
 
   class RSCModuleRunner extends ModuleRunner {
-    constructor(options, evaluator) {
-      super(options, evaluator);
-    }
-
     async import(...args) {
       try {
         return await super.import(...args);
@@ -577,9 +573,8 @@ export default async function createServer(root, options) {
   viteDevServer.environments.rsc.config.resolve.preserveSymlinks = true;
 
   const handleClientConsole = async (stream, environment) => {
-    const { createFromReadableStream } = await import(
-      "react-server-dom-webpack/client.edge"
-    );
+    const { createFromReadableStream } =
+      await import("react-server-dom-webpack/client.edge");
     const { method, args } = await createFromReadableStream(stream, {
       serverConsumerManifest: {
         moduleMap: {},
@@ -588,10 +583,13 @@ export default async function createServer(root, options) {
     const logger = viteDevServer.config.logger;
     try {
       if (logger && typeof logger[method] === "function") {
-        logger[method](...args, {
-          environment: environment ?? colors.blueBright("(browser)"),
-          user: true,
-        });
+        logger[method](
+          ...args,
+          {
+            environment: environment ?? colors.blueBright("(browser)"),
+            user: true,
+          }
+        );
       } else {
         console[method](...args);
       }
@@ -772,7 +770,7 @@ export default async function createServer(root, options) {
 
   runtime$(
     typeof config.runtime === "function"
-      ? config.runtime(initialRuntime) ?? initialRuntime
+      ? (config.runtime(initialRuntime) ?? initialRuntime)
       : {
           ...initialRuntime,
           ...config.runtime,
@@ -853,7 +851,7 @@ export default async function createServer(root, options) {
     createMiddleware(
       compose(
         typeof config.handlers === "function"
-          ? config.handlers(initialHandlers) ?? initialHandlers
+          ? (config.handlers(initialHandlers) ?? initialHandlers)
           : [...initialHandlers, ...(config.handlers ?? [])]
       )
     )

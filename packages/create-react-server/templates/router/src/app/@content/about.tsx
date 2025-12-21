@@ -39,9 +39,7 @@ export default function About() {
         CLI tool, setting up a fully functional React Server Components (RSC)
         app with file-system based routing and server functions out of the box.
       </p>
-      <h2 className="text-xl font-semibold m-0">
-        🗂 File-system based routing
-      </h2>
+      <h2 className="text-xl font-semibold m-0">🗂 File-system based routing</h2>
       <ul className="list-disc pl-6">
         <li>
           Add files to <b>/src/app</b> to{" "}

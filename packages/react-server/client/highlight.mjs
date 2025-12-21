@@ -55,7 +55,7 @@ function highlightXmlDiff(code) {
   while (i < lines.length) {
     const line = lines[i];
 
-    if (/^@@/.test(line)) {
+    if (line.startsWith("@@")) {
       out.push(`<span class="hljs-meta">${hljs.escapeHTML(line)}</span>`);
       i++;
       continue;

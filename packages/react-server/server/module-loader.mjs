@@ -42,7 +42,7 @@ export async function init$(
         throw new Error("Module cache not found in context.");
       }
       if (!moduleCache.has(specifier)) {
-        if (/^react-client-reference:/.test(specifier)) {
+        if (specifier.startsWith("react-client-reference:")) {
           const match = /^react-client-reference:(?<id>.+)::(?<name>.+)$/.exec(
             specifier
           );
@@ -62,7 +62,7 @@ export async function init$(
               [name]: implementation,
             };
           }
-        } else if (/^react-server-reference:/.test(specifier)) {
+        } else if (specifier.startsWith("react-server-reference:")) {
           const match = /^react-server-reference:(?<id>.+)#(?<name>.+)$/.exec(
             specifier
           );

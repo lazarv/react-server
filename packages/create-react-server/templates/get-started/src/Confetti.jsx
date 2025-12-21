@@ -7,9 +7,8 @@ export default function Confetti(props) {
     <Button
       {...props}
       onClick={async () => {
-        const { default: confetti } = await import(
-          "https://esm.sh/canvas-confetti"
-        );
+        const { default: confetti } =
+          await import("https://esm.sh/canvas-confetti");
         confetti();
       }}
     >

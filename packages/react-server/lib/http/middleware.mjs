@@ -16,7 +16,7 @@ export function createContext(
     method: request.method,
     headers: request.headers,
     origin: origin || `${url.protocol}//${url.host}`.replace(/:\/$/, "://"),
-    platform: { runtime, ...(platformExtras || {}) },
+    platform: { runtime, ...platformExtras },
     env: typeof process !== "undefined" ? process.env : {},
     state: Object.create(null),
     cookie,
@@ -27,7 +27,7 @@ export function createContext(
       this._setCookies.push(__cookieSerialize(name, value, o));
     },
     deleteCookie(name, opts = {}) {
-      this.setCookie(name, "", { ...(opts || {}), expires: new Date(0) });
+      this.setCookie(name, "", { ...opts, expires: new Date(0) });
     },
   };
 }

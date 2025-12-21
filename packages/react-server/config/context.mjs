@@ -22,8 +22,8 @@ export function forChild(url, externalConfig) {
   }
   if (!config[url]) {
     const key = Object.keys(config)
-      .find((it) => url.startsWith(it))
-      ?.sort(([aKey], [bKey]) => bKey.length - aKey.length)?.[0];
+      .filter((it) => url.startsWith(it))
+      .toSorted((a, b) => b.length - a.length)[0];
 
     if (key) {
       const value = config[key];

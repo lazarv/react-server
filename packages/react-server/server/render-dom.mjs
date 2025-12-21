@@ -581,8 +581,7 @@ export const createRenderer = ({
                       }
 
                       yield encoder.encode(
-                        `0:[${new Array(line - 1)
-                          .fill(0)
+                        `0:[${Array.from({ length: line - 1 })
                           .map((_, i) => `"$${i + 1}"`)
                           .join(",")}]\n`
                       );

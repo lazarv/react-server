@@ -71,13 +71,14 @@ export default function Refresh({
 
   const handlePrefetch = (handler) => (e) => {
     handler?.(e);
-    prefetchEnabled === true &&
+    if (prefetchEnabled === true) {
       prefetch(url || _url, {
         outlet: target || (local ? _outlet : root ? "PAGE_ROOT" : undefined),
         ttl,
         noCache,
         revalidate,
       });
+    }
   };
 
   return (

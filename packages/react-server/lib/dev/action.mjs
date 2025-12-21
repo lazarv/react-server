@@ -119,7 +119,7 @@ export default async function dev(root, options) {
                 if (listenerHost) {
                   resolvedUrls.push(
                     new URL(
-                      `http${options.https ?? configRoot.server?.https ? "s" : ""}://${isIPv6(listenerHost) ? `[${listenerHost}]` : listenerHost}:${listener.address().port}`
+                      `http${(options.https ?? configRoot.server?.https) ? "s" : ""}://${isIPv6(listenerHost) ? `[${listenerHost}]` : listenerHost}:${listener.address().port}`
                     )
                   );
                   openServer(
@@ -132,7 +132,7 @@ export default async function dev(root, options) {
                   getServerAddresses(listener).forEach((address) => {
                     resolvedUrls.push(
                       new URL(
-                        `http${options.https ?? configRoot.server?.https ? "s" : ""}://${isIPv6(address.address) ? `[${address.address}]` : address.address}:${listener.address().port}`
+                        `http${(options.https ?? configRoot.server?.https) ? "s" : ""}://${isIPv6(address.address) ? `[${address.address}]` : address.address}:${listener.address().port}`
                       )
                     );
                     if (!opening) {

@@ -169,9 +169,8 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
                 )
               ).then((res) => res.json());
           if (!error.plugin) {
-            const { TraceMap, originalPositionFor } = await import(
-              "@jridgewell/trace-mapping"
-            );
+            const { TraceMap, originalPositionFor } =
+              await import("@jridgewell/trace-mapping");
             const traced = new TraceMap(rawSourceMap);
             const pos = originalPositionFor(traced, {
               line: Number(error.loc.line),
@@ -226,9 +225,8 @@ export const showErrorOverlay = async (error, source, force, type, args) => {
     if (error.details || error.code) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      const { default: href } = await import(
-        "react-server-highlight.js/styles/github-dark.css?url"
-      );
+      const { default: href } =
+        await import("react-server-highlight.js/styles/github-dark.css?url");
       link.href = href;
       overlay.shadowRoot.appendChild(link);
     }

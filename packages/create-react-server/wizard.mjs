@@ -101,7 +101,7 @@ export async function wizard(env) {
             activeStep = prevStep;
           }
         } else {
-          throw new Error();
+          throw new Error("Invalid wizard step", { cause: e });
         }
 
         abortController = new AbortController();

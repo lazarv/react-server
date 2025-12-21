@@ -1,16 +1,16 @@
 {
   "name": "@lazarv/react-server-example-monitor",
   "private": true,
-  "type": "module",
   "description": "@lazarv/react-server Resource Monitor example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "type": "module",
   "scripts": {
     "dev": "react-server ./src/index.jsx",
     "build": "react-server build ./src/index.jsx",
     "start": "react-server start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^"
   },

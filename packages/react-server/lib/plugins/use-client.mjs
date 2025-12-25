@@ -2,7 +2,6 @@ import { extname, relative } from "node:path";
 
 import * as sys from "../sys.mjs";
 import { codegen, parse, walk } from "../utils/ast.mjs";
-import { hasClientComponents, isModule } from "../utils/module.mjs";
 
 const cwd = sys.cwd();
 const isClientComponent = new Map();
@@ -68,53 +67,19 @@ export default function useClient(type, manifest, enforce) {
         const viteEnv = this.environment.name;
         const mode = this.environment.mode;
 
+        if (
+          type === "client" ||
+          (mode !== "build" && (viteEnv === "client" || viteEnv === "ssr"))
+        ) {
+          return null;
+        }
+
         const ast = await parse(code, id, {
           lang: "js",
         });
         if (!ast) return null;
 
         try {
-          if (
-            type === "client" ||
-            (mode !== "build" && (viteEnv === "client" || viteEnv === "ssr"))
-          ) {
-            const depsOptimizer = this.environment?.depsOptimizer;
-            if (depsOptimizer) {
-              walk(ast, {
-                enter(node) {
-                  if (
-                    node.type === "ImportDeclaration" ||
-                    node.type === "ImportExpression"
-                  ) {
-                    const optimized =
-                      depsOptimizer.metadata.optimized[node.source.value];
-                    if (
-                      optimized &&
-                      !config.optimizeDeps?.include?.includes(
-                        node.source.value
-                      ) &&
-                      ![
-                        "react",
-                        "react/jsx-dev-runtime",
-                        "react/jsx-runtime",
-                        "react-dom",
-                        "react-dom/client",
-                        "react-server-dom-webpack/client.browser",
-                      ].includes(node.source.value) &&
-                      hasClientComponents(optimized.src) &&
-                      isModule(optimized.src)
-                    ) {
-                      node.source.value = optimized.src;
-                      node.source.raw = `"${optimized.src}"`;
-                    }
-                  }
-                },
-              });
-            }
-
-            return codegen(ast, id);
-          }
-
           if (!code.includes("use client")) return null;
 
           const directives = ast.body

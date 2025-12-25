@@ -116,9 +116,7 @@ export async function loadConfig(initialConfig, options = {}) {
                     return false;
                   }
                 },
-                resolve: {
-                  tsconfigFilename: join(cwd, "tsconfig.json"),
-                },
+                tsconfig: join(cwd, "tsconfig.json"),
               });
             }
             try {

@@ -1,3 +1,5 @@
+import { expect } from "vitest";
+
 import { logs, page } from "./vitestSetup.mjs";
 
 export * from "./vitestSetup.mjs";
@@ -58,5 +60,12 @@ export async function waitForBodyUpdate(fn) {
     }
   } catch {
     // awaited
+  }
+}
+
+export async function expectNoErrors() {
+  const title = await page.title();
+  if (title.toLowerCase().includes("error")) {
+    expect.fail("No error should be rendered");
   }
 }

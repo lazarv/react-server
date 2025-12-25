@@ -10,10 +10,15 @@ import { build as viteBuild } from "rolldown-vite";
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
 import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
+import {
+  findPackagesWithClientComponents,
+  generateClientComponentChunkGroups,
+} from "../plugins/optimize-deps.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
-import rollupUseClient from "../plugins/use-client.mjs";
-import rollupUseServer from "../plugins/use-server.mjs";
-import rollupUseCacheInline from "../plugins/use-cache-inline.mjs";
+import rolldownUseClient from "../plugins/use-client.mjs";
+import rolldownUseServer from "../plugins/use-server.mjs";
+import rolldownUseCacheInline from "../plugins/use-cache-inline.mjs";
+import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import {
@@ -75,11 +80,21 @@ export default async function clientBuild(_, options) {
   banner("client", options.dev);
   const config = forRoot();
 
+  // Auto-detect packages with client components for chunk grouping
+  const clientComponentPackages = await findPackagesWithClientComponents();
+  const autoChunkGroups = generateClientComponentChunkGroups(
+    clientComponentPackages
+  );
+
   const buildConfig = {
     root: cwd,
     configFile: false,
     mode: options.mode || "production",
+    logLevel: options.silent ? "silent" : undefined,
     define: config.define,
+    json: {
+      namedExports: true,
+    },
     envDir: config.envDir,
     envPrefix:
       config.envDir !== false
@@ -162,7 +177,7 @@ export default async function clientBuild(_, options) {
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],
     },
-    customLogger,
+    customLogger: customLogger(options.silent),
     build: {
       ...config.build,
       target: "esnext",
@@ -171,8 +186,10 @@ export default async function clientBuild(_, options) {
       minify: options.minify,
       manifest: "client/browser-manifest.json",
       sourcemap: options.sourcemap,
-      rollupOptions: {
+      chunkSizeWarningLimit: config.build?.chunkSizeWarningLimit ?? 1000,
+      rolldownOptions: {
         ...config.build?.rollupOptions,
+        ...config.build?.rolldownOptions,
         preserveEntrySignatures: "strict",
         treeshake: createTreeshake(config),
         external: [
@@ -181,9 +198,11 @@ export default async function clientBuild(_, options) {
           ),
           ...(config.resolve?.shared ?? []),
           ...(config.build?.rollupOptions?.external ?? []),
+          ...(config.build?.rolldownOptions?.external ?? []),
         ],
         output: {
           ...config.build?.rollupOptions?.output,
+          ...config.build?.rolldownOptions?.output,
           dir: options.outDir,
           format: "esm",
           entryFileNames: "[name].[hash].mjs",
@@ -198,8 +217,11 @@ export default async function clientBuild(_, options) {
                 name: "react-server/client/context",
                 test: /react-server\/client\/context/,
               },
+              ...autoChunkGroups,
               ...(config.build?.rollupOptions?.output?.advancedChunks?.groups ??
                 []),
+              ...(config.build?.rolldownOptions?.output?.advancedChunks
+                ?.groups ?? []),
             ],
           },
         },
@@ -223,6 +245,7 @@ export default async function clientBuild(_, options) {
             return input;
           }, {}),
           ...config.build?.rollupOptions?.input,
+          ...config.build?.rolldownOptions?.input,
         },
         plugins: [
           resolveWorkspace(),
@@ -232,19 +255,21 @@ export default async function clientBuild(_, options) {
               options.dev ? "development" : "production"
             ),
           }),
-          rollupUseClient("client", undefined, "pre"),
-          rollupUseClient("client"),
-          rollupUseServer("client"),
-          rollupUseCacheInline(
+          rolldownUseClient("client", undefined, "pre"),
+          rolldownUseClient("client"),
+          rolldownUseServer("client"),
+          rolldownUseCacheInline(
             config.cache?.profiles,
             config.cache?.providers,
             "client"
           ),
           ...(config.build?.rollupOptions?.plugins ?? []),
+          ...(config.build?.rolldownOptions?.plugins ?? []),
         ],
       },
     },
     plugins: [
+      jsonNamedExports(),
       ...userOrBuiltInVitePluginReact(config.plugins),
       ...filterOutVitePluginReact(config.plugins),
       fixEsbuildOptionsPlugin(),

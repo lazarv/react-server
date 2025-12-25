@@ -32,5 +32,6 @@ export default (cli) =>
     .option("--mode <mode>", "[string] mode", { default: "development" })
     .action(async (...args) => {
       setEnv("NODE_ENV", "development");
+      await import("../../lib/dev/init.mjs");
       return (await import("../../lib/dev/action.mjs")).default(...args);
     });

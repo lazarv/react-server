@@ -491,7 +491,7 @@ export function createAdapter({
           onProgress: copyDependency,
           onFile: async (file) => {
             console.log(
-              `copy ${colors.gray(dirname(relative(cwd, file.src).replace(/^(\.\.\/)+/g, "")))}/${colors.cyan(basename(file.src))} => ${colors.gray(relative(cwd, out))}/${colors.cyan(file.dest)}`
+              `copy ${colors.gray(dirname(relative(cwd, file.src).replace(/^(\.\.\/)+ /g, "")))}/${colors.cyan(basename(file.src))} => ${colors.gray(relative(cwd, out))}/${colors.cyan(file.dest)}`
             );
             await copyDependency(file);
           },
@@ -523,10 +523,13 @@ export function createAdapter({
 
     success(`${name} deployment successfully created.`);
     if (deploy) {
-      const { command, args, message } =
-        typeof deploy === "function"
-          ? await deploy({ adapterOptions, options, handlerResult })
-          : deploy;
+      const {
+        command,
+        args,
+        message: deployMessage,
+      } = typeof deploy === "function"
+        ? await deploy({ adapterOptions, options, handlerResult })
+        : deploy;
       if (command && args) {
         if (options.deploy) {
           banner(`deploying to ${name}`);
@@ -536,8 +539,8 @@ export function createAdapter({
           console.log(
             `${colors.gray(`Deploy to ${name} using:`)} ${command} ${args.join(" ")}`
           );
-          if (message) {
-            console.log(message);
+          if (deployMessage) {
+            console.log(deployMessage);
           }
         }
       }

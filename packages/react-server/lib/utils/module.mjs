@@ -1,5 +1,6 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { readFileSync, statSync } from "node:fs";
+import { readdir, readFile, stat } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ResolverFactory } from "oxc-resolver";
@@ -10,6 +11,127 @@ const cwd = sys.cwd();
 
 export const bareImportRE = /^(?![a-zA-Z]:)[\w@](?!.*:\/\/)/;
 
+// Shared file content cache (sync reads)
+const fileContentCache = new Map();
+export function readFileCached(filePath) {
+  if (fileContentCache.has(filePath)) {
+    return fileContentCache.get(filePath);
+  }
+  try {
+    const content = readFileSync(filePath, "utf-8");
+    fileContentCache.set(filePath, content);
+    return content;
+  } catch {
+    fileContentCache.set(filePath, null);
+    return null;
+  }
+}
+
+// Shared file content cache (async reads) - caches promises for concurrent read handling
+const asyncFileContentCache = new Map();
+export function readFileCachedAsync(filePath) {
+  if (asyncFileContentCache.has(filePath)) {
+    return asyncFileContentCache.get(filePath);
+  }
+  // Cache the promise itself so concurrent reads share the same in-flight request
+  const promise = readFile(filePath, "utf-8").catch(() => null);
+  asyncFileContentCache.set(filePath, promise);
+  return promise;
+}
+
+// Invalidate file cache for a specific path (called on HMR updates)
+export function invalidateFileCache(filePath) {
+  fileContentCache.delete(filePath);
+  asyncFileContentCache.delete(filePath);
+  esmSyntaxCache.delete(filePath);
+}
+
+// Shared ESM syntax detection cache
+const esmSyntaxCache = new Map();
+
+// Client components cache - stores results for sync, promises for async
+const clientComponentsCache = new Map();
+const clientComponentsPromiseCache = new Map();
+
+export function isESMSyntax(filePath, content = null) {
+  if (esmSyntaxCache.has(filePath)) {
+    return esmSyntaxCache.get(filePath);
+  }
+
+  // .mjs files are always ESM
+  if (filePath.endsWith(".mjs")) {
+    esmSyntaxCache.set(filePath, true);
+    return true;
+  }
+  // .cjs files are always CJS
+  if (filePath.endsWith(".cjs")) {
+    esmSyntaxCache.set(filePath, false);
+    return false;
+  }
+
+  // Check package.json type first
+  if (isModule(filePath)) {
+    esmSyntaxCache.set(filePath, true);
+    return true;
+  }
+
+  // For .js files, check content for ESM syntax
+  if (filePath.endsWith(".js")) {
+    const fileContent = content ?? readFileCached(filePath);
+    if (fileContent) {
+      const result =
+        /^\s*(import\s+|export\s+|export\s*\{|import\s*\{|import\s*\()/m.test(
+          fileContent
+        );
+      esmSyntaxCache.set(filePath, result);
+      return result;
+    }
+  }
+
+  esmSyntaxCache.set(filePath, false);
+  return false;
+}
+
+// Async version of ESM syntax detection
+export async function isESMSyntaxAsync(filePath) {
+  if (esmSyntaxCache.has(filePath)) {
+    return esmSyntaxCache.get(filePath);
+  }
+
+  // .mjs files are always ESM
+  if (filePath.endsWith(".mjs")) {
+    esmSyntaxCache.set(filePath, true);
+    return true;
+  }
+  // .cjs files are always CJS
+  if (filePath.endsWith(".cjs")) {
+    esmSyntaxCache.set(filePath, false);
+    return false;
+  }
+
+  // Check package.json type first
+  if (isModule(filePath)) {
+    esmSyntaxCache.set(filePath, true);
+    return true;
+  }
+
+  // For .js files, check content for ESM syntax
+  if (filePath.endsWith(".js")) {
+    const content = await readFileCachedAsync(filePath);
+    if (content) {
+      const result =
+        /^\s*(import\s+|export\s+|export\s*\{|import\s*\{|import\s*\()/m.test(
+          content
+        );
+      esmSyntaxCache.set(filePath, result);
+      return result;
+    }
+  }
+
+  esmSyntaxCache.set(filePath, false);
+  return false;
+}
+
 export function tryStat(path) {
   try {
     return statSync(path);
@@ -19,7 +141,8 @@ export function tryStat(path) {
 }
 
 export function loadPackageData(pkgPath) {
-  return JSON.parse(readFileSync(pkgPath, "utf-8"));
+  const content = readFileCached(pkgPath);
+  return content ? JSON.parse(content) : null;
 }
 
 const packagePathCache = new Map();
@@ -100,11 +223,11 @@ export function isModule(filePath, isRoot = false) {
       const dir = dirname(
         filePath.startsWith("file://") ? fileURLToPath(filePath) : filePath
       );
-      const root = findPackageRoot(dir, isRoot);
       const pkg = findNearestPackageData(dir, isRoot);
-      const isModule =
-        pkg?.type === "module" ||
-        (pkg?.module && !relative(root, filePath).startsWith("../")); //join(root, pkg?.module) === filePath);
+      // Only use type: "module" to determine module type
+      // The "module" field just indicates an ESM entry point exists,
+      // not that all .js files in the package are ESM
+      const isModule = pkg?.type === "module";
       packageTypeCache.set(filePath, isModule);
       return isModule;
     } catch {
@@ -117,66 +240,77 @@ export function isRootModule(filePath) {
   return isModule(filePath, true);
 }
 
-const clientComponentsCache = new Map();
 export function hasClientComponents(filePath) {
   if (!filePath) return false;
+  if (!/\.(js|jsx|ts|tsx|mjs|mts)$/.test(filePath)) return false;
 
-  const root = findPackageRoot(filePath);
+  const content = readFileCached(filePath);
+  return (
+    content &&
+    (content.includes(`"use client"`) || content.includes(`'use client'`))
+  );
+}
+
+// Async version for parallel directory scanning
+export async function hasClientComponentsAsync(pkgPath) {
+  if (!pkgPath) return false;
+
+  const root = findPackageRoot(pkgPath);
 
   if (!root) return false;
 
+  // Check if we have a cached result already
   if (clientComponentsCache.has(root)) {
     return clientComponentsCache.get(root);
   }
 
-  function searchForUseClient(dir) {
-    const files = readdirSync(dir);
-    for (const file of files) {
-      const filePath = join(dir, file);
-      const fileStat = statSync(filePath);
-      if (fileStat.isDirectory()) {
-        if (searchForUseClient(filePath)) {
-          return true;
-        }
-      } else if (/\.(js|jsx|ts|tsx|mjs|mts)$/.test(file)) {
-        const content = readFileSync(filePath, "utf8");
-        if (
-          content.includes(`"use client"`) ||
-          content.includes(`'use client'`)
-        ) {
-          return true;
-        }
-      }
-    }
-    return false;
+  // Check if there's already a search in progress for this root
+  if (clientComponentsPromiseCache.has(root)) {
+    return clientComponentsPromiseCache.get(root);
   }
 
-  const result = searchForUseClient(root);
-  clientComponentsCache.set(root, result);
-  return result;
-}
-
-const serverActionCache = new Map();
-export function hasServerAction(filePath) {
-  if (!filePath) return false;
-
-  if (serverActionCache.has(filePath)) {
-    return serverActionCache.get(filePath);
-  }
-
-  try {
-    if (!tryStat(filePath)) {
+  async function searchForUseClient(dir) {
+    try {
+      const files = await readdir(dir);
+      const checks = files.map(async (file) => {
+        const fullPath = join(dir, file);
+        try {
+          const fileStat = await stat(fullPath);
+          if (fileStat.isDirectory()) {
+            return searchForUseClient(fullPath);
+          } else if (/\.(js|jsx|ts|tsx|mjs|mts)$/.test(file)) {
+            const content = await readFileCachedAsync(fullPath);
+            if (
+              content &&
+              (content.includes(`"use client"`) ||
+                content.includes(`'use client'`))
+            ) {
+              return true;
+            }
+          }
+        } catch {
+          // ignore file errors
+        }
+        return false;
+      });
+      const results = await Promise.all(checks);
+      return results.some(Boolean);
+    } catch {
       return false;
     }
-    const content = readFileSync(filePath, "utf8");
-    if (content.includes(`"use server"`) || content.includes(`'use server'`)) {
-      serverActionCache.set(filePath, true);
-      return true;
-    }
-  } catch {
-    // no use server
   }
-  return false;
+
+  // Create and cache the promise immediately to handle concurrent calls
+  const searchPromise = searchForUseClient(root).then((result) => {
+    // Cache the final result and clean up the promise cache
+    clientComponentsCache.set(root, result);
+    clientComponentsPromiseCache.delete(root);
+    return result;
+  });
+
+  clientComponentsPromiseCache.set(root, searchPromise);
+
+  return searchPromise;
 }
 
 function getExportSubpath(pkg, id) {
@@ -219,6 +353,14 @@ export function nodeResolve(specifier, importer) {
           specifier
         ).path || specifier
       );
+    }
+    // For relative imports, resolve against the importer's directory
+    if (specifier.startsWith(".") && importer) {
+      const importerPath = importer.startsWith("file://")
+        ? fileURLToPath(importer)
+        : importer;
+      const importerDir = dirname(importerPath);
+      return join(importerDir, specifier);
     }
     return specifier;
   } catch {

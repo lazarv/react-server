@@ -7,19 +7,4 @@ export default {
   layout: {
     include: ["**/layout.jsx"],
   },
-  build: {
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        advancedChunks: {
-          groups: [
-            {
-              name: "vendor",
-              test: /@emotion/,
-            },
-          ],
-        },
-      },
-    },
-  },
 };

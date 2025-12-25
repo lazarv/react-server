@@ -52,6 +52,7 @@
     "@types/node": "^20.12.12",
     "@typescript-eslint/eslint-plugin": "^8.11.0",
     "@typescript-eslint/parser": "^8.11.0",
+    "caniuse-lite": "^1.0.30001760",
     "eslint": "^9.13.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-jsx-a11y": "^6.10.1",
@@ -85,12 +86,14 @@
       "@uidotdev/usehooks>react-dom": "0.0.0-experimental-7dc903cd-20251203",
       "@vercel/analytics>react": "0.0.0-experimental-7dc903cd-20251203",
       "@vercel/speed-insights>react": "0.0.0-experimental-7dc903cd-20251203",
-      "vite": "npm:rolldown-vite@7.0.12",
-      "vite-plugin-inspect>vite": "npm:rolldown-vite@7.0.12",
-      "vite-plugin-svgr>vite": "npm:rolldown-vite@7.0.12",
-      "@vitejs/plugin-react>vite": "npm:rolldown-vite@7.0.12",
-      "@vitejs/plugin-react-swc>vite": "npm:rolldown-vite@7.0.12",
-      "supertest>superagent": "9.0.2"
+      "vite": "npm:rolldown-vite@7.3.0",
+      "vite-plugin-inspect>vite": "npm:rolldown-vite@7.3.0",
+      "vite-plugin-svgr>vite": "npm:rolldown-vite@7.3.0",
+      "@vitejs/plugin-react>vite": "npm:rolldown-vite@7.3.0",
+      "@vitejs/plugin-react-swc>vite": "npm:rolldown-vite@7.3.0",
+      "supertest>superagent": "9.0.2",
+      "browserslist": "^4.25.1",
+      "caniuse-lite": "1.0.30001760"
     }
   },
   "packageManager": "pnpm@10.20.0+sha512.cf9998222162dd85864d0a8102e7892e7ba4ceadebbf5a31f9c2fce48dfce317a9c53b9f6464d1ef9042cba2e02ae02a9f7c143a2b438cd93c91840f0192b9dd"

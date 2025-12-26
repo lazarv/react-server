@@ -95,18 +95,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Publish @lazarv/react-server
-        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server/')
-        run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server
-
-      - name: Publish @lazarv/create-react-server
-        if: contains(needs.changed.outputs.all_changed_files, 'packages/create-react-server/')
-        run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/create-react-server
-
-      - name: Publish @lazarv/react-server-adapter-core
-        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-core/')
-        run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server-adapter-core
-
-      - name: Publish @lazarv/react-server-adapter-vercel
-        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-vercel/')
-        run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server-adapter-vercel
+      - name: Publish packages
+        run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server ./packages/create-react-server ./packages/react-server-adapter-core ./packages/react-server-adapter-vercel

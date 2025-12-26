@@ -9,5 +9,5 @@
     }
   },
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "nicolo-ribaudo.oxfmt-vscode"
+  "editor.defaultFormatter": "oxc.oxc-vscode"
 }

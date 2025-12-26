@@ -14,74 +14,84 @@ import { fileURLToPath } from "node:url";
 import createLogger from "@lazarv/react-server/lib/dev/create-logger.mjs";
 import cac from "cac";
 
-const cli = cac();
+(async () => {
+  try {
+    const cli = cac();
 
-const { default: packageJson } = await import("./package.json", {
-  with: { type: "json" },
-});
+    const { default: packageJson } = await import("./package.json", {
+      with: { type: "json" },
+    });
 
-cli.usage("[options]");
+    cli.usage("[options]");
 
-cli
-  .option("--name <name>", "The name of the project")
-  .option("--preset <preset>", "The preset to use")
-  .option("--features <features>", "The features to use")
-  .option("--alias <alias>", "The TypeScript path alias to use")
-  .option("--host <host>", "The host to use")
-  .option("--port <port>", "The port to use")
-  .option("--deploy <deploy>", "The deployment adapter to use")
-  .option("--git", "Initialize a git repository")
-  .option("--dev", "Run in development mode")
-  .option("--open", "Open the project in the browser")
-  .option("--clean", "Clean the project directory before bootstrapping")
-  .option("--no-install", "Do not install dependencies")
-  .option(
-    "--react-server <version>",
-    "The version of @lazarv/react-server to use"
-  )
-  .version(packageJson.version);
+    cli
+      .option("--name <name>", "The name of the project")
+      .option("--preset <preset>", "The preset to use")
+      .option("--features <features>", "The features to use")
+      .option("--alias <alias>", "The TypeScript path alias to use")
+      .option("--host <host>", "The host to use")
+      .option("--port <port>", "The port to use")
+      .option("--deploy <deploy>", "The deployment adapter to use")
+      .option("--git", "Initialize a git repository")
+      .option("--dev", "Run in development mode")
+      .option("--open", "Open the project in the browser")
+      .option("--clean", "Clean the project directory before bootstrapping")
+      .option("--no-install", "Do not install dependencies")
+      .option(
+        "--react-server <version>",
+        "The version of @lazarv/react-server to use"
+      )
+      .version(packageJson.version);
 
-cli.name = packageJson.name.split("/").pop();
-cli.help();
+    cli.name = packageJson.name.split("/").pop();
+    cli.help();
 
-const { options } = cli.parse();
-const {
-  help,
-  v: version,
-  reactServer,
-  install,
-  // eslint-disable-next-line no-unused-vars
-  "--": _,
-  ...createOptions
-} = options;
-const hasOptions = Object.keys(createOptions).length > 1 || install === false;
-createOptions.install = install;
+    const { options } = cli.parse();
+    const {
+      help,
+      v: version,
+      reactServer,
+      install,
+      ...createOptions
+    } = options;
+    delete createOptions["--"];
+    const hasOptions =
+      Object.keys(createOptions).length > 1 || install === false;
+    createOptions.install = install;
 
-if (help || version) {
-  process.exit(0);
-}
+    if (help || version) {
+      process.exit(0);
+    }
 
-await import("./logo.mjs");
+    await import("./logo.mjs");
 
-const logger = createLogger();
+    const logger = createLogger();
 
-const cwd = process.cwd();
-const templateDir = join(dirname(fileURLToPath(import.meta.url)), "templates");
+    const cwd = process.cwd();
+    const templateDir = join(
+      dirname(fileURLToPath(import.meta.url)),
+      "templates"
+    );
 
-const [{ wizard }, { generate }, { launch }] = await Promise.all([
-  import("./wizard.mjs"),
-  import("./generator.mjs"),
-  import("./launch.mjs"),
-]);
+    const [{ wizard }, { generate }, { launch }] = await Promise.all([
+      import("./wizard.mjs"),
+      import("./generator.mjs"),
+      import("./launch.mjs"),
+    ]);
 
-const context = await wizard({
-  cwd,
-  logger,
-  templateDir,
-  hasOptions,
-  options: createOptions,
-  reactServer,
-});
+    const context = await wizard({
+      cwd,
+      logger,
+      templateDir,
+      hasOptions,
+      options: createOptions,
+      reactServer,
+    });
 
-await generate(context);
-await launch(context);
+    await generate(context);
+    await launch(context);
+  } catch {
+    console.error("Wizard interrupted 🚫");
+    process.exit(1);
+  }
+})();

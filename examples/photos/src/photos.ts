@@ -6,7 +6,7 @@ export type Photo = {
   imageSrc: string;
 };
 
-const photos: Photo[] = new Array(9).fill(null).map((_, index) => ({
+const photos: Photo[] = Array.from({ length: 9 }, (_, index) => ({
   id: `${index}`,
   username: faker.internet.userName(),
   imageSrc: process.env.CI ? "/placeholder.svg" : faker.image.urlPicsumPhotos(),

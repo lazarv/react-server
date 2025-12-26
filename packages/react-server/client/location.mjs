@@ -35,7 +35,7 @@ export function useLocation(target) {
     );
 
     return () => unsubscribe();
-  }, [target, outlet, location]);
+  }, [target, outlet, location, subscribe]);
 
   return location;
 }

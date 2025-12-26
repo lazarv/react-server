@@ -141,7 +141,7 @@ export async function loadConfig(initialConfig, options = {}) {
             ).default;
           }
 
-          if (/^vite\.config\./.test(filename)) {
+          if (filename.startsWith("vite.config.")) {
             if (typeof configModule === "function") {
               configModule = await configModule({
                 command: options.command || "serve",
@@ -165,8 +165,8 @@ export async function loadConfig(initialConfig, options = {}) {
   const configKeys = Object.keys(config);
   const root = configKeys.includes(".")
     ? "."
-    : configKeys.find((key) => configKeys.every((it) => it.startsWith(key))) ??
-      ".";
+    : (configKeys.find((key) => configKeys.every((it) => it.startsWith(key))) ??
+      ".");
   config[CONFIG_ROOT] = config[root] = merge(
     {},
     defaultConfig,
@@ -181,7 +181,7 @@ export async function loadConfig(initialConfig, options = {}) {
       config[key],
       ...configKeys
         .filter((it) => it !== key && key.startsWith(it))
-        .sort((a, b) => b.length - a.length)
+        .toSorted((a, b) => b.length - a.length)
         .map((key, index, parentConfigArray) => ({
           ...config[key],
           [CONFIG_PARENT]: parentConfigArray[index - 1] ?? config[CONFIG_ROOT],

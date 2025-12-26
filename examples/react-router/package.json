@@ -2,14 +2,14 @@
   "name": "@lazarv/react-server-example-react-router",
   "private": true,
   "description": "@lazarv/react-server React Router example",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "react-server ./src/index.jsx",
     "build": "react-server build ./src/index.jsx",
     "start": "react-server start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "localforage": "^1.10.0",

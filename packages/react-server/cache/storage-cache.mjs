@@ -44,7 +44,7 @@ export default class StorageCache {
     const normalize = (obj) => {
       if (obj === null || typeof obj !== "object") return obj;
       if (Array.isArray(obj)) return obj.map(normalize);
-      const sortedKeys = Reflect.ownKeys(obj).sort();
+      const sortedKeys = Reflect.ownKeys(obj).toSorted();
       const result = {};
       for (const key of sortedKeys) {
         result[key] = normalize(obj[key]);
@@ -60,7 +60,7 @@ export default class StorageCache {
 
   rawCanonicalKey(tags) {
     const serializedTags = tags.map(this.serializedTag);
-    return serializedTags.slice().sort().join("|");
+    return serializedTags.toSorted().join("|");
   }
 
   canonicalKey(tags) {

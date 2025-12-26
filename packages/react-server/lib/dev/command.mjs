@@ -189,9 +189,7 @@ export async function command({ logger, server, resolvedUrls, restartServer }) {
         try {
           await selectedCommand.execute();
         } catch {
-          logger?.error?.(
-            `✖︎ ${selectedCommand.name.slice(0, -3)} failed! 🚑`
-          );
+          logger?.error?.(`✖︎ ${selectedCommand.name.slice(0, -3)} failed! 🚑`);
         }
       }
       if (controller.signal.aborted) {

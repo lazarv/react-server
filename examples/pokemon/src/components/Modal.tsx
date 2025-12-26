@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { useClient } from "@lazarv/react-server/client";
 
@@ -33,8 +33,9 @@ export default function Modal({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const abortController = new AbortController();
+    const content = contentRef.current;
 
-    contentRef.current?.addEventListener(
+    content?.addEventListener(
       "transitionend",
       () => {
         if (!contentRef.current?.classList.contains(classes.closing)) {
@@ -45,9 +46,9 @@ export default function Modal({ children }: { children: React.ReactNode }) {
     );
 
     return () => abortController.abort();
-  }, [contentRef.current]);
+  }, []);
 
-  const closeModal = async () => {
+  const closeModal = useCallback(async () => {
     if (!closableRef.current) return;
 
     await new Promise((resolve) => {
@@ -61,33 +62,32 @@ export default function Modal({ children }: { children: React.ReactNode }) {
       outlet: "modal",
       Component: null,
     });
-  };
-
-  const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") closeModal();
-  };
+  }, [navigate]);
 
   useEffect(() => {
     const abortController = new AbortController();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeModal();
+    };
 
     document.addEventListener("keydown", handleKeyDown, {
       signal: abortController.signal,
     });
 
     return () => abortController.abort();
-  }, []);
+  }, [closeModal]);
 
   return (
     <>
       <div ref={contentRef} className={`hidden ${classes.content}`}>
         {children}
       </div>
-      <div
+      <button
+        type="button"
         className={classes.overlay}
         onClick={closeModal}
-        onKeyDown={(e) => handleKeyDown(e.nativeEvent)}
-        role="button"
-        tabIndex={-1}
+        aria-label="Close modal"
       />
     </>
   );

@@ -40,7 +40,7 @@ export function useErrorBoundary() {
           hasError: true,
         }),
     }),
-    [context.resetErrorBoundary]
+    [context]
   );
 
   if (state.hasError) {
@@ -233,7 +233,7 @@ export default function ReactServerOutletErrorBoundary({
   component: FallbackComponent,
   render: fallbackRender,
   onReset,
-  global,
+  global: _global,
   children,
   ...props
 }) {

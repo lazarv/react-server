@@ -16,7 +16,6 @@ import {
 } from "@lazarv/react-server/file-router/manifest";
 import { useMatch } from "@lazarv/react-server/router";
 import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
-import { rscErrorResponse } from "@lazarv/react-server/server/render.mjs";
 import {
   POSTPONE_CONTEXT,
   REDIRECT_CONTEXT,

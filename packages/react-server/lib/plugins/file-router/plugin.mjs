@@ -255,7 +255,7 @@ export default function viteReactServerRouter(options = {}) {
             ? normalized[0]
             : directory
                 .split("/")
-                .reverse()
+                .toReversed()
                 .find((segment) => segment[0] === "@")
           )?.slice(1) ?? null;
         const type =
@@ -298,8 +298,8 @@ export default function viteReactServerRouter(options = {}) {
       }
     }
 
-    const dynamicRouteGenericTypes = new Array(
-      manifest.pages.reduce((acc, [, path, , type]) => {
+    const dynamicRouteGenericTypes = Array.from({
+      length: manifest.pages.reduce((acc, [, path, , type]) => {
         if (type === "page") {
           const params = path.match(/\[(\[?[^\]]+\]?)\]/g);
           if (params) {
@@ -308,8 +308,8 @@ export default function viteReactServerRouter(options = {}) {
         }
 
         return acc;
-      }, 0)
-    ).fill(0);
+      }, 0),
+    });
     const reactServerRouterDts = reactServerRouterDtsTemplate
       .replace(/\/\/ start generation types[\s\S]*?\/\/ end\n\n\s*/g, "")
       .replace(

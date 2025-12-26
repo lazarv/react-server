@@ -171,7 +171,7 @@ export async function reactServerBunAliasPlugin() {
           const fullPath = args.path.startsWith(".")
             ? join(dirname(args.importer), args.path)
             : args.path;
-          if (/react\.development\.js$/.test(fullPath)) {
+          if (fullPath.endsWith("react.development.js")) {
             return {
               ...args,
               path: fullPath.replace(
@@ -179,7 +179,9 @@ export async function reactServerBunAliasPlugin() {
                 "react.react-server.development.js"
               ),
             };
-          } else if (/react-jsx-dev-runtime\.development\.js$/.test(fullPath)) {
+          } else if (
+            fullPath.endsWith("react-jsx-dev-runtime.development.js")
+          ) {
             return {
               ...args,
               path: fullPath.replace(

@@ -2,14 +2,14 @@
   "name": "@lazarv/react-server-example-photos",
   "private": true,
   "description": "React Server Photos example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "react-server",
     "build": "react-server build",
     "start": "react-server start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@faker-js/faker": "^8.4.1",
     "@lazarv/react-server": "workspace:^",

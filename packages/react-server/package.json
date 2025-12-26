@@ -2,10 +2,25 @@
   "name": "@lazarv/react-server",
   "version": "0.0.0",
   "description": "The easiest way to build React apps with server-side rendering",
+  "keywords": [
+    "esm",
+    "react",
+    "server",
+    "ssr"
+  ],
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
+  "license": "MIT",
+  "author": "lazarv",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lazarv/react-server.git"
+  },
+  "bin": "bin/cli.mjs",
   "type": "module",
   "module": "server/index.mjs",
   "types": "server/index.d.ts",
-  "bin": "bin/cli.mjs",
   "exports": {
     "./client": {
       "types": "./client/index.d.ts",
@@ -90,27 +105,12 @@
       "default": "./server/index.mjs"
     }
   },
-  "scripts": {},
-  "keywords": [
-    "react",
-    "ssr",
-    "esm",
-    "server"
-  ],
-  "author": "lazarv",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lazarv/react-server.git"
-  },
-  "bugs": {
-    "url": "https://github.com/lazarv/react-server/issues"
-  },
   "publishConfig": {
     "access": "public",
     "provenance": true,
     "tag": "latest"
   },
+  "scripts": {},
   "dependencies": {
     "@babel/core": "^7.26.0",
     "@babel/plugin-transform-react-jsx-self": "^7.25.9",

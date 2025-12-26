@@ -1,4 +1,6 @@
 *.mdx
 *.md
+**/*.mdx
+**/*.md
 *-lock.*
 *.lock

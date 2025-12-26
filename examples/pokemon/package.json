@@ -2,14 +2,14 @@
   "name": "@lazarv/react-server-example-pokemon",
   "private": true,
   "description": "React Server Pokemon example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "react-server",
     "build": "react-server build",
     "start": "react-server start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "clsx": "^2.1.1",

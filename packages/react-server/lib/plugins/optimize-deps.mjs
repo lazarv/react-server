@@ -132,7 +132,7 @@ export default function optimizeDeps() {
 
           // Check if file is ESM by parsing it (more reliable than package.json type)
           let fileIsESM = isModule(path);
-          if (!fileIsESM && /\.js$/.test(path)) {
+          if (!fileIsESM && path.endsWith(".js")) {
             try {
               const content = await readFileCachedAsync(path);
               if (content) {

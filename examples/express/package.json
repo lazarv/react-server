@@ -1,8 +1,11 @@
 {
   "name": "@lazarv/react-server-example-express",
   "private": true,
-  "type": "module",
   "description": "@lazarv/react-server Expres.js example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "type": "module",
   "scripts": {
     "dev": "node ./src/server.mjs",
     "dev:app": "react-server ./src/app/index.jsx",
@@ -10,9 +13,6 @@
     "start": "node ./src/server.mjs",
     "start:app": "react-server start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "express": "^4.19.2",

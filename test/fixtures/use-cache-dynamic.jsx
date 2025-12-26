@@ -1,4 +1,4 @@
-import { invalidate, useSearchParams } from "@lazarv/react-server";
+import { useSearchParams } from "@lazarv/react-server";
 
 function getTime({ id: _ }) {
   "use cache";

@@ -2,14 +2,14 @@
   "name": "@lazarv/react-server-example-react-syntax-highlighter",
   "private": true,
   "description": "@lazarv/react-server React Syntax Highlighter example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "react-server ./App.jsx",
     "build": "react-server build ./App.jsx",
     "start": "react-server start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "react-syntax-highlighter": "^15.6.6"

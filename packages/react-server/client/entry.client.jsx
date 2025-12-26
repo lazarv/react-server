@@ -100,7 +100,6 @@ class ErrorBoundary extends Component {
               push: false,
             });
           } else {
-            debugger;
             location.replace(digestLocation);
           }
         }

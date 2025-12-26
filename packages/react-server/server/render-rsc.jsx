@@ -91,12 +91,12 @@ export async function render(Component, props = {}, options = {}) {
         let serverFunctionResult,
           callServer,
           callServerHeaders,
-          callServerComponent;
+          callServerComponent,
+          formState;
 
         const isFormData = context.request.headers
           .get("content-type")
           ?.includes("multipart/form-data");
-        let formState;
         const serverActionHeader = decodeURIComponent(
           context.request.headers.get("react-server-action") ?? null
         );
@@ -122,7 +122,7 @@ export async function render(Component, props = {}, options = {}) {
               }
               try {
                 input = await server.decodeReply(formData, serverReferenceMap);
-              } catch (e) {
+              } catch {
                 input = formData;
               }
             } else {
@@ -226,7 +226,7 @@ export async function render(Component, props = {}, options = {}) {
                       )
                     : data;
             } else {
-              const formState = await server.decodeFormState(
+              formState = await server.decodeFormState(
                 data,
                 input[input.length - 1] ?? input,
                 serverReferenceMap

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxlint/main/npm/oxlint/configuration_schema.json",
+  "plugins": [
+    "react",
+    "react-hooks",
+    "typescript",
+    "jsx-a11y",
+    "unicorn",
+    "oxc"
+  ],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "globals": {
+    "Deno": "readonly"
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "no-async-promise-executor": "off",
+    "no-unneeded-ternary": "error",
+    "no-useless-constructor": "error",
+    "no-unassigned-vars": "error",
+    "preserve-caught-error": "error",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
+    "react-hooks/exhaustive-deps": "error",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/require-post-message-target-origin": "off",
+    "unicorn/prefer-add-event-listener": "off",
+    "unicorn/no-useless-fallback-in-spread": "error",
+    "unicorn/prefer-string-starts-ends-with": "error",
+    "oxc/no-async-endpoint-handlers": "off",
+    "jsx-a11y/prefer-tag-over-role": "error",
+    "typescript/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "typescript/no-explicit-any": "off",
+    "typescript/explicit-module-boundary-types": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "19.0.0"
+    },
+    "jsx-a11y": {
+      "polymorphicPropName": "as",
+      "components": {}
+    }
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    "dist/",
+    "build/",
+    ".react-server/",
+    ".react-server*/",
+    ".vercel/",
+    "packages/react-server/lib/plugins/file-router/react-server-router.d.ts",
+    "*.mdx",
+    "*.md",
+    "*.json",
+    "*-lock.*"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.{ts,tsx}"],
+      "plugins": ["typescript"],
+      "rules": {
+        "typescript/no-unused-vars": [
+          "error",
+          {
+            "argsIgnorePattern": "^_"
+          }
+        ],
+        "typescript/no-explicit-any": "off"
+      }
+    }
+  ]
+}

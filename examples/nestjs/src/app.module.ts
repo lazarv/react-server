@@ -11,14 +11,12 @@ import { AppService } from "./app.service.js";
 export class AppModule implements NestModule {
   async configure(consumer: MiddlewareConsumer) {
     if (process.env.NODE_ENV === "production") {
-      const { ReactServerProdMiddleware } = await import(
-        "./react-server-prod.middleware.js"
-      );
+      const { ReactServerProdMiddleware } =
+        await import("./react-server-prod.middleware.js");
       consumer.apply(ReactServerProdMiddleware).forRoutes("react-server");
     } else {
-      const { ReactServerDevMiddleware } = await import(
-        "./react-server-dev.middleware.js"
-      );
+      const { ReactServerDevMiddleware } =
+        await import("./react-server-dev.middleware.js");
       consumer.apply(ReactServerDevMiddleware).forRoutes("react-server");
     }
   }

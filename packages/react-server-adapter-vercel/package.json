@@ -2,34 +2,34 @@
   "name": "@lazarv/react-server-adapter-vercel",
   "version": "0.0.0",
   "description": "React Server Adapter for Vercel",
-  "module": "index.mjs",
-  "type": "module",
-  "sideEffects": true,
-  "exports": {
-    ".": "./index.mjs"
-  },
-  "scripts": {},
   "keywords": [
-    "react",
-    "ssr",
     "esm",
+    "react",
     "server",
+    "ssr",
     "vercel"
   ],
-  "author": "lazarv",
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
   "license": "MIT",
+  "author": "lazarv",
   "repository": {
     "type": "git",
     "url": "https://github.com/lazarv/react-server.git"
   },
-  "bugs": {
-    "url": "https://github.com/lazarv/react-server/issues"
+  "type": "module",
+  "sideEffects": true,
+  "module": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
   },
   "publishConfig": {
     "access": "public",
     "provenance": true,
     "tag": "latest"
   },
+  "scripts": {},
   "devDependencies": {
     "@lazarv/react-server": "workspace:^",
     "@lazarv/react-server-adapter-core": "workspace:^"

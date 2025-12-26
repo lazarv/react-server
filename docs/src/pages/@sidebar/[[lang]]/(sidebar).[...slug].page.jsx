@@ -37,7 +37,7 @@ export default function PageSidebar({ lang, slug: [category] }) {
             )}
           </div>
           {pages
-            .sort(
+            .toSorted(
               ({ frontmatter: a }, { frontmatter: b }) =>
                 (a?.order ?? 0) - (b?.order ?? 0)
             )

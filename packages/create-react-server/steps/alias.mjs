@@ -10,7 +10,7 @@ export default [
       (!context.props.custom ||
       context.env.hasOptions ||
       context.props.preset?.alias
-        ? context.props.preset?.alias ?? "~/*"
+        ? (context.props.preset?.alias ?? "~/*")
         : await input(
             {
               message: "TypeScript path alias",

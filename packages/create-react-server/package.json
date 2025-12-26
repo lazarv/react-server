@@ -1,28 +1,28 @@
 {
   "name": "@lazarv/create-react-server",
   "version": "0.0.0",
-  "bin": {
-    "create-react-server": "index.mjs"
-  },
-  "type": "module",
   "keywords": [
-    "react",
-    "server",
-    "rsc",
-    "ssr",
+    "create",
     "esm",
-    "vite",
-    "create"
+    "react",
+    "rsc",
+    "server",
+    "ssr",
+    "vite"
   ],
-  "author": "lazarv",
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
   "license": "MIT",
+  "author": "lazarv",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lazarv/react-server.git"
   },
-  "bugs": {
-    "url": "https://github.com/lazarv/react-server/issues"
+  "bin": {
+    "create-react-server": "index.mjs"
   },
+  "type": "module",
   "publishConfig": {
     "access": "public",
     "provenance": true,

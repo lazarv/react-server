@@ -80,7 +80,7 @@ export default async function staticSiteGenerator(root, options) {
     };
     runtime$(
       typeof config.runtime === "function"
-        ? config.runtime(initialRuntime) ?? initialRuntime
+        ? (config.runtime(initialRuntime) ?? initialRuntime)
         : {
             ...initialRuntime,
             ...config.runtime,

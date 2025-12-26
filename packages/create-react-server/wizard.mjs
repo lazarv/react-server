@@ -78,7 +78,6 @@ export async function wizard(env) {
         abortController = new AbortController();
         context.signal = abortController.signal;
       } catch (e) {
-        console.log(e);
         if (e instanceof ExitPromptError) {
           throw e;
         }
@@ -115,8 +114,11 @@ export async function wizard(env) {
 
     delete context.signal;
     return context;
-  } catch {
+  } catch (e) {
     logger.error("Wizard interrupted 🚫");
+    if (e instanceof ExitPromptError) {
+      process.exit(0);
+    }
     process.exit(1);
   }
 }

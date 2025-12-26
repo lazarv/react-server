@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/user/oxfmt/main/npm/oxfmt/configuration_schema.json",
+  "indentWidth": 2,
+  "lineWidth": 80
+}

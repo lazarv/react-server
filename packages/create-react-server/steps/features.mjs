@@ -30,6 +30,12 @@ export default async (context) => {
       checked: context.props.preset?.features.includes("prettier"),
     },
     {
+      name: "Oxlint and Oxfmt",
+      value: "oxtools",
+      description: "Add Oxlint and Oxfmt support",
+      checked: context.props.preset?.features.includes("oxtools"),
+    },
+    {
       name: "Tailwind CSS v3",
       value: "tailwind",
       description:
@@ -238,6 +244,32 @@ import tsParser from "@typescript-eslint/parser";`,
       ],`,
       },
     };
+  }
+
+  if (answer.includes("oxtools")) {
+    if (answer.includes("eslint")) {
+      context.env.logger.warn(
+        "ESLint is already selected. Oxlint will not be installed as it serves the same purpose."
+      );
+    }
+    if (answer.includes("prettier")) {
+      context.env.logger.warn(
+        "Prettier is already selected. Oxfmt will not be installed as it serves the same purpose."
+      );
+    }
+    if (!answer.includes("eslint") && !answer.includes("prettier")) {
+      partials["package.json"] = {
+        ...partials["package.json"],
+        merge: [
+          ...partials["package.json"].merge,
+          await json(context.env.templateDir, "package.oxtools.json"),
+        ],
+      };
+      files.push(
+        join(context.env.templateDir, ".oxlintrc.json"),
+        join(context.env.templateDir, ".oxfmtrc.json")
+      );
+    }
   }
 
   if (answer.includes("tailwind")) {

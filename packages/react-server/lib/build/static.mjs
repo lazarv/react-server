@@ -216,6 +216,7 @@ export default async function staticSiteGenerator(root, options) {
                   { size: 0 },
                   { size: 0 },
                   { size: 0 },
+                  { size: 0 },
                   maxFilenameLength
                 );
               } else {
@@ -391,6 +392,7 @@ export default async function staticSiteGenerator(root, options) {
                 gzipStat,
                 brotliStat,
                 { size: 0 },
+                { size: 0 },
                 maxFilenameLength
               );
             } catch (e) {
@@ -463,6 +465,7 @@ export default async function staticSiteGenerator(root, options) {
                 htmlStat,
                 gzipStat,
                 brotliStat,
+                { size: 0 },
                 { size: 0 },
                 maxFilenameLength
               );

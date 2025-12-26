@@ -2,7 +2,7 @@ import StorageCache from "@lazarv/react-server/storage-cache";
 import colors from "picocolors";
 import memoryDriver from "unstorage/drivers/memory";
 
-import { forRoot } from "../config/index.mjs";
+import { forRoot } from "../config/context.mjs";
 import { ContextManager } from "../lib/async-local-storage.mjs";
 import { context$, getContext } from "../server/context.mjs";
 import {

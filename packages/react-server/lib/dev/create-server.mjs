@@ -11,7 +11,7 @@ import {
   DevEnvironment,
   loadEnv,
 } from "rolldown-vite";
-import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
+import { ModuleRunner } from "rolldown-vite/module-runner";
 import memoryDriver from "unstorage/drivers/memory";
 import inspect from "vite-plugin-inspect";
 
@@ -42,6 +42,7 @@ import aliasPlugin from "../plugins/alias.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
 import importRemote from "../plugins/import-remote.mjs";
+import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import reactServerLive from "../plugins/live.mjs";
 import optimizeDeps from "../plugins/optimize-deps.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
@@ -56,13 +57,19 @@ import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import { replaceError } from "../utils/error.mjs";
 import merge from "../utils/merge.mjs";
-import { findPackageRoot, nodeResolve, tryStat } from "../utils/module.mjs";
+import {
+  findPackageRoot,
+  invalidateFileCache,
+  nodeResolve,
+  tryStat,
+} from "../utils/module.mjs";
 import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
 } from "../utils/plugins.mjs";
 import { getServerCors } from "../utils/server-config.mjs";
 import createLogger from "./create-logger.mjs";
+import { HybridEvaluator } from "./hybrid-evaluator.mjs";
 import ssrHandler from "./ssr-handler.mjs";
 
 alias("react-server");
@@ -117,6 +124,9 @@ export default async function createServer(root, options) {
       : undefined;
   const devServerConfig = {
     ...config,
+    json: {
+      namedExports: true,
+    },
     server: {
       ...config.server,
       middlewareMode: true,
@@ -180,6 +190,7 @@ export default async function createServer(root, options) {
       postcss: cwd,
     },
     plugins: [
+      jsonNamedExports(),
       ...(options.inspect
         ? [
             inspect({
@@ -477,6 +488,11 @@ export default async function createServer(root, options) {
 
       viteDevServer.environments.client.hot.send(data);
 
+      // Invalidate file content cache for changed files
+      if (data.triggeredBy) {
+        invalidateFileCache(data.triggeredBy);
+      }
+
       const cache = getRuntime(MEMORY_CACHE_CONTEXT);
       if (await cache?.has([data.triggeredBy])) {
         viteDevServer.environments.rsc.logger.info(
@@ -503,7 +519,17 @@ export default async function createServer(root, options) {
     {
       root: cwd,
       transport: {
-        async invoke({ data: { data } }) {
+        async invoke(...args) {
+          const {
+            data: { name, data },
+          } = args[0];
+
+          if (name === "getBuiltins") {
+            return {
+              result: config.resolve?.builtins ?? [],
+            };
+          }
+
           const [_specifier, parentId, meta] = data;
 
           if (isBuiltin(_specifier)) {
@@ -566,7 +592,7 @@ export default async function createServer(root, options) {
       },
       hot: false,
     },
-    new ESModulesEvaluator()
+    new HybridEvaluator()
   );
 
   viteDevServer.environments.ssr.config.resolve.preserveSymlinks = true;
@@ -606,43 +632,61 @@ export default async function createServer(root, options) {
         data: [specifier, parentId, meta],
       } = payload.data.data;
 
-      let result = {
-        externalize: nodeResolve(specifier, parentId),
-      };
+      if (specifier) {
+        let result = {
+          externalize: nodeResolve(specifier, parentId),
+        };
 
-      if (!isBuiltin(specifier)) {
-        try {
-          if (reverseClientAlias[specifier]) {
-            result = {
-              externalize: specifier,
-              type: "commonjs",
-            };
-          } else {
-            result = await viteDevServer.environments.ssr.fetchModule(
-              specifier,
-              parentId,
-              meta
-            );
+        if (!isBuiltin(specifier)) {
+          try {
+            if (reverseClientAlias[specifier]) {
+              result = {
+                externalize: specifier,
+                type: "commonjs",
+              };
+            } else {
+              result = await viteDevServer.environments.ssr.fetchModule(
+                specifier,
+                parentId,
+                meta
+              );
+            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
         }
-      }
 
-      worker.postMessage({
-        type: "import",
-        data: {
-          type: "custom",
-          event: "vite:invoke",
+        worker.postMessage({
+          type: "import",
           data: {
-            name,
-            id: `response:${id.split(":")[1]}`,
+            type: "custom",
+            event: "vite:invoke",
             data: {
-              result,
+              name,
+              id: `response:${id.split(":")[1]}`,
+              data: {
+                result,
+              },
             },
           },
-        },
-      });
+        });
+      } else if (name === "getBuiltins") {
+        worker.postMessage({
+          type: "import",
+          data: {
+            type: "custom",
+            event: "vite:invoke",
+            data: {
+              name,
+              id: `response:${id.split(":")[1]}`,
+              data: {
+                result:
+                  viteDevServer.environments.ssr.config.resolve.builtins ?? [],
+              },
+            },
+          },
+        });
+      }
     } else if (payload.type === "react-server:console") {
       const stream = new ReadableStream({
         type: "bytes",

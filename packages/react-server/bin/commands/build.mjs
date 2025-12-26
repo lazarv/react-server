@@ -30,6 +30,7 @@ export default (cli) =>
     .option("--no-ssr-worker", "[boolean] disable ssr worker", {
       default: true,
     })
+    .option("--silent", "[boolean] suppress build output", { default: false })
     .action(async (root, options) => {
       setEnv("NODE_ENV", "production");
       return (await import("../../lib/build/action.mjs")).default(

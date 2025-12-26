@@ -109,7 +109,7 @@ beforeAll(async ({ name, id }) => {
             root?.[0] === "." || !root
               ? root
               : join(process.cwd(), dirname(name), "..", root),
-            options
+            { ...options, silent: true }
           );
         }
 

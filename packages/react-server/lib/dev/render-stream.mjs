@@ -4,12 +4,13 @@ import { pathToFileURL } from "node:url";
 import { parentPort } from "node:worker_threads";
 
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
-import { ESModulesEvaluator, ModuleRunner } from "rolldown-vite/module-runner";
+import { ModuleRunner } from "rolldown-vite/module-runner";
 
 import { ContextManager } from "../async-local-storage.mjs";
 import { clientAlias } from "../build/resolve.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
+import { HybridEvaluator } from "./hybrid-evaluator.mjs";
 
 sys.experimentalWarningSilence();
 alias();
@@ -115,28 +116,30 @@ const moduleRunner = new ModuleRunner(
             data: [specifier],
           } = data;
 
-          const aliased = Object.entries(clientAliasEntries).find(
-            ([, url]) => specifier.includes(url) || url.includes(specifier)
-          )?.[0];
+          if (specifier) {
+            const aliased = Object.entries(clientAliasEntries).find(
+              ([, url]) => specifier.includes(url) || url.includes(specifier)
+            )?.[0];
 
-          if (aliased) {
-            const payload = {
-              type,
-              event,
-              data: {
-                name,
-                id: `response:${id.split(":")[1]}`,
+            if (aliased) {
+              const payload = {
+                type,
+                event,
                 data: {
-                  result: {
-                    externalize: aliased,
-                    type: "commonjs",
+                  name,
+                  id: `response:${id.split(":")[1]}`,
+                  data: {
+                    result: {
+                      externalize: aliased,
+                      type: "commonjs",
+                    },
                   },
                 },
-              },
-            };
+              };
 
-            setImmediate(() => runnerOnMessage(payload));
-            return;
+              setImmediate(() => runnerOnMessage(payload));
+              return;
+            }
           }
 
           parentPort.postMessage({
@@ -167,7 +170,7 @@ const moduleRunner = new ModuleRunner(
       },
     },
   },
-  new ESModulesEvaluator()
+  new HybridEvaluator()
 );
 
 const moduleCacheStorage = new ContextManager();

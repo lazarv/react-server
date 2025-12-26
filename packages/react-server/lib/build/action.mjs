@@ -19,7 +19,22 @@ import staticSiteGenerator from "./static.mjs";
 
 const cwd = sys.cwd();
 
+// Check if a function is native (not patched by test frameworks etc.)
+const isNative = (fn) =>
+  /\[native code\]/.test(Function.prototype.toString.call(fn));
+
 export default async function build(root, options) {
+  // Patch console and stdout when silent mode is enabled
+  // Keep stderr so errors are still visible
+  // Only patch if not already patched (e.g., by test frameworks)
+  if (options.silent) {
+    const noop = () => {};
+    if (isNative(console.log)) console.log = noop;
+    if (isNative(console.warn)) console.warn = noop;
+    if (isNative(console.info)) console.info = noop;
+    if (isNative(process.stdout.write)) process.stdout.write = noop;
+  }
+
   await logo();
 
   if (!options.outDir) {

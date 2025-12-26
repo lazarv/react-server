@@ -6,7 +6,7 @@ import "react-server-highlight.js/styles/github-dark.min.css";
 
 import { style, remoteStyle } from "./error-styles.mjs";
 import { prepareError } from "../lib/handlers/error.mjs";
-import { forRoot } from "../config";
+import { forRoot } from "../config/context.mjs";
 
 const _require = createRequire(import.meta.url);
 

@@ -1,0 +1,23 @@
+{
+  "name": "@lazarv/react-server-example-module-resolution",
+  "private": true,
+  "description": "@lazarv/react-server module resolution test example application",
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx",
+    "start": "react-server start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@uiw/react-md-editor": "^4.0.5",
+    "interweave": "^13.1.0",
+    "interweave-ssr": "^2.0.0",
+    "iron-session": "^8.0.4",
+    "react-feather": "^2.0.10",
+    "react-modal": "^3.16.3",
+    "shiki": "^1.24.4"
+  }
+}

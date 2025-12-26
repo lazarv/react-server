@@ -1,5 +1,0 @@
-{
-  "resolve": {
-    "external": ["iron-session"]
-  }
-}

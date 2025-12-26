@@ -12,15 +12,17 @@ import configPrebuilt from "../plugins/config-prebuilt.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
 import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
+
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import reactServerLive from "../plugins/live.mjs";
 import rootModule from "../plugins/root-module.mjs";
-import rollupUseClient from "../plugins/use-client.mjs";
-import rollupUseServerInline from "../plugins/use-server-inline.mjs";
-import rollupUseServer from "../plugins/use-server.mjs";
-import rollupUseCacheInline from "../plugins/use-cache-inline.mjs";
-import rollupUseDynamic from "../plugins/use-dynamic.mjs";
+import rolldownUseClient from "../plugins/use-client.mjs";
+import rolldownUseServerInline from "../plugins/use-server-inline.mjs";
+import rolldownUseServer from "../plugins/use-server.mjs";
+import rolldownUseCacheInline from "../plugins/use-cache-inline.mjs";
+import rolldownUseDynamic from "../plugins/use-dynamic.mjs";
+import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import merge from "../utils/merge.mjs";
@@ -36,7 +38,7 @@ import {
   isSubpathExported,
   nodeResolve,
 } from "../utils/module.mjs";
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { clientAlias } from "./resolve.mjs";
 import { createTreeshake, REACT_RE } from "./shared.mjs";
 
@@ -67,6 +69,9 @@ export default async function serverBuild(root, options) {
       ...(Array.isArray(config.build?.rollupOptions?.external)
         ? config.build?.rollupOptions?.external
         : []),
+      ...(Array.isArray(config.build?.rolldownOptions?.external)
+        ? config.build?.rolldownOptions?.external
+        : []),
       ...(config.external ?? []),
     ];
     for (const mod of external) {
@@ -79,6 +84,16 @@ export default async function serverBuild(root, options) {
     }
     if (typeof config.build?.rollupOptions?.external === "function") {
       const isExternal = config.build?.rollupOptions?.external(
+        id,
+        parentId,
+        isResolved
+      );
+      if (isExternal) {
+        return true;
+      }
+    }
+    if (typeof config.build?.rolldownOptions?.external === "function") {
+      const isExternal = config.build?.rolldownOptions?.external(
         id,
         parentId,
         isResolved
@@ -122,7 +137,56 @@ export default async function serverBuild(root, options) {
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
   ]);
+
+  // Cache for rscExternal results - same import ID always returns the same result
+  const rscExternalCache = new Map();
+  // Cache for package-level checks to avoid repeated file system operations
+  const nativeModuleCache = new Map();
+  const directDepCache = new Map();
+
+  const hasNativeModules = (pkg) => {
+    if (!pkg?.__pkg_dir__) return false;
+    const cacheKey = pkg.__pkg_dir__;
+    if (nativeModuleCache.has(cacheKey)) {
+      return nativeModuleCache.get(cacheKey);
+    }
+    // Check package.json files array for .node files
+    // If files array doesn't exist, we rely on the direct .node resolution check in rscExternalCheck
+    const hasNative = Array.isArray(pkg.files)
+      ? pkg.files.some((f) => f.endsWith(".node"))
+      : false;
+    nativeModuleCache.set(cacheKey, hasNative);
+    return hasNative;
+  };
+
+  const isDirectDependency = (pkgName) => {
+    if (directDepCache.has(pkgName)) {
+      return directDepCache.get(pkgName);
+    }
+    const directPkgPath = join(cwd, "node_modules", pkgName);
+    let isDirect = false;
+    try {
+      realpathSync(directPkgPath);
+      isDirect = true;
+    } catch {
+      // not a direct dependency
+    }
+    directDepCache.set(pkgName, isDirect);
+    return isDirect;
+  };
+
   const rscExternal = (id, importer) => {
+    // Fast path: check cache first
+    if (rscExternalCache.has(id)) {
+      return rscExternalCache.get(id);
+    }
+
+    const result = rscExternalCheck(id, importer);
+    rscExternalCache.set(id, result);
+    return result;
+  };
+
+  const rscExternalCheck = (id, importer) => {
     if (isBuiltin(id)) {
       return true;
     }
@@ -130,6 +194,17 @@ export default async function serverBuild(root, options) {
     if (bareImportRE.test(id)) {
       try {
         const mod = nodeResolve(id, realpathSync(importer));
+
+        // Native modules (.node files) must always be externalized - they can't be bundled
+        if (mod.endsWith(".node")) {
+          return true;
+        }
+
+        // Skip further checks if the resolved module doesn't exist (virtual modules)
+        if (!existsSync(mod)) {
+          return false;
+        }
+
         let pkg = findNearestPackageData(mod);
         const prev = pkg;
         if (pkg) {
@@ -145,13 +220,30 @@ export default async function serverBuild(root, options) {
             pkg = prev;
           }
         }
-        if (
-          /[cm]?js$/.test(mod) &&
-          !(pkg?.type === "module" || pkg?.module || pkg?.exports) &&
-          ![...(config.ssr?.noExternal ?? [])].includes(id) &&
-          isSubpathExported(pkg, id)
-        ) {
+
+        // Check if the package contains native .node modules - these can't be bundled
+        if (hasNativeModules(pkg)) {
           return true;
+        }
+
+        const isCjsFile = /[cm]?js$/.test(mod);
+        const hasNoEsmSupport = !(
+          pkg?.type === "module" ||
+          pkg?.module ||
+          pkg?.exports
+        );
+        const notInNoExternal = ![...(config.ssr?.noExternal ?? [])].includes(
+          id
+        );
+        const isExported = isSubpathExported(pkg, id);
+
+        if (isCjsFile && hasNoEsmSupport && notInNoExternal && isExported) {
+          // Check if the package is a direct dependency (exists in node_modules/<pkg>)
+          // Transitive dependencies in pnpm are not directly accessible at runtime, so bundle them
+          const pkgName = id.startsWith("@")
+            ? id.split("/").slice(0, 2).join("/")
+            : id.split("/")[0];
+          return isDirectDependency(pkgName);
         }
       } catch {
         // ignore
@@ -192,7 +284,11 @@ export default async function serverBuild(root, options) {
     root: cwd,
     configFile: false,
     mode: options.mode || "production",
+    logLevel: options.silent ? "silent" : undefined,
     define: config.define,
+    json: {
+      namedExports: true,
+    },
     envDir: config.envDir,
     envPrefix:
       config.envDir !== false
@@ -290,7 +386,7 @@ export default async function serverBuild(root, options) {
       ],
       noExternal: [bareImportRE, ...(config.resolve?.noExternal ?? [])],
     },
-    customLogger,
+    customLogger: customLogger(options.silent),
     build: {
       ...config.build,
       target: "esnext",
@@ -301,12 +397,14 @@ export default async function serverBuild(root, options) {
       ssr: true,
       ssrEmitAssets: true,
       sourcemap: options.sourcemap,
-      rollupOptions: {
+      rolldownOptions: {
         ...config.build?.rollupOptions,
+        ...config.build?.rolldownOptions,
         preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: false,
           ...config.build?.rollupOptions?.treeshake,
+          ...config.build?.rolldownOptions?.treeshake,
         },
         onwarn(warn) {
           if (
@@ -353,6 +451,8 @@ export default async function serverBuild(root, options) {
               },
               ...(config.build?.rollupOptions?.output?.advancedChunks?.groups ??
                 []),
+              ...(config.build?.rolldownOptions?.output?.advancedChunks
+                ?.groups ?? []),
             ],
           },
         },
@@ -400,16 +500,16 @@ export default async function serverBuild(root, options) {
               options.dev ? "development" : "production"
             ),
           }),
-          rollupUseClient("server", clientManifest, "pre"),
-          rollupUseClient("server", clientManifest),
-          rollupUseServer("rsc", serverManifest),
-          rollupUseServerInline(serverManifest),
-          rollupUseCacheInline(
+          rolldownUseClient("server", clientManifest, "pre"),
+          rolldownUseClient("server", clientManifest),
+          rolldownUseServer("rsc", serverManifest),
+          rolldownUseServerInline(serverManifest),
+          rolldownUseCacheInline(
             config.cache?.profiles,
             config.cache?.providers,
             "server"
           ),
-          rollupUseDynamic(),
+          rolldownUseDynamic(),
           rootModule(root),
           configPrebuilt(),
           {
@@ -424,10 +524,12 @@ export default async function serverBuild(root, options) {
             },
           },
           ...(config.build?.rollupOptions?.plugins ?? []),
+          ...(config.build?.rolldownOptions?.plugins ?? []),
         ],
       },
     },
     plugins: [
+      jsonNamedExports(),
       !root || root === "@lazarv/react-server/file-router"
         ? fileRouter(options)
         : [],
@@ -511,8 +613,8 @@ export default async function serverBuild(root, options) {
       build: {
         ...viteConfig.build,
         manifest: "server/client-manifest.json",
-        rollupOptions: {
-          ...viteConfig.build.rollupOptions,
+        rolldownOptions: {
+          ...viteConfig.build.rolldownOptions,
           treeshake: createTreeshake(config),
           input: {
             ...Array.from(clientManifest.entries()).reduce(
@@ -543,16 +645,17 @@ export default async function serverBuild(root, options) {
                 options.dev ? "development" : "production"
               ),
             }),
-            rollupUseClient("client", undefined, "pre"),
-            rollupUseClient("client"),
-            rollupUseServer("ssr"),
-            rollupUseCacheInline(
+            rolldownUseClient("client", undefined, "pre"),
+            rolldownUseClient("client"),
+            rolldownUseServer("ssr"),
+            rolldownUseCacheInline(
               config.cache?.profiles,
               config.cache?.providers,
               "client"
             ),
-            rollupUseDynamic(),
+            rolldownUseDynamic(),
             ...(config.build?.rollupOptions?.plugins ?? []),
+            ...(config.build?.rolldownOptions?.plugins ?? []),
           ],
         },
       },

@@ -216,9 +216,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../../packages/react-server
-      '@lazarv/react-server-adapter-cloudflare':
-        specifier: workspace:^
-        version: link:../../packages/react-server-adapter-cloudflare
 
   examples/mantine:
     dependencies:

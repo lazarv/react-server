@@ -18,7 +18,7 @@
   "type": "module",
   "scripts": {
     "test": "pnpm --filter ./test test",
-    "format": "oxfmt .",
+    "format": "oxfmt . --no-error-on-unmatched-pattern",
     "lint": "oxlint",
     "docs": "pnpm --filter ./docs dev --open",
     "docs-build": "pnpm --filter ./docs build",

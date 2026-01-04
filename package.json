@@ -46,7 +46,7 @@
     "commit-msg": "pnpm exec commitlint --edit $1"
   },
   "lint-staged": {
-    "*": [
+    "*.{js,jsx,mjs,ts,tsx,json}": [
       "oxfmt"
     ],
     "*.{js,jsx,mjs,ts,tsx}": [

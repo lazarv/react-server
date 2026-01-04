@@ -1,0 +1,123 @@
+---
+title: Cloudflare
+category: Deploy
+order: 2
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Cloudflare
+
+To deploy to Cloudflare Workers or Pages, use the `@lazarv/react-server-adapter-cloudflare` package. This adapter is specifically designed to work with Cloudflare's edge runtime.
+
+<Link name="installation">
+## Installation
+</Link>
+
+First you need to have a Cloudflare account with Workers enabled and the `wrangler` CLI installed:
+
+```sh
+npm install -g wrangler
+wrangler login
+```
+
+After you have set up your Cloudflare account, you can add the `@lazarv/react-server-adapter-cloudflare` package to your project:
+
+```sh
+pnpm add -D @lazarv/react-server-adapter-cloudflare
+```
+
+Then you need to add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "@lazarv/react-server-adapter-cloudflare",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "@lazarv/react-server-adapter-cloudflare",
+    {
+      name: "my-app", // Cloudflare Worker name
+      compatibilityDate: "2024-01-01", // Cloudflare compatibility date
+      compatibilityFlags: ["nodejs_compat_v2"], // Additional compatibility flags
+      pages: true, // Generate _routes.json for Cloudflare Pages
+      excludeRoutes: ["/api/*"], // Additional routes to exclude from worker handling
+      wrangler: {
+        vars: {
+          MY_VAR: "value",
+        },
+      },
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `name`: Cloudflare Worker name. Falls back to `package.json` name (without scope) or "react-server-app".
+- `compatibilityDate`: Cloudflare compatibility date (default: current date).
+- `compatibilityFlags`: Additional Cloudflare compatibility flags (appended to required `nodejs_compat`).
+- `pages`: Generate `_routes.json` for Cloudflare Pages (default: true).
+- `excludeRoutes`: Additional routes to exclude from worker handling in `_routes.json`.
+- `wrangler`: Additional wrangler.toml configuration as an object (merged with adapter defaults).
+
+<Link name="extending-wrangler">
+## Extending Wrangler configuration
+</Link>
+
+To extend the generated `wrangler.toml`, create a `react-server.wrangler.toml` file in your project root. The adapter will merge it with its configuration:
+
+- **Primitive values**: Adapter config takes precedence
+- **Objects**: Deep merged recursively
+- **Arrays**: Unique items from your config are preserved and prepended to adapter defaults
+
+This allows you to add custom bindings, environment variables, or other Cloudflare-specific configuration while the adapter manages the required settings.
+
+```toml filename="react-server.wrangler.toml"
+[vars]
+MY_API_KEY = "secret"
+
+[[kv_namespaces]]
+binding = "MY_KV"
+id = "abc123"
+```
+
+<Link name="deploy">
+## Deploy
+</Link>
+
+When using `@lazarv/react-server` with the Cloudflare adapter, you can deploy your application using the following command:
+
+```sh
+pnpm react-server build [root] # [root] is the entry point of your application
+wrangler deploy
+```
+
+You can also deploy with the `react-server` CLI by using the `--deploy` argument:
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+This will build your application and deploy it to Cloudflare Workers.
+
+<Link name="cloudflare-pages">
+## Cloudflare Pages
+</Link>
+
+The adapter automatically generates a `_routes.json` file for Cloudflare Pages compatibility. This file specifies which routes should be handled by the Worker and which should be served as static assets.
+
+By default, static assets like images, CSS, JavaScript, and fonts are excluded from Worker handling. You can add additional routes to exclude using the `excludeRoutes` option.
+
+To deploy to Cloudflare Pages, you can use the Cloudflare dashboard or the `wrangler pages` commands.
+
+> **Note:** Some advanced Cloudflare features like Durable Objects, D1, and R2 bindings can be configured through the `react-server.wrangler.toml` file. Please refer to the [Cloudflare Workers documentation](https://developers.cloudflare.com/workers/) for more information about available features and configuration options.

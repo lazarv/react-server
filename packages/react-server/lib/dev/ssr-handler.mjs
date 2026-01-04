@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
@@ -29,11 +31,10 @@ import {
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
-import { ContextManager } from "../async-local-storage.mjs";
 import errorHandler from "../handlers/error.mjs";
 import getModules from "./modules.mjs";
 
-globalThis.AsyncLocalStorage = ContextManager;
+globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
 export default async function ssrHandler(root) {
   const config = getRuntime(CONFIG_CONTEXT);
@@ -48,7 +49,7 @@ export default async function ssrHandler(root) {
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const renderStream = createWorker();
-  const moduleCacheStorage = new ContextManager();
+  const moduleCacheStorage = new AsyncLocalStorage();
 
   return async (httpContext) => {
     return new Promise((resolve, reject) => {

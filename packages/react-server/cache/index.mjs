@@ -1,9 +1,10 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import StorageCache from "@lazarv/react-server/storage-cache";
 import colors from "picocolors";
 import memoryDriver from "unstorage/drivers/memory";
 
 import { forRoot } from "../config/context.mjs";
-import { ContextManager } from "../lib/async-local-storage.mjs";
 import { context$, getContext } from "../server/context.mjs";
 import {
   CACHE_CONTEXT,
@@ -18,7 +19,7 @@ import {
 
 export { StorageCache, memoryDriver as default, CACHE_MISS };
 
-export const CacheContext = new ContextManager();
+export const CacheContext = new AsyncLocalStorage();
 export function getCacheContext() {
   return CacheContext.getStore();
 }

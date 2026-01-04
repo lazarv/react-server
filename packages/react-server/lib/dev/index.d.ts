@@ -1,6 +1,6 @@
 import * as http from "node:http";
 
-import type { Connect, WebSocketServer } from "vite";
+import type { Connect, WebSocketServer } from "rolldown-vite";
 
 /**
  * Use the \@lazarv/react-server Vite development server as a middleware in a Node.js server.

@@ -30,6 +30,9 @@ export function createReactServer(reactServer, useRoot = false) {
 
     const httpServer = createServer(async (req, res) => {
       const { middlewares } = await server;
+      if (workerData.base !== "/" && req.url.startsWith(workerData.base)) {
+        req.url = req.url.slice(workerData.base.length - 1) || "/";
+      }
       middlewares(req, res);
     });
     httpServer.once("listening", () => {

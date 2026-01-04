@@ -12,7 +12,7 @@ import { expect, test } from "vitest";
 process.chdir(join(process.cwd(), "../examples/express"));
 
 test("express load", async () => {
-  await server("./src/app/index.jsx");
+  await server("./src/app/index.jsx", undefined, "/react-server/");
   await page.goto(hostname + "/react-server/");
   await waitForHydration();
   expect(await page.textContent("body")).toContain("Hello World!");

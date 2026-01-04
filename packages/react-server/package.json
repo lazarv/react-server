@@ -92,6 +92,13 @@
       "types": "./lib/start/node.d.ts",
       "default": "./lib/start/node.mjs"
     },
+    "./edge": {
+      "default": "./lib/start/edge.mjs"
+    },
+    "./build": {
+      "types": "./lib/build/index.d.ts",
+      "default": "./lib/build/index.mjs"
+    },
     "./file-router": {
       "default": "./lib/plugins/file-router/entrypoint.jsx"
     },

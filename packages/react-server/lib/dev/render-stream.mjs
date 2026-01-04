@@ -2,11 +2,11 @@ import { register } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parentPort } from "node:worker_threads";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
 import { ModuleRunner } from "rolldown-vite/module-runner";
 
-import { ContextManager } from "../async-local-storage.mjs";
 import { clientAlias } from "../build/resolve.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
@@ -173,7 +173,7 @@ const moduleRunner = new ModuleRunner(
   new HybridEvaluator()
 );
 
-const moduleCacheStorage = new ContextManager();
+const moduleCacheStorage = new AsyncLocalStorage();
 globalThis.__webpack_require__ = function (id) {
   try {
     const moduleCache = moduleCacheStorage.getStore() ?? new Map();
@@ -198,7 +198,7 @@ globalThis.__webpack_require__ = function (id) {
   }
 };
 
-const linkQueueStorage = new ContextManager();
+const linkQueueStorage = new AsyncLocalStorage();
 const handleRenderMessage = createRenderer({
   moduleCacheStorage,
   linkQueueStorage,

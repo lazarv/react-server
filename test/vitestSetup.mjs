@@ -70,7 +70,7 @@ beforeAll(async ({ name, id }) => {
   page.on("console", (msg) => {
     logs.push(msg.text());
   });
-  server = (root, initialConfig) =>
+  server = (root, initialConfig, base) =>
     new Promise(async (resolve, reject) => {
       try {
         logs = [];
@@ -93,7 +93,7 @@ beforeAll(async ({ name, id }) => {
                 export: false,
                 adapter: ["false"],
                 minify: false,
-                ssrWorker: process.env.NO_SSR_WORKER ? false : undefined,
+                edge: process.env.EDGE ? true : undefined,
               }
             : {
                 outDir: `.react-server-dev-${id}-${hash}`,
@@ -103,8 +103,7 @@ beforeAll(async ({ name, id }) => {
               };
 
         if (process.env.NODE_ENV === "production") {
-          const { default: build } =
-            await import("@lazarv/react-server/lib/build/action.mjs");
+          const { build } = await import("@lazarv/react-server/build");
           await build(
             root?.[0] === "." || !root
               ? root
@@ -139,6 +138,7 @@ beforeAll(async ({ name, id }) => {
                       ...initialConfig,
                     },
               port,
+              base,
             },
           }
         );

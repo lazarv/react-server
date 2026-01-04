@@ -1,6 +1,5 @@
-import { createRequire, register } from "node:module";
 import { join, relative } from "node:path";
-import { pathToFileURL } from "node:url";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 import { init$ as cache_init$, useCache } from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
@@ -40,47 +39,26 @@ import {
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
-import { ContextManager } from "../async-local-storage.mjs";
-import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
 import { init$ as manifest_init$ } from "./manifest.mjs";
 
-alias("react-server");
-register("../loader/node-loader.react-server.mjs", import.meta.url);
-globalThis.AsyncLocalStorage = ContextManager;
+globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
-const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
 export default async function ssrHandler(root, options = {}) {
   const outDir = options.outDir ?? ".react-server";
-  const defaultRoot = join(cwd, outDir, "server/index.mjs");
+  const defaultRoot = join(outDir, "server/index.mjs");
   const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 
   await manifest_init$(options);
 
-  const entryModule = __require.resolve(`./${outDir}/server/render.mjs`, {
-    paths: [cwd],
-  });
-  const rootModule = __require.resolve(
-    root ?? configRoot.entry ?? defaultRoot,
-    {
-      paths: [cwd],
-    }
-  );
-  const globalErrorModule = __require.resolve(`./${outDir}/server/error.mjs`, {
-    paths: [cwd],
-  });
-  let errorBoundary;
-  try {
-    errorBoundary = __require.resolve(`./${outDir}/server/error-boundary.mjs`, {
-      paths: [cwd],
-    });
-  } catch {
-    // ignore
-  }
+  const entryModule = join(cwd, outDir, "server/render.mjs");
+  const rootModule = join(cwd, root ?? configRoot.entry ?? defaultRoot);
+  const globalErrorModule = join(cwd, outDir, "server/error.mjs");
+  const errorBoundary = join(cwd, outDir, "server/error-boundary.mjs");
   const [
     { render },
     { default: Component, init$: root_init$ },
@@ -88,12 +66,16 @@ export default async function ssrHandler(root, options = {}) {
     { default: ErrorBoundary },
     rscSerializer,
   ] = await Promise.all([
-    import(pathToFileURL(entryModule)),
-    import(pathToFileURL(rootModule)),
-    import(pathToFileURL(globalErrorModule)),
-    errorBoundary
-      ? import(pathToFileURL(errorBoundary))
-      : Promise.resolve({ default: null }),
+    import(entryModule),
+    import(rootModule),
+    import(globalErrorModule),
+    (async () => {
+      try {
+        return await import(errorBoundary);
+      } catch {
+        return { default: null };
+      }
+    })(),
     import("../../cache/rsc.mjs"),
   ]);
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
@@ -106,7 +88,7 @@ export default async function ssrHandler(root, options = {}) {
   const moduleLoader = getRuntime(MODULE_LOADER);
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const manifest = getRuntime(MANIFEST);
-  const moduleCacheStorage = new ContextManager();
+  const moduleCacheStorage = new AsyncLocalStorage();
   await module_loader_init$(moduleLoader, moduleCacheStorage, null, "rsc");
 
   const importMap =
@@ -202,7 +184,7 @@ export default async function ssrHandler(root, options = {}) {
 
     return new Promise((resolve, reject) => {
       try {
-        moduleCacheStorage.run(new Map(), async () => {
+        moduleCacheStorage.run(new Map(), () => {
           ContextStorage.run(
             {
               [SERVER_CONTEXT]: getRuntime(SERVER_CONTEXT),

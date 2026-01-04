@@ -1,0 +1,46 @@
+{
+  "name": "@lazarv/react-server-adapter-cloudflare",
+  "version": "0.0.0",
+  "description": "React Server Adapter for Cloudflare Workers/Pages",
+  "keywords": [
+    "cloudflare",
+    "esm",
+    "pages",
+    "react",
+    "server",
+    "ssr",
+    "workers"
+  ],
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
+  "license": "MIT",
+  "author": "lazarv",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lazarv/react-server.git"
+  },
+  "type": "module",
+  "sideEffects": true,
+  "module": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "tag": "latest"
+  },
+  "scripts": {},
+  "dependencies": {
+    "smol-toml": "^1.6.0"
+  },
+  "devDependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-core": "workspace:^"
+  },
+  "peerDependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-core": "workspace:^"
+  }
+}

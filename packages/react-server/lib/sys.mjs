@@ -6,7 +6,28 @@ export function normalizePath(path) {
   return path?.replace(/\\/g, "/");
 }
 
+// Detect edge runtime environments
+export const isEdgeRuntime =
+  // Vercel Edge Runtime
+  typeof EdgeRuntime !== "undefined" ||
+  // Cloudflare Workers / workerd
+  (typeof navigator !== "undefined" &&
+    navigator.userAgent === "Cloudflare-Workers") ||
+  // Fastly Compute@Edge
+  typeof fastly !== "undefined" ||
+  // Lagon
+  typeof Lagon !== "undefined" ||
+  // Netlify Edge Functions (Deno-based but has Netlify global)
+  typeof Netlify !== "undefined" ||
+  // Fallback: no process or cwd function (excluding Deno which has its own cwd)
+  ((typeof process === "undefined" || typeof process.cwd !== "function") &&
+    typeof Deno === "undefined");
+
 export function cwd() {
+  // In edge runtimes, return empty string so paths are relative to the deployment directory
+  if (isEdgeRuntime) {
+    return "";
+  }
   return normalizePath(
     typeof Deno !== "undefined" ? Deno.cwd() : process.cwd()
   );
@@ -39,13 +60,14 @@ export function setEnv(name, value) {
 }
 
 export function copyBytesFrom(buffer) {
-  return typeof Deno !== "undefined"
+  return typeof Deno !== "undefined" ||
+    typeof Buffer.copyBytesFrom !== "function"
     ? new Uint8Array(buffer)
     : Buffer.copyBytesFrom(buffer);
 }
 
 export function concat(buffers) {
-  return typeof Deno !== "undefined"
+  return typeof Deno !== "undefined" || typeof Buffer.concat !== "function"
     ? new Uint8Array(buffers.reduce((acc, buf) => [...acc, ...buf], []))
     : Buffer.concat(buffers);
 }
@@ -121,6 +143,8 @@ if (typeof Deno !== "undefined") {
   };
 }
 
-export const rootDir = normalizePath(
-  join(dirname(fileURLToPath(import.meta.url)), "..")
-);
+// In Cloudflare Workers, rootDir is not meaningful since modules are bundled
+// Use empty string to avoid fileURLToPath errors with undefined import.meta.url
+export const rootDir = isEdgeRuntime
+  ? ""
+  : normalizePath(join(dirname(fileURLToPath(import.meta.url)), ".."));

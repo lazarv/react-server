@@ -13,6 +13,22 @@ const reactCompilerRuntime = normalizePath(
   __require.resolve("react/compiler-runtime")
 );
 const reactDom = normalizePath(__require.resolve("react-dom"));
+
+// React-server condition versions (for RSC builds)
+const reactServer = react.replace(/index\.js$/, "react.react-server.js");
+const reactJsxRuntimeServer = reactJsxRuntime.replace(
+  /jsx-runtime\.js$/,
+  "jsx-runtime.react-server.js"
+);
+const reactJsxDevRuntimeServer = reactJsxDevRuntime.replace(
+  /jsx-dev-runtime\.js$/,
+  "jsx-dev-runtime.react-server.js"
+);
+const reactDomServer = reactDom.replace(
+  /index\.js$/,
+  "react-dom.react-server.js"
+);
+
 const reactDomClient = normalizePath(__require.resolve("react-dom/client"));
 const reactDomServerEdge = normalizePath(
   __require.resolve("react-dom/server.edge")
@@ -50,14 +66,19 @@ const socketIoClient = normalizePath(__require.resolve("socket.io-client"));
 const webStreamsPolyfillPolyfill = normalizePath(
   __require.resolve("web-streams-polyfill/polyfill")
 );
+const highlightJs = normalizePath(__require.resolve("highlight.js"));
 
 export {
   react,
+  reactServer,
   reactDom,
+  reactDomServer,
   reactDomClient,
   reactDomServerEdge,
   reactJsxDevRuntime,
+  reactJsxDevRuntimeServer,
   reactJsxRuntime,
+  reactJsxRuntimeServer,
   reactCompilerRuntime,
   reactServerDomWebpackClientBrowser,
   reactServerDomWebpackServerBrowser,
@@ -71,4 +92,5 @@ export {
   unstorageDriversSessionStorage,
   socketIoClient,
   webStreamsPolyfillPolyfill,
+  highlightJs,
 };

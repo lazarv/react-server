@@ -1,12 +1,27 @@
+import { createRequire } from "node:module";
 import { join } from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getRuntime, init$ as runtime_init$ } from "../../server/runtime.mjs";
 import { MANIFEST, MODULE_LOADER } from "../../server/symbols.mjs";
-import { ContextManager } from "../async-local-storage.mjs";
-import { cwd as sysCwd } from "../sys.mjs";
-import { tryStat } from "../utils/module.mjs";
+import { isEdgeRuntime, cwd as sysCwd } from "../sys.mjs";
 import { init$ as manifest_init$ } from "./manifest.mjs";
+
+function tryStat(path) {
+  // In Cloudflare Workers, we can't use fs.statSync
+  // Return a truthy value since we know the file was built
+  if (isEdgeRuntime) {
+    return true;
+  }
+  try {
+    const __require = createRequire(import.meta.url);
+    const { statSync } = __require("node:fs");
+    return statSync(path);
+  } catch {
+    return null;
+  }
+}
 
 const cwd = sysCwd();
 
@@ -50,8 +65,8 @@ export async function createRenderer({ options }) {
   const [parentPort, workerPort] = createChannelPair();
 
   await runtime_init$(async () => {
-    const moduleCacheStorage = new ContextManager();
-    const linkQueueStorage = new ContextManager();
+    const moduleCacheStorage = new AsyncLocalStorage();
+    const linkQueueStorage = new AsyncLocalStorage();
     await manifest_init$(options);
     const moduleLoader = getRuntime(MODULE_LOADER);
     await module_loader_init$(

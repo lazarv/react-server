@@ -1,7 +1,7 @@
-import { ContextManager } from "../lib/async-local-storage.mjs";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export const ContextStorage = (globalThis.__react_server_context__ =
-  globalThis.__react_server_context__ || new ContextManager());
+  globalThis.__react_server_context__ || new AsyncLocalStorage());
 
 export function getContext(type) {
   const store = ContextStorage.getStore();

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 import colors from "picocolors";
 
@@ -6,7 +7,6 @@ import { getRuntime } from "@lazarv/react-server/server/runtime.mjs";
 import { toBuffer, toStream } from "@lazarv/react-server/rsc";
 
 import { ReactServerComponent } from "@lazarv/react-server/navigation";
-import { ContextManager } from "@lazarv/react-server/lib/async-local-storage.mjs";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 import {
   LIVE_IO,
@@ -24,7 +24,7 @@ function normalizeSpecifier(specifier) {
   return specifier.replace("#live_", "#").replace(/#default$/, "");
 }
 
-const AbortControllerStorage = new ContextManager();
+const AbortControllerStorage = new AsyncLocalStorage();
 
 export function useAbortController() {
   return AbortControllerStorage.getStore();

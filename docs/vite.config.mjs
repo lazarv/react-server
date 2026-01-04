@@ -9,7 +9,4 @@ export default {
       outdir: "./src/paraglide",
     }),
   ],
-  resolve: {
-    external: ["lucide-react"],
-  },
 };

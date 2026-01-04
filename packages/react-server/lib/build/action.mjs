@@ -12,7 +12,7 @@ import {
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 import { formatDuration } from "../utils/format.mjs";
-import adapter from "./adapter.mjs";
+import adapter, { getAdapterBuildOptions } from "./adapter.mjs";
 import clientBuild from "./client.mjs";
 import serverBuild from "./server.mjs";
 import staticSiteGenerator from "./static.mjs";
@@ -41,6 +41,15 @@ export default async function build(root, options) {
     options.outDir = ".react-server";
   }
   const config = await loadConfig({}, { ...options, command: "build" });
+
+  // Get adapter build options before build starts
+  const adapterBuildOptions = await getAdapterBuildOptions(
+    config[CONFIG_ROOT] ?? {},
+    options
+  );
+
+  // Merge adapter build options into options (adapter options take precedence for adapter-specific settings)
+  options = { ...options, ...adapterBuildOptions };
 
   return new Promise((resolve) => {
     ContextStorage.run(

@@ -41,6 +41,26 @@ import {
 import { existsSync, realpathSync } from "node:fs";
 import { clientAlias } from "./resolve.mjs";
 import { createTreeshake, REACT_RE } from "./shared.mjs";
+import {
+  highlightJs,
+  // React-server versions (for RSC build)
+  reactServer,
+  reactJsxRuntimeServer,
+  reactJsxDevRuntimeServer,
+  reactCompilerRuntime,
+  reactDomServer,
+  reactDomServerEdge,
+  reactServerDomWebpackClientEdge,
+  reactServerDomWebpackServerEdge,
+  reactIs,
+  // Standard versions (for SSR build)
+  react,
+  reactJsxRuntime,
+  reactJsxDevRuntime,
+  reactDom,
+  reactDomClient,
+  unstorageDriversMemory,
+} from "./dependencies.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
@@ -137,6 +157,18 @@ export default async function serverBuild(root, options) {
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
   ]);
+
+  // Edge external - only externalize node builtins, bundle everything else
+  const edgeExternal = (id, parentId, isResolved) => {
+    if (isBuiltin(id)) {
+      return true;
+    }
+    // Externalize node: protocol and manifest.json
+    if (id.startsWith("node:") || /manifest\.json/.test(id)) {
+      return true;
+    }
+    return false;
+  };
 
   // Cache for rscExternal results - same import ID always returns the same result
   const rscExternalCache = new Map();
@@ -373,6 +405,64 @@ export default async function serverBuild(root, options) {
           find: /^@lazarv\/react-server\/server\//,
           replacement: join(sys.rootDir, "server/"),
         },
+        {
+          find: /^react-server-highlight\.js$/,
+          replacement: highlightJs,
+        },
+        {
+          find: /^react-server-highlight\.js\/lib/,
+          replacement: highlightJs.replace(/\/index\.js$/, ""),
+        },
+        {
+          find: /^react-server-highlight\.js\/styles/,
+          replacement: highlightJs.replace(/\/lib\/index\.js$/, "/styles"),
+        },
+        // Use edge versions in edge builds
+        ...(options.edge
+          ? [
+              // Alias react packages to their react-server condition paths to ensure bundling
+              {
+                find: /^react$/,
+                replacement: reactServer,
+              },
+              {
+                find: /^react\/jsx-runtime$/,
+                replacement: reactJsxRuntimeServer,
+              },
+              {
+                find: /^react\/jsx-dev-runtime$/,
+                replacement: reactJsxDevRuntimeServer,
+              },
+              {
+                find: /^react\/compiler-runtime$/,
+                replacement: reactCompilerRuntime,
+              },
+              {
+                find: /^react-dom$/,
+                replacement: reactDomServer,
+              },
+              {
+                find: /^react-dom\/server\.edge$/,
+                replacement: reactDomServerEdge,
+              },
+              {
+                find: /^react-server-dom-webpack\/client\.edge$/,
+                replacement: reactServerDomWebpackClientEdge,
+              },
+              {
+                find: /^react-server-dom-webpack\/server\.edge$/,
+                replacement: reactServerDomWebpackServerEdge,
+              },
+              {
+                find: /^react-is$/,
+                replacement: reactIs,
+              },
+              {
+                find: /^unstorage\/drivers\/memory$/,
+                replacement: unstorageDriversMemory,
+              },
+            ]
+          : []),
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],
       conditions: ["react-server"],
@@ -425,6 +515,7 @@ export default async function serverBuild(root, options) {
               "server/render-dom",
               "server/index",
               "server/error",
+              "server/edge",
             ].includes(name) || name.startsWith("static/")
               ? "[name].mjs"
               : "[name].[hash].mjs";
@@ -486,8 +577,18 @@ export default async function serverBuild(root, options) {
                 ),
               }
             : {}),
+          // Edge worker entry point - when edge mode is enabled, this becomes an entry
+          ...(options.edge?.entry
+            ? {
+                "server/edge": options.edge.entry,
+              }
+            : {}),
         },
         external(id, parentId, isResolved) {
+          // In edge mode, bundle everything except node builtins
+          if (options.edge) {
+            return edgeExternal(id, parentId, isResolved);
+          }
           return (
             external(id, parentId, isResolved) || rscExternal(id, parentId)
           );
@@ -499,6 +600,12 @@ export default async function serverBuild(root, options) {
             "process.env.NODE_ENV": JSON.stringify(
               options.dev ? "development" : "production"
             ),
+            ...(options.edge
+              ? {
+                  "import.meta.__react_server_cwd__": JSON.stringify(cwd),
+                  "import.meta.url": JSON.stringify("file:///worker.mjs"),
+                }
+              : {}),
           }),
           rolldownUseClient("server", clientManifest, "pre"),
           rolldownUseClient("server", clientManifest),
@@ -549,18 +656,29 @@ export default async function serverBuild(root, options) {
     },
     ssr: {
       ...config.ssr,
-      external: [
-        "react",
-        "react-dom",
-        "react-server-dom-webpack",
-        "react-is",
-        ...(config.ssr?.external ?? []),
-        ...(config.external ?? []),
-      ],
+      // In edge mode, don't externalize react packages - they need to be bundled
+      external: options.edge
+        ? []
+        : [
+            "react",
+            "react-dom",
+            "react-server-dom-webpack",
+            "react-is",
+            ...(config.ssr?.external ?? []),
+            ...(config.external ?? []),
+          ],
+      // In edge mode, force bundling of react packages
+      noExternal: options.edge ? true : config.ssr?.noExternal,
       resolve: {
         ...config.ssr?.resolve,
-        conditions: ["react-server"],
-        externalConditions: ["react-server"],
+        conditions: [
+          "react-server",
+          ...(options.edge ? ["workerd", "edge"] : []),
+        ],
+        externalConditions: [
+          "react-server",
+          ...(options.edge ? ["workerd", "edge"] : []),
+        ],
       },
     },
     publicDir: join(cwd, publicDir),
@@ -581,32 +699,67 @@ export default async function serverBuild(root, options) {
 
   await viteBuild(viteConfig);
 
-  if (
-    clientManifest.size > 0 ||
-    options.ssrWorker === false ||
-    config.ssr?.worker === false
-  ) {
+  if (clientManifest.size > 0 || options.edge || config.ssr?.worker === false) {
     const viteConfigClientComponents = {
       ...viteConfig,
       resolve: {
         ...viteConfig.resolve,
         alias: [
-          ...(options.ssrWorker === false || config.ssr?.worker === false
+          ...(options.edge === false || config.ssr?.worker === false
             ? clientAlias()
             : []),
           {
             find: /^@lazarv\/react-server\/http-context$/,
             replacement: join(sys.rootDir, "server/http-context.mjs"),
           },
-          {
-            find: /^@lazarv\/react-server\/memory-cache$/,
-            replacement: join(sys.rootDir, "cache/client.mjs"),
-          },
+          // Only use client cache for non-edge builds (edge bundles server code that needs full cache API)
+          ...(!options.edge
+            ? [
+                {
+                  find: /^@lazarv\/react-server\/memory-cache$/,
+                  replacement: join(sys.rootDir, "cache/client.mjs"),
+                },
+              ]
+            : []),
+          // In edge mode, alias React packages to standard versions (for SSR build)
+          ...(options.edge
+            ? [
+                { find: /^react$/, replacement: react },
+                { find: /^react\/jsx-runtime$/, replacement: reactJsxRuntime },
+                {
+                  find: /^react\/jsx-dev-runtime$/,
+                  replacement: reactJsxDevRuntime,
+                },
+                {
+                  find: /^react\/compiler-runtime$/,
+                  replacement: reactCompilerRuntime,
+                },
+                { find: /^react-dom$/, replacement: reactDom },
+                { find: /^react-dom\/client$/, replacement: reactDomClient },
+                {
+                  find: /^react-dom\/server\.edge$/,
+                  replacement: reactDomServerEdge,
+                },
+                {
+                  find: /^react-server-dom-webpack\/client\.edge$/,
+                  replacement: reactServerDomWebpackClientEdge,
+                },
+                { find: /^react-is$/, replacement: reactIs },
+              ]
+            : []),
           ...viteConfig.resolve.alias.filter(
             (alias) =>
               !alias.replacement.endsWith(
                 "react-server/client/http-context.jsx"
-              ) && !alias.replacement.endsWith("react-server/cache/index.mjs")
+              ) &&
+              !alias.replacement.endsWith("react-server/cache/index.mjs") &&
+              // In edge mode, filter out react-server versions of react packages
+              !(
+                options.edge &&
+                (alias.replacement.includes("/react/") ||
+                  alias.replacement.includes("/react-dom/") ||
+                  alias.replacement.includes("react-server-dom-webpack/"))
+              )
           ),
         ],
       },
@@ -624,7 +777,7 @@ export default async function serverBuild(root, options) {
               },
               {}
             ),
-            ...(options.ssrWorker === false || config.ssr?.worker === false
+            ...(options.edge || config.ssr?.worker === false
               ? {
                   "server/render-dom": __require.resolve(
                     "@lazarv/react-server/server/render-dom.mjs",
@@ -633,8 +786,9 @@ export default async function serverBuild(root, options) {
                 }
               : {}),
           },
-          external:
-            options.ssrWorker === false || config.ssr?.worker === false
+          external: options.edge
+            ? edgeExternal
+            : config.ssr?.worker === false
               ? ssrExternal
               : external,
           plugins: [
@@ -644,6 +798,12 @@ export default async function serverBuild(root, options) {
               "process.env.NODE_ENV": JSON.stringify(
                 options.dev ? "development" : "production"
               ),
+              ...(options.edge
+                ? {
+                    "import.meta.__react_server_cwd__": JSON.stringify(cwd),
+                    "import.meta.url": JSON.stringify("file:///worker.mjs"),
+                  }
+                : {}),
             }),
             rolldownUseClient("client", undefined, "pre"),
             rolldownUseClient("client"),
@@ -668,13 +828,6 @@ export default async function serverBuild(root, options) {
     // empty line
     console.log();
     banner("ssr", options.dev);
-    if (options.ssrWorker === false || config.ssr?.worker === false) {
-      console.log(
-        colors.yellow(
-          "Building client components for in-process SSR (worker disabled)..."
-        )
-      );
-    }
     await viteBuild(viteConfigClientComponents);
   } else {
     await writeFile(

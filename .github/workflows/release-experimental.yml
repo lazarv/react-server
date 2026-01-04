@@ -128,3 +128,15 @@ jobs:
         if: steps.prepare-react-server-adapter-vercel.outcome == 'success'
         working-directory: ./packages/react-server-adapter-vercel
         run: pnpm publish --provenance --access=public --tag=latest
+
+      - name: Prepare @lazarv/react-server-adapter-cloudflare
+        id: prepare-react-server-adapter-cloudflare
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server-adapter-cloudflare')
+        working-directory: ./packages/react-server-adapter-cloudflare
+        run: |
+          jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
+
+      - name: Publish @lazarv/react-server-adapter-cloudflare
+        if: steps.prepare-react-server-adapter-cloudflare.outcome == 'success'
+        working-directory: ./packages/react-server-adapter-cloudflare
+        run: pnpm publish --provenance --access=public --tag=latest

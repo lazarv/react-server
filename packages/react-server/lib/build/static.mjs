@@ -3,7 +3,6 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { Worker } from "node:worker_threads";
 import { createBrotliCompress, createGzip } from "node:zlib";
 
 import { filesize } from "filesize";
@@ -27,6 +26,7 @@ import ssrHandler from "../start/ssr-handler.mjs";
 import * as sys from "../sys.mjs";
 import banner from "./banner.mjs";
 import { toBuffer } from "../../cache/rsc.mjs";
+import { hasRenderer, createRenderer } from "../start/render-dom.mjs";
 
 const cwd = sys.cwd();
 
@@ -65,12 +65,20 @@ export default async function staticSiteGenerator(root, options) {
 
   await runtime_init$(async () => {
     const { exportPaths: _, ...baseOptions } = options;
-    const worker = new Worker(
-      new URL("../start/render-stream.mjs", import.meta.url),
-      {
-        workerData: { root, options: baseOptions },
-      }
-    );
+
+    let worker;
+    if (hasRenderer(options)) {
+      worker = await createRenderer({ root, options });
+    } else {
+      const { Worker } = await import("node:worker_threads");
+      worker = new Worker(
+        new URL("../start/render-stream.mjs", import.meta.url),
+        {
+          workerData: { root, options: baseOptions },
+        }
+      );
+    }
+
     runtime$(WORKER_THREAD, worker);
     runtime$(CONFIG_CONTEXT, config);
 

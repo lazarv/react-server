@@ -4,6 +4,10 @@ node_modules
 .react-server-*
 .cache
 .vercel
+.cloudflare
+.wrangler
+.wrangler-*
+wrangler.toml
 *.pem
 *.sqlite
 *.log

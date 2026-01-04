@@ -90,30 +90,29 @@ export default async function createServer(root, options) {
     initialHandlers.unshift(cors(getServerCors(config)));
   }
 
-  const middlewares = createMiddleware(
-    compose(
-      typeof config.handlers === "function"
-        ? (config.handlers(initialHandlers) ?? initialHandlers)
-        : [...initialHandlers, ...(config.handlers ?? [])]
-    ),
-    {
-      origin:
-        options.origin ??
-        sys.getEnv("ORIGIN") ??
-        config.server?.origin ??
-        `${
-          config.server?.https || options.https ? "https" : "http"
-        }://${options.host ?? sys.getEnv("HOST") ?? config.server?.host ?? "localhost"}:$${
-          options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000
-        }`,
-      trustProxy: config.server?.trustProxy ?? options.trustProxy,
-    }
+  const handler = compose(
+    typeof config.handlers === "function"
+      ? (config.handlers(initialHandlers) ?? initialHandlers)
+      : [...initialHandlers, ...(config.handlers ?? [])]
   );
+
+  const middlewares = createMiddleware(handler, {
+    origin:
+      options.origin ??
+      sys.getEnv("ORIGIN") ??
+      config.server?.origin ??
+      `${
+        config.server?.https || options.https ? "https" : "http"
+      }://${options.host ?? sys.getEnv("HOST") ?? config.server?.host ?? "localhost"}:$${
+        options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000
+      }`,
+    trustProxy: config.server?.trustProxy ?? options.trustProxy,
+  });
 
   let server;
   let httpServer = options.httpServer;
   if (options.middlewareMode) {
-    server = { middlewares };
+    server = { middlewares, handler };
   } else {
     const httpsOptions = config.server?.https ?? options.https;
     if (!httpsOptions) {

@@ -1,7 +1,7 @@
-import { ContextManager } from "../lib/async-local-storage.mjs";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export const RuntimeContextStorage = (globalThis.__react_server_runtime__ =
-  globalThis.__react_server_runtime__ || new ContextManager());
+  globalThis.__react_server_runtime__ || new AsyncLocalStorage());
 
 export function getRuntime(type) {
   const store = RuntimeContextStorage.getStore();

@@ -8,6 +8,8 @@ export function reactServer(root, options = {}, initialConfig = {}) {
 
   return new Promise(async (resolve, reject) => {
     try {
+      const { default: init$ } = await import("../../lib/loader/init.mjs");
+      await init$();
       const { default: createServer } = await import("./create-server.mjs");
       const config = await loadConfig(initialConfig, options);
 

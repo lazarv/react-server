@@ -27,12 +27,14 @@ export default (cli) =>
       default: ".react-server",
     })
     .option("--mode <mode>", "[string] mode", { default: "production" })
-    .option("--no-ssr-worker", "[boolean] disable ssr worker", {
-      default: true,
+    .option("--edge", "[boolean] enable edge build mode", {
+      default: false,
     })
     .option("--silent", "[boolean] suppress build output", { default: false })
     .action(async (root, options) => {
       setEnv("NODE_ENV", "production");
+      const { default: init$ } = await import("../../lib/loader/init.mjs");
+      await init$();
       return (await import("../../lib/build/action.mjs")).default(
         root,
         options

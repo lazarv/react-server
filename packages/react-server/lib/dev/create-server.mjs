@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { readFile, rm } from "node:fs/promises";
-import { createRequire, isBuiltin, register } from "node:module";
+import { createRequire, isBuiltin } from "node:module";
 import { dirname, join, relative } from "node:path";
 import { Worker } from "node:worker_threads";
 
@@ -33,11 +33,7 @@ import { clientAlias } from "../build/resolve.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import { compose, cookie, cors, createMiddleware } from "../http/index.mjs";
-import {
-  alias,
-  moduleAliases,
-  reactServerBunAliasPlugin,
-} from "../loader/module-alias.mjs";
+import { moduleAliases } from "../loader/module-alias.mjs";
 import aliasPlugin from "../plugins/alias.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
@@ -71,11 +67,6 @@ import { getServerCors } from "../utils/server-config.mjs";
 import createLogger from "./create-logger.mjs";
 import { HybridEvaluator } from "./hybrid-evaluator.mjs";
 import ssrHandler from "./ssr-handler.mjs";
-
-alias("react-server");
-register("../loader/node-loader.react-server.mjs", import.meta.url);
-await reactServerBunAliasPlugin();
-await import("react");
 
 const cwd = sys.cwd();
 const workspaceRoot = findPackageRoot(join(cwd, "..")) ?? cwd;

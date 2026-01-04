@@ -1,6 +1,4 @@
-import { createRequire } from "node:module";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 
 import { getContext } from "../../server/context.mjs";
 import { runtime$ } from "../../server/runtime.mjs";
@@ -14,41 +12,29 @@ import {
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 
-const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
+
+// Load JSON file - uses different strategies for Node.js vs edge runtime
+async function loadJSON(path) {
+  if (sys.isEdgeRuntime) {
+    // Edge runtime: import as module (wrangler bundles as Text, need to parse)
+    const mod = await import(path);
+    const value = mod.default ?? mod;
+    return typeof value === "string" ? JSON.parse(value) : value;
+  } else {
+    // Node.js: use import assertion
+    const mod = await import(path, { with: { type: "json" } });
+    return mod.default;
+  }
+}
 
 export async function init$(options = {}) {
   const outDir = options.outDir ?? ".react-server";
-  const serverManifest = __require.resolve(
-    `./${outDir}/server/server-manifest.json`,
-    {
-      paths: [cwd],
-    }
-  );
-  const clientManifest = __require.resolve(
-    `./${outDir}/server/client-manifest.json`,
-    {
-      paths: [cwd],
-    }
-  );
-  const browserManifest = __require.resolve(
-    `./${outDir}/client/browser-manifest.json`,
-    {
-      paths: [cwd],
-    }
-  );
-  const [{ default: server }, { default: client }, { default: browser }] =
-    await Promise.all([
-      import(pathToFileURL(serverManifest), {
-        with: { type: "json" },
-      }),
-      import(pathToFileURL(clientManifest), {
-        with: { type: "json" },
-      }),
-      import(pathToFileURL(browserManifest), {
-        with: { type: "json" },
-      }),
-    ]);
+  const [server, client, browser] = await Promise.all([
+    loadJSON(join(cwd, `${outDir}/server/server-manifest.json`)),
+    loadJSON(join(cwd, `${outDir}/server/client-manifest.json`)),
+    loadJSON(join(cwd, `${outDir}/client/browser-manifest.json`)),
+  ]);
   const manifest = {
     server,
     client,
@@ -82,7 +68,7 @@ export async function init$(options = {}) {
         if (entry) {
           id = entry.file;
         } else {
-          return import(pathToFileURL(id));
+          return import(id);
         }
       }
     } catch {
@@ -93,7 +79,7 @@ export async function init$(options = {}) {
       if (links.length > 0) {
         linkQueue.add(...links);
       }
-      return import(pathToFileURL(specifier));
+      return import(specifier);
     }
     let entry;
     const browserEntry = Object.values(manifest.browser).find(
@@ -112,8 +98,11 @@ export async function init$(options = {}) {
       entry = Object.values(manifest.server).find(
         (entry) =>
           entry.src &&
-          (join(cwd, entry.src) === `/${id}` ||
-            sys.normalizePath(join(cwd, entry.src)) === id)
+          (join(import.meta.__react_server_cwd__ ?? cwd, entry.src) ===
+            `/${id}` ||
+            sys.normalizePath(
+              join(import.meta.__react_server_cwd__ ?? cwd, entry.src)
+            ) === id)
       );
     }
     if (!entry) {
@@ -133,7 +122,7 @@ export async function init$(options = {}) {
     if (links.length > 0) {
       linkQueue.add(...links);
     }
-    return import(pathToFileURL(specifier));
+    return import(specifier);
   }
   runtime$(MODULE_LOADER, ssrLoadModule);
 

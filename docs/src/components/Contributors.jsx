@@ -3,7 +3,13 @@ async function getContributors() {
 
   try {
     const res = await fetch(
-      "https://api.github.com/repos/lazarv/react-server/contributors"
+      "https://api.github.com/repos/lazarv/react-server/contributors",
+      {
+        headers: {
+          "User-Agent": "react-server.dev",
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
     );
     const data = await res.json();
     return data.filter((contributor) => contributor.login !== "lazarv");

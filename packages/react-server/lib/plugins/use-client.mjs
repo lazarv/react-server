@@ -168,7 +168,8 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
 
           // Get real path - this is the canonical path after resolving symlinks
           // pnpm uses symlinks, so the same file can be accessed via multiple paths
-          const realId = await realpath(id);
+          // Normalize to forward slashes so generated import() paths work on Windows
+          const realId = sys.normalizePath(await realpath(id));
 
           // DEDUPLICATION: If we've already processed this real path, return cached result
           // This prevents duplicate module graphs when Rolldown calls transform

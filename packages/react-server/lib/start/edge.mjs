@@ -17,9 +17,11 @@ import createLogger from "./create-logger.mjs";
 
 export function reactServer(root, options = {}, initialConfig = {}) {
   if (typeof root === "object") {
+    if (typeof options === "object") {
+      initialConfig = options;
+    }
     options = root;
     root = undefined;
-    initialConfig = options;
   }
 
   return new Promise(async (resolve, reject) => {

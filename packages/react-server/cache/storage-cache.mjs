@@ -102,7 +102,7 @@ export default class StorageCache {
     const [type, encoding] = this.type?.split(";")?.map((s) => s.trim()) ?? [];
     const data =
       type === "rsc" && this.serializer
-        ? `data:text/x-component;${encoding ?? this.encoding ?? "base64"},${(await this.serializer.toBuffer(value)).toString(encoding ?? this.encoding ?? "base64")}`
+        ? `data:text/x-component;${encoding ?? this.encoding ?? "base64"},${Buffer.from(await this.serializer.toBuffer(value)).toString(encoding ?? this.encoding ?? "base64")}`
         : await value;
     const payload = {
       data,

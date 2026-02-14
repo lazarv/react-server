@@ -1,12 +1,9 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { AsyncLocalStorage } from "node:async_hooks";
 
-import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
-import { getRuntime, init$ as runtime_init$ } from "../../server/runtime.mjs";
-import { MANIFEST, MODULE_LOADER } from "../../server/symbols.mjs";
+// import { getRuntime } from "../../server/runtime.mjs";
+// import { MODULE_CACHE, LINK_QUEUE } from "../../server/symbols.mjs";
 import { isEdgeRuntime, cwd as sysCwd } from "../sys.mjs";
-import { init$ as manifest_init$ } from "./manifest.mjs";
 
 function tryStat(path) {
   // In Cloudflare Workers, we can't use fs.statSync
@@ -37,8 +34,7 @@ function createChannelPair() {
     },
     postMessage(message) {
       for (const listener of otherListeners) {
-        // listener(message);
-        setTimeout(() => listener(message), 16);
+        listener(message);
       }
     },
     terminate() {
@@ -61,40 +57,33 @@ export function hasRenderer(options) {
   );
 }
 
-export async function createRenderer({ options }) {
+export async function createRenderer() {
   const [parentPort, workerPort] = createChannelPair();
 
-  await runtime_init$(async () => {
-    const moduleCacheStorage = new AsyncLocalStorage();
-    const linkQueueStorage = new AsyncLocalStorage();
-    await manifest_init$(options);
-    const moduleLoader = getRuntime(MODULE_LOADER);
-    await module_loader_init$(
-      moduleLoader,
-      moduleCacheStorage,
-      linkQueueStorage,
-      "ssr"
-    );
-    const outDir = options.outDir || ".react-server";
-    const manifest = getRuntime(MANIFEST);
-    const rendererPath = join(
-      cwd,
-      outDir,
-      Object.values(manifest.client).find(
-        (entry) => entry.name === "server/render-dom"
-      )?.file || ""
-    );
-    const { createRenderer } = await import(rendererPath);
+  // await runtime_init$(async () => {
+  // const moduleCacheStorage = getRuntime(MODULE_CACHE);
+  // const linkQueueStorage = getRuntime(LINK_QUEUE);
+  //   const moduleCacheStorage = new AsyncLocalStorage();
+  //   const linkQueueStorage = new AsyncLocalStorage();
+  //   await import("./manifest.mjs").then(({ init$ }) => init$(options, "ssr"));
+  //   const moduleLoader = getRuntime(MODULE_LOADER);
+  //   await module_loader_init$(
+  //     moduleLoader,
+  //     moduleCacheStorage,
+  //     linkQueueStorage,
+  //     "ssr"
+  //   );
+  const { createRenderer } = await import(".react-server/server/render-dom");
 
-    parentPort.on(
-      "message",
-      createRenderer({
-        moduleCacheStorage,
-        linkQueueStorage,
-        parentPort,
-      })
-    );
-  });
+  parentPort.on(
+    "message",
+    createRenderer({
+      // moduleCacheStorage,
+      // linkQueueStorage,
+      parentPort,
+    })
+  );
+  // });
 
   return workerPort;
 }

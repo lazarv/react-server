@@ -10,7 +10,6 @@ import {
   copyBytesFrom,
   immediate,
 } from "@lazarv/react-server/lib/sys.mjs";
-import { clientReferenceMap } from "@lazarv/react-server/server/client-reference-map.mjs";
 import {
   context$,
   ContextStorage,
@@ -51,23 +50,8 @@ import {
 } from "@lazarv/react-server/server/symbols.mjs";
 import { ServerFunctionNotFoundError } from "./action-state.mjs";
 import { cwd } from "../lib/sys.mjs";
-
-const serverReferenceMap = new Proxy(
-  {},
-  {
-    get(target, prop) {
-      if (!target[prop]) {
-        const [id, name] = prop.split("#");
-        target[prop] = {
-          id: `server://${id}`,
-          name,
-          chunks: [],
-        };
-      }
-      return target[prop];
-    },
-  }
-);
+import { clientReferenceMap } from ".react-server/server/client-reference-map";
+import { serverReferenceMap } from ".react-server/server/server-reference-map";
 
 export async function render(Component, props = {}, options = {}) {
   const logger = getContext(LOGGER_CONTEXT);
@@ -79,14 +63,17 @@ export async function render(Component, props = {}, options = {}) {
       try {
         revalidate$();
 
-        const origin = context.request.headers.get("origin");
+        const renderContext = getContext(RENDER_CONTEXT);
+        const remote = renderContext.flags.isRemote;
+        const outlet = useOutlet();
+        const remoteRSC = outlet.includes("__react_server_remote__");
+        const origin = remoteRSC
+          ? context.url.origin
+          : context.request.headers.get("origin");
         const originURL = origin ? new URL(origin) : null;
         const originHostname = originURL?.hostname;
         const protocol = originURL?.protocol;
         const host = context.request.headers.get("host");
-        const renderContext = getContext(RENDER_CONTEXT);
-        const remote = renderContext.flags.isRemote;
-        const outlet = useOutlet();
         let body = "";
         let serverFunctionResult,
           callServer,
@@ -165,12 +152,14 @@ export async function render(Component, props = {}, options = {}) {
 
           if (!(input instanceof Error)) {
             if (serverActionHeader && serverActionHeader !== "null") {
-              const [serverReferenceModule, serverReferenceName] =
-                serverActionHeader.split("#");
+              const [, serverReferenceName] = serverActionHeader.split("#");
               action = async () => {
                 try {
                   const mod = await globalThis.__webpack_require__(
-                    serverReferenceModule
+                    serverReferenceMap[serverActionHeader].id.replace(
+                      /^server-action:\/\//,
+                      "server://"
+                    )
                   );
                   const fn = mod[serverReferenceName];
                   if (typeof fn !== "function") {
@@ -328,8 +317,8 @@ export async function render(Component, props = {}, options = {}) {
         }
 
         const precedence =
-          // when rendering a remote component or the outlet name starts with http or https (escaped remote component outlet name), don't set the precedence
-          remote || /^https?___/.test(outlet) ? undefined : "default";
+          // when rendering a remote component or the outlet name starts with __react_server_remote__ (escaped remote component outlet name), don't set the precedence
+          remote || remoteRSC ? undefined : "default";
         const configBaseHref = config.base
           ? (link) => `/${config.base}/${link?.id || link}`.replace(/\/+/g, "/")
           : (link) => link?.id || link;
@@ -382,12 +371,14 @@ export async function render(Component, props = {}, options = {}) {
             : () => null;
         const ComponentWithStyles = (
           <>
-            <link
-              rel="preconnect"
-              href={origin ?? "/"}
-              id={remote ? `live-io-${outlet}` : "live-io"}
-            />
-            {import.meta.env.DEV && !remote && (
+            {remoteRSC ? null : (
+              <link
+                rel="preconnect"
+                href={origin ?? "/"}
+                id={remote ? `live-io-${outlet}` : "live-io"}
+              />
+            )}
+            {import.meta.env.DEV && !remote && !remoteRSC && (
               <>
                 <meta name="react-server:cwd" content={cwd()} />
                 {typeof config.console !== "undefined" && (
@@ -517,7 +508,10 @@ export async function render(Component, props = {}, options = {}) {
 
               const flight = server.renderToReadableStream(
                 app,
-                clientReferenceMap({ remote, origin }),
+                clientReferenceMap({
+                  remote: remote || remoteRSC,
+                  origin,
+                }),
                 {
                   temporaryReferences,
                   onError(e) {
@@ -655,7 +649,7 @@ export async function render(Component, props = {}, options = {}) {
           let hasError = false;
           const flight = server.renderToReadableStream(
             app,
-            clientReferenceMap({ remote, origin }),
+            clientReferenceMap({ remote: remote || remoteRSC, origin }),
             {
               temporaryReferences,
               onError(e) {

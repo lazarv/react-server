@@ -73,7 +73,11 @@ export function concat(buffers) {
 }
 
 export function immediate(fn) {
-  return typeof Deno !== "undefined" ? fn() : setImmediate(fn);
+  if (typeof Deno !== "undefined") {
+    // Deno doesn't have setImmediate, use queueMicrotask to defer to next tick
+    return setTimeout(fn, 0);
+  }
+  return setImmediate(fn);
 }
 
 export function experimentalWarningSilence() {

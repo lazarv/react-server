@@ -177,6 +177,7 @@ export default function useServerInline(manifest) {
           importKind: "value",
         });
 
+        const exportedNames = new Set();
         for (const action of actions) {
           let argsName;
           if (action.params.length > 0) {
@@ -249,7 +250,9 @@ export default function useServerInline(manifest) {
                   },
                   {
                     type: "Literal",
-                    value: id,
+                    value: manifest
+                      ? relative(cwd, id).replace(/\.m?[jt]sx?$/, "")
+                      : id,
                   },
                   {
                     type: "Literal",
@@ -259,16 +262,22 @@ export default function useServerInline(manifest) {
               },
             }
           );
+          exportedNames.add(action.name);
         }
 
         if (manifest) {
           const specifier = relative(cwd, id);
-          const name = specifier.replace(extname(specifier), "");
-          manifest.set(name, id);
+          const name = specifier
+            .replace(extname(specifier), "")
+            .replace(/[^@/\-a-zA-Z0-9]/g, "_");
+          manifest.set(name, {
+            id: specifier,
+            exports: Array.from(exportedNames),
+          });
 
           this.emitFile({
             type: "chunk",
-            id,
+            id: `virtual:rsc:react-server-reference:inline:${specifier}`,
             name,
           });
         }

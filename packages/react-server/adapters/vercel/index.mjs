@@ -10,7 +10,7 @@ import {
   message,
   success,
   writeJSON,
-} from "@lazarv/react-server-adapter-core";
+} from "@lazarv/react-server/adapters/core";
 
 const cwd = sys.cwd();
 const vercelDir = join(cwd, ".vercel");
@@ -24,7 +24,7 @@ export const adapter = createAdapter({
   outStaticDir,
   handler: async function ({ adapterOptions, copy }) {
     if (adapterOptions?.serverlessFunctions !== false) {
-      banner("building serverless functions");
+      banner("building serverless functions", { emoji: "⚡" });
 
       message("creating", "index.func module");
       const outServerDir = join(outDir, "functions/index.func");
@@ -42,7 +42,7 @@ export const adapter = createAdapter({
         supportsResponseStreaming: true,
         ...adapterOptions?.serverlessFunctions?.index,
       });
-      success("index.func serverless function initialized.");
+      success("index.func serverless function initialized");
 
       await copy.server(outServerDir);
       await copy.dependencies(outServerDir, [entryFile]);
@@ -56,7 +56,7 @@ export const adapter = createAdapter({
       ];
     }
 
-    banner("creating deployment configuration");
+    banner("creating deployment configuration", { emoji: "⚙️" });
     message("creating", "config.json");
     await writeJSON(join(outDir, "config.json"), {
       version: 3,
@@ -77,7 +77,7 @@ export const adapter = createAdapter({
         },
       ],
     });
-    success("configuration created.");
+    success("configuration created");
   },
   deploy: {
     command: "vercel",

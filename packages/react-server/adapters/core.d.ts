@@ -1,4 +1,4 @@
-declare module "@lazarv/react-server-adapter-core" {
+declare module "@lazarv/react-server/adapters/core" {
   export interface Adapter<T = any> {
     (adapterOptions: T, root: string, options: any): Promise<void>;
   }
@@ -13,10 +13,12 @@ declare module "@lazarv/react-server-adapter-core" {
     name: string;
     outDir: string;
     outStaticDir?: string;
+    outServerDir?: string;
     handler: (options: {
       adapterOptions: T;
       files: {
         static: () => Promise<string[]>;
+        compressed: () => Promise<string[]>;
         assets: () => Promise<string[]>;
         client: () => Promise<string[]>;
         public: () => Promise<string[]>;
@@ -27,12 +29,13 @@ declare module "@lazarv/react-server-adapter-core" {
         all: () => Promise<string[]>;
       };
       copy: {
-        static: (out: string) => Promise<void>;
-        assets: (out: string) => Promise<void>;
-        client: (out: string) => Promise<void>;
-        public: (out: string) => Promise<void>;
-        server: (out: string) => Promise<void>;
-        dependencies: (out: string, adapterFiles: string[]) => Promise<void>;
+        static: (out?: string) => Promise<void>;
+        compressed: (out?: string) => Promise<void>;
+        assets: (out?: string) => Promise<void>;
+        client: (out?: string) => Promise<void>;
+        public: (out?: string) => Promise<void>;
+        server: (out?: string) => Promise<void>;
+        dependencies: (out: string, adapterFiles?: string[]) => Promise<void>;
       };
       config: Record<string, any>;
       reactServerDir: string;
@@ -40,7 +43,7 @@ declare module "@lazarv/react-server-adapter-core" {
       root: string;
       options: Record<string, any>;
     }) => Promise<R>;
-    deploy:
+    deploy?:
       | DeployCommandDescriptor
       | ((context: {
           adapterOptions: T;
@@ -53,9 +56,16 @@ declare module "@lazarv/react-server-adapter-core" {
           | Promise<void>);
   }): Adapter<T>;
 
-  export function banner(message: string): void;
+  export function banner(
+    message: string,
+    options?: { forceVerbose?: boolean; emoji?: string }
+  ): void;
   export function clearDirectory(dir: string): Promise<void>;
-  export function copy(src: string, dest: string): Promise<void>;
+  export function copy(
+    srcDir: string,
+    destDir: string,
+    reactServerOutDir: string
+  ): (file: string) => Promise<void>;
   export function copyMessage(
     file: string,
     srcDir: string,
@@ -67,7 +77,8 @@ declare module "@lazarv/react-server-adapter-core" {
     files: string[],
     srcDir: string,
     destDir: string,
-    reactServerOutDir: string
+    reactServerOutDir: string,
+    emoji?: string
   ): Promise<void>;
   export function message(primary: string, secondary?: string): void;
   export function success(message: string): void;
@@ -76,23 +87,28 @@ declare module "@lazarv/react-server-adapter-core" {
     data: Record<string, any>
   ): Promise<void>;
   export function clearProgress(): void;
-  export function createProgress(
-    message: string,
-    total: number,
-    start?: number
-  ): void;
-  export function progress(options: {
-    message: string;
-    files: string[];
-    onProgress: (file: string) => Promise<void>;
-    onFile: (file: string) => Promise<void>;
-  }): Promise<void>;
   export function getConfig(): Record<string, any>;
   export function getPublicDir(): string;
-  export function getFiles(pattern: string, srcDir?: string): Promise<string[]>;
+  export function getFiles(
+    pattern: string | string[],
+    srcDir?: string
+  ): Promise<string[]>;
   export function getDependencies(
     adapterFiles: string[],
     reactServerDir: string
-  ): Promise<string[]>;
+  ): Promise<{ src: string; dest: string }[]>;
   export function spawnCommand(command: string, args: string[]): Promise<void>;
+  export function deepMerge<T extends Record<string, any>>(
+    source: T,
+    target: Partial<T>
+  ): T;
+  export function readToml<T = Record<string, any>>(filePath: string): T | null;
+  export function writeToml(
+    filePath: string,
+    data: Record<string, any>
+  ): Promise<void>;
+  export function mergeTomlConfig<T = Record<string, any>>(
+    existingPath: string,
+    adapterConfig: Partial<T>
+  ): T;
 }

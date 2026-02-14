@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
@@ -35,6 +34,16 @@ export default async (context) => {
                   description: "Deploy to Vercel",
                 },
                 {
+                  name: "Netlify",
+                  value: "netlify",
+                  description: "Deploy to Netlify",
+                },
+                {
+                  name: "Cloudflare Workers/Pages",
+                  value: "cloudflare",
+                  description: "Deploy to Cloudflare Workers/Pages",
+                },
+                {
                   name: "AWS",
                   value: "aws",
                   description: "Deploy to AWS Lambda",
@@ -50,30 +59,25 @@ export default async (context) => {
     ...context.partials,
   };
   const files = context.files;
+  const adapterName = {
+    vercel: "Vercel",
+    netlify: "Netlify",
+    cloudflare: "Cloudflare Workers/Pages",
+  };
+  const adapterIgnore = {
+    vercel: [".vercel", "vercel.json"],
+    netlify: ["netlify.toml", "netlify", ".netlify"],
+    cloudflare: [".cloudflare", ".wrangler", "wrangler.toml"],
+  };
 
-  if (adapter === "vercel") {
-    partials["package.json"] = {
-      ...partials["package.json"],
-      merge: [
-        ...partials["package.json"].merge,
-        {
-          devDependencies: {
-            "@lazarv/react-server-adapter-vercel": `^${execSync(
-              "npm view @lazarv/react-server-adapter-vercel version"
-            )
-              .toString()
-              .trim()}`,
-          },
-        },
-      ],
-    };
+  if (adapter in adapterIgnore) {
     partials["react-server.config.json"] = {
       ...partials?.["react-server.config.json"],
       type: "json",
       merge: [
         ...(partials?.["react-server.config.json"]?.merge ?? []),
         {
-          adapter: "@lazarv/react-server-adapter-vercel",
+          adapter,
         },
       ],
     };
@@ -82,7 +86,7 @@ export default async (context) => {
         ...partials?.[".gitignore"],
         merge: [
           ...(partials?.[".gitignore"]?.merge ?? []),
-          "\n# Vercel\n.vercel\n",
+          `\n# ${adapterName[adapter] ?? adapter}\n${adapterIgnore[adapter].join("\n")}\n`,
         ],
       };
     }

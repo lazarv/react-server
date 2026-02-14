@@ -13,6 +13,8 @@ import { getEnv, immediate } from "../lib/sys.mjs";
 import dom2flight from "./dom-flight.mjs";
 import { ssrManifest } from "./ssr-manifest.mjs";
 import { remoteTemporaryReferences } from "./temporary-references.mjs";
+import { getContext } from "./context.mjs";
+import { LINK_QUEUE, MODULE_CACHE } from "./symbols.mjs";
 
 const streamMap = new Map();
 const preludeMap = new Map();
@@ -132,9 +134,15 @@ export const createRenderer = ({
 
     let started = false;
     let error = null;
-    moduleCacheStorage.run(new Map(), async () => {
+
+    const context = {
+      moduleCacheStorage: getContext(MODULE_CACHE) ?? moduleCacheStorage,
+      linkQueueStorage: getContext(LINK_QUEUE) ?? linkQueueStorage,
+    };
+
+    context.moduleCacheStorage.run(new Map(), async () => {
       const linkQueue = new Set();
-      linkQueueStorage.run(linkQueue, async () => {
+      context.linkQueueStorage.run(linkQueue, async () => {
         HttpContextStorage.run(
           {
             ...httpContext,
@@ -278,7 +286,7 @@ export const createRenderer = ({
                         forwardDone = _done;
 
                         hasClientComponent =
-                          moduleCacheStorage.getStore()?.size > 0;
+                          context.moduleCacheStorage.getStore()?.size > 0;
 
                         if (_done) break;
 

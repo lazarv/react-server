@@ -1,0 +1,217 @@
+---
+title: Netlify
+category: Deploy
+order: 3
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Netlify
+
+To deploy to Netlify, use the built-in `netlify` adapter. This adapter is specifically designed to work with Netlify's serverless functions and edge network.
+
+<Link name="installation">
+## Installation
+</Link>
+
+First you need to have a Netlify account and the Netlify CLI installed:
+
+```sh
+npm install -g netlify-cli
+netlify login
+```
+
+No additional packages are needed - the adapter is built into `@lazarv/react-server`.
+
+Then you need to add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "netlify",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "netlify",
+    {
+      name: "my-app", // Netlify site name
+      serverlessFunctions: {
+        server: {
+          // Custom Netlify function config
+          includedFiles: ["data/**"],
+          schedule: "@daily",
+        },
+      },
+      netlify: {
+        // Additional netlify.toml configuration
+        build: {
+          environment: {
+            NODE_VERSION: "20",
+          },
+        },
+      },
+    },
+  ],
+};
+```
+
+Or disable serverless functions entirely if you only want static hosting:
+
+```mjs
+export default {
+  adapter: [
+    "netlify",
+    {
+      serverlessFunctions: false,
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `name`: Netlify site name. Falls back to `package.json` name (without scope).
+- `serverlessFunctions`: Enable/disable serverless function deployment (default: true). Set to `false` for static-only deployment.
+  - `server`: Additional configuration for the server function (merged with function's config export).
+- `netlify`: Additional netlify.toml configuration as an object (merged with adapter defaults).
+
+<Link name="extending-netlify">
+## Extending Netlify configuration
+</Link>
+
+To extend the generated `netlify.toml`, create a `react-server.netlify.toml` file in your project root. The adapter will merge it with its configuration:
+
+- **Primitive values**: Adapter config takes precedence
+- **Objects**: Deep merged recursively
+- **Arrays**: Unique items from your config are preserved and prepended to adapter defaults
+
+This allows you to add custom headers, redirects, environment variables, or other Netlify-specific configuration while the adapter manages the required settings.
+
+```toml filename="react-server.netlify.toml"
+[[redirects]]
+  from = "/old-path"
+  to = "/new-path"
+  status = 301
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+```
+
+<Link name="deploy">
+## Deploy
+</Link>
+
+When using `@lazarv/react-server` with the Netlify adapter, you can deploy your application using the following command:
+
+```sh
+pnpm react-server build [root] # [root] is the entry point of your application
+netlify deploy --prod
+```
+
+You can also deploy with the `react-server` CLI by using the `--deploy` argument:
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+This will build your application and deploy it to Netlify.
+
+<Link name="serverless-functions">
+## Serverless Functions
+</Link>
+
+The adapter automatically creates a Netlify serverless function in the `netlify/functions/server` directory. This function handles all server-side rendering and API routes.
+
+The function is configured to:
+- Use Node.js runtime with ESM support
+- Handle all requests via the `/*` path
+- Prefer static assets when available (`preferStatic: true`)
+- Bundle with `node_bundler: "none"` for full control over dependencies
+
+You can customize the function configuration using the `serverlessFunctions.server` option in your adapter config.
+
+<Link name="static-assets">
+## Static Assets
+</Link>
+
+Static assets are automatically copied to the `netlify/static` directory, which is configured as the publish directory in `netlify.toml`. This includes:
+
+- Client-side JavaScript bundles
+- CSS files
+- Public assets (images, fonts, etc.)
+- Pre-rendered HTML pages
+
+Netlify's CDN will automatically serve these assets with optimal caching and delivery.
+
+<Link name="edge-functions">
+## Edge Functions
+</Link>
+
+Instead of serverless functions, you can deploy your application using [Netlify Edge Functions](https://docs.netlify.com/platform/primitives/#edge-functions), which run on Deno at the edge for lower latency:
+
+```mjs
+export default {
+  adapter: [
+    "netlify",
+    {
+      edgeFunctions: true,
+    },
+  ],
+};
+```
+
+You can also pass additional configuration for the edge function:
+
+```mjs
+export default {
+  adapter: [
+    "netlify",
+    {
+      edgeFunctions: {
+        config: {
+          // Additional edge function config
+          // See: https://docs.netlify.com/edge-functions/api/#supported-fields
+        },
+      },
+    },
+  ],
+};
+```
+
+When using edge functions, the adapter automatically:
+- Creates a server edge function in the `netlify/edge-functions/server` directory
+- Builds an explicit list of static files to exclude from the edge function (so they're served directly from the CDN)
+- Escapes special URL pattern characters in file paths
+
+<Link name="excluded-paths">
+### Extending Excluded Paths
+</Link>
+
+The adapter automatically generates an `excludedPath` array in `netlify.toml` that contains all static assets (JavaScript bundles, CSS files, public assets, etc.). This ensures static files are served directly from Netlify's CDN without invoking the edge function.
+
+To add additional paths that should bypass the edge function, use the `react-server.netlify.toml` file:
+
+```toml filename="react-server.netlify.toml"
+[[edge_functions]]
+excludedPath = ["/_custom/*", "/api/external/*"]
+```
+
+Your custom excluded paths will be prepended to the automatically generated list. This is useful for:
+- External API paths that should be handled by other services
+- Paths served by other Netlify integrations
+- Any routes you want to bypass the React Server edge function
+
+The final `netlify.toml` will contain a merged `excludedPath` array with your custom paths first, followed by all the auto-generated static asset paths.
+
+> **Note:** Additional Netlify features like Background Functions and Scheduled Functions can also be configured through the `react-server.netlify.toml` file. Please refer to the [Netlify documentation](https://docs.netlify.com/) for more information about available features and configuration options.

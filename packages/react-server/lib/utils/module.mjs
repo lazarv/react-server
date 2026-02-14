@@ -176,6 +176,60 @@ export function findPackageRoot(basedir, isRoot = false) {
   return null;
 }
 
+// Async version of findPackageRoot using fs.promises
+const packagePathCacheAsync = new Map();
+export async function findPackageRootAsync(basedir, isRoot = false) {
+  // Check sync cache first
+  if (packagePathCache.has(basedir)) {
+    return packagePathCache.get(basedir);
+  }
+  if (packagePathCacheAsync.has(basedir)) {
+    return packagePathCacheAsync.get(basedir);
+  }
+
+  const directoryStack = [basedir];
+  let currentDir = basedir;
+
+  while (currentDir) {
+    // Check both caches
+    if (packagePathCache.has(currentDir)) {
+      const cached = packagePathCache.get(currentDir);
+      packagePathCacheAsync.set(basedir, cached);
+      return cached;
+    }
+    if (packagePathCacheAsync.has(currentDir)) {
+      const cached = packagePathCacheAsync.get(currentDir);
+      packagePathCacheAsync.set(basedir, cached);
+      return cached;
+    }
+
+    const pkgPath = join(currentDir, "package.json");
+    const nextDir = dirname(currentDir);
+
+    try {
+      const stats = await stat(pkgPath);
+      if (stats && (!isRoot || (isRoot && nextDir.endsWith("node_modules")))) {
+        const pkgRoot = dirname(pkgPath);
+        // Cache all visited directories
+        while (directoryStack.length > 0) {
+          const dir = directoryStack.pop();
+          packagePathCacheAsync.set(dir, pkgRoot);
+          packagePathCache.set(dir, pkgRoot);
+        }
+        return pkgRoot;
+      }
+    } catch {
+      // package.json doesn't exist, continue to parent
+    }
+
+    if (nextDir === currentDir || nextDir === cwd) break;
+    currentDir = nextDir;
+    directoryStack.push(currentDir);
+  }
+
+  return null;
+}
+
 const packageCache = new Map();
 export function findNearestPackageData(basedir, isRoot = false) {
   const directoryStack = [basedir];
@@ -255,9 +309,8 @@ export function hasClientComponents(filePath) {
 export async function hasClientComponentsAsync(pkgPath) {
   if (!pkgPath) return false;
 
-  const root = findPackageRoot(pkgPath);
-
-  if (!root) return false;
+  // For package.json paths, the root is the parent directory
+  let root = dirname(pkgPath);
 
   // Check if we have a cached result already
   if (clientComponentsCache.has(root)) {
@@ -269,10 +322,58 @@ export async function hasClientComponentsAsync(pkgPath) {
     return clientComponentsPromiseCache.get(root);
   }
 
+  // Directories to skip when scanning for client components
+  const skipDirs = new Set(["node_modules", ".git", ".turbo", "pnpm-store"]);
+
+  // Get entry points from package.json to focus the search
+  async function getEntryPoints() {
+    try {
+      const pkgContent = await readFileCachedAsync(pkgPath);
+      if (!pkgContent) return null;
+
+      const pkg = JSON.parse(pkgContent);
+      const dirs = new Set();
+
+      // Add directories based on package.json entry points
+      if (pkg.main) {
+        dirs.add(dirname(pkg.main));
+      }
+      if (pkg.module) {
+        dirs.add(dirname(pkg.module));
+      }
+      if (pkg.exports) {
+        // Handle both string and object exports
+        const processExports = (exp) => {
+          if (typeof exp === "string") {
+            dirs.add(dirname(exp));
+          } else if (typeof exp === "object") {
+            for (const key in exp) {
+              if (key.startsWith(".")) {
+                processExports(exp[key]);
+              }
+            }
+          }
+        };
+        processExports(pkg.exports);
+      }
+      if (pkg.types || pkg.typings) {
+        dirs.add(dirname(pkg.types || pkg.typings));
+      }
+
+      return dirs.size > 0 ? dirs : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function searchForUseClient(dir) {
     try {
       const files = await readdir(dir);
       const checks = files.map(async (file) => {
+        // Skip hidden files and excluded directories
+        if (file.startsWith(".") && file !== ".") return false;
+        if (skipDirs.has(file)) return false;
+
         const fullPath = join(dir, file);
         try {
           const fileStat = await stat(fullPath);
@@ -301,7 +402,23 @@ export async function hasClientComponentsAsync(pkgPath) {
   }
 
   // Create and cache the promise immediately to handle concurrent calls
-  const searchPromise = searchForUseClient(root).then((result) => {
+  const searchPromise = (async () => {
+    const entryPoints = await getEntryPoints();
+
+    // If we have entry points, search those dirs; otherwise search entire package
+    if (entryPoints && entryPoints.size > 0) {
+      // Search each entry point directory
+      const checks = Array.from(entryPoints).map((dir) => {
+        const fullPath = join(root, dir);
+        return searchForUseClient(fullPath);
+      });
+      const results = await Promise.all(checks);
+      return results.some(Boolean);
+    } else {
+      // Fallback: search entire package
+      return searchForUseClient(root);
+    }
+  })().then((result) => {
     // Cache the final result and clean up the promise cache
     clientComponentsCache.set(root, result);
     clientComponentsPromiseCache.delete(root);

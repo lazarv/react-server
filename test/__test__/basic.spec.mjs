@@ -61,7 +61,7 @@ async function testClientOnly() {
   expect(await page.textContent("body")).toContain("1");
 }
 
-test("client-only counter", async () => {
+test("bare client-only counter", async () => {
   await server("fixtures/client-only.jsx");
   await testClientOnly();
 });
@@ -150,7 +150,7 @@ test("style assets", async () => {
 });
 
 test("style assets with base url", async () => {
-  await server("fixtures/styles.jsx", { base: "/react-server/" });
+  await server("fixtures/styles.jsx", undefined, "/react-server/");
   await page.goto(hostname + "/react-server");
   const h1 = await page.getByText("This text should be yellow");
   const color = await h1.evaluate((el) => getComputedStyle(el).color);

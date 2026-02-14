@@ -14,26 +14,42 @@ import * as sys from "../sys.mjs";
 
 const cwd = sys.cwd();
 
-// Load JSON file - uses different strategies for Node.js vs edge runtime
-async function loadJSON(path) {
-  if (sys.isEdgeRuntime) {
-    // Edge runtime: import as module (wrangler bundles as Text, need to parse)
-    const mod = await import(path);
-    const value = mod.default ?? mod;
-    return typeof value === "string" ? JSON.parse(value) : value;
-  } else {
-    // Node.js: use import assertion
-    const mod = await import(path, { with: { type: "json" } });
-    return mod.default;
-  }
-}
-
 export async function init$(options = {}) {
+  const [
+    { collectStylesheets, collectClientModules },
+    { registry: clientRegistry },
+    { registry: serverRegistry },
+  ] = await Promise.all([
+    import(".react-server/server/preload-manifest"),
+    (async () => {
+      try {
+        return await import(".react-server/client/manifest-registry");
+      } catch {
+        return { registry: new Map() };
+      }
+    })(),
+    (async () => {
+      try {
+        return await import(".react-server/manifest-registry");
+      } catch {
+        return { registry: new Map() };
+      }
+    })(),
+  ]);
   const outDir = options.outDir ?? ".react-server";
+  const [
+    { default: serverLoader },
+    { default: clientLoader },
+    { default: browserLoader },
+  ] = await Promise.all([
+    import(".react-server/server/server-manifest"),
+    import(".react-server/server/client-manifest"),
+    import(".react-server/client/browser-manifest"),
+  ]);
   const [server, client, browser] = await Promise.all([
-    loadJSON(join(cwd, `${outDir}/server/server-manifest.json`)),
-    loadJSON(join(cwd, `${outDir}/server/client-manifest.json`)),
-    loadJSON(join(cwd, `${outDir}/client/browser-manifest.json`)),
+    serverLoader(join(cwd, `${outDir}/server/server-manifest.json`)),
+    clientLoader(join(cwd, `${outDir}/server/client-manifest.json`)),
+    browserLoader(join(cwd, `${outDir}/client/browser-manifest.json`)),
   ]);
   const manifest = {
     server,
@@ -42,11 +58,15 @@ export async function init$(options = {}) {
   };
   runtime$(MANIFEST, manifest);
 
-  const mainModule = `/${Object.values(manifest.browser).find((entry) => entry.name === "client/index")?.file}`;
+  const mainModule = `/${Object.values(manifest.browser).find((entry) => entry.name === "index")?.file}`;
   runtime$(MAIN_MODULE, [mainModule]);
 
   const entryCache = new Map();
-  function ssrLoadModule($$id, linkQueueStorage) {
+  async function ssrLoadModule($$id, linkQueueStorage) {
+    const registry = $$id.startsWith("server://")
+      ? serverRegistry
+      : clientRegistry;
+    $$id = $$id.replace(/^(server|client):\/\//, "");
     const linkQueue = linkQueueStorage?.getStore() ?? new Set();
     const httpContext = getContext(HTTP_CONTEXT);
     let [id] = (
@@ -75,11 +95,14 @@ export async function init$(options = {}) {
       // noop
     }
     if (entryCache.has(id)) {
-      const { specifier, links } = entryCache.get(id);
+      const { specifier, links, entry } = entryCache.get(id);
       if (links.length > 0) {
         linkQueue.add(...links);
       }
-      return import(specifier);
+      const { importer } = registry.get(entry.src) || {
+        importer: () => import(specifier),
+      };
+      return importer();
     }
     let entry;
     const browserEntry = Object.values(manifest.browser).find(
@@ -88,22 +111,17 @@ export async function init$(options = {}) {
     if (browserEntry) {
       entry = Object.values(manifest.client).find((entry) => {
         try {
-          return entry.isEntry && entry.name === `server/${browserEntry.name}`;
+          return (
+            (entry.isEntry || entry.isDynamicEntry) &&
+            browserEntry.src === entry.src
+          );
         } catch {
           return false;
         }
       });
     }
     if (!entry) {
-      entry = Object.values(manifest.server).find(
-        (entry) =>
-          entry.src &&
-          (join(import.meta.__react_server_cwd__ ?? cwd, entry.src) ===
-            `/${id}` ||
-            sys.normalizePath(
-              join(import.meta.__react_server_cwd__ ?? cwd, entry.src)
-            ) === id)
-      );
+      entry = Object.values(manifest.server).find((entry) => entry.src === id);
     }
     if (!entry) {
       const clientEntry = Object.values(manifest.client).find(
@@ -113,71 +131,29 @@ export async function init$(options = {}) {
         entry = clientEntry;
       }
     }
+    if (!entry && browserEntry) {
+      entry = browserEntry;
+    }
     if (!entry) {
-      throw new Error(`Module not found: ${$$id}`);
+      throw new Error(`Module not found: ${id}`);
     }
     const specifier = join(cwd, outDir, entry.file);
     const links = collectStylesheets(specifier, manifest.client) ?? [];
-    entryCache.set(id, { specifier, links });
+    entryCache.set(id, { specifier, links, entry });
     if (links.length > 0) {
       linkQueue.add(...links);
     }
-    return import(specifier);
+    const registryEntry = registry.get(entry.src);
+    const { importer } = registryEntry || {
+      importer: () => import(specifier),
+    };
+    return importer();
   }
   runtime$(MODULE_LOADER, ssrLoadModule);
-
-  function collectStylesheets(rootModule, manifestEnv = manifest.server) {
-    if (!rootModule) return [];
-    const normalizedRootModule = sys.normalizePath(rootModule);
-    const rootManifest = Array.from(Object.values(manifestEnv)).find(
-      (entry) =>
-        normalizedRootModule.endsWith(entry.file) ||
-        entry.src?.endsWith(normalizedRootModule)
-    );
-    const styles = [];
-    const visited = new Set();
-    function collectCss(entry) {
-      if (!entry || visited.has(entry.file)) return styles;
-      visited.add(entry.file);
-      if (entry.css) {
-        styles.unshift(...entry.css.map((href) => `/${href}`));
-      }
-      if (entry.imports) {
-        entry.imports.forEach((imported) => collectCss(manifestEnv[imported]));
-      }
-    }
-    collectCss(rootManifest);
-    return styles;
-  }
-  runtime$(COLLECT_STYLESHEETS, collectStylesheets);
-
-  function collectClientModules(rootModule) {
-    if (!rootModule) return [];
-    const normalizedRootModule = sys.normalizePath(rootModule);
-    const rootManifest = Array.from(Object.values(manifest.server)).find(
-      (entry) =>
-        normalizedRootModule.endsWith(entry.file) ||
-        entry.src?.endsWith(normalizedRootModule)
-    );
-    const modules = [];
-    const visited = new Set();
-    function collectModules(mod) {
-      if (!mod || visited.has(mod.file)) return modules;
-      visited.add(mod.file);
-      if (mod.imports) {
-        mod.imports.forEach((imported) =>
-          collectModules(manifest.server[imported])
-        );
-      }
-      const clientModule = Object.values(manifest.browser).find(
-        (entry) => entry.name === `client/${mod.name}`
-      );
-      if (clientModule) {
-        modules.push(`/${clientModule.file}`);
-      }
-    }
-    collectModules(rootManifest);
-    return modules;
-  }
-  runtime$(COLLECT_CLIENT_MODULES, collectClientModules);
+  runtime$(COLLECT_STYLESHEETS, (rootModule, manifestEnv = manifest.server) =>
+    collectStylesheets(rootModule, manifestEnv)
+  );
+  runtime$(COLLECT_CLIENT_MODULES, (rootModule) =>
+    collectClientModules(rootModule, manifest)
+  );
 }

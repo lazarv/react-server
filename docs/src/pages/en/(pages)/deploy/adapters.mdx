@@ -14,18 +14,19 @@ You can use adapters to configure your app for different deployment environments
 ### Available adapters
 </Link>
 
-- [x] `@lazarv/react-server-adapter-vercel` for Vercel deployment
-- [x] `@lazarv/react-server-adapter-cloudflare` for Cloudflare Workers/Pages deployment
+- [x] Vercel
+- [x] Netlify
+- [x] Cloudflare Workers/Pages
 
 <Link name="configuration">
 ## Configuration
 </Link>
 
-Add `adapter` entry to your `react-server.config.mjs` file. You can specify the name of the adapter as a string. The adapter package will be resolved from your project's dependencies.
+Add `adapter` entry to your `react-server.config.mjs` file. You can specify the name of a built-in adapter (`vercel`, `netlify`, or `cloudflare`) as a string, or use an external adapter package.
 
 ```mjs
 export default {
-  adapter: '@lazarv/react-server-adapter-vercel',
+  adapter: 'vercel',
 };
 ```
 
@@ -34,7 +35,7 @@ You can also specify custom options for all adapters. Configuration options are 
 ```mjs
 export default {
   adapter: [
-    '@lazarv/react-server-adapter-vercel',
+    'vercel',
     {
       // Custom options
     },
@@ -45,7 +46,7 @@ export default {
 You can also import an adapter from a package or file.
 
 ```mjs
-import adapter from '@lazarv/react-server-adapter-vercel';
+import adapter from '@lazarv/react-server/adapters/vercel';
 
 export default {
   adapter: adapter({

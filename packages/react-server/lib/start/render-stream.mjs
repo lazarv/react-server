@@ -8,17 +8,22 @@ import { getRuntime, init$ as runtime_init$ } from "../../server/runtime.mjs";
 import { MODULE_LOADER } from "../../server/symbols.mjs";
 import { alias } from "../loader/module-alias.mjs";
 import { experimentalWarningSilence, setEnv } from "../sys.mjs";
-import { init$ as manifest_init$ } from "./manifest.mjs";
 
 experimentalWarningSilence();
 alias();
-register("../loader/node-loader.mjs", import.meta.url);
+register("../loader/node-loader.mjs", import.meta.url, {
+  data: {
+    options: workerData.options,
+  },
+});
 setEnv("NODE_ENV", "production");
 
 await runtime_init$(async () => {
   const moduleCacheStorage = new AsyncLocalStorage();
   const linkQueueStorage = new AsyncLocalStorage();
-  await manifest_init$(workerData.options);
+  await import("./manifest.mjs").then(({ init$ }) =>
+    init$({ root: workerData.root, ...workerData.options })
+  );
   const moduleLoader = getRuntime(MODULE_LOADER);
   await module_loader_init$(moduleLoader, moduleCacheStorage, linkQueueStorage);
 

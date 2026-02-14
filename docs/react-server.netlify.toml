@@ -1,0 +1,5 @@
+[build]
+base = "docs"
+
+[[edge_functions]]
+excludedPath = ["/_vercel/*"]

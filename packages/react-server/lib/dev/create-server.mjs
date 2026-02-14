@@ -113,6 +113,21 @@ export default async function createServer(root, options) {
             : []),
         ]
       : undefined;
+  const corsEnabled = options.cors || config.server?.cors || config.cors;
+  const serverCors = corsEnabled ? getServerCors(config) : false;
+  // Disable Vite's built-in CORS when react-server's own CORS middleware is
+  // active. Vite's default CORS uses `Access-Control-Allow-Origin: *` which
+  // conflicts with `credentials: "include"` used by the client-side fetch for
+  // RSC payloads and remote components.  react-server's CORS middleware
+  // correctly reflects the request origin and sets credentials.
+  const viteCors = corsEnabled
+    ? false
+    : typeof config.server?.cors === "boolean"
+      ? config.server?.cors
+      : typeof config.cors === "boolean"
+        ? config.cors
+        : false;
+
   const devServerConfig = {
     ...config,
     json: {
@@ -121,7 +136,7 @@ export default async function createServer(root, options) {
     server: {
       ...config.server,
       middlewareMode: true,
-      cors: false,
+      cors: viteCors,
       hmr:
         config.server?.hmr === false
           ? false
@@ -302,6 +317,22 @@ export default async function createServer(root, options) {
           find: /^@lazarv\/react-server\/storage-cache\/crypto$/,
           replacement: sys.normalizePath(
             join(sys.rootDir, "cache/crypto-browser.mjs")
+          ),
+        },
+        {
+          find: /^\.react-server\/server\/client-reference-map$/,
+          replacement: sys.normalizePath(
+            __require.resolve(
+              "@lazarv/react-server/server/client-reference-map.mjs"
+            )
+          ),
+        },
+        {
+          find: /^\.react-server\/server\/server-reference-map$/,
+          replacement: sys.normalizePath(
+            __require.resolve(
+              "@lazarv/react-server/server/server-reference-map.mjs"
+            )
           ),
         },
         ...makeResolveAlias(config.resolve?.alias),
@@ -705,7 +736,9 @@ export default async function createServer(root, options) {
     [SERVER_CONTEXT]: viteDevServer,
     [LOGGER_CONTEXT]: viteDevServer.config.logger,
     [MODULE_LOADER]: ($$id) => {
-      const [id] = $$id.split("#");
+      const [id] = $$id
+        .replace(/^(server(-action)?|client):\/\//, "")
+        .split("#");
       return moduleRunner.import(id);
     },
     [IMPORT_MAP]: config.importMap
@@ -878,8 +911,8 @@ export default async function createServer(root, options) {
     ...(config.handlers?.post ?? []),
     notFoundHandler(),
   ]);
-  if (options.cors || config.server?.cors || config.cors) {
-    initialHandlers.unshift(cors(getServerCors(config)));
+  if (corsEnabled) {
+    initialHandlers.unshift(cors(serverCors));
   }
 
   viteDevServer.middlewares.use(

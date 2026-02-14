@@ -53,6 +53,8 @@ You need to pass adapter properties to the `createAdapter` function to configure
 
 `outStaticDir`: The directory where the static files will be output. This is optional. When provided, the adapter will copy the static files to the output directory.
 
+`outServerDir`: The directory where the server files will be output. This is optional. When provided, the adapter will copy the server files to the output directory.
+
 `handler`: The adapter handler function.
 
 `deploy`: The deployment command and arguments. This is optional. When provided, the adapter will show what command the developer needs to run to deploy the application after it has been built. If the `--deploy` flag is provided during the build, the adapter will run this command. The `deploy` property can also be a function that will be called with the adapter options, CLI options and the handler result. This is useful if you need to customize the deployment command based on the adapter options or the handler result. If you don't provide a result with `command` and `args`, the default deployment handling spawning the command will be skipped. This is useful if you want to implement a custom deployment workflow in the adapter.
@@ -169,4 +171,84 @@ await writeJSON(join(outServerDir, ".vc-config.json"), {
   supportsResponseStreaming: true,
   ...adapterOptions?.serverlessFunctions?.index,
 });
+```
+
+### clearProgress
+
+Clears any active progress indicator.
+
+```js
+clearProgress();
+```
+
+### getConfig
+
+Returns the application configuration from the `react-server.config.js` file.
+
+```js
+const config = getConfig();
+```
+
+### getPublicDir
+
+Returns the path to the public directory.
+
+```js
+const publicDir = getPublicDir();
+```
+
+### getFiles
+
+Returns a list of files matching the provided glob pattern.
+
+```js
+const files = await getFiles("**/*.mjs", srcDir);
+```
+
+### getDependencies
+
+Returns the list of dependencies for the adapter files. This uses `@vercel/nft` to trace file dependencies.
+
+```js
+const dependencies = await getDependencies(adapterFiles, reactServerDir);
+```
+
+### spawnCommand
+
+Spawns a command in the current working directory.
+
+```js
+await spawnCommand("vercel", ["deploy", "--prebuilt"]);
+```
+
+### deepMerge
+
+Deep merges two objects. Target (adapter config) takes precedence for primitive values. For arrays, target items are used with unique source items prepended.
+
+```js
+const merged = deepMerge(sourceConfig, adapterConfig);
+```
+
+### readToml
+
+Reads and parses a TOML file, returning `null` if parsing fails or the file doesn't exist.
+
+```js
+const config = readToml("wrangler.toml");
+```
+
+### writeToml
+
+Writes a TOML file.
+
+```js
+await writeToml("wrangler.toml", config);
+```
+
+### mergeTomlConfig
+
+Reads an existing TOML file and merges it with the adapter config. Returns the merged config.
+
+```js
+const config = mergeTomlConfig("wrangler.toml", adapterConfig);
 ```

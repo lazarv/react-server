@@ -96,4 +96,4 @@ jobs:
         run: pnpm install
 
       - name: Publish packages
-        run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server ./packages/create-react-server ./packages/react-server-adapter-core ./packages/react-server-adapter-vercel ./packages/react-server-adapter-cloudflare
+        run: pnpm dlx pkg-pr-new@0.0 publish --compact --pnpm ./packages/react-server ./packages/create-react-server

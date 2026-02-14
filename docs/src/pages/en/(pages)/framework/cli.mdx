@@ -89,12 +89,6 @@ See more details in the Vite documentation at [build.sourcemap](https://vitejs.d
 **no-color:** Disable color output. Default is `false`.  
 This is useful for CI/CD environments.
 
-**server:** Build server. Default is `true`.  
-You can disable server build if you only want to build the client part of your app. Use `--no-server` to disable server build.
-
-**client:** Build client. Default is `true`.  
-You can disable client build if you only want to build the server part of your app. Use `--no-client` to disable client build.
-
 **export:** Static export. Default is `false`.  
 You can export your app as static HTML pages. You can define the routes to export in your `react-server.config.mjs` file. See more details at [Static generation](/router/static).
 
@@ -110,10 +104,16 @@ If you use an adapter in your `react-server.config.mjs` file, the adapter will p
 
 **mode:** Set the mode for the build. Default is `production`.
 
+**edge:** Enable edge build mode. Default is `false`.
+Builds your app for edge runtime environments.
+
 **no-ssr-worker:** Disable SSR worker. Default is `false`. When enabled, the server-side rendering will be done in a worker thread. You can disable this if you want to run the server-side rendering in the main thread.
 
 **silent:** Suppress build output. Default is `false`.  
 This option suppresses all build output from the bundler. Useful for CI/CD environments or when running builds programmatically where you don't want verbose output.
+
+**verbose:** Verbose build output. Default is `false`.
+Enables detailed build logs from the bundler.
 
 <Link name="start-options">
 ## Start options

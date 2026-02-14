@@ -81,12 +81,6 @@ importers:
       '@lazarv/react-server':
         specifier: workspace:^
         version: link:../packages/react-server
-      '@lazarv/react-server-adapter-cloudflare':
-        specifier: workspace:^
-        version: link:../packages/react-server-adapter-cloudflare
-      '@lazarv/react-server-adapter-vercel':
-        specifier: workspace:^
-        version: link:../packages/react-server-adapter-vercel
       '@uidotdev/usehooks':
         specifier: ^2.4.1
         version: 2.4.1
@@ -928,6 +922,9 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.0
         version: 18.3.0
+      '@vercel/nft':
+        specifier: ^0.29.4
+        version: 0.29.4(rollup@4.53.2)
       '@vitejs/plugin-react':
         specifier: ^5.1.2
         version: 5.1.2(vite@6.4.1(@types/node@20.17.11)(jiti@2.6.1)(less@4.2.0)(lightningcss@1.30.2)(sass@1.86.0)(stylus@0.62.0)(terser@5.37.0)(yaml@2.5.0))
@@ -1033,6 +1030,9 @@ importers:
       semver:
         specifier: ^7.6.3
         version: 7.6.3
+      smol-toml:
+        specifier: ^1.6.0
+        version: 1.6.0
       socket.io:
         specifier: ^4.8.1
         version: 4.8.1
@@ -1064,53 +1064,6 @@ importers:
       '@types/node':
         specifier: ^20.10.0
         version: 20.17.11
-
-  packages/react-server-adapter-cloudflare:
-    dependencies:
-      smol-toml:
-        specifier: ^1.6.0
-        version: 1.6.0
-    devDependencies:
-      '@lazarv/react-server':
-        specifier: workspace:^
-        version: link:../react-server
-      '@lazarv/react-server-adapter-core':
-        specifier: workspace:^
-        version: link:../react-server-adapter-core
-
-  packages/react-server-adapter-core:
-    dependencies:
-      '@vercel/nft':
-        specifier: ^0.29.4
-        version: 0.29.4(rollup@4.53.2)
-      cli-progress:
-        specifier: ^3.12.0
-        version: 3.12.0
-      cli-spinners:
-        specifier: ^3.0.0
-        version: 3.0.0
-      fast-glob:
-        specifier: ^3.2.12
-        version: 3.3.2
-      log-update:
-        specifier: ^6.0.0
-        version: 6.1.0
-      picocolors:
-        specifier: ^1.0.0
-        version: 1.1.1
-    devDependencies:
-      '@lazarv/react-server':
-        specifier: workspace:^
-        version: link:../react-server
-
-  packages/react-server-adapter-vercel:
-    devDependencies:
-      '@lazarv/react-server':
-        specifier: workspace:^
-        version: link:../react-server
-      '@lazarv/react-server-adapter-core':
-        specifier: workspace:^
-        version: link:../react-server-adapter-core
 
   test:
     dependencies:
@@ -5951,17 +5904,9 @@ packages:
     resolution: {integrity: sha512-aCj4O5wKyszjMmDT4tZj93kxyydN/K5zPWSCe6/0AV/AA1pqe5ZBIw0a2ZfPQV7lL5/yb5HsUreJ6UFAF1tEQw==}
     engines: {node: '>=18'}
 
-  cli-progress@3.12.0:
-    resolution: {integrity: sha512-tRkV3HJ1ASwm19THiiLIXLO7Im7wlTuKnvkYaTkyoAPefqjNg7W7DHKUlGRxy9vxDvbyCYQkQozvptuMkGCg8A==}
-    engines: {node: '>=4'}
-
   cli-spinners@2.9.2:
     resolution: {integrity: sha512-ywqV+5MmyL4E7ybXgKys4DugZbX0FC6LnwrhjuykIjnK9k8OQacQ7axGKnjDXWNhns0xot3bZI5h55H8yo9cJg==}
     engines: {node: '>=6'}
-
-  cli-spinners@3.0.0:
-    resolution: {integrity: sha512-5p/5f8xOjTiyEpdc5KNulSLl5dOOgPQa/m4Rj6fF5UZubWIAvpVIJlnROBbJw+PZHKHlRlYv3KSfGYlecD7qrQ==}
-    engines: {node: '>=18.20'}
 
   cli-table3@0.6.5:
     resolution: {integrity: sha512-+W/5efTR7y5HRD7gACw9yQjqMVvEMLBHmboM/kPWam+H+Hmyrgjh6YncVKK122YZkXrLudzTuAukUw9FnMf7IQ==}
@@ -16786,13 +16731,7 @@ snapshots:
     dependencies:
       restore-cursor: 5.1.0
 
-  cli-progress@3.12.0:
-    dependencies:
-      string-width: 4.2.3
-
   cli-spinners@2.9.2: {}
-
-  cli-spinners@3.0.0: {}
 
   cli-table3@0.6.5:
     dependencies:

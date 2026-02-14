@@ -6,7 +6,7 @@ export default {
   root: "src/pages",
   public: "public",
   adapter: [
-    "@lazarv/react-server-adapter-vercel",
+    "vercel",
     {
       serverlessFunctions: false,
     },

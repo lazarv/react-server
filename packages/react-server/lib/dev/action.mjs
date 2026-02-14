@@ -31,7 +31,7 @@ export default async function dev(root, options) {
     }
 
     await logo();
-    banner("starting development server");
+    banner("starting development server", "🔧");
 
     process.on("unhandledRejection", (err) => {
       const logger = getRuntime(LOGGER_CONTEXT);

@@ -2,6 +2,18 @@ export const REACT_RE = /\/react\/|\/react-dom\/|\/react-server-dom-webpack\//;
 
 export const createTreeshake = (config) => ({
   moduleSideEffects: (id, external) => {
+    if (
+      id.startsWith("virtual:rsc:react-client-reference:") ||
+      id.startsWith("virtual:rsc:react-server-reference:") ||
+      id.startsWith("virtual:ssr:react-client-reference:") ||
+      id.startsWith("virtual:ssr:react-server-reference:") ||
+      id.includes(".react-server/manifest-registry") ||
+      id.includes(".react-server/client/manifest-registry") ||
+      id.includes("server/manifest-registry") ||
+      id.includes("server/client/manifest-registry")
+    ) {
+      return true;
+    }
     if (REACT_RE.test(id)) {
       return true;
     }

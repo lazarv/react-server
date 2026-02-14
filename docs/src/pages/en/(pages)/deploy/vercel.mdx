@@ -8,7 +8,7 @@ import Link from "../../../../components/Link.jsx";
 
 # Vercel
 
-To deploy to Vercel, use the `@lazarv/react-server-adapter-vercel` package. This adapter is specifically designed to work with Vercel and it's configuration.
+To deploy to Vercel, use the built-in `vercel` adapter. This adapter is specifically designed to work with Vercel and its configuration.
 
 <Link name="installation">
 ## Installation
@@ -23,17 +23,13 @@ vercel link --yes --project <project-name>
 
 At this point you will have a `.vercel` directory with a `project.json` file in it. This file will be used to store the project and organization configuration for your Vercel project.
 
-After you have initialized your project, you can add the `@lazarv/react-server-adapter-vercel` package to your project:
-
-```sh
-pnpm add -D @lazarv/react-server-adapter-vercel
-```
+No additional packages are needed - the adapter is built into `@lazarv/react-server`.
 
 Then you need to add the adapter to your `react-server.config.mjs` file:
 
 ```mjs
 export default {
-  adapter: '@lazarv/react-server-adapter-vercel',
+  adapter: 'vercel',
 };
 ```
 
@@ -47,7 +43,7 @@ You can also override the Serverless Function configuration for the `index` func
 
 ```mjs
 export default {
-  adapter: ['@lazarv/react-server-adapter-vercel', {
+  adapter: ['vercel', {
     serverlessFunctions: {
       index: {
         memory: 1024,
@@ -55,6 +51,16 @@ export default {
         // ...
       },
     }
+  }],
+};
+```
+
+Or disable serverless functions entirely if you only want static hosting:
+
+```mjs
+export default {
+  adapter: ['vercel', {
+    serverlessFunctions: false,
   }],
 };
 ```
@@ -80,4 +86,4 @@ pnpm react-server build [root] --deploy
 
 This will build your application and deploy it to Vercel.
 
-> Vercel Edge Functions, Edge Middlewares, Prerender Functions, ISR (Incremental Static Regeneration), Image Optimization and other Vercel features are not supported by the `@lazarv/react-server-adapter-vercel` package yet. Please, stay tuned for updates!
+> Vercel Edge Functions, Edge Middlewares, Prerender Functions, ISR (Incremental Static Regeneration), Image Optimization and other Vercel features are not supported by the built-in Vercel adapter yet. Please, stay tuned for updates!

@@ -1,7 +1,7 @@
+import { EventEmitter } from "node:events";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import colors from "picocolors";
-
 import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
 import { ContextStorage } from "../../server/context.mjs";
@@ -11,11 +11,20 @@ import {
   CONFIG_ROOT,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
+import bannerMessage from "../utils/banner.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import adapter, { getAdapterBuildOptions } from "./adapter.mjs";
-import clientBuild from "./client.mjs";
+import clientBuild, { startCollectingClientComponents } from "./client.mjs";
 import serverBuild from "./server.mjs";
+import edgeBuild from "./edge.mjs";
 import staticSiteGenerator from "./static.mjs";
+import manifest from "./manifest.mjs";
+import banner from "./banner.mjs";
+import {
+  initOutputFilter,
+  restoreStdout,
+  createSpinner,
+} from "./output-filter.mjs";
 
 const cwd = sys.cwd();
 
@@ -24,6 +33,8 @@ const isNative = (fn) =>
   /\[native code\]/.test(Function.prototype.toString.call(fn));
 
 export default async function build(root, options) {
+  const buildStart = Date.now();
+
   // Patch console and stdout when silent mode is enabled
   // Keep stderr so errors are still visible
   // Only patch if not already patched (e.g., by test frameworks)
@@ -40,6 +51,7 @@ export default async function build(root, options) {
   if (!options.outDir) {
     options.outDir = ".react-server";
   }
+
   const config = await loadConfig({}, { ...options, command: "build" });
 
   // Get adapter build options before build starts
@@ -64,31 +76,72 @@ export default async function build(root, options) {
             sys.setEnv("NODE_ENV", "production");
           }
           // empty out dir
-          if (options.server && options.client)
-            await rm(join(cwd, options.outDir), {
-              recursive: true,
-              force: true,
-            });
-          else if (options.server)
-            await rm(join(cwd, options.outDir, "server"), {
-              recursive: true,
-              force: true,
-            });
-          else if (options.client)
-            await rm(join(cwd, options.outDir, "client"), {
-              recursive: true,
-              force: true,
-            });
-          // build server
-          let buildOutput = false;
-          if (options.server) {
-            const serverBuildOutput = await serverBuild(root, options);
-            buildOutput ||= serverBuildOutput;
-          }
-          // build client
-          if (options.client) {
-            const clientBuildOutput = await clientBuild(root, options);
-            buildOutput ||= clientBuildOutput;
+          await rm(join(cwd, options.outDir), {
+            recursive: true,
+            force: true,
+          });
+
+          // Create event bus for parallel builds
+          // This allows RSC build to emit client component entries
+          // that SSR and Client builds consume dynamically
+          const clientManifestBus = new EventEmitter();
+
+          // Start collecting client components BEFORE Promise.all
+          // Uses double-stop mechanism:
+          // 1. RSC emits "groups-ready" when done discovering components
+          // 2. Collector extracts packages and generates chunk groups
+          // 3. Collector emits "end" so SSR and Client builds can proceed
+          const chunkGroupsPromise =
+            startCollectingClientComponents(clientManifestBus);
+
+          // Single banner for all parallel builds
+          // bannerMessage(
+          //   `building for ${options.dev ? "development" : "production"}`
+          // );
+          banner("bundles");
+          const parallelBuildStart = Date.now();
+
+          // Filter out Vite's verbose output during parallel builds
+          initOutputFilter();
+
+          // Run all builds in parallel
+          // Server build returns {clientManifest, serverManifest}, client build returns boolean
+          const [buildOutput] = await Promise.all([
+            serverBuild(root, options, clientManifestBus),
+            clientBuild(root, options, clientManifestBus, chunkGroupsPromise),
+          ]);
+
+          // Restore stdout and show combined build time
+          restoreStdout();
+
+          console.log(
+            `${colors.green("✔")} built in ${formatDuration(Date.now() - parallelBuildStart)}`
+          );
+
+          // manifest
+          // empty line
+          console.log();
+          banner("manifest");
+          const manifestStart = Date.now();
+          const manifestSpinner = createSpinner(
+            `generating ${colors.dim("manifest")}`
+          );
+          await manifest(root, options, buildOutput);
+          manifestSpinner.stop(
+            `${colors.green("✔")} manifest generated in ${formatDuration(Date.now() - manifestStart)}`
+          );
+          if (options.edge) {
+            // empty line
+            console.log();
+            banner("edge");
+            const edgeStart = Date.now();
+            const edgeSpinner = createSpinner(
+              `building for ${colors.dim("edge runtime")}`
+            );
+            await edgeBuild(root, options);
+            edgeSpinner.stop(
+              `${colors.green("✔")} edge build completed in ${formatDuration(Date.now() - edgeStart)}`
+            );
           }
           // static export
           if (
@@ -103,12 +156,11 @@ export default async function build(root, options) {
             });
             await staticSiteGenerator(root, options);
             console.log(
-              colors.green(
-                `✔ exported in ${formatDuration(Date.now() - start)}`
-              )
+              `${colors.green("✔")} exported in ${formatDuration(Date.now() - start)}`
             );
           }
           await adapter(root, options);
+
           if (buildOutput) {
             console.log(
               `\n${colors.green("✔")} Build completed successfully in ${formatDuration(Date.now() - globalThis.__react_server_start__)}!`

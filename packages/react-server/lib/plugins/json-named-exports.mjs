@@ -2,6 +2,63 @@ import { basename, dirname } from "node:path";
 
 import { readFileCachedAsync } from "../utils/module.mjs";
 
+// JavaScript reserved words that cannot be used as identifiers
+const RESERVED_WORDS = new Set([
+  "break",
+  "case",
+  "catch",
+  "continue",
+  "debugger",
+  "default",
+  "delete",
+  "do",
+  "else",
+  "finally",
+  "for",
+  "function",
+  "if",
+  "in",
+  "instanceof",
+  "new",
+  "return",
+  "switch",
+  "this",
+  "throw",
+  "try",
+  "typeof",
+  "var",
+  "void",
+  "while",
+  "with",
+  "class",
+  "const",
+  "enum",
+  "export",
+  "extends",
+  "import",
+  "super",
+  "implements",
+  "interface",
+  "let",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "static",
+  "yield",
+  "await",
+  "null",
+  "true",
+  "false",
+]);
+
+/**
+ * Check if a string is a valid JS identifier that can be used as an export name
+ */
+function isValidExportName(name) {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name) && !RESERVED_WORDS.has(name);
+}
+
 /**
  * Convert a package name to a valid JS identifier in camelCase.
  * E.g., "character-entities-legacy" -> "characterEntitiesLegacy"
@@ -70,7 +127,7 @@ export default function jsonNamedExports() {
               const pkg = JSON.parse(pkgContent);
               if (pkg.name && pkg.main === "index.json") {
                 const exportName = packageNameToIdentifier(pkg.name);
-                if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(exportName)) {
+                if (isValidExportName(exportName)) {
                   exports.push(
                     `export const ${exportName} = ${JSON.stringify(json)};`
                   );
@@ -84,7 +141,7 @@ export default function jsonNamedExports() {
 
         for (const key of Object.keys(json)) {
           // Only export valid JS identifiers as named exports
-          if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)) {
+          if (isValidExportName(key)) {
             exports.push(`export const ${key} = ${JSON.stringify(json[key])};`);
           }
         }

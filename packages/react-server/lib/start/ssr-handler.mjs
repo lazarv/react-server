@@ -49,15 +49,19 @@ const cwd = sys.cwd();
 
 export default async function ssrHandler(root, options = {}) {
   const outDir = options.outDir ?? ".react-server";
-  const defaultRoot = join(outDir, "server/root.mjs");
+  const defaultRoot = sys.normalizePath(join(outDir, "server/root.mjs"));
   const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 
   await import("./manifest.mjs").then(({ init$ }) => init$(options));
 
-  const rootModule = join(cwd, root ?? configRoot.entry ?? defaultRoot);
-  const globalErrorModule = join(cwd, outDir, "server/error.mjs");
+  const rootModule = sys.normalizePath(
+    join(cwd, root ?? configRoot.entry ?? defaultRoot)
+  );
+  const globalErrorModule = sys.normalizePath(
+    join(cwd, outDir, "server/error.mjs")
+  );
   const [
     { render },
     { default: Component, init$: root_init$ },

@@ -141,24 +141,36 @@ test("style assets", async () => {
   await server("fixtures/styles.jsx");
   await page.goto(hostname);
   const h1 = await page.getByText("This text should be yellow");
-  const color = await h1.evaluate((el) => getComputedStyle(el).color);
-  expect(color).toBe("rgb(255, 255, 0)");
-  const background = await page.evaluate(
-    () => getComputedStyle(document.body).backgroundColor
-  );
-  expect(background).toBe("rgb(0, 0, 255)");
+  await expect
+    .poll(() => h1.evaluate((el) => getComputedStyle(el).color), {
+      timeout: 5000,
+    })
+    .toBe("rgb(255, 255, 0)");
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => getComputedStyle(document.body).backgroundColor),
+      { timeout: 5000 }
+    )
+    .toBe("rgb(0, 0, 255)");
 });
 
 test("style assets with base url", async () => {
   await server("fixtures/styles.jsx", undefined, "/react-server/");
   await page.goto(hostname + "/react-server");
   const h1 = await page.getByText("This text should be yellow");
-  const color = await h1.evaluate((el) => getComputedStyle(el).color);
-  expect(color).toBe("rgb(255, 255, 0)");
-  const background = await page.evaluate(
-    () => getComputedStyle(document.body).backgroundColor
-  );
-  expect(background).toBe("rgb(0, 0, 255)");
+  await expect
+    .poll(() => h1.evaluate((el) => getComputedStyle(el).color), {
+      timeout: 5000,
+    })
+    .toBe("rgb(255, 255, 0)");
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => getComputedStyle(document.body).backgroundColor),
+      { timeout: 5000 }
+    )
+    .toBe("rgb(0, 0, 255)");
 });
 
 test("suspense client", async () => {

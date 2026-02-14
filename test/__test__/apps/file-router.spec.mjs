@@ -111,10 +111,10 @@ describe("file-router plugin", () => {
     const linkToExternalWithAPI = await page.$(
       'a[href="/redirect-api-external"]'
     );
-    await waitForBodyUpdate(async () => {
-      await linkToExternalWithAPI.click();
-    });
-    await page.waitForNavigation();
+    await Promise.all([
+      page.waitForURL("https://react-server.dev/**"),
+      linkToExternalWithAPI.click(),
+    ]);
     expect(page.url()).toBe("https://react-server.dev/");
   });
 

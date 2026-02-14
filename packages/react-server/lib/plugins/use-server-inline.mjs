@@ -251,7 +251,9 @@ export default function useServerInline(manifest) {
                   {
                     type: "Literal",
                     value: manifest
-                      ? relative(cwd, id).replace(/\.m?[jt]sx?$/, "")
+                      ? sys
+                          .normalizePath(relative(cwd, id))
+                          .replace(/\.m?[jt]sx?$/, "")
                       : id,
                   },
                   {
@@ -266,7 +268,7 @@ export default function useServerInline(manifest) {
         }
 
         if (manifest) {
-          const specifier = relative(cwd, id);
+          const specifier = sys.normalizePath(relative(cwd, id));
           const name = specifier
             .replace(extname(specifier), "")
             .replace(/[^@/\-a-zA-Z0-9]/g, "_");

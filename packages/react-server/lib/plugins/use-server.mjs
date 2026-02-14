@@ -29,7 +29,9 @@ export default function useServer(type, manifest) {
           );
 
         const actionId =
-          mode === "build" ? relative(cwd, id).replace(/\.m?[jt]sx?$/, "") : id;
+          mode === "build"
+            ? sys.normalizePath(relative(cwd, id)).replace(/\.m?[jt]sx?$/, "")
+            : id;
         const exportNames = new Set();
         const defaultExport = ast.body.find(
           (node) => node.type === "ExportDefaultDeclaration"
@@ -295,7 +297,7 @@ export default function useServer(type, manifest) {
           });
         }
 
-        const specifier = relative(cwd, id);
+        const specifier = sys.normalizePath(relative(cwd, id));
         const name = specifier.replace(extname(specifier), "");
 
         if (manifest) {

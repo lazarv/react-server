@@ -196,11 +196,14 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
             : (filePath) => sys.normalizePath(relative(cwd, filePath));
 
           // Use realId (canonical path after symlink resolution) for consistent naming
-          const specifier = relative(cwd, realId);
+          const specifier = sys.normalizePath(relative(cwd, realId));
           const name = workspacePath(specifier)
             .replace(extname(specifier), "")
             .replace(/[^@/\-a-zA-Z0-9]/g, "_")
-            .replace(relative(cwd, sys.rootDir), "@lazarv/react-server");
+            .replace(
+              sys.normalizePath(relative(cwd, sys.rootDir)),
+              "@lazarv/react-server"
+            );
 
           if (type === "rsc" && typeof clientComponentBus !== "undefined") {
             clientComponentBus?.emit("client-component", {

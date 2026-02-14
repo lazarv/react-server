@@ -105,7 +105,7 @@ export default async function manifest(
     const id = entry.name;
     const buildEntry = buildClientManifest.get(id);
     if (!buildEntry) continue;
-    const path = relative(cwd, realpathSync(buildEntry.id));
+    const path = sys.normalizePath(relative(cwd, realpathSync(buildEntry.id)));
 
     // Use the file path as the key
     const key = `${path

@@ -166,54 +166,56 @@ export default async function edgeBuild(root, options) {
                 case "virtual:empty-module":
                   return id;
                 case ".react-server/__react_server_config__/prebuilt":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "server/__react_server_config__/prebuilt.mjs"
+                  return sys.normalizePath(
+                    join(
+                      cwd,
+                      options.outDir,
+                      "server/__react_server_config__/prebuilt.mjs"
+                    )
                   );
                 case ".react-server/manifest-registry":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "server/manifest-registry.mjs"
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/manifest-registry.mjs")
                   );
                 case ".react-server/client/manifest-registry":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "server/client/manifest-registry.mjs"
+                  return sys.normalizePath(
+                    join(
+                      cwd,
+                      options.outDir,
+                      "server/client/manifest-registry.mjs"
+                    )
                   );
                 case ".react-server/server/preload-manifest":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "server/preload-manifest.mjs"
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/preload-manifest.mjs")
                   );
                 case ".react-server/server/server-reference-map":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "server/server-reference-map.mjs"
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/server-reference-map.mjs")
                   );
                 case ".react-server/server/client-reference-map":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "server/client-reference-map.mjs"
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/client-reference-map.mjs")
                   );
                 case ".react-server/server/root":
-                  return join(cwd, options.outDir, "server/root.mjs");
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/root.mjs")
+                  );
                 case ".react-server/server/render":
-                  return join(cwd, options.outDir, "server/render.mjs");
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/render.mjs")
+                  );
                 case ".react-server/server/render-dom":
-                  return join(cwd, options.outDir, "server/render-dom.mjs");
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/render-dom.mjs")
+                  );
                 case ".react-server/server/error":
-                  return join(cwd, options.outDir, "server/error.mjs");
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/error.mjs")
+                  );
                 case ".react-server/server/error-boundary":
-                  const path = join(
-                    cwd,
-                    options.outDir,
-                    "server/error-boundary.mjs"
+                  const path = sys.normalizePath(
+                    join(cwd, options.outDir, "server/error-boundary.mjs")
                   );
                   try {
                     if (await stat(path)) {
@@ -224,22 +226,16 @@ export default async function edgeBuild(root, options) {
                     return "virtual:empty-module";
                   }
                 case ".react-server/server/server-manifest":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "server/server-manifest.mjs"
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/server-manifest.mjs")
                   );
                 case ".react-server/server/client-manifest":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "server/client-manifest.mjs"
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/client-manifest.mjs")
                   );
                 case ".react-server/client/browser-manifest":
-                  return join(
-                    cwd,
-                    options.outDir,
-                    "client/browser-manifest.mjs"
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "client/browser-manifest.mjs")
                   );
               }
             },

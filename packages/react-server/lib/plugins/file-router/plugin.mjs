@@ -798,7 +798,9 @@ export default function viteReactServerRouter(options = {}) {
               )?.[0];
 
               if (staticSrc) {
-                const key = relative(cwd, dirname(staticSrc));
+                const key = sys.normalizePath(
+                  relative(cwd, dirname(staticSrc))
+                );
                 const filename = basename(staticSrc);
                 const src = join(cwd, key, filename);
                 const hash = createHash("shake256", {

@@ -91,7 +91,7 @@ export function manifestGenerator(
           // refId is already the package specifier for node_modules (set during RSC discovery)
           // or the file path for local files
           return `import { registerClientReference } from "${registryPath}";
-registerClientReference("${relative(cwd, refId)}", ${JSON.stringify(entry.exports)}, async () => { const { ${exportsList} } = await import("${refId}"); return { ${exportsList} }; });`;
+registerClientReference("${sys.normalizePath(relative(cwd, refId))}", ${JSON.stringify(entry.exports)}, async () => { const { ${exportsList} } = await import("${sys.normalizePath(refId)}"); return { ${exportsList} }; });`;
         } else {
           return ``;
         }
@@ -110,9 +110,11 @@ registerClientReference("${relative(cwd, refId)}", ${JSON.stringify(entry.export
         if (entry) {
           // Use absolute path for inline server actions to ensure rolldown resolves
           // to the same module instance as the root entry (prevents state duplication)
-          const importPath = isInline ? join(cwd, refId) : refId;
+          const importPath = sys.normalizePath(
+            isInline ? join(cwd, refId) : refId
+          );
           return `import { registerServerReference } from "${registryPath}";
-    registerServerReference("${relative(cwd, refId)}", ${JSON.stringify(entry.exports)}, async () => { const { ${entry.exports.map((name) => (name === "default" ? `default: _default` : name)).join(", ")} } = await import("${importPath}"); return { ${entry.exports.map((name) => (name === "default" ? `default: _default` : name)).join(", ")} }; });`;
+    registerServerReference("${sys.normalizePath(relative(cwd, refId))}", ${JSON.stringify(entry.exports)}, async () => { const { ${entry.exports.map((name) => (name === "default" ? `default: _default` : name)).join(", ")} } = await import("${importPath}"); return { ${entry.exports.map((name) => (name === "default" ? `default: _default` : name)).join(", ")} }; });`;
         } else {
           return ``;
         }

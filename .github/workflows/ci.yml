@@ -111,7 +111,7 @@ jobs:
         working-directory: ./test
         run: pnpm test-build-start --exclude "**/__test__/apps"
 
-  test-build-start-base-no-ssr-worker:
+  test-build-start-base-edge:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
@@ -128,7 +128,7 @@ jobs:
             node_version: 24
       fail-fast: false
 
-    name: "Test prod base (worker disabled) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    name: "Test prod base (edge+node) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -140,11 +140,46 @@ jobs:
         with:
           os: ${{ runner.os }}
 
-      - name: Test build and production mode (worker disabled)
+      - name: Test build and production mode (edge build, node entry)
         working-directory: ./test
         run: pnpm test-build-start --exclude "**/__test__/apps"
         env:
-          NO_SSR_WORKER: "1"
+          EDGE: "1"
+
+  test-build-start-base-edge-entry:
+    needs: changed
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    timeout-minutes: 30
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node_version: [20, 22, 24]
+        include:
+          # Active LTS + other OS
+          - os: macos-latest
+            node_version: 24
+          - os: windows-latest
+            node_version: 24
+      fail-fast: false
+
+    name: "Test prod base (edge entry) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+        with:
+          node_version: ${{ matrix.node_version }}
+      - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
+
+      - name: Test build and production mode (edge entry)
+        working-directory: ./test
+        run: pnpm test-build-start --exclude "**/__test__/apps"
+        env:
+          EDGE_ENTRY: "1"
 
   test-dev-apps:
     needs: changed
@@ -212,7 +247,7 @@ jobs:
         working-directory: ./test
         run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs"
 
-  test-build-start-apps-no-ssr-worker:
+  test-build-start-apps-edge:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
@@ -229,7 +264,7 @@ jobs:
             node_version: 24
       fail-fast: false
 
-    name: "Test prod apps (worker disabled) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    name: "Test prod apps (edge+node) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -241,11 +276,46 @@ jobs:
         with:
           os: ${{ runner.os }}
 
-      - name: Test build and production mode apps
+      - name: Test build and production mode apps (edge build, node entry)
         working-directory: ./test
         run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs"
         env:
-          NO_SSR_WORKER: "1"
+          EDGE: "1"
+
+  test-build-start-apps-edge-entry:
+    needs: changed
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    timeout-minutes: 30
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node_version: [20, 22, 24]
+        include:
+          # Active LTS + other OS
+          - os: macos-latest
+            node_version: 24
+          - os: windows-latest
+            node_version: 24
+      fail-fast: false
+
+    name: "Test prod apps (edge entry) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+        with:
+          node_version: ${{ matrix.node_version }}
+      - uses: ./.github/workflows/actions/common-playwright
+        with:
+          os: ${{ runner.os }}
+
+      - name: Test build and production mode apps (edge entry)
+        working-directory: ./test
+        run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs"
+        env:
+          EDGE_ENTRY: "1"
 
   lint:
     timeout-minutes: 10

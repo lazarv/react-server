@@ -94,10 +94,10 @@ describe("file-router plugin", () => {
     );
     await waitForHydration();
     const linkToExternal = await page.$('a[href="/redirect-external"]');
-    await waitForBodyUpdate(async () => {
-      await linkToExternal.click();
-    });
-    await page.waitForLoadState("networkidle");
+    await Promise.all([
+      page.waitForURL("https://react-server.dev/**"),
+      linkToExternal.click(),
+    ]);
     expect(page.url()).toBe("https://react-server.dev/");
   });
 

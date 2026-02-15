@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { rm } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import colors from "picocolors";
 import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
@@ -11,7 +12,6 @@ import {
   CONFIG_ROOT,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
-import bannerMessage from "../utils/banner.mjs";
 import { formatDuration } from "../utils/format.mjs";
 import adapter, { getAdapterBuildOptions } from "./adapter.mjs";
 import clientBuild, { startCollectingClientComponents } from "./client.mjs";
@@ -62,6 +62,14 @@ export default async function build(root, options) {
 
   // Merge adapter build options into options (adapter options take precedence for adapter-specific settings)
   options = { ...options, ...adapterBuildOptions };
+
+  // Normalize edge option: CLI passes `true`, adapters pass `{ entry: "..." }`
+  if (options.edge === true) {
+    const buildDir = dirname(fileURLToPath(import.meta.url));
+    options.edge = {
+      entry: sys.normalizePath(join(buildDir, "default-edge-entry.mjs")),
+    };
+  }
 
   return new Promise((resolve) => {
     ContextStorage.run(

@@ -244,15 +244,25 @@ function normalizeModulePath(path) {
     return path.startsWith("/") ? path.slice(1) : path;
 }
 const BASEPATH_RE = /${options.outDir.replace(/\//g, "\\/").replace(/\./g, "\\.")}\\/(?<basepath>.*)$/;
+function cwdRelative(key) {
+    try {
+        const c = typeof process !== "undefined" && process.cwd ? process.cwd().replace(/\\\\/g, "/") : "";
+        if (!c) return null;
+        const abs = "/" + key;
+        if (abs.startsWith(c + "/")) return abs.slice(c.length + 1);
+    } catch {}
+    return null;
+}
+function lookup(key) {
+    return preload[key] ?? preload[BASEPATH_RE.exec(key)?.groups?.basepath] ?? preload[cwdRelative(key)] ?? null;
+}
 export function collectStylesheets(rootModule) {
     if (!rootModule) return [];
-    const normalizedRootModule = normalizeModulePath(rootModule);
-    return preload[normalizedRootModule]?.stylesheets ?? preload[BASEPATH_RE.exec(normalizedRootModule)?.groups?.basepath]?.stylesheets ?? [];
+    return lookup(normalizeModulePath(rootModule))?.stylesheets ?? [];
 }
 export function collectClientModules(rootModule) {
     if (!rootModule) return [];
-    const normalizedRootModule = normalizeModulePath(rootModule);
-    return preload[normalizedRootModule]?.clientModules ?? preload[BASEPATH_RE.exec(normalizedRootModule)?.groups?.basepath]?.clientModules ?? [];
+    return lookup(normalizeModulePath(rootModule))?.clientModules ?? [];
 }
 export default preload;`,
       "utf8"

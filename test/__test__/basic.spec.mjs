@@ -199,13 +199,16 @@ test("suspense client", async () => {
   }
 });
 
-test("resolve builtin module import", async () => {
-  await server("fixtures/builtin-import.jsx");
-  await page.goto(hostname);
-  expect(await page.textContent("body")).toContain(
-    "react/react.react-server.js"
-  );
-});
+test.skipIf(process.env.EDGE_ENTRY)(
+  "resolve builtin module import",
+  async () => {
+    await server("fixtures/builtin-import.jsx");
+    await page.goto(hostname);
+    expect(await page.textContent("body")).toContain(
+      "react/react.react-server.js"
+    );
+  }
+);
 
 test("navigation location", async () => {
   await server("fixtures/navigation-location.jsx");

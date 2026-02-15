@@ -8,7 +8,7 @@ import Link from "../../../../components/Link.jsx";
 
 # Cloudflare
 
-To deploy to Cloudflare Workers or Pages, use the `@lazarv/react-server-adapter-cloudflare` package. This adapter is specifically designed to work with Cloudflare's edge runtime.
+To deploy to Cloudflare Workers or Pages, use the built-in `cloudflare` adapter. This adapter is specifically designed to work with Cloudflare's edge runtime.
 
 <Link name="installation">
 ## Installation
@@ -21,17 +21,13 @@ npm install -g wrangler
 wrangler login
 ```
 
-After you have set up your Cloudflare account, you can add the `@lazarv/react-server-adapter-cloudflare` package to your project:
-
-```sh
-pnpm add -D @lazarv/react-server-adapter-cloudflare
-```
+No additional packages are needed - the adapter is built into `@lazarv/react-server`.
 
 Then you need to add the adapter to your `react-server.config.mjs` file:
 
 ```mjs
 export default {
-  adapter: "@lazarv/react-server-adapter-cloudflare",
+  adapter: "cloudflare",
 };
 ```
 
@@ -44,13 +40,14 @@ You can customize the adapter by passing options:
 ```mjs
 export default {
   adapter: [
-    "@lazarv/react-server-adapter-cloudflare",
+    "cloudflare",
     {
       name: "my-app", // Cloudflare Worker name
       compatibilityDate: "2024-01-01", // Cloudflare compatibility date
       compatibilityFlags: ["nodejs_compat_v2"], // Additional compatibility flags
       pages: true, // Generate _routes.json for Cloudflare Pages
       excludeRoutes: ["/api/*"], // Additional routes to exclude from worker handling
+      serverlessFunctions: true, // Enable worker deployment (default: true)
       wrangler: {
         vars: {
           MY_VAR: "value",
@@ -68,6 +65,7 @@ export default {
 - `compatibilityFlags`: Additional Cloudflare compatibility flags (appended to required `nodejs_compat`).
 - `pages`: Generate `_routes.json` for Cloudflare Pages (default: true).
 - `excludeRoutes`: Additional routes to exclude from worker handling in `_routes.json`.
+- `serverlessFunctions`: Enable/disable worker deployment (default: true). Set to `false` for static-only deployment.
 - `wrangler`: Additional wrangler.toml configuration as an object (merged with adapter defaults).
 
 <Link name="extending-wrangler">

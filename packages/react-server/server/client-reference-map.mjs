@@ -24,10 +24,49 @@ export const clientReferenceMap = ({ remote, origin } = {}) =>
             const rawId = id.replace(/^(?:__\/)+/, (match) =>
               match.replace(/__\//g, "../")
             );
-            const file = Object.values(manifest.browser).find(
-              (entry) =>
-                entry.src?.includes(rawId) || rawId.includes(entry.file)
-            )?.file;
+
+            // For package specifiers like "@tanstack/react-query", we need to find
+            // the specific entry that exports the named component
+            // e.g., "@tanstack/react-query#HydrationBoundary" should find HydrationBoundary.js
+            let file;
+            const isPackageSpecifier = id.startsWith("@")
+              ? !id.includes("/node_modules/") && id.split("/").length <= 2
+              : !id.includes("/");
+
+            if (isPackageSpecifier && name !== "default") {
+              // Look for an entry whose src contains the package name AND
+              // has a filename that matches the export name
+              file = Object.values(manifest.browser).find((entry) => {
+                if (!entry.src) return false;
+                const hasPackage =
+                  entry.src.includes(`/${id}/`) ||
+                  entry.src.includes(`/${id.replace("/", "+")}`);
+                // Check if the filename matches the export name
+                // e.g., HydrationBoundary.js for HydrationBoundary export
+                const srcFileName = entry.src
+                  .split("/")
+                  .pop()
+                  ?.replace(/\.[^.]+$/, "");
+                return hasPackage && srcFileName === name;
+              })?.file;
+
+              // If not found by filename, try finding by export in any file
+              if (!file) {
+                file = Object.values(manifest.browser).find((entry) => {
+                  if (!entry.src) return false;
+                  return (
+                    entry.src.includes(`/${id}/`) ||
+                    entry.src.includes(`/${id.replace("/", "+")}`)
+                  );
+                })?.file;
+              }
+            } else {
+              file = Object.values(manifest.browser).find(
+                (entry) =>
+                  entry.src?.includes(rawId) || rawId.includes(entry.file)
+              )?.file;
+            }
+
             if (!file) {
               throw new Error(
                 `Client reference "${$$id}" (${id.replace(

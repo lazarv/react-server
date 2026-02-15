@@ -1,19 +1,14 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { isAbsolute, join } from "node:path";
 
-import replace from "@rollup/plugin-replace";
 import colors from "picocolors";
+import replace from "@rollup/plugin-replace";
 import { build as viteBuild } from "rolldown-vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
 import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
-import {
-  findPackagesWithClientComponents,
-  generateClientComponentChunkGroups,
-} from "../plugins/optimize-deps.mjs";
+import { generateClientComponentChunkGroups } from "../plugins/optimize-deps.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import rolldownUseClient from "../plugins/use-client.mjs";
 import rolldownUseServer from "../plugins/use-server.mjs";
@@ -25,65 +20,150 @@ import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
 } from "../utils/plugins.mjs";
-import banner from "./banner.mjs";
 import { chunks } from "./chunks.mjs";
 import customLogger from "./custom-logger.mjs";
+import { fileListingReporterPlugin } from "./output-filter.mjs";
 import { clientAlias } from "./resolve.mjs";
-import { bareImportRE } from "../utils/module.mjs";
+import {
+  bareImportRE,
+  findPackageRootAsync,
+  readFileCachedAsync,
+} from "../utils/module.mjs";
 import { createTreeshake, REACT_RE } from "./shared.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
-export default async function clientBuild(_, options) {
-  let clientManifest;
-  try {
-    const { default: _clientManifest } = await import(
-      pathToFileURL(join(cwd, options.outDir, "server/client-manifest.json")),
-      {
-        with: { type: "json" },
+// Start collecting client components from bus
+// MUST be called BEFORE Promise.all starts the builds to avoid missing events
+// Uses double-stop mechanism:
+// 1. RSC emits "groups-ready" when done
+// 2. This function extracts packages and emits "end"
+// 3. SSR and Client builds receive "end" as normal
+// Makes both "client-component" and "end" events buffered/sticky for late listeners
+export function startCollectingClientComponents(clientManifestBus) {
+  const clientComponentPackages = new Set();
+  const entries = new Map();
+  let endEmitted = false;
+  let componentsReady = false;
+
+  const onComponent = (entry) => {
+    entries.set(entry.id, entry);
+  };
+
+  // Start listening immediately
+  clientManifestBus.on("client-component", onComponent);
+
+  // Make "end" event sticky - if already emitted, new listeners get called immediately
+  const originalOnce = clientManifestBus.once.bind(clientManifestBus);
+  clientManifestBus.once = function (event, listener) {
+    if (event === "end" && endEmitted) {
+      // Already emitted, call listener immediately
+      setImmediate(listener);
+      return this;
+    }
+    return originalOnce(event, listener);
+  };
+
+  // Make "client-component" events replayable for late listeners
+  const originalOn = clientManifestBus.on.bind(clientManifestBus);
+  clientManifestBus.on = function (event, listener) {
+    if (event === "client-component" && componentsReady) {
+      // Replay all buffered events immediately for this listener
+      setImmediate(() => {
+        for (const entry of entries.values()) {
+          listener(entry);
+        }
+      });
+    }
+    return originalOn(event, listener);
+  };
+
+  const promise = new Promise((resolve) => {
+    clientManifestBus.once("groups-ready", async () => {
+      clientManifestBus.off("client-component", onComponent);
+
+      // Extract package names from component paths
+      const packageRootPromises = [];
+      for (const [id] of entries) {
+        if (isAbsolute(id)) {
+          packageRootPromises.push(
+            findPackageRootAsync(id).then(async (packageRoot) => {
+              if (packageRoot) {
+                try {
+                  const packageJson = JSON.parse(
+                    await readFileCachedAsync(
+                      join(packageRoot, "package.json"),
+                      "utf-8"
+                    )
+                  );
+                  if (packageJson.name) {
+                    clientComponentPackages.add(packageJson.name);
+                  }
+                } catch {
+                  // Ignore errors reading package.json
+                }
+              }
+            })
+          );
+        }
       }
-    );
-    if (
-      Object.keys(_clientManifest).length > 0 &&
-      !(
-        Object.keys(_clientManifest).length === 1 &&
-        Object.values(_clientManifest)[0].name === "server/render-dom"
-      )
-    ) {
-      clientManifest = _clientManifest;
-    }
-  } catch (e) {
-    // client manifest not found
-  }
+      await Promise.all(packageRootPromises);
 
-  if (!clientManifest) {
-    // skipping client build
-    if (!options.server && options.client) {
-      console.log(
-        colors.yellow("No client manifest found. Skipping client build.")
-      );
-    }
-    await mkdir(join(cwd, options.outDir, "client"), { recursive: true });
-    await writeFile(
-      join(cwd, options.outDir, "client/browser-manifest.json"),
-      "{}",
-      "utf8"
-    );
-    return false;
-  }
+      // Mark components as ready - late listeners will get replayed events
+      componentsReady = true;
 
-  if (options.server) {
-    // empty line
-    console.log();
-  }
-  banner("client", options.dev);
+      // Re-emit all client-component events for listeners that were set up
+      // before componentsReady was set (they won't get replay from patched .on())
+      for (const entry of entries.values()) {
+        clientManifestBus.emit("client-component", entry);
+      }
+
+      // Mark end as emitted and emit it
+      endEmitted = true;
+      clientManifestBus.emit("end");
+
+      resolve({ entries, packages: clientComponentPackages });
+    });
+  });
+
+  return promise;
+}
+
+export default async function clientBuild(
+  _,
+  options,
+  clientManifestBus,
+  chunkGroupsPromise
+) {
   const config = forRoot();
 
-  // Auto-detect packages with client components for chunk grouping
-  const clientComponentPackages = await findPackagesWithClientComponents();
-  const autoChunkGroups = generateClientComponentChunkGroups(
+  // Wait for chunk groups to be ready
+  // The collection was started in action.mjs BEFORE Promise.all
+  // Uses double-stop: RSC emits "groups-ready", collector extracts packages, then emits "end"
+  const { entries, packages: clientComponentPackages } =
+    await chunkGroupsPromise;
+
+  const clientComponentPackagesList = Array.from(
     clientComponentPackages
+  ).filter((pkg) => !pkg.startsWith("@lazarv/react-server"));
+
+  // Log collected chunk groups in verbose mode
+  if (
+    process.env.REACT_SERVER_VERBOSE &&
+    clientComponentPackagesList.length > 0
+  ) {
+    console.log(
+      `${colors.cyan("●")} ${colors.dim("optimizing client components →")} ${colors.white(clientComponentPackagesList.map(colors.bold).join(", "))}`
+    );
+  }
+
+  const clientComponentIds = Array.from(entries.keys());
+
+  // Generate chunk groups for detected packages, excluding entry points
+  const autoChunkGroups = generateClientComponentChunkGroups(
+    clientComponentPackagesList,
+    clientComponentIds
   );
 
   const buildConfig = {
@@ -91,6 +171,10 @@ export default async function clientBuild(_, options) {
     configFile: false,
     mode: options.mode || "production",
     logLevel: options.silent ? "silent" : undefined,
+    experimental: {
+      // Use full native plugins for maximum performance
+      enableNativePlugin: true,
+    },
     define: config.define,
     json: {
       namedExports: true,
@@ -186,7 +270,7 @@ export default async function clientBuild(_, options) {
       minify: options.minify,
       manifest: "client/browser-manifest.json",
       sourcemap: options.sourcemap,
-      chunkSizeWarningLimit: config.build?.chunkSizeWarningLimit ?? 1000,
+      chunkSizeWarningLimit: config.build?.chunkSizeWarningLimit ?? 1024,
       rolldownOptions: {
         ...config.build?.rollupOptions,
         ...config.build?.rolldownOptions,
@@ -205,7 +289,9 @@ export default async function clientBuild(_, options) {
           ...config.build?.rolldownOptions?.output,
           dir: options.outDir,
           format: "esm",
-          entryFileNames: "[name].[hash].mjs",
+          minifyInternalExports:
+            config.resolve?.shared?.length > 0 ? false : undefined,
+          entryFileNames: "client/[name].[hash].mjs",
           chunkFileNames: "client/[name].[hash].mjs",
           advancedChunks: {
             groups: [
@@ -226,7 +312,7 @@ export default async function clientBuild(_, options) {
           },
         },
         input: {
-          "client/index": __require.resolve(
+          index: __require.resolve(
             "@lazarv/react-server/client/entry.client.jsx"
           ),
           ...Object.entries(chunks).reduce((input, [src, mod]) => {
@@ -234,16 +320,11 @@ export default async function clientBuild(_, options) {
               config.resolve?.shared?.includes(mod) &&
               !config.importMap?.imports?.[mod]
             ) {
-              input[`client/${mod}`] = src;
+              input[mod] = src;
             }
             return input;
           }, {}),
-          ...Object.values(clientManifest).reduce((input, value) => {
-            if (value.isEntry && value.name !== "server/render-dom") {
-              input[value.name.replace(/^server\//, "")] = value.src;
-            }
-            return input;
-          }, {}),
+          // Client component entries are dynamically added via rolldownUseClient with bus
           ...config.build?.rollupOptions?.input,
           ...config.build?.rolldownOptions?.input,
         },
@@ -255,7 +336,7 @@ export default async function clientBuild(_, options) {
               options.dev ? "development" : "production"
             ),
           }),
-          rolldownUseClient("client", undefined, "pre"),
+          rolldownUseClient("client", undefined, "pre", clientManifestBus),
           rolldownUseClient("client"),
           rolldownUseServer("client"),
           rolldownUseCacheInline(
@@ -269,6 +350,7 @@ export default async function clientBuild(_, options) {
       },
     },
     plugins: [
+      fileListingReporterPlugin("Client"),
       jsonNamedExports(),
       ...userOrBuiltInVitePluginReact(config.plugins),
       ...filterOutVitePluginReact(config.plugins),

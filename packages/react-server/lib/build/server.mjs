@@ -5,7 +5,6 @@ import { join, relative, extname } from "node:path";
 import replace from "@rollup/plugin-replace";
 import glob from "fast-glob";
 import { build as viteBuild } from "rolldown-vite";
-import colors from "picocolors";
 
 import { forRoot } from "../../config/index.mjs";
 import configPrebuilt from "../plugins/config-prebuilt.mjs";
@@ -23,6 +22,9 @@ import rolldownUseServer from "../plugins/use-server.mjs";
 import rolldownUseCacheInline from "../plugins/use-cache-inline.mjs";
 import rolldownUseDynamic from "../plugins/use-dynamic.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
+import { preloadManifestVirtual } from "../plugins/preload-manifest.mjs";
+import { serverReferenceMapVirtual } from "../plugins/server-reference-map.mjs";
+import { clientReferenceMapVirtual } from "../plugins/client-reference-map.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import merge from "../utils/merge.mjs";
@@ -30,8 +32,8 @@ import {
   filterOutVitePluginReact,
   userOrBuiltInVitePluginReact,
 } from "../utils/plugins.mjs";
-import banner from "./banner.mjs";
 import customLogger from "./custom-logger.mjs";
+import { fileListingReporterPlugin } from "./output-filter.mjs";
 import {
   bareImportRE,
   findNearestPackageData,
@@ -61,16 +63,16 @@ import {
   reactDomClient,
   unstorageDriversMemory,
 } from "./dependencies.mjs";
+import { manifestGenerator, manifestRegistry } from "../plugins/manifest.mjs";
 
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
-export default async function serverBuild(root, options) {
+export default async function serverBuild(root, options, clientManifestBus) {
   if (!options.eval) {
     root ||= "@lazarv/react-server/file-router";
   }
 
-  banner("rsc", options.dev);
   const config = forRoot();
   const clientManifest = new Map();
   const serverManifest = new Map();
@@ -146,6 +148,7 @@ export default async function serverBuild(root, options) {
     "@lazarv/react-server/memory-cache",
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
+    /^\.react-server\//,
   ]);
   const ssrExternal = createExternal([
     /manifest\.json/,
@@ -310,6 +313,30 @@ export default async function serverBuild(root, options) {
     // ignore
   }
 
+  const renderModulePath = __require.resolve(
+    "@lazarv/react-server/server/render-rsc.jsx",
+    { paths: [cwd] }
+  );
+  const rootModulePath =
+    !root && (options.eval || (!process.stdin.isTTY && !process.env.CI))
+      ? "virtual:react-server-eval.jsx"
+      : root?.startsWith("virtual:")
+        ? root
+        : __require.resolve(
+            root?.split("#")?.[0] ?? "@lazarv/react-server/file-router",
+            {
+              paths: [cwd],
+            }
+          );
+  const errorModulePath = __require.resolve(globalError, {
+    paths: [cwd],
+  });
+  const errorBoundaryModulePath = __require.resolve(
+    "@lazarv/react-server/error-boundary",
+    {
+      paths: [cwd],
+    }
+  );
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
   const buildConfig = {
@@ -336,7 +363,7 @@ export default async function serverBuild(root, options) {
         : undefined,
     resolve: {
       ...config.resolve,
-      preserveSymlinks: true,
+      preserveSymlinks: false,
       alias: [
         {
           find: /^@lazarv\/react-server$/,
@@ -420,6 +447,27 @@ export default async function serverBuild(root, options) {
         // Use edge versions in edge builds
         ...(options.edge
           ? [
+              // Alias virtual config prebuilt module
+              {
+                find: /^\.react-server\/__react_server_config__\/prebuilt$/,
+                replacement: "virtual:config/prebuilt",
+              },
+              {
+                find: /^\.react-server\/server\/render$/,
+                replacement: renderModulePath,
+              },
+              {
+                find: /^\.react-server\/server\/root$/,
+                replacement: rootModulePath,
+              },
+              {
+                find: /^\.react-server\/server\/error$/,
+                replacement: errorModulePath,
+              },
+              {
+                find: /^\.react-server\/server\/error-boundary$/,
+                replacement: errorBoundaryModulePath,
+              },
               // Alias react packages to their react-server condition paths to ensure bundling
               {
                 find: /^react$/,
@@ -478,6 +526,7 @@ export default async function serverBuild(root, options) {
     },
     customLogger: customLogger(options.silent),
     build: {
+      // write: false,
       ...config.build,
       target: "esnext",
       outDir: options.outDir,
@@ -487,15 +536,12 @@ export default async function serverBuild(root, options) {
       ssr: true,
       ssrEmitAssets: true,
       sourcemap: options.sourcemap,
+      chunkSizeWarningLimit: config.build?.chunkSizeWarningLimit ?? 1024,
       rolldownOptions: {
         ...config.build?.rollupOptions,
         ...config.build?.rolldownOptions,
         preserveEntrySignatures: "strict",
-        treeshake: {
-          moduleSideEffects: false,
-          ...config.build?.rollupOptions?.treeshake,
-          ...config.build?.rolldownOptions?.treeshake,
-        },
+        treeshake: createTreeshake(config),
         onwarn(warn) {
           if (
             warn.code === "EMPTY_BUNDLE" ||
@@ -511,9 +557,11 @@ export default async function serverBuild(root, options) {
           entryFileNames({ name }) {
             return [
               "server/__react_server_config__/prebuilt",
+              "server/manifest-registry",
+              "server/client/manifest-registry",
               "server/render",
               "server/render-dom",
-              "server/index",
+              "server/root",
               "server/error",
               "server/edge",
             ].includes(name) || name.startsWith("static/")
@@ -523,16 +571,83 @@ export default async function serverBuild(root, options) {
           chunkFileNames: "server/[name].[hash].mjs",
           advancedChunks: {
             groups: [
+              // IMPORTANT: manifest-registry and virtual references MUST be checked FIRST
+              // before any other grouping to prevent them from being bundled into other chunks
+              {
+                name(id) {
+                  // Check for manifest-registry modules first - these must be in their own chunk
+                  if (
+                    id === ".react-server/manifest-registry" ||
+                    id === "server/manifest-registry"
+                  ) {
+                    return "manifest-reference";
+                  }
+                  if (
+                    id === ".react-server/client/manifest-registry" ||
+                    id === "server/client/manifest-registry"
+                  ) {
+                    return "client/manifest-reference";
+                  }
+                  // Check for virtual references - these must be grouped with manifest-registry
+                  if (
+                    id.startsWith("virtual:rsc:react-client-reference:") ||
+                    id.startsWith("virtual:rsc:react-server-reference:")
+                  ) {
+                    return "manifest-reference";
+                  }
+                  if (
+                    id.startsWith("virtual:ssr:react-client-reference:") ||
+                    id.startsWith("virtual:ssr:react-server-reference:")
+                  ) {
+                    return "client/manifest-reference";
+                  }
+                },
+              },
               {
                 name(id) {
                   if (REACT_RE.test(id)) {
                     return "react";
                   }
-                  const clientModules = Array.from(clientManifest.values());
-                  if (
-                    clientModules.includes(id) &&
-                    !id.includes("node_modules")
-                  ) {
+                  // Build set of packages that have client components
+                  const clientPackages = new Set();
+                  for (const entry of clientManifest.values()) {
+                    if (entry.id.includes("node_modules")) {
+                      // Extract package name from pnpm path like:
+                      // node_modules/.pnpm/@tanstack+react-query@5.54.1_react@19.2.1/node_modules/@tanstack/react-query/...
+                      const pnpmMatch = entry.id.match(
+                        /node_modules\/\.pnpm\/([^/]+)\/node_modules\/(@[^/]+\/[^/]+|[^/]+)/
+                      );
+                      if (pnpmMatch) {
+                        clientPackages.add(pnpmMatch[2]);
+                      } else {
+                        // Regular node_modules path
+                        const match = entry.id.match(
+                          /node_modules\/(@[^/]+\/[^/]+|[^/]+)/
+                        );
+                        if (match) {
+                          clientPackages.add(match[1]);
+                        }
+                      }
+                    }
+                  }
+                  // For node_modules, group all modules from packages with client components
+                  // This ensures React Context is not duplicated across chunks
+                  if (id.includes("node_modules")) {
+                    for (const pkg of clientPackages) {
+                      // Check if this module belongs to a package with client components
+                      if (
+                        id.includes(`/${pkg}/`) ||
+                        id.includes(`/${pkg.replace("/", "+")}`)
+                      ) {
+                        return pkg;
+                      }
+                    }
+                  }
+                  // App-level client components get individual chunks
+                  const clientModules = Array.from(clientManifest.values()).map(
+                    (entry) => entry.id
+                  );
+                  if (clientModules.includes(id)) {
                     const specifier = sys.normalizePath(relative(cwd, id));
                     return specifier
                       .replaceAll("../", "__/")
@@ -546,41 +661,19 @@ export default async function serverBuild(root, options) {
                 ?.groups ?? []),
             ],
           },
+          // inlineDynamicImports: true,
         },
         input: {
           "server/__react_server_config__/prebuilt": "virtual:config/prebuilt",
-          "server/render": __require.resolve(
-            "@lazarv/react-server/server/render-rsc.jsx",
-            { paths: [cwd] }
-          ),
-          "server/index":
-            !root && (options.eval || (!process.stdin.isTTY && !process.env.CI))
-              ? "virtual:react-server-eval.jsx"
-              : root?.startsWith("virtual:")
-                ? root
-                : __require.resolve(
-                    root?.split("#")?.[0] ?? "@lazarv/react-server/file-router",
-                    {
-                      paths: [cwd],
-                    }
-                  ),
-          "server/error": __require.resolve(globalError, {
-            paths: [cwd],
-          }),
+          "server/manifest-registry": ".react-server/manifest-registry",
+          // "server/client/manifest-registry":
+          //   ".react-server/client/manifest-registry",
+          "server/render": renderModulePath,
+          "server/root": rootModulePath,
+          "server/error": errorModulePath,
           ...(isGlobalErrorClientComponent
             ? {
-                "server/error-boundary": __require.resolve(
-                  "@lazarv/react-server/error-boundary",
-                  {
-                    paths: [cwd],
-                  }
-                ),
-              }
-            : {}),
-          // Edge worker entry point - when edge mode is enabled, this becomes an entry
-          ...(options.edge?.entry
-            ? {
-                "server/edge": options.edge.entry,
+                "server/error-boundary": errorBoundaryModulePath,
               }
             : {}),
         },
@@ -594,7 +687,11 @@ export default async function serverBuild(root, options) {
           );
         },
         plugins: [
+          manifestRegistry(),
           resolveWorkspace(),
+          ...(options.edge ? [preloadManifestVirtual(options)] : []),
+          ...(options.edge ? [serverReferenceMapVirtual(options)] : []),
+          ...(options.edge ? [clientReferenceMapVirtual(options)] : []),
           replace({
             preventAssignment: true,
             "process.env.NODE_ENV": JSON.stringify(
@@ -603,12 +700,12 @@ export default async function serverBuild(root, options) {
             ...(options.edge
               ? {
                   "import.meta.__react_server_cwd__": JSON.stringify(cwd),
-                  "import.meta.url": JSON.stringify("file:///worker.mjs"),
+                  "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
                 }
               : {}),
           }),
-          rolldownUseClient("server", clientManifest, "pre"),
-          rolldownUseClient("server", clientManifest),
+          rolldownUseClient("rsc", clientManifest, "pre", clientManifestBus),
+          rolldownUseClient("rsc", clientManifest, undefined),
           rolldownUseServer("rsc", serverManifest),
           rolldownUseServerInline(serverManifest),
           rolldownUseCacheInline(
@@ -636,6 +733,9 @@ export default async function serverBuild(root, options) {
       },
     },
     plugins: [
+      fileListingReporterPlugin("RSC"),
+      manifestRegistry(),
+      manifestGenerator(clientManifest, serverManifest),
       jsonNamedExports(),
       !root || root === "@lazarv/react-server/file-router"
         ? fileRouter(options)
@@ -697,144 +797,219 @@ export default async function serverBuild(root, options) {
   if (typeof config.vite === "object")
     viteConfig = merge(viteConfig, config.vite);
 
-  await viteBuild(viteConfig);
-
-  if (clientManifest.size > 0 || options.edge || config.ssr?.worker === false) {
-    const viteConfigClientComponents = {
-      ...viteConfig,
-      resolve: {
-        ...viteConfig.resolve,
-        alias: [
-          ...(options.edge === false || config.ssr?.worker === false
-            ? clientAlias()
-            : []),
-          {
-            find: /^@lazarv\/react-server\/http-context$/,
-            replacement: join(sys.rootDir, "server/http-context.mjs"),
-          },
-          // Only use client cache for non-edge builds (edge bundles server code that needs full cache API)
-          ...(!options.edge
-            ? [
-                {
-                  find: /^@lazarv\/react-server\/memory-cache$/,
-                  replacement: join(sys.rootDir, "cache/client.mjs"),
-                },
-              ]
-            : []),
-          // In edge mode, alias React packages to standard versions (for SSR build)
-          ...(options.edge
-            ? [
-                { find: /^react$/, replacement: react },
-                { find: /^react\/jsx-runtime$/, replacement: reactJsxRuntime },
-                {
-                  find: /^react\/jsx-dev-runtime$/,
-                  replacement: reactJsxDevRuntime,
-                },
-                {
-                  find: /^react\/compiler-runtime$/,
-                  replacement: reactCompilerRuntime,
-                },
-                { find: /^react-dom$/, replacement: reactDom },
-                { find: /^react-dom\/client$/, replacement: reactDomClient },
-                {
-                  find: /^react-dom\/server\.edge$/,
-                  replacement: reactDomServerEdge,
-                },
-                {
-                  find: /^react-server-dom-webpack\/client\.edge$/,
-                  replacement: reactServerDomWebpackClientEdge,
-                },
-                { find: /^react-is$/, replacement: reactIs },
-              ]
-            : []),
-          ...viteConfig.resolve.alias.filter(
-            (alias) =>
-              !alias.replacement.endsWith(
-                "react-server/client/http-context.jsx"
-              ) &&
-              !alias.replacement.endsWith("react-server/cache/index.mjs") &&
-              // In edge mode, filter out react-server versions of react packages
-              !(
-                options.edge &&
-                (alias.replacement.includes("/react/") ||
-                  alias.replacement.includes("/react-dom/") ||
-                  alias.replacement.includes("react-server-dom-webpack/"))
-              )
-          ),
-        ],
-      },
-      build: {
-        ...viteConfig.build,
-        manifest: "server/client-manifest.json",
-        rolldownOptions: {
-          ...viteConfig.build.rolldownOptions,
-          treeshake: createTreeshake(config),
-          input: {
-            ...Array.from(clientManifest.entries()).reduce(
-              (input, [key, value]) => {
-                input["server/client/" + key] = value;
-                return input;
+  const viteConfigClientComponents = {
+    ...viteConfig,
+    customLogger: customLogger(options.silent),
+    resolve: {
+      ...viteConfig.resolve,
+      alias: [
+        ...(options.edge === false || config.ssr?.worker === false
+          ? clientAlias()
+          : []),
+        {
+          find: /^@lazarv\/react-server\/http-context$/,
+          replacement: join(sys.rootDir, "server/http-context.mjs"),
+        },
+        // Only use client cache for non-edge builds (edge bundles server code that needs full cache API)
+        ...(!options.edge
+          ? [
+              {
+                find: /^@lazarv\/react-server\/memory-cache$/,
+                replacement: join(sys.rootDir, "cache/client.mjs"),
               },
-              {}
+            ]
+          : []),
+        // In edge mode, alias React packages to standard versions (for SSR build)
+        ...(options.edge
+          ? [
+              { find: /^react$/, replacement: react },
+              { find: /^react\/jsx-runtime$/, replacement: reactJsxRuntime },
+              {
+                find: /^react\/jsx-dev-runtime$/,
+                replacement: reactJsxDevRuntime,
+              },
+              {
+                find: /^react\/compiler-runtime$/,
+                replacement: reactCompilerRuntime,
+              },
+              { find: /^react-dom$/, replacement: reactDom },
+              { find: /^react-dom\/client$/, replacement: reactDomClient },
+              {
+                find: /^react-dom\/server\.edge$/,
+                replacement: reactDomServerEdge,
+              },
+              {
+                find: /^react-server-dom-webpack\/client\.edge$/,
+                replacement: reactServerDomWebpackClientEdge,
+              },
+              { find: /^react-is$/, replacement: reactIs },
+            ]
+          : []),
+        ...viteConfig.resolve.alias.filter(
+          (alias) =>
+            !alias.replacement.endsWith(
+              "react-server/client/http-context.jsx"
+            ) &&
+            !alias.replacement.endsWith("react-server/cache/index.mjs") &&
+            // In edge mode, filter out react-server versions of react packages
+            !(
+              options.edge &&
+              (alias.replacement.includes("/react/") ||
+                alias.replacement.includes("/react-dom/") ||
+                alias.replacement.includes("react-server-dom-webpack/"))
+            )
+        ),
+      ],
+    },
+    build: {
+      ...viteConfig.build,
+      manifest: "server/client-manifest.json",
+      chunkSizeWarningLimit: config.build?.chunkSizeWarningLimit ?? 1024,
+      rolldownOptions: {
+        ...viteConfig.build.rolldownOptions,
+        treeshake: createTreeshake(config),
+        output: {
+          ...viteConfig.build.rolldownOptions.output,
+          advancedChunks: {
+            groups: [
+              // IMPORTANT: manifest-registry and virtual references MUST be checked FIRST
+              // before any other grouping to prevent them from being bundled into other chunks
+              {
+                name(id) {
+                  // Check for manifest-registry modules first - these must be in their own chunk
+                  if (
+                    id === ".react-server/client/manifest-registry" ||
+                    id === "server/client/manifest-registry"
+                  ) {
+                    return "client/manifest-reference";
+                  }
+                  if (
+                    id === ".react-server/manifest-registry" ||
+                    id === "server/manifest-registry"
+                  ) {
+                    return "manifest-reference";
+                  }
+                  // Check for virtual references - these must be grouped with manifest-registry
+                  if (
+                    id.startsWith("virtual:ssr:react-client-reference:") ||
+                    id.startsWith("virtual:ssr:react-server-reference:")
+                  ) {
+                    return "client/manifest-reference";
+                  }
+                  if (
+                    id.startsWith("virtual:rsc:react-client-reference:") ||
+                    id.startsWith("virtual:rsc:react-server-reference:")
+                  ) {
+                    return "manifest-reference";
+                  }
+                },
+              },
+              {
+                name(id) {
+                  // Build set of packages that have client components
+                  const clientPackages = new Set();
+                  for (const entry of clientManifest.values()) {
+                    if (entry.id.includes("node_modules")) {
+                      // Extract package name from pnpm path like:
+                      // node_modules/.pnpm/@tanstack+react-query@5.54.1_react@19.2.1/node_modules/@tanstack/react-query/...
+                      const pnpmMatch = entry.id.match(
+                        /node_modules\/\.pnpm\/([^/]+)\/node_modules\/(@[^/]+\/[^/]+|[^/]+)/
+                      );
+                      if (pnpmMatch) {
+                        clientPackages.add(pnpmMatch[2]);
+                      } else {
+                        // Regular node_modules path
+                        const match = entry.id.match(
+                          /node_modules\/(@[^/]+\/[^/]+|[^/]+)/
+                        );
+                        if (match) {
+                          clientPackages.add(match[1]);
+                        }
+                      }
+                    }
+                  }
+                  // For node_modules, group all modules from packages with client components
+                  // This ensures React Context is not duplicated across chunks
+                  if (id.includes("node_modules")) {
+                    for (const pkg of clientPackages) {
+                      // Check if this module belongs to a package with client components
+                      if (
+                        id.includes(`/${pkg}/`) ||
+                        id.includes(`/${pkg.replace("/", "+")}`)
+                      ) {
+                        return pkg;
+                      }
+                    }
+                  }
+                },
+              },
+              ...(viteConfig.build.rolldownOptions.output?.advancedChunks
+                ?.groups ?? []),
+            ],
+          },
+        },
+        input: {
+          "server/client/manifest-registry":
+            ".react-server/client/manifest-registry",
+          ...(options.edge || config.ssr?.worker === false
+            ? {
+                "server/render-dom": __require.resolve(
+                  "@lazarv/react-server/server/render-dom.mjs",
+                  { paths: [cwd] }
+                ),
+              }
+            : {}),
+        },
+        external: options.edge
+          ? edgeExternal
+          : config.ssr?.worker === false
+            ? ssrExternal
+            : external,
+        plugins: [
+          manifestRegistry(),
+          resolveWorkspace(),
+          ...(options.edge ? [preloadManifestVirtual(options)] : []),
+          replace({
+            preventAssignment: true,
+            "process.env.NODE_ENV": JSON.stringify(
+              options.dev ? "development" : "production"
             ),
-            ...(options.edge || config.ssr?.worker === false
+            ...(options.edge
               ? {
-                  "server/render-dom": __require.resolve(
-                    "@lazarv/react-server/server/render-dom.mjs",
-                    { paths: [cwd] }
-                  ),
+                  "import.meta.__react_server_cwd__": JSON.stringify(cwd),
+                  "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
                 }
               : {}),
-          },
-          external: options.edge
-            ? edgeExternal
-            : config.ssr?.worker === false
-              ? ssrExternal
-              : external,
-          plugins: [
-            resolveWorkspace(),
-            replace({
-              preventAssignment: true,
-              "process.env.NODE_ENV": JSON.stringify(
-                options.dev ? "development" : "production"
-              ),
-              ...(options.edge
-                ? {
-                    "import.meta.__react_server_cwd__": JSON.stringify(cwd),
-                    "import.meta.url": JSON.stringify("file:///worker.mjs"),
-                  }
-                : {}),
-            }),
-            rolldownUseClient("client", undefined, "pre"),
-            rolldownUseClient("client"),
-            rolldownUseServer("ssr"),
-            rolldownUseCacheInline(
-              config.cache?.profiles,
-              config.cache?.providers,
-              "client"
-            ),
-            rolldownUseDynamic(),
-            ...(config.build?.rollupOptions?.plugins ?? []),
-            ...(config.build?.rolldownOptions?.plugins ?? []),
-          ],
-        },
+          }),
+          rolldownUseClient("ssr", undefined, "pre", clientManifestBus),
+          rolldownUseClient("ssr"),
+          rolldownUseServer("ssr"),
+          rolldownUseCacheInline(
+            config.cache?.profiles,
+            config.cache?.providers,
+            "ssr"
+          ),
+          rolldownUseDynamic(),
+          ...(config.build?.rollupOptions?.plugins ?? []),
+          ...(config.build?.rolldownOptions?.plugins ?? []),
+        ],
       },
-      plugins: [...buildPlugins, fixEsbuildOptionsPlugin()],
-      ssr: {
-        ...config.ssr,
-      },
-    };
+    },
+    plugins: [
+      fileListingReporterPlugin("SSR"),
+      ...buildPlugins,
+      manifestRegistry(),
+      manifestGenerator(clientManifest, serverManifest, "ssr"),
+      fixEsbuildOptionsPlugin(),
+    ],
+    ssr: {
+      ...config.ssr,
+    },
+  };
 
-    // empty line
-    console.log();
-    banner("ssr", options.dev);
-    await viteBuild(viteConfigClientComponents);
-  } else {
-    await writeFile(
-      join(cwd, options.outDir, "server/client-manifest.json"),
-      "{}",
-      "utf8"
-    );
-  }
-  return true;
+  const rscPromise = viteBuild(viteConfig);
+  const ssrPromise = viteBuild(viteConfigClientComponents);
+
+  await Promise.all([rscPromise, ssrPromise]);
+  return { clientManifest, serverManifest };
 }

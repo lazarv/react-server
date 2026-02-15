@@ -28,6 +28,11 @@ export default function useServer(type, manifest) {
             "Cannot use both 'use client' and 'use server' in the same module."
           );
 
+        const actionId =
+          mode === "build"
+            ? sys.normalizePath(relative(cwd, id)).replace(/\.m?[jt]sx?$/, "")
+            : id;
+        const exportNames = new Set();
         const defaultExport = ast.body.find(
           (node) => node.type === "ExportDefaultDeclaration"
         );
@@ -154,7 +159,7 @@ export default function useServer(type, manifest) {
                         arguments: [
                           {
                             type: "Literal",
-                            value: `${id}#${name}`,
+                            value: `${actionId}#${name}`,
                           },
                         ],
                       },
@@ -214,7 +219,7 @@ export default function useServer(type, manifest) {
                           arguments: [
                             {
                               type: "Literal",
-                              value: `${id}#${name}`,
+                              value: `${actionId}#${name}`,
                             },
                             {
                               type: "Identifier",
@@ -257,7 +262,7 @@ export default function useServer(type, manifest) {
                   },
                   {
                     type: "Literal",
-                    value: id,
+                    value: actionId,
                   },
                   {
                     type: "Literal",
@@ -266,6 +271,7 @@ export default function useServer(type, manifest) {
                 ],
               },
             });
+            exportNames.add(name);
           }
 
           ast.body.unshift({
@@ -291,11 +297,14 @@ export default function useServer(type, manifest) {
           });
         }
 
-        const specifier = relative(cwd, id);
+        const specifier = sys.normalizePath(relative(cwd, id));
         const name = specifier.replace(extname(specifier), "");
 
         if (manifest) {
-          manifest.set(name, id);
+          manifest.set(name, {
+            id: specifier,
+            exports: Array.from(exportNames),
+          });
         }
 
         if (mode === "build") {
@@ -304,6 +313,14 @@ export default function useServer(type, manifest) {
             id,
             name,
           });
+
+          if (type !== "client") {
+            this.emitFile({
+              type: "chunk",
+              id: `virtual:${type}:react-server-reference:${id}`,
+              name,
+            });
+          }
         }
 
         return codegen(ast, id);

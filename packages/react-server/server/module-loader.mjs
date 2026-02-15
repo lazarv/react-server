@@ -91,9 +91,9 @@ export async function init$(
               [name]: implementation,
             };
           }
-        } else if (specifier.startsWith("server://")) {
+        } else if (specifier.startsWith("server-action://")) {
           const mod = ssrLoadModule(
-            specifier.replace("server://", ""),
+            specifier.replace(/^server-action:\/\//, "server://"),
             linkQueueStorage
           );
           const proxy = new Proxy(
@@ -131,7 +131,12 @@ export async function init$(
           moduleCache.set(specifier, proxy);
           return proxy;
         } else {
-          const modulePromise = ssrLoadModule(specifier, linkQueueStorage);
+          const modulePromise = ssrLoadModule(
+            /^(client|server):\/\//.test(specifier)
+              ? specifier
+              : `client://${specifier}`,
+            linkQueueStorage
+          );
           modulePromise.then(
             () => {
               modulePromise.value = modulePromise;

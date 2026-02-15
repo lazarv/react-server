@@ -9,5 +9,14 @@
     }
   },
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "oxc.oxc-vscode"
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "deno.enable": true,
+  "deno.enablePaths": [
+    "netlify/edge-functions",
+    "examples/photos/netlify/edge-functions",
+    "examples/hello-world/netlify/edge-functions",
+    "docs/netlify/edge-functions"
+  ],
+  "deno.unstable": true,
+  "deno.importMap": ".netlify/edge-functions-import-map.json"
 }

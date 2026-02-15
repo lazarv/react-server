@@ -22,11 +22,13 @@ import {
   HTTP_HEADERS,
   HTTP_STATUS,
   IMPORT_MAP,
+  LINK_QUEUE,
   LOGGER_CONTEXT,
   MAIN_MODULE,
   MANIFEST,
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
+  MODULE_CACHE,
   POSTPONE_CONTEXT,
   POSTPONE_STATE,
   PRELUDE_HTML,
@@ -40,7 +42,6 @@ import {
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
-import { init$ as manifest_init$ } from "./manifest.mjs";
 
 globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
@@ -48,17 +49,19 @@ const cwd = sys.cwd();
 
 export default async function ssrHandler(root, options = {}) {
   const outDir = options.outDir ?? ".react-server";
-  const defaultRoot = join(outDir, "server/index.mjs");
+  const defaultRoot = sys.normalizePath(join(outDir, "server/root.mjs"));
   const logger = getRuntime(LOGGER_CONTEXT);
   const config = getRuntime(CONFIG_CONTEXT);
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 
-  await manifest_init$(options);
+  await import("./manifest.mjs").then(({ init$ }) => init$(options));
 
-  const entryModule = join(cwd, outDir, "server/render.mjs");
-  const rootModule = join(cwd, root ?? configRoot.entry ?? defaultRoot);
-  const globalErrorModule = join(cwd, outDir, "server/error.mjs");
-  const errorBoundary = join(cwd, outDir, "server/error-boundary.mjs");
+  const rootModule = sys.normalizePath(
+    join(cwd, root ?? configRoot.entry ?? defaultRoot)
+  );
+  const globalErrorModule = sys.normalizePath(
+    join(cwd, outDir, "server/error.mjs")
+  );
   const [
     { render },
     { default: Component, init$: root_init$ },
@@ -66,12 +69,12 @@ export default async function ssrHandler(root, options = {}) {
     { default: ErrorBoundary },
     rscSerializer,
   ] = await Promise.all([
-    import(entryModule),
-    import(rootModule),
-    import(globalErrorModule),
+    import(".react-server/server/render"),
+    import(".react-server/server/root"),
+    import(".react-server/server/error"),
     (async () => {
       try {
-        return await import(errorBoundary);
+        return await import(".react-server/server/error-boundary");
       } catch {
         return { default: null };
       }
@@ -89,7 +92,13 @@ export default async function ssrHandler(root, options = {}) {
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const manifest = getRuntime(MANIFEST);
   const moduleCacheStorage = new AsyncLocalStorage();
-  await module_loader_init$(moduleLoader, moduleCacheStorage, null, "rsc");
+  const linkQueueStorage = new AsyncLocalStorage();
+  await module_loader_init$(
+    moduleLoader,
+    moduleCacheStorage,
+    linkQueueStorage,
+    "rsc"
+  );
 
   const importMap =
     configRoot.importMap || configRoot.resolve?.shared
@@ -207,6 +216,8 @@ export default async function ssrHandler(root, options = {}) {
               [POSTPONE_STATE]: getPrerender(POSTPONE_STATE),
               [PRERENDER_CACHE]: httpContext.prerenderCache ?? null,
               [ERROR_BOUNDARY]: ErrorBoundary,
+              [MODULE_CACHE]: moduleCacheStorage,
+              [LINK_QUEUE]: linkQueueStorage,
             },
             async () => {
               if (!noCache) {
@@ -229,7 +240,11 @@ export default async function ssrHandler(root, options = {}) {
                             Buffer.from(vBuffer, "base64")
                           ),
                           typeof provider.driverPath === "string"
-                            ? import(provider.driverPath || provider.driver)
+                            ? import(
+                                sys.toFileUrl(
+                                  provider.driverPath || provider.driver
+                                )
+                              )
                             : Promise.resolve({ default: null }),
                         ]);
                       return useCache(keys, result, ttl ?? Infinity, false, {

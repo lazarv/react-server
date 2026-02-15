@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,48 +6,11 @@ import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import {
   banner,
   createAdapter,
+  mergeTomlConfig,
   message,
   writeJSON,
-} from "@lazarv/react-server-adapter-core";
-import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
-
-/**
- * Deep merge two objects, extending arrays and objects from source with target values.
- * Target (adapter config) takes precedence for primitive values.
- * For arrays, target items are used, with unique source items prepended.
- */
-function deepMerge(source, target) {
-  const result = { ...source };
-
-  for (const key of Object.keys(target)) {
-    const sourceValue = source[key];
-    const targetValue = target[key];
-
-    if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
-      // For arrays: use target items, prepend unique source items
-      const targetJson = targetValue.map((item) => JSON.stringify(item));
-      const uniqueSourceItems = sourceValue.filter(
-        (item) => !targetJson.includes(JSON.stringify(item))
-      );
-      result[key] = [...uniqueSourceItems, ...targetValue];
-    } else if (
-      targetValue &&
-      typeof targetValue === "object" &&
-      !Array.isArray(targetValue) &&
-      sourceValue &&
-      typeof sourceValue === "object" &&
-      !Array.isArray(sourceValue)
-    ) {
-      // Recursively merge objects
-      result[key] = deepMerge(sourceValue, targetValue);
-    } else {
-      // Target (adapter) takes precedence for primitives
-      result[key] = targetValue;
-    }
-  }
-
-  return result;
-}
+  writeToml,
+} from "@lazarv/react-server/adapters/core";
 
 const cwd = sys.cwd();
 const cloudflareDir = join(cwd, ".cloudflare");
@@ -77,12 +39,9 @@ export const adapter = createAdapter({
   outDir,
   outStaticDir,
   outServerDir,
-  handler: async function ({ adapterOptions, copy }) {
-    // Copy static assets
-    await copy.client();
-
+  handler: async function ({ adapterOptions }) {
     // Create wrangler.toml configuration
-    banner("creating Cloudflare Worker configuration");
+    banner("creating Cloudflare Worker configuration", { emoji: "⚙️" });
 
     // Try to get app name from adapter options or package.json
     let appName = adapterOptions?.name;
@@ -136,23 +95,16 @@ export const adapter = createAdapter({
 
     // Read existing wrangler.toml if present and merge with adapter config
     const existingWranglerPath = join(cwd, "react-server.wrangler.toml");
-    let finalConfig = wranglerConfig;
+    const finalConfig = mergeTomlConfig(existingWranglerPath, wranglerConfig);
     if (existsSync(existingWranglerPath)) {
-      try {
-        const existingToml = readFileSync(existingWranglerPath, "utf-8");
-        const existingConfig = tomlParse(existingToml);
-        message(
-          "merging",
-          "existing react-server.wrangler.toml with adapter config"
-        );
-        finalConfig = deepMerge(existingConfig, wranglerConfig);
-      } catch {
-        // If parsing fails, just use the adapter config
-      }
+      message(
+        "merging",
+        "existing react-server.wrangler.toml with adapter config"
+      );
     }
 
     message("creating", "wrangler.toml");
-    await writeFile(join(cwd, "wrangler.toml"), tomlStringify(finalConfig));
+    await writeToml(join(cwd, "wrangler.toml"), finalConfig);
 
     // Create _routes.json for Cloudflare Pages if needed
     if (adapterOptions?.pages !== false) {

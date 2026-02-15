@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from "node:fs";
+import { promises as fs } from "node:fs";
 import { join } from "node:path";
 
 import { moduleAliases } from "../loader/module-alias.mjs";
@@ -18,57 +18,91 @@ import {
 const alias = moduleAliases();
 const cwd = sys.cwd();
 
-// Scan node_modules for packages with client components (parallelized)
+// Scan node_modules for packages with client components (fully parallelized)
 async function findPackagesWithClientComponents() {
   const packages = new Set();
   const nodeModulesDir = join(cwd, "node_modules");
 
   try {
-    const entries = readdirSync(nodeModulesDir);
+    const entries = await fs.readdir(nodeModulesDir);
     const checkPromises = [];
 
+    // First pass: collect all directory checks for both regular and scoped packages
     for (const entry of entries) {
       if (entry.startsWith(".")) continue;
 
       if (entry.startsWith("@")) {
-        // Scoped package
+        // Scoped package - read scope directory in parallel
         const scopeDir = join(nodeModulesDir, entry);
-        try {
-          const scopedEntries = readdirSync(scopeDir);
-          for (const scopedEntry of scopedEntries) {
-            const pkgDir = join(scopeDir, scopedEntry);
-            if (statSync(pkgDir).isDirectory()) {
-              const pkgName = `${entry}/${scopedEntry}`;
-              checkPromises.push(
-                hasClientComponentsAsync(join(pkgDir, "package.json")).then(
-                  (hasClient) => (hasClient ? pkgName : null)
-                )
-              );
+        checkPromises.push(
+          (async () => {
+            try {
+              const scopedEntries = await fs.readdir(scopeDir);
+              const scopedChecks = [];
+
+              for (const scopedEntry of scopedEntries) {
+                const pkgDir = join(scopeDir, scopedEntry);
+                scopedChecks.push(
+                  (async () => {
+                    try {
+                      const stats = await fs.stat(pkgDir);
+                      if (stats.isDirectory()) {
+                        const pkgName = `${entry}/${scopedEntry}`;
+                        const hasClient = await hasClientComponentsAsync(
+                          join(pkgDir, "package.json")
+                        );
+                        return hasClient ? pkgName : null;
+                      }
+                    } catch {
+                      // ignore
+                    }
+                    return null;
+                  })()
+                );
+              }
+
+              const results = await Promise.all(scopedChecks);
+              return results.filter((r) => r !== null);
+            } catch {
+              // ignore scope directory
+              return [];
             }
-          }
-        } catch {
-          // ignore
-        }
+          })()
+        );
       } else {
         // Regular package
         const pkgDir = join(nodeModulesDir, entry);
-        try {
-          if (statSync(pkgDir).isDirectory()) {
-            checkPromises.push(
-              hasClientComponentsAsync(join(pkgDir, "package.json")).then(
-                (hasClient) => (hasClient ? entry : null)
-              )
-            );
-          }
-        } catch {
-          // ignore
-        }
+        checkPromises.push(
+          (async () => {
+            try {
+              const stats = await fs.stat(pkgDir);
+              if (stats.isDirectory()) {
+                const hasClient = await hasClientComponentsAsync(
+                  join(pkgDir, "package.json")
+                );
+                return hasClient ? entry : null;
+              }
+            } catch {
+              // ignore
+            }
+            return null;
+          })()
+        );
       }
     }
 
+    // Wait for all checks to complete
     const results = await Promise.all(checkPromises);
-    for (const pkgName of results) {
-      if (pkgName) packages.add(pkgName);
+
+    // Flatten and collect results
+    for (const result of results) {
+      if (Array.isArray(result)) {
+        for (const pkgName of result) {
+          if (pkgName) packages.add(pkgName);
+        }
+      } else if (result) {
+        packages.add(result);
+      }
     }
   } catch {
     // node_modules doesn't exist
@@ -78,11 +112,36 @@ async function findPackagesWithClientComponents() {
 }
 
 // Generate advancedChunks groups for packages with client components
-export function generateClientComponentChunkGroups(packages) {
-  return packages.map((pkgName) => ({
-    name: pkgName,
-    test: new RegExp(`${pkgName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`),
-  }));
+// Uses a name function that returns chunk name for matching modules, undefined otherwise
+// Entry points (client component files) are excluded - only their dependencies are grouped
+export function generateClientComponentChunkGroups(
+  packages,
+  clientComponentIds
+) {
+  // Create a Set of entry point IDs for fast lookup
+  const entryIds = new Set(clientComponentIds || []);
+
+  return [
+    {
+      name(id) {
+        // Skip entry points - client components must remain individual entries
+        // for RSC payload resolution
+        if (entryIds.has(id)) {
+          return undefined;
+        }
+        // Group non-client-component dependencies by package
+        for (const pkgName of packages) {
+          if (
+            id.includes(`/${pkgName}/`) ||
+            id.includes(`/${pkgName.replace("/", "+")}`)
+          ) {
+            return pkgName;
+          }
+        }
+        return undefined;
+      },
+    },
+  ];
 }
 
 export { findPackagesWithClientComponents };

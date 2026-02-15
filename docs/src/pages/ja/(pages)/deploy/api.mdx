@@ -53,6 +53,8 @@ export default function defineConfig(adapterOptions) {
 
 `outStaticDir`: 静的ファイルを出力するディレクトリ。これはオプションです。指定された場合、アダプタは静的ファイルを出力ディレクトリにコピーします。
 
+`outServerDir`: サーバファイルを出力するディレクトリ。これはオプションです。指定された場合、アダプタはサーバファイルを出力ディレクトリにコピーします。
+
 `handler`: アダプタハンドラ関数
 
 `deploy`: デプロイコマンドと引数。これはオプションです。指定された場合、アプリケーションをデプロイするために、ビルド後に開発者が実行する必要のあるコマンドを表示します。ビルド中に `--deploy` フラグが指定された場合、アダプタはこのコマンドを実行します。`deploy` プロパティは関数としても指定でき、アダプタオプション、CLI オプション、およびハンドラの結果を使用して呼び出されます。アダプタオプションやハンドラの結果に基づいてデプロイコマンドをカスタマイズする必要がある場合に便利です。`command` と `args` を含む結果を提供しない場合、デフォルトのデプロイ処理（コマンドの実行）はスキップされます。これは、アダプタ内でカスタムデプロイワークフローを実装したい場合に役立ちます。
@@ -169,4 +171,84 @@ await writeJSON(join(outServerDir, ".vc-config.json"), {
   supportsResponseStreaming: true,
   ...adapterOptions?.serverlessFunctions?.index,
 });
+```
+
+### clearProgress
+
+アクティブなプログレスインジケーターをクリアします。
+
+```js
+clearProgress();
+```
+
+### getConfig
+
+`react-server.config.js` ファイルからアプリケーションの設定を返します。
+
+```js
+const config = getConfig();
+```
+
+### getPublicDir
+
+公開ディレクトリへのパスを返します。
+
+```js
+const publicDir = getPublicDir();
+```
+
+### getFiles
+
+指定された glob パターンに一致するファイルのリストを返します。
+
+```js
+const files = await getFiles("**/*.mjs", srcDir);
+```
+
+### getDependencies
+
+アダプタファイルの依存関係のリストを返します。これは `@vercel/nft` を使用してファイルの依存関係をトレースします。
+
+```js
+const dependencies = await getDependencies(adapterFiles, reactServerDir);
+```
+
+### spawnCommand
+
+現在の作業ディレクトリでコマンドを実行します。
+
+```js
+await spawnCommand("vercel", ["deploy", "--prebuilt"]);
+```
+
+### deepMerge
+
+2つのオブジェクトをディープマージします。ターゲット（アダプタ設定）はプリミティブ値に対して優先されます。配列の場合、ターゲットのアイテムが使用され、ソースのユニークなアイテムが先頭に追加されます。
+
+```js
+const merged = deepMerge(sourceConfig, adapterConfig);
+```
+
+### readToml
+
+TOML ファイルを読み取りパースします。パースに失敗した場合やファイルが存在しない場合は `null` を返します。
+
+```js
+const config = readToml("wrangler.toml");
+```
+
+### writeToml
+
+TOML ファイルを書き込みます。
+
+```js
+await writeToml("wrangler.toml", config);
+```
+
+### mergeTomlConfig
+
+既存の TOML ファイルを読み取り、アダプタ設定とマージします。マージされた設定を返します。
+
+```js
+const config = mergeTomlConfig("wrangler.toml", adapterConfig);
 ```

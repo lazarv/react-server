@@ -34,8 +34,12 @@ export default (cli) => {
 
       setEnv("NODE_ENV", "production");
       const { default: init$ } = await import("../../lib/loader/init.mjs");
-      await init$();
-      return (await import("../../lib/start/action.mjs")).default(...args);
+      const [root, options] = args;
+      await init$({ root, ...options });
+      return (await import("../../lib/start/action.mjs")).default(
+        root,
+        options
+      );
     });
   command.__react_server_check_node_version__ = false;
   command.__react_server_check_deps__ = false;

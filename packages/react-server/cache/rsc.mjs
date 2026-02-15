@@ -2,11 +2,13 @@ import { createFromReadableStream } from "react-server-dom-webpack/client.edge";
 import { renderToReadableStream } from "react-server-dom-webpack/server.edge";
 
 import { concat, copyBytesFrom } from "../lib/sys.mjs";
-import { clientReferenceMap } from "../server/client-reference-map.mjs";
 
 export function toBuffer(model, options = {}) {
   return new Promise(async (resolve, reject) => {
-    const stream = renderToReadableStream(model, clientReferenceMap(), {
+    const { clientReferenceMap } =
+      await import(".react-server/server/client-reference-map");
+    const map = clientReferenceMap();
+    const stream = renderToReadableStream(model, map, {
       ...options,
       onError(error) {
         reject(error);
@@ -22,8 +24,11 @@ export function toBuffer(model, options = {}) {
   });
 }
 
-export function toStream(model, options = {}) {
-  return renderToReadableStream(model, clientReferenceMap(), options);
+export async function toStream(model, options = {}) {
+  const { clientReferenceMap } =
+    await import(".react-server/server/client-reference-map");
+  const map = clientReferenceMap();
+  return renderToReadableStream(model, map, options);
 }
 
 function createManifest() {

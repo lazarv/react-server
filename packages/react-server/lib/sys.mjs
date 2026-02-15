@@ -6,6 +6,16 @@ export function normalizePath(path) {
   return path?.replace(/\\/g, "/");
 }
 
+// Convert an absolute path to a string safe for dynamic import().
+// On Windows, Node.js interprets drive letters (e.g. "D:") as URL protocols,
+// so absolute paths must be converted to file:// URLs.
+export function toFileUrl(absolutePath) {
+  if (/^[A-Za-z]:/.test(absolutePath)) {
+    return "file:///" + absolutePath.replace(/\\/g, "/");
+  }
+  return absolutePath;
+}
+
 // Detect edge runtime environments
 export const isEdgeRuntime =
   // Vercel Edge Runtime
@@ -73,7 +83,11 @@ export function concat(buffers) {
 }
 
 export function immediate(fn) {
-  return typeof Deno !== "undefined" ? fn() : setImmediate(fn);
+  if (typeof Deno !== "undefined") {
+    // Deno doesn't have setImmediate, use queueMicrotask to defer to next tick
+    return setTimeout(fn, 0);
+  }
+  return setImmediate(fn);
 }
 
 export function experimentalWarningSilence() {
@@ -145,6 +159,13 @@ if (typeof Deno !== "undefined") {
 
 // In Cloudflare Workers, rootDir is not meaningful since modules are bundled
 // Use empty string to avoid fileURLToPath errors with undefined import.meta.url
-export const rootDir = isEdgeRuntime
-  ? ""
-  : normalizePath(join(dirname(fileURLToPath(import.meta.url)), ".."));
+// The build-time replacement of import.meta.url uses "file:///C:/worker.mjs" which is a
+// valid file URL on all platforms (Linux: /C:/worker.mjs, Windows: C:\worker.mjs)
+export const rootDir = (() => {
+  if (isEdgeRuntime) return "";
+  try {
+    return normalizePath(join(dirname(fileURLToPath(import.meta.url)), ".."));
+  } catch {
+    return "";
+  }
+})();

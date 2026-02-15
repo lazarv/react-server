@@ -22,6 +22,7 @@ export default defineConfig({
         return false;
     },
     testTimeout: 60000,
+    hookTimeout: 60000,
     reporters: process.env.GITHUB_ACTIONS
       ? ["verbose", "github-actions"]
       : ["default"],

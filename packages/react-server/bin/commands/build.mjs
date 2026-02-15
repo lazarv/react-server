@@ -13,8 +13,6 @@ export default (cli) =>
     )
     .option("--no-color", "disable color output", { default: false })
     .option("--no-check", "skip dependency checks", { default: false })
-    .option("--server", "[boolean] build server", { default: true })
-    .option("--client", "[boolean] build client", { default: true })
     .option("--export", "[boolean] static export")
     .option("--compression", "[boolean] enable compression", { default: false })
     .option("--adapter <adapter>", "[boolean|string] adapter", {
@@ -31,12 +29,16 @@ export default (cli) =>
       default: false,
     })
     .option("--silent", "[boolean] suppress build output", { default: false })
+    .option("--verbose", "[boolean] verbose build output", {
+      default: false,
+    })
     .action(async (root, options) => {
       setEnv("NODE_ENV", "production");
+      if (options.verbose) {
+        setEnv("REACT_SERVER_VERBOSE", "true");
+      }
       const { default: init$ } = await import("../../lib/loader/init.mjs");
-      await init$();
-      return (await import("../../lib/build/action.mjs")).default(
-        root,
-        options
-      );
+      await init$({ root, ...options });
+      const { default: build } = await import("../../lib/build/action.mjs");
+      return build(root, options);
     });

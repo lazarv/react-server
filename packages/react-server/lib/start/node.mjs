@@ -7,15 +7,17 @@ export function reactServer(root, options = {}, initialConfig = {}) {
   experimentalWarningSilence();
 
   if (typeof root === "object") {
+    if (typeof options === "object") {
+      initialConfig = options;
+    }
     options = root;
     root = undefined;
-    initialConfig = options;
   }
 
   return new Promise(async (resolve, reject) => {
     try {
       const { default: init$ } = await import("../../lib/loader/init.mjs");
-      await init$();
+      await init$({ root, ...options });
       const { loadConfig } = await import("../../config/prebuilt.mjs");
       const { default: createServer } = await import("./create-server.mjs");
       const config = await loadConfig(initialConfig, options);

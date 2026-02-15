@@ -19,14 +19,28 @@ function resolveAdapter(config, options) {
   return adapter;
 }
 
-async function loadAdapterModule(adapterModule) {
+function tryResolveBuiltInAdapter(adapterModule) {
+  const builtInPath = `@lazarv/react-server/adapters/${adapterModule}`;
   try {
-    return await import(
-      pathToFileURL(__require.resolve(adapterModule, { paths: [cwd] }))
-    );
+    return __require.resolve(builtInPath, { paths: [cwd] });
   } catch {
-    throw `Adapter not found "${adapterModule}"`;
+    return null;
   }
+}
+
+async function loadAdapterModule(adapterModule) {
+  // First try to resolve as a built-in adapter
+  let resolvedPath = tryResolveBuiltInAdapter(adapterModule);
+
+  if (!resolvedPath) {
+    try {
+      resolvedPath = __require.resolve(adapterModule, { paths: [cwd] });
+    } catch {
+      throw `Adapter not found "${adapterModule}"`;
+    }
+  }
+
+  return await import(pathToFileURL(resolvedPath));
 }
 
 /**
@@ -34,27 +48,31 @@ async function loadAdapterModule(adapterModule) {
  * Adapters can export a `buildOptions` object or function to customize build behavior.
  */
 export async function getAdapterBuildOptions(config, options) {
-  const adapter = resolveAdapter(config, options);
-  if (!adapter) return {};
+  try {
+    const adapter = resolveAdapter(config, options);
+    if (!adapter) return {};
 
-  if (typeof adapter === "function") {
-    // Function adapters don't support build options yet
+    if (typeof adapter === "function") {
+      // Function adapters don't support build options yet
+      return {};
+    }
+
+    const [adapterModule, adapterOptions] =
+      typeof adapter === "string" ? [adapter] : adapter;
+
+    if (!adapterModule) return {};
+
+    const adapterExports = await loadAdapterModule(adapterModule);
+    const { buildOptions } = adapterExports;
+
+    if (typeof buildOptions === "function") {
+      return (await buildOptions(adapterOptions, options)) ?? {};
+    }
+
+    return buildOptions ?? {};
+  } catch (error) {
     return {};
   }
-
-  const [adapterModule, adapterOptions] =
-    typeof adapter === "string" ? [adapter] : adapter;
-
-  if (!adapterModule) return {};
-
-  const adapterExports = await loadAdapterModule(adapterModule);
-  const { buildOptions } = adapterExports;
-
-  if (typeof buildOptions === "function") {
-    return (await buildOptions(adapterOptions)) ?? {};
-  }
-
-  return buildOptions ?? {};
 }
 
 export default async function adapter(root, options) {

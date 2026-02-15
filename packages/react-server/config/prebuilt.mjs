@@ -1,18 +1,11 @@
-import { join } from "node:path";
-
-import * as sys from "../lib/sys.mjs";
 import merge from "../lib/utils/merge.mjs";
 import { CONFIG_PARENT, CONFIG_ROOT } from "../server/symbols.mjs";
 
-const cwd = sys.cwd();
 const defaultConfig = {};
 
-export async function loadConfig(initialConfig, options = {}) {
-  options.outDir ??= ".react-server";
-
-  const { default: config } = await import(
-    join(cwd, options.outDir, "server/__react_server_config__/prebuilt.mjs")
-  );
+export async function loadConfig(initialConfig) {
+  const { default: config } =
+    await import(".react-server/__react_server_config__/prebuilt");
   const configKeys = Object.keys(config);
   const root = configKeys.includes(".")
     ? "."

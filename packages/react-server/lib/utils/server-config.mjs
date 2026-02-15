@@ -28,7 +28,12 @@ export function getServerCors(config) {
     : config.server?.cors && typeof config.server?.cors === "object"
       ? config.server?.cors
       : {
-          origin: (ctx) => ctx.request.headers.get("origin"),
+          origin: (ctx) =>
+            ctx?.request?.headers?.get
+              ? ctx.request.headers.get("origin")
+              : (ctx?.request?.headers?.origin ??
+                ctx?.request?.header?.origin ??
+                ctx?.headers?.origin),
           credentials: true,
         };
 }

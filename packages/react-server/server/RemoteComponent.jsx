@@ -25,7 +25,7 @@ async function RemoteComponentLoader({
     async () => {
       const src = new URL(url);
       src.pathname =
-        `${src.pathname}/@${url.toString().replace(/[^a-zA-Z0-9_]/g, "_")}.remote.x-component`.replace(
+        `${src.pathname}/@__react_server_remote__${url.toString().replace(/[^a-zA-Z0-9_]/g, "_")}.remote.x-component`.replace(
           /\/+/g,
           "/"
         );
@@ -131,6 +131,8 @@ export default async function RemoteComponent({
         const shared = [
           "rolldown-runtime",
           "react",
+          "react-dom",
+          "react-dom/client",
           "react-server/client/context",
           /react-server\/client\/navigation$/,
           /react-server\/client\/location$/,
@@ -154,9 +156,11 @@ export default async function RemoteComponent({
             continue;
           }
 
-          const host = Object.values(manifest.browser).find(
-            (entry) => entry.name === remote.name
-          );
+          const browserEntries = Object.values(manifest.browser);
+          const host =
+            browserEntries.find(
+              (entry) => entry.name === remote.name && entry.isEntry
+            ) ?? browserEntries.find((entry) => entry.name === remote.name);
           if (host) {
             const hostEntryUrl = `/${host.file}`;
             const remoteEntryUrl = new URL(`/${remote.file}`, remoteUrl).href;
@@ -182,7 +186,7 @@ export default async function RemoteComponent({
         defer={defer}
         isolate={isolate}
         url={remoteUrlString}
-        outlet={remoteUrlString.replace(/[^a-zA-Z0-9_]/g, "_")}
+        outlet={`__react_server_remote__${remoteUrlString.replace(/[^a-zA-Z0-9_]/g, "_")}`}
         request={request}
         remoteProps={props}
       >

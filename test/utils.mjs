@@ -8,13 +8,24 @@ export function nextAnimationFrame() {
   return page.evaluate(() => new Promise(requestAnimationFrame));
 }
 
-export async function waitForChange(action, getValue, initialValue) {
+export async function waitForChange(
+  action,
+  getValue,
+  initialValue,
+  timeout = 30000
+) {
+  const deadline = Date.now() + timeout;
   const originalValue = await getValue();
   if (typeof initialValue !== "undefined" && initialValue !== originalValue) {
     return originalValue;
   }
   let newValue = originalValue;
   while (newValue === originalValue) {
+    if (Date.now() > deadline) {
+      throw new Error(
+        `waitForChange timed out after ${timeout}ms waiting for value to change`
+      );
+    }
     await action?.();
     newValue = await getValue();
     if (newValue !== originalValue) return;
@@ -39,9 +50,13 @@ export async function waitForConsole(evaluator) {
   return result;
 }
 
-export async function waitForHydration() {
+export async function waitForHydration(timeout = 30000) {
+  const deadline = Date.now() + timeout;
   let isHydrated = false;
   while (!isHydrated) {
+    if (Date.now() > deadline) {
+      throw new Error(`waitForHydration timed out after ${timeout}ms`);
+    }
     isHydrated = await page.evaluate(
       () => window.__flightHydration__PAGE_ROOT__
     );
@@ -49,12 +64,18 @@ export async function waitForHydration() {
   }
 }
 
-export async function waitForBodyUpdate(fn) {
+export async function waitForBodyUpdate(fn, timeout = 30000) {
   try {
+    const deadline = Date.now() + timeout;
     const originalBody = await page.textContent("body");
     await fn?.();
     let newBody = originalBody;
     while (newBody === originalBody) {
+      if (Date.now() > deadline) {
+        throw new Error(
+          `waitForBodyUpdate timed out after ${timeout}ms waiting for body to change`
+        );
+      }
       await nextAnimationFrame();
       newBody = await page.textContent("body");
     }

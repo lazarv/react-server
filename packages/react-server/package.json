@@ -102,6 +102,22 @@
     "./file-router": {
       "default": "./lib/plugins/file-router/entrypoint.jsx"
     },
+    "./adapters/core": {
+      "types": "./adapters/core.d.ts",
+      "default": "./adapters/core.mjs"
+    },
+    "./adapters/cloudflare": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/cloudflare/index.mjs"
+    },
+    "./adapters/netlify": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/netlify/index.mjs"
+    },
+    "./adapters/vercel": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/vercel/index.mjs"
+    },
     "./cache/*": "./cache/*",
     "./client/*": "./client/*",
     "./server/*": "./server/*",
@@ -132,6 +148,7 @@
     "@types/babel__core": "^7.20.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@vercel/nft": "^0.29.4",
     "@vitejs/plugin-react": "^5.1.2",
     "acorn-loose": "^8.4.0",
     "algoliasearch": "^5.10.2",
@@ -167,6 +184,7 @@
     "rolldown-vite": "7.3.0",
     "sass": "^1.86.0",
     "semver": "^7.6.3",
+    "smol-toml": "^1.6.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "source-map": "^0.7.4",

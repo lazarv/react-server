@@ -8,6 +8,11 @@ node_modules
 .wrangler
 .wrangler-*
 wrangler.toml
+.netlify
+netlify
+netlify.toml
+!packages/react-server/adapters/netlify
+deno.lock
 *.pem
 *.sqlite
 *.log

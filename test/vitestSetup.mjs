@@ -1,14 +1,12 @@
 import { createHash } from "node:crypto";
 import { readdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { afterEach } from "node:test";
 import { Worker } from "node:worker_threads";
 
 import { chromium } from "playwright-chromium";
 import { afterAll, beforeAll, inject } from "vitest";
 
 export let browser;
-export let httpServer;
 export let page;
 export let server;
 export let hostname;
@@ -93,7 +91,8 @@ beforeAll(async ({ name, id }) => {
                 export: false,
                 adapter: ["false"],
                 minify: false,
-                edge: process.env.EDGE ? true : undefined,
+                edge:
+                  process.env.EDGE || process.env.EDGE_ENTRY ? true : undefined,
               }
             : {
                 outDir: `.react-server-dev-${id}-${hash}`,
@@ -115,7 +114,9 @@ beforeAll(async ({ name, id }) => {
         const worker = new Worker(
           new URL(
             process.env.NODE_ENV === "production"
-              ? "./server.node.mjs"
+              ? process.env.EDGE_ENTRY
+                ? "./server.edge.mjs"
+                : "./server.node.mjs"
               : "./server.dev.mjs",
             import.meta.url
           ),
@@ -142,6 +143,9 @@ beforeAll(async ({ name, id }) => {
             },
           }
         );
+        let terminating = false;
+        // Don't let the worker thread prevent the fork process from exiting
+        worker.unref();
         worker.on("message", (msg) => {
           if (msg.port) {
             hostname = `http://localhost:${msg.port}`;
@@ -152,6 +156,7 @@ beforeAll(async ({ name, id }) => {
           } else if (msg.console) {
             console.log(...msg.console);
           } else if (msg.error) {
+            terminating = true;
             worker.terminate();
             reject(new Error(msg.error));
           }
@@ -161,22 +166,15 @@ beforeAll(async ({ name, id }) => {
           reject(e);
         });
         worker.on("exit", (code) => {
-          if (code !== 0) {
+          if (code !== 0 && !terminating) {
             consoleError(new Error(`Worker stopped with exit code ${code}`));
             reject(new Error(`Worker stopped with exit code ${code}`));
           }
         });
-        httpServer = {
-          close: () => worker.terminate(),
-        };
       } catch (e) {
         reject(e);
       }
     });
-});
-
-afterEach(async () => {
-  await httpServer?.close();
 });
 
 afterAll(async () => {

@@ -8,7 +8,7 @@ import Link from "../../../../components/Link"
 
 # Adapter API
 
-By using the Adapter API available in the `@lazarv/react-server-adapter-core` package, you can easily create a deployment adapter for any deployment target.
+By using the Adapter API available in `@lazarv/react-server/adapters/core`, you can easily create a deployment adapter for any deployment target.
 
 <Link name="define-the-adapter-handler">
 ## Define the adapter handler
@@ -16,7 +16,7 @@ By using the Adapter API available in the `@lazarv/react-server-adapter-core` pa
 
 The adapter handler is a function that you need to implement to handle the deployment of your application. It will be called by the build process and it will receive the information needed to prepare the application for deployment.
 
-An example of an adapter handler implementation can be found in the [Vercel adapter implementation](https://github.com/lazarv/react-server/blob/main/packages/react-server-adapter-vercel/index.mjs).
+An example of an adapter handler implementation can be found in the [Vercel adapter implementation](https://github.com/lazarv/react-server/blob/main/packages/react-server/adapters/vercel/index.mjs).
 
 You can start by copying the Vercel adapter implementation and then modify it to fit your needs.
 
@@ -25,7 +25,7 @@ You need to export the adapter handler function from the file and then use the `
 You also need to export default a function that will be used to create the adapter instance when adapter options are provided by the user in the `react-server.config.js` file.
 
 ```js
-import { createAdapter } from "@lazarv/react-server-adapter-core";
+import { createAdapter } from "@lazarv/react-server/adapters/core";
 
 export const adapter = createAdapter({
   name: "Vercel",

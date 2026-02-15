@@ -1,0 +1,119 @@
+---
+title: Cloudflare
+category: Deploy
+order: 2
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Cloudflare
+
+Cloudflare Workers または Pages にデプロイするには、ビルトインの `cloudflare` アダプタを使用します。このアダプタは Cloudflare のエッジランタイムと連携するために特化して設計されています。
+
+<Link name="installation">
+## インストール
+</Link>
+
+まず、Workers が有効な Cloudflare アカウントと `wrangler` CLI がインストールされている必要があります：
+
+```sh
+npm install -g wrangler
+wrangler login
+```
+
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+次に、`react-server.config.mjs` ファイルにアダプタを追加する必要があります：
+
+```mjs
+export default {
+  adapter: "cloudflare",
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+オプションを渡してアダプタをカスタマイズできます：
+
+```mjs
+export default {
+  adapter: [
+    "cloudflare",
+    {
+      name: "my-app", // Cloudflare Worker 名
+      compatibilityDate: "2024-01-01", // Cloudflare 互換性日
+      compatibilityFlags: ["nodejs_compat_v2"], // 追加の互換性フラグ
+      pages: true, // Cloudflare Pages 用の _routes.json を生成
+      excludeRoutes: ["/api/*"], // Worker 処理から除外する追加ルート
+      serverlessFunctions: true, // Worker デプロイを有効化（デフォルト: true）
+      wrangler: {
+        vars: {
+          MY_VAR: "value",
+        },
+      },
+    },
+  ],
+};
+```
+
+### 設定オプション
+
+- `name`: Cloudflare Worker 名。`package.json` の name（スコープなし）または "react-server-app" にフォールバックします。
+- `compatibilityDate`: Cloudflare 互換性日（デフォルト: 現在の日付）。
+- `compatibilityFlags`: 追加の Cloudflare 互換性フラグ（必須の `nodejs_compat` に追加されます）。
+- `pages`: Cloudflare Pages 用の `_routes.json` を生成（デフォルト: true）。
+- `excludeRoutes`: `_routes.json` で Worker 処理から除外する追加ルート。
+- `serverlessFunctions`: Worker デプロイの有効/無効化（デフォルト: true）。静的のみのデプロイには `false` を設定します。
+- `wrangler`: オブジェクトとしての追加 wrangler.toml 設定（アダプタのデフォルトとマージされます）。
+
+<Link name="extending-wrangler">
+## Wrangler 設定の拡張
+</Link>
+
+生成された `wrangler.toml` を拡張するには、プロジェクトルートに `react-server.wrangler.toml` ファイルを作成します。アダプタはそれを自身の設定とマージします：
+
+- **プリミティブ値**: アダプタ設定が優先
+- **オブジェクト**: 再帰的にディープマージ
+- **配列**: カスタム設定のユニークなアイテムが保持され、アダプタのデフォルトの前に追加
+
+これにより、アダプタが必要な設定を管理しながら、カスタムバインディング、環境変数、その他の Cloudflare 固有の設定を追加できます。
+
+```toml filename="react-server.wrangler.toml"
+[vars]
+MY_API_KEY = "secret"
+
+[[kv_namespaces]]
+binding = "MY_KV"
+id = "abc123"
+```
+
+<Link name="deploy">
+## デプロイ
+</Link>
+
+`@lazarv/react-server` を Cloudflare アダプタと共に使用する場合、以下のコマンドでアプリケーションをデプロイできます：
+
+```sh
+pnpm react-server build [root] # [root] はアプリケーションのエントリーポイント
+wrangler deploy
+```
+
+`react-server` CLI の `--deploy` 引数を使用してデプロイすることもできます：
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+これにより、アプリケーションがビルドされ、Cloudflare Workers にデプロイされます。
+
+<Link name="cloudflare-pages">
+## Cloudflare Pages
+</Link>
+
+アダプタは Cloudflare Pages 互換の `_routes.json` ファイルを自動生成します。このファイルは、どのルートを Worker が処理し、どのルートを静的アセットとして配信するかを指定します。
+
+デフォルトでは、画像、CSS、JavaScript、フォントなどの静的アセットは Worker 処理から除外されます。`excludeRoutes` オプションを使用して除外するルートを追加できます。
+
+Cloudflare Pages にデプロイするには、Cloudflare ダッシュボードまたは `wrangler pages` コマンドを使用できます。

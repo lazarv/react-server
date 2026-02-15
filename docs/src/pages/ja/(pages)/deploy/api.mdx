@@ -8,7 +8,7 @@ import Link from "../../../../components/Link"
 
 # アダプタ API
 
-`@lazarv/react-server-adapter-core` パッケージで利用可能なアダプタ API を使用することで、任意のデプロイ先に対応したデプロイアダプタを簡単に作成できます。
+`@lazarv/react-server/adapters/core` で利用可能なアダプタ API を使用することで、任意のデプロイ先に対応したデプロイアダプタを簡単に作成できます。
 
 <Link name="define-the-adapter-handler">
 ## アダプタハンドラを定義する
@@ -16,7 +16,7 @@ import Link from "../../../../components/Link"
 
 アダプタハンドラは、アプリケーションのデプロイを処理するために実装する必要がある関数です。この関数はビルドプロセスによって呼び出され、デプロイの準備に必要な情報を受け取ります。
 
-アダプタハンドラの実装例は、[Vercel アダプタの実装](https://github.com/lazarv/react-server/blob/main/packages/react-server-adapter-vercel/index.mjs)にあります。
+アダプタハンドラの実装例は、[Vercel アダプタの実装](https://github.com/lazarv/react-server/blob/main/packages/react-server/adapters/vercel/index.mjs)にあります。
 
 まず、Vercel アダプタの実装をコピーし、それを必要に応じて変更することで始めることができます。
 
@@ -25,7 +25,7 @@ import Link from "../../../../components/Link"
 また、ユーザーが `react-server.config.js` ファイルでアダプタオプションを指定した場合にアダプタインスタンスを作成するための関数をデフォルトエクスポートする必要があります。
 
 ```js
-import { createAdapter } from "@lazarv/react-server-adapter-core";
+import { createAdapter } from "@lazarv/react-server/adapters/core";
 
 export const adapter = createAdapter({
   name: "Vercel",

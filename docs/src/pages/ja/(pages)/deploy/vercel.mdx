@@ -8,7 +8,7 @@ import Link from "../../../../components/Link.jsx";
 
 # Vercel
 
-Vercel にデプロイするには、`@lazarv/react-server-adapter-vercel` パッケージを使用します。このアダプタはVercel およびその設定と連携するために特化して設計されています。
+Vercel にデプロイするには、ビルトインの `vercel` アダプタを使用します。このアダプタは Vercel およびその設定と連携するために特化して設計されています。
 
 <Link name="installation">
 ## インストール
@@ -23,17 +23,13 @@ vercel link --yes --project <project-name>
 
 この時点で、`.vercel` ディレクトリ内に `project.json` ファイルが作成されます。このファイルは、Vercel プロジェクトのプロジェクトおよび組織設定を保存するために使用されます。
 
-プロジェクトを初期化した後、`@lazarv/react-server-adapter-vercel` パッケージをプロジェクトに追加できます
-
-```sh
-pnpm add -D @lazarv/react-server-adapter-vercel
-```
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
 
 次に、このアダプタを `react-server.config.mjs` ファイルに追加する必要があります:
 
 ```mjs
 export default {
-  adapter: '@lazarv/react-server-adapter-vercel',
+  adapter: 'vercel',
 };
 ```
 
@@ -47,7 +43,7 @@ export default {
 
 ```mjs
 export default {
-  adapter: ['@lazarv/react-server-adapter-vercel', {
+  adapter: ['vercel', {
     serverlessFunctions: {
       index: {
         memory: 1024,
@@ -80,5 +76,4 @@ pnpm react-server build [root] --deploy
 
 これにより、アプリケーションがビルドされ、Vercel にデプロイされます。
 
-> `@lazarv/react-server-adapter-vercel` パッケージは、**Vercel Edge Functions、Edge Middleware、Prerender Functions、ISR（インクリメンタル・スタティック・リジェネレーション）、画像最適化** などの Vercel の各種機能にはまだ対応していません。  
-今後のアップデートにご期待ください！
+> Vercel Edge Functions、Edge Middleware、Prerender Functions、ISR（インクリメンタル・スタティック・リジェネレーション）、画像最適化などの Vercel の各種機能は、ビルトインの Vercel アダプタではまだサポートされていません。今後のアップデートにご期待ください！

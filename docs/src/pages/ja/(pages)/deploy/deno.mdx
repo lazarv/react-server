@@ -1,0 +1,144 @@
+---
+title: Deno
+category: Deploy
+order: 5
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Deno
+
+スタンドアロンの Deno サーバとしてデプロイするには、ビルトインの `deno` アダプタを使用します。このアダプタは Deno のネイティブ `Deno.serve()` API を使用し、エッジ互換の fetch ハンドラとビルド時静的ルートマッピングを提供します。
+
+<Link name="installation">
+## インストール
+</Link>
+
+システムに [Deno](https://deno.com) がインストールされている必要があります：
+
+```sh
+curl -fsSL https://deno.land/install.sh | sh
+```
+
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+次に、`react-server.config.mjs` ファイルにアダプタを追加します：
+
+```mjs
+export default {
+  adapter: "deno",
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+オプションを渡してアダプタをカスタマイズできます：
+
+```mjs
+export default {
+  adapter: [
+    "deno",
+    {
+      name: "my-app", // アプリケーション名（生成される deno.json で使用）
+    },
+  ],
+};
+```
+
+### 設定オプション
+
+- `name`: アプリケーション名。`package.json` の name（スコープなし）または "react-server-app" にフォールバックします。
+
+### 環境変数
+
+生成されたサーバは実行時に以下の環境変数をサポートします：
+
+- `PORT`: サーバポート（デフォルト: `3000`）
+- `HOST`: サーバホスト名（デフォルト: `0.0.0.0`）
+- `ORIGIN`: サーバのオリジン URL を上書き
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+Deno アダプタは**エッジビルド**モードを使用し、サーバ全体を単一のファイルにバンドルします。ビルド時に以下を行います：
+
+1. サーバコードを `.deno/server/.react-server/server/edge.mjs` にバンドル
+2. すべての静的アセットを `.deno/static/` にコピー
+3. **ビルド時静的ルートマップ**を含む `start.mjs` スクリプトを生成し、`Deno.readFile()` で適切な MIME タイプ検出付きの静的ファイル配信を実現
+4. 簡単なデプロイのためのスタートタスク付き `deno.json` を作成
+
+静的ファイル（HTML、CSS、JS、画像など）はビルド時ルートマップから解決され、サーバハンドラを経由せず直接配信されます。
+
+<Link name="build">
+## ビルド
+</Link>
+
+`react-server` CLI を使用してアプリケーションをビルドします：
+
+```sh
+pnpm react-server build [root]
+```
+
+これにより、以下の構造の `.deno/` ディレクトリが生成されます：
+
+```
+.deno/
+├── start.mjs          # 静的ルートマップ付きエントリーポイント
+├── deno.json          # スタートタスク付き Deno 設定
+├── static/            # すべての静的アセット
+│   ├── assets/        # ハッシュ付きビルドアセット（CSS、JS）
+│   ├── client/        # クライアントサイドバンドル
+│   └── ...            # 公開ファイル、プリレンダリング HTML
+└── server/
+    └── .react-server/
+        └── server/
+            └── edge.mjs  # バンドルされたサーバ
+```
+
+<Link name="deploy">
+## デプロイ
+</Link>
+
+本番サーバを直接起動します：
+
+```sh
+deno run --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs
+```
+
+または `--deploy` フラグを使用してビルドと即時起動を行います：
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+生成された `deno.json` のタスクを使用することもできます：
+
+```sh
+cd .deno
+deno task start
+```
+
+<Link name="deployment-targets">
+## デプロイ先
+</Link>
+
+Deno アダプタは自己完結型のサーバを生成するため、Deno が動作する場所ならどこでもデプロイできます：
+
+- **ベアメタル / VPS**: `.deno/` ディレクトリをコピーして `deno task start` を実行
+- **Deno Deploy**: `deployctl` を使用してデプロイ — [Deno Deploy ドキュメント](https://docs.deno.com/deploy/manual/)を参照
+- **Docker**: [公式 Deno Docker イメージ](https://hub.docker.com/r/denoland/deno)を使用
+- **Fly.io**: Dockerfile を使用して `flyctl` でデプロイ
+- **Railway、Render**: 起動コマンドを `deno run --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs` に設定
+
+### Dockerfile の例
+
+```dockerfile
+FROM denoland/deno:latest
+WORKDIR /app
+COPY .deno/ .
+EXPOSE 3000
+CMD ["deno", "task", "start"]
+```

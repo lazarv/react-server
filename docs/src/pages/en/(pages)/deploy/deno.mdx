@@ -1,0 +1,144 @@
+---
+title: Deno
+category: Deploy
+order: 5
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Deno
+
+To deploy as a standalone Deno server, use the built-in `deno` adapter. This adapter uses Deno's native `Deno.serve()` API with edge-compatible fetch handlers and build-time static route mapping.
+
+<Link name="installation">
+## Installation
+</Link>
+
+You need [Deno](https://deno.com) installed on your system:
+
+```sh
+curl -fsSL https://deno.land/install.sh | sh
+```
+
+No additional packages are needed - the adapter is built into `@lazarv/react-server`.
+
+Then add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "deno",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "deno",
+    {
+      name: "my-app", // Application name (used in generated deno.json)
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `name`: Application name. Falls back to `package.json` name (without scope) or "react-server-app".
+
+### Environment Variables
+
+The generated server supports the following environment variables at runtime:
+
+- `PORT`: Server port (default: `3000`)
+- `HOST`: Server hostname (default: `0.0.0.0`)
+- `ORIGIN`: Override the origin URL for the server
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The Deno adapter uses an **edge build** mode, bundling your entire server into a single file. At build time, it:
+
+1. Bundles your server code into `.deno/server/.react-server/server/edge.mjs`
+2. Copies all static assets into `.deno/static/`
+3. Generates a `start.mjs` script with a **build-time static route map** that serves static files using `Deno.readFile()` with proper MIME type detection
+4. Creates a `deno.json` with a start task for easy deployment
+
+Static files (HTML, CSS, JS, images, etc.) are resolved from the build-time route map and served directly without going through the server handler.
+
+<Link name="build">
+## Build
+</Link>
+
+Build your application using the `react-server` CLI:
+
+```sh
+pnpm react-server build [root]
+```
+
+This produces a `.deno/` directory with the following structure:
+
+```
+.deno/
+├── start.mjs          # Entry point with static route map
+├── deno.json          # Deno configuration with start task
+├── static/            # All static assets
+│   ├── assets/        # Hashed build assets (CSS, JS)
+│   ├── client/        # Client-side bundles
+│   └── ...            # Public files, pre-rendered HTML
+└── server/
+    └── .react-server/
+        └── server/
+            └── edge.mjs  # Bundled server
+```
+
+<Link name="deploy">
+## Deploy
+</Link>
+
+Start the production server directly:
+
+```sh
+deno run --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs
+```
+
+Or use the `--deploy` flag to build and immediately start:
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+You can also use the generated `deno.json` task:
+
+```sh
+cd .deno
+deno task start
+```
+
+<Link name="deployment-targets">
+## Deployment targets
+</Link>
+
+Since the Deno adapter produces a self-contained server, you can deploy it anywhere Deno runs:
+
+- **Bare metal / VPS**: Copy the `.deno/` directory and run `deno task start`
+- **Deno Deploy**: Deploy using `deployctl` — see the [Deno Deploy docs](https://docs.deno.com/deploy/manual/)
+- **Docker**: Use the [official Deno Docker image](https://hub.docker.com/r/denoland/deno)
+- **Fly.io**: Deploy with `flyctl` using a Dockerfile
+- **Railway, Render**: Point the start command to `deno run --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs`
+
+### Example Dockerfile
+
+```dockerfile
+FROM denoland/deno:latest
+WORKDIR /app
+COPY .deno/ .
+EXPOSE 3000
+CMD ["deno", "task", "start"]
+```

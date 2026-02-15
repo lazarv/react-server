@@ -44,6 +44,16 @@ export default async (context) => {
                   description: "Deploy to Cloudflare Workers/Pages",
                 },
                 {
+                  name: "Bun",
+                  value: "bun",
+                  description: "Deploy to Bun runtime",
+                },
+                {
+                  name: "Deno",
+                  value: "deno",
+                  description: "Deploy to Deno runtime",
+                },
+                {
                   name: "AWS",
                   value: "aws",
                   description: "Deploy to AWS Lambda",
@@ -63,11 +73,15 @@ export default async (context) => {
     vercel: "Vercel",
     netlify: "Netlify",
     cloudflare: "Cloudflare Workers/Pages",
+    bun: "Bun",
+    deno: "Deno",
   };
   const adapterIgnore = {
     vercel: [".vercel", "vercel.json"],
     netlify: ["netlify.toml", "netlify", ".netlify"],
     cloudflare: [".cloudflare", ".wrangler", "wrangler.toml"],
+    bun: [".bun"],
+    deno: [".deno"],
   };
 
   if (adapter in adapterIgnore) {

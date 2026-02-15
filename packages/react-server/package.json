@@ -110,6 +110,10 @@
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/bun/index.mjs"
     },
+    "./adapters/deno": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/deno/index.mjs"
+    },
     "./adapters/cloudflare": {
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/cloudflare/index.mjs"

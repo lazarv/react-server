@@ -18,12 +18,13 @@ import Link from "../../../../components/Link.jsx";
 - [x] Netlify
 - [x] Cloudflare Workers/Pages
 - [x] Bun
+- [x] Deno
 
 <Link name="configuration">
 ## 設定
 </Link>
 
-`react-server.config.mjs`ファイルに `adapter` エントリを追加します。ビルトインアダプタの名前（`vercel`、`netlify`、`cloudflare`、または `bun`）を文字列で指定するか、外部アダプタパッケージを使用できます。
+`react-server.config.mjs`ファイルに `adapter` エントリを追加します。ビルトインアダプタの名前（`vercel`、`netlify`、`cloudflare`、`bun`、または `deno`）を文字列で指定するか、外部アダプタパッケージを使用できます。
 
 ```mjs
 export default {

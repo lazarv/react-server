@@ -47,9 +47,15 @@ export async function init$(options = {}) {
     import(".react-server/client/browser-manifest"),
   ]);
   const [server, client, browser] = await Promise.all([
-    serverLoader(join(cwd, `${outDir}/server/server-manifest.json`)),
-    clientLoader(join(cwd, `${outDir}/server/client-manifest.json`)),
-    browserLoader(join(cwd, `${outDir}/client/browser-manifest.json`)),
+    serverLoader(
+      sys.toFileUrl(join(cwd, `${outDir}/server/server-manifest.json`))
+    ),
+    clientLoader(
+      sys.toFileUrl(join(cwd, `${outDir}/server/client-manifest.json`))
+    ),
+    browserLoader(
+      sys.toFileUrl(join(cwd, `${outDir}/client/browser-manifest.json`))
+    ),
   ]);
   const manifest = {
     server,
@@ -100,7 +106,7 @@ export async function init$(options = {}) {
         linkQueue.add(...links);
       }
       const { importer } = registry.get(entry.src) || {
-        importer: () => import(specifier),
+        importer: () => import(sys.toFileUrl(specifier)),
       };
       return importer();
     }
@@ -145,7 +151,7 @@ export async function init$(options = {}) {
     }
     const registryEntry = registry.get(entry.src);
     const { importer } = registryEntry || {
-      importer: () => import(specifier),
+      importer: () => import(sys.toFileUrl(specifier)),
     };
     return importer();
   }

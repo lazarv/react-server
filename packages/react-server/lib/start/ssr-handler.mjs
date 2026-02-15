@@ -240,7 +240,11 @@ export default async function ssrHandler(root, options = {}) {
                             Buffer.from(vBuffer, "base64")
                           ),
                           typeof provider.driverPath === "string"
-                            ? import(provider.driverPath || provider.driver)
+                            ? import(
+                                sys.toFileUrl(
+                                  provider.driverPath || provider.driver
+                                )
+                              )
                             : Promise.resolve({ default: null }),
                         ]);
                       return useCache(keys, result, ttl ?? Infinity, false, {

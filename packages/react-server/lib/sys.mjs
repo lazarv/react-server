@@ -6,6 +6,16 @@ export function normalizePath(path) {
   return path?.replace(/\\/g, "/");
 }
 
+// Convert an absolute path to a string safe for dynamic import().
+// On Windows, Node.js interprets drive letters (e.g. "D:") as URL protocols,
+// so absolute paths must be converted to file:// URLs.
+export function toFileUrl(absolutePath) {
+  if (/^[A-Za-z]:/.test(absolutePath)) {
+    return "file:///" + absolutePath.replace(/\\/g, "/");
+  }
+  return absolutePath;
+}
+
 // Detect edge runtime environments
 export const isEdgeRuntime =
   // Vercel Edge Runtime

@@ -313,6 +313,16 @@ The edge runtime does **not** serve static files. Your entry must handle this:
 - **Deploy**: `bun .bun/start.mjs`
 - **Notes**: Standalone runtime, no cloud config needed. Static routes are hardcoded at build time — no filesystem checks at runtime.
 
+### Deno (`adapters/deno/`)
+
+- **Runtime**: Edge (Deno.serve with fetch handler)
+- **Entry**: `server/entry.mjs` — exports `handler`, `createContext`, `port`, `hostname` (minimal; no static file serving)
+- **Output**: `.deno/static/` + `.deno/server/.react-server/`
+- **Config**: Generates `start.mjs` with build-time static route map + `deno.json`
+- **Static files**: Build-time route map in generated `start.mjs` using `Deno.readFile()` for static serving
+- **Deploy**: `deno run --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs`
+- **Notes**: Standalone runtime, no cloud config needed. Static routes are hardcoded at build time. Uses `deno.json` with `nodeModulesDir: "none"` — no `node_modules` required.
+
 ## Step-by-Step: Creating a New Adapter
 
 1. **Create the directory**: `adapters/<name>/`
@@ -371,7 +381,10 @@ The edge runtime does **not** serve static files. Your entry must handle this:
    }
    ```
 
-6. **Test**:
+6. **Add output directory to `.gitignore`**:
+   The adapter's output directory (e.g., `.<name>/`) should be added to the project's `.gitignore`. This is handled automatically when users scaffold a project via `create-react-server` (the `adapterIgnore` map in `steps/deploy.mjs`), but you should also add `.<name>/` to the root `.gitignore` of the monorepo so that build artifacts from examples and tests are not committed.
+
+7. **Test**:
    ```bash
    cd examples/hello-world
    pnpm build --adapter <name>
@@ -413,6 +426,13 @@ When adding a new built-in adapter, the following files need to be created or up
     "default": "./adapters/<name>/index.mjs"
   }
   ```
+
+### `create-react-server` scaffolding
+
+- **`packages/create-react-server/steps/deploy.mjs`** — add the new adapter as a choice in the deployment adapter prompt:
+  - Add an entry to the `choices` array in the `select()` call (name, value, description)
+  - Add the adapter's display name to the `adapterName` map
+  - Add the adapter's output directory / config files to the `adapterIgnore` map (used for `.gitignore` generation)
 
 ### English docs (`docs/src/pages/en/`)
 

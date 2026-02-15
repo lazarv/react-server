@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-hello-world",
+      "type": "shell",
+      "command": "pnpm build --sourcemap",
+      "options": { "cwd": "${workspaceFolder}/examples/hello-world" }
+    }
+  ]
+}

@@ -39,7 +39,7 @@ export const adapter = createAdapter({
   outDir,
   outStaticDir,
   outServerDir,
-  handler: async function ({ adapterOptions }) {
+  handler: async function ({ adapterOptions, options }) {
     // Create wrangler.toml configuration
     banner("creating Cloudflare Worker configuration", { emoji: "⚙️" });
 
@@ -88,6 +88,7 @@ export const adapter = createAdapter({
         directory: ".cloudflare/static",
         binding: "ASSETS",
       },
+      ...(options.sourcemap ? { upload_source_maps: true } : {}),
       ...(typeof adapterOptions?.wrangler === "object"
         ? adapterOptions.wrangler
         : {}),

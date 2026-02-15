@@ -79,6 +79,16 @@ export const adapter = createAdapter({
         join(cwd, ".react-server/server/edge.mjs"),
         join(outServerDir, ".react-server/server/edge.mjs")
       );
+      // Copy source map file for edge.mjs if sourcemaps are enabled
+      if (options.sourcemap) {
+        const edgeMapPath = join(cwd, ".react-server/server/edge.mjs.map");
+        if (existsSync(edgeMapPath)) {
+          await copyFile(
+            edgeMapPath,
+            join(outServerDir, ".react-server/server/edge.mjs.map")
+          );
+        }
+      }
     } else {
       await copy.server(outServerDir);
     }

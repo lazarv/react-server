@@ -42,74 +42,198 @@ pnpm react-server ./App.jsx
 
 開発サーバーを起動するには次のオプションを指定することが出来ます。
 
-**host:** リッスンするホストを指定します。デフォルトでは`localhost`になります。
+<Link name="dev-host">
+### --host
+</Link>
 
-**port:** リッスンするポートを指定します。デフォルトでは`3000`になります。
+リッスンするホストを指定します。デフォルトでは`localhost`になります。
 
-**https:** HTTPSプロトコルを有効にする場合に指定します。デフォルトは`false`になります。
+<Link name="dev-port">
+### --port
+</Link>
+
+リッスンするポートを指定します。デフォルトでは`3000`になります。
+
+<Link name="dev-https">
+### --https
+</Link>
+
+HTTPSプロトコルを有効にする場合に指定します。デフォルトは`false`になります。
+
 もし開発サーバーでHTTPSプロトコルを使う場合、`react-server.config.mjs`または`vite.config.mjs`でHTTPSの設定をする必要があります。詳しくはViteドキュメントの[server.https](https://ja.vite.dev/config/server-options#server-https)を参照してください。
 
-**open:** サーバー起動時にデフォルトブラウザを開くか指定します。デフォルトは`false`です。
-デフォルトブラウザでアプリケーションにアクセスします。
+<Link name="dev-open">
+### --open
+</Link>
 
-**cors:** CORSを有効にします。デフォルトは`false`です。
+サーバー起動時にデフォルトブラウザを開くか指定します。デフォルトは`false`です。デフォルトブラウザでアプリケーションにアクセスします。
+
+<Link name="dev-cors">
+### --cors
+</Link>
+
+CORSを有効にします。デフォルトは`false`です。
+
 もしオリジン間リソース共有を有効化したい場合は便利です。より詳細なCORS設定が必要な場合は`react-server.config.mjs`または`vite.config.mjs`で設定することが出来ます。詳しくはViteドキュメントの[server.cors](https://ja.vite.dev/config/server-options#server-cors)を参照してください。
 
-**force:** 依存関係を強制的に最適化します。デフォルトは`false`です。
-これは`vite --force`と同じです。依存関係の最適化を強制し、Viteキャッシュをクリアします。
+<Link name="dev-force">
+### --force
+</Link>
 
-**watch:** 設定ファイルの変更を監視します。デフォルトは`false`です。
-監視を無効にするには`--no-watch`を指定する必要があります。
+依存関係を強制的に最適化します。デフォルトは`false`です。これは`vite --force`と同じです。依存関係の最適化を強制し、Viteキャッシュをクリアします。
 
-**clear-screen:** サーバー起動時にターミナルをクリアするか指定します。デフォルトは`false`です。
-ターミナルをクリアしてサーバーを起動したいときに使います。
+<Link name="dev-watch">
+### --watch
+</Link>
 
-**no-color:** カラー出力を無効化するか。デフォルトは`false`です。
-CI/CD環境では便利なオプションです。
+設定ファイルの変更を監視します。デフォルトは`false`です。監視を無効にするには`--no-watch`を指定する必要があります。
 
-**eval:** `node -e`と同じように引数からサーバーのエントリーポイントを評価します。または標準入力も指定することが出来ます。このエントリーポイントは仮想化エントリーポイントとなり、ファイルシステムには書き込まれません。
+<Link name="dev-clear-screen">
+### --clear-screen
+</Link>
 
-**version:** バージョンを表示します。
-出力にはマシンのアーキテクチャとnode.jsのバージョンも含まれます。
+サーバー起動時にターミナルをクリアするか指定します。デフォルトは`false`です。ターミナルをクリアしてサーバーを起動したいときに使います。
 
-**outDir:** ビルドファイルの出力先を指定します。デフォルトは`.react-server`です。
+<Link name="dev-no-color">
+### --no-color
+</Link>
 
-**name:** サーバー名を指定します。ログに表示します。デフォルトはreact-serverです。
+カラー出力を無効化するか。デフォルトは`false`です。CI/CD環境では便利なオプションです。
+
+<Link name="dev-eval">
+### --eval
+</Link>
+
+`node -e`と同じように引数からサーバーのエントリーポイントを評価します。または標準入力も指定することが出来ます。このエントリーポイントは仮想化エントリーポイントとなり、ファイルシステムには書き込まれません。
+
+<Link name="dev-version">
+### --version
+</Link>
+
+バージョンを表示します。出力にはマシンのアーキテクチャとnode.jsのバージョンも含まれます。
+
+<Link name="dev-outdir">
+### --outDir
+</Link>
+
+ビルドファイルの出力先を指定します。デフォルトは`.react-server`です。
+
+<Link name="dev-name">
+### --name
+</Link>
+
+サーバー名を指定します。ログに表示します。デフォルトはreact-serverです。
 
 <Link name="build-options">
 ## ビルドオプション
 </Link>
 
-**minify:** ビルドを最小化する。デフォルトは`true`です。
+<Link name="build-minify">
+### --minify
+</Link>
+
+ビルドを最小化する。デフォルトは`true`です。
+
 [Todoアプリケーション](https://github.com/lazarv/react-server/tree/main/examples/todo)のようにReact Server Componentのみを使用し、クライアントコンポーネントを使用していない場合はファイルサイズを最小化する必要はありません。もしクライアントコンポーネントを最小化する必要がない場合は`--no-minify`をオプションに指定してください。
 
-**sourcemap:** Source Mapを作成するか指定します。デフォルトは`false`です。
+<Link name="build-sourcemap">
+### --sourcemap
+</Link>
+
+プロダクションビルドのSource Mapを作成するか指定します。デフォルトは`false`です。
+
+使用できる値: `true`、`inline`、`hidden`、`server`、`server-inline`。
+
+| 値 | 説明 |
+|-------|-------------|
+| `true` | サーバーとクライアントの両方のバンドルに`.map`ファイルを生成します |
+| `inline` | 出力ファイルにSource Mapをインラインで埋め込みます |
+| `hidden` | `sourceMappingURL`コメントなしで`.map`ファイルを生成します |
+| `server` | **サーバーバンドルのみ**に`.map`ファイルを生成します |
+| `server-inline` | **サーバーバンドルのみ**にSource Mapをインラインで埋め込みます |
+
+Source Mapが有効な場合、プロダクション環境のサーバーサイドエラースタックトレースは、`source-map-support`を使用して自動的に元のソースファイルの位置に書き換えられます。`NODE_OPTIONS='--enable-source-maps'`が既に設定されている場合、競合を避けるため`source-map-support`パッケージはスキップされます。
+
+`--sourcemap=server`または`--sourcemap=server-inline`を使うと、サーバーでマッピングされたスタックトレースを取得しつつ、ブラウザのdevtoolsからソースコードを非公開に保てます。
+
+`react-server.config.mjs`で設定することもできます：
+
+```js
+export default {
+  sourcemap: true, // または "inline"、"hidden"、"server"、"server-inline"
+};
+```
+
+> **Note:** アダプターでデプロイする場合、Source Mapはプラットフォームごとに自動的に処理されます：<br/><br/>
+> - **Vercel**: `.map`ファイルが関数バンドルに含まれ、`NODE_OPTIONS='--enable-source-maps'`が設定されます。
+> - **Cloudflare**: `wrangler.toml`で`upload_source_maps`が有効化され、ダッシュボードや`wrangler tail`でマッピングされたスタックトレースが表示されます。
+> - **Netlify**: `.map`ファイルが関数と共にデプロイされます。Denoベースのエッジ関数はネイティブにそれらを認識します。
+>
+> エッジランタイムでは、これらのプラットフォームがインフラストラクチャレベルでSource Mapを処理するため、`source-map-support`パッケージはスキップされます。
+
 詳細はViteドキュメントの[build.sourcemap](https://ja.vite.dev/config/build-options#build-sourcemap)を参照してください。
 
-**no-color:** コンソールでのカラー出力するか指定します。デフォルトは`false`です。
-CI/CD環境では便利なオプションです。
+<Link name="build-no-color">
+### --no-color
+</Link>
 
-**export:** 静的ファイルのエクスポートをするか指定します。デフォルトは`false`です。
+コンソールでのカラー出力するか指定します。デフォルトは`false`です。CI/CD環境では便利なオプションです。
+
+<Link name="build-export">
+### --export
+</Link>
+
+静的ファイルのエクスポートをするか指定します。デフォルトは`false`です。
+
 アプリケーションを静的HTMLページでエクスポートすることが出来ます。`react-server.config.mjs`でルーティングを定義してエクスポートすることが出来ます。詳細は[静的生成](/router/static)を参照してください。
 
-**compression:** 圧縮をするか指定します。デフォルトは`false`です。
+<Link name="build-compression">
+### --compression
+</Link>
+
+圧縮をするか指定します。デフォルトは`false`です。
+
 静的ファイルのビルドを圧縮したい場合、圧縮を有効にすることが出来ます。圧縮はデフォルトでは有効になっていません。圧縮を有効にすると、Gzipまたは、Brotliを使って圧縮することが出来ます。プロダクションモードのサーバーは圧縮された静的ファイルが存在する場合、デフォルトでこれらの圧縮ファイルを提供します。
 
-**deploy:** アダプターを使ってデプロイするか指定します。デフォルトは`false`です。
+<Link name="build-deploy">
+### --deploy
+</Link>
+
+アダプターを使ってデプロイするか指定します。デフォルトは`false`です。
+
 `react-server.config.mjs`ファイルでアダプターを使用している場合、アダプターは事前にビルドを行い最後にアプリケーションをデプロイします。
 
-**eval:** `node -e`と同じように引数に指定したエントリーポイントを評価します。または標準入力も指定することが出来ます。このエントリーポイントはファイルシステムに書き込んだものではなく仮想的なエントリーポイントです。
+<Link name="build-eval">
+### --eval
+</Link>
 
-**outDir:** ビルドファイルの出力先を指定します。デフォルトは`.react-server`です。
+`node -e`と同じように引数に指定したエントリーポイントを評価します。または標準入力も指定することが出来ます。このエントリーポイントはファイルシステムに書き込んだものではなく仮想的なエントリーポイントです。
 
-**edge:** Edge ビルドモードを有効にするか指定します。デフォルトは`false`です。
-Edge ランタイム環境向けにアプリケーションをビルドします。
+<Link name="build-outdir">
+### --outDir
+</Link>
 
-**silent:** ビルド出力を抑制するか指定します。デフォルトは`false`です。  
+ビルドファイルの出力先を指定します。デフォルトは`.react-server`です。
+
+<Link name="build-edge">
+### --edge
+</Link>
+
+Edge ビルドモードを有効にするか指定します。デフォルトは`false`です。Edge ランタイム環境向けにアプリケーションをビルドします。
+
+<Link name="build-silent">
+### --silent
+</Link>
+
+ビルド出力を抑制するか指定します。デフォルトは`false`です。
+
 このオプションはバンドラーからのすべてのビルド出力を抑制します。CI/CD環境や、詳細な出力を必要としないプログラムからビルドを実行する場合に便利です。
 
-**verbose:** ビルド出力を詳細表示するか指定します。デフォルトは`false`です。
-バンドラーの詳細なビルドログを出力します。
+<Link name="build-verbose">
+### --verbose
+</Link>
+
+ビルド出力を詳細表示するか指定します。デフォルトは`false`です。バンドラーの詳細なビルドログを出力します。
 
 <Link name="start-options">
 ## スタートオプション
@@ -117,11 +241,26 @@ Edge ランタイム環境向けにアプリケーションをビルドします
 
 **host**、**port**、**https**、**cors**は開発サーバーのオプションと同じ内容です。
 
-**origin:** URLのオリジン部分を定数に指定します。環境変数`ORIGIN`を使っても同じ結果になります。
+<Link name="start-origin">
+### --origin
+</Link>
 
-**trust-proxy:** `X-Forwarded-*`ヘッダーを信頼します。
+URLのオリジン部分を定数に指定します。環境変数`ORIGIN`を使っても同じ結果になります。
 
-**build:**
+<Link name="start-trust-proxy">
+### --trust-proxy
+</Link>
+
+`X-Forwarded-*`ヘッダーを信頼します。
+
+<Link name="start-build">
+### --build
+</Link>
+
 指定されたエントリーポイントを使用して、プロダクションモードでサーバーを起動する前にビルドを実行します。
 
-**outDir:** ビルドファイルの出力先を指定します。デフォルトは`.react-server`です。もしビルド時にファイルの出力先を変更している場合、このオプションを指定する必要があります。
+<Link name="start-outdir">
+### --outDir
+</Link>
+
+ビルドファイルの出力先を指定します。デフォルトは`.react-server`です。もしビルド時にファイルの出力先を変更している場合、このオプションを指定する必要があります。

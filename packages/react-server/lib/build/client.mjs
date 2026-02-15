@@ -269,7 +269,10 @@ export default async function clientBuild(
       emptyOutDir: false,
       minify: options.minify,
       manifest: "client/browser-manifest.json",
-      sourcemap: options.sourcemap,
+      sourcemap:
+        options.sourcemap === "server" || options.sourcemap === "server-inline"
+          ? false
+          : options.sourcemap,
       chunkSizeWarningLimit: config.build?.chunkSizeWarningLimit ?? 1024,
       rolldownOptions: {
         ...config.build?.rollupOptions,

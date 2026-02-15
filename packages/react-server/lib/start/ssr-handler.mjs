@@ -1,5 +1,7 @@
+import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { fileURLToPath } from "node:url";
 
 import { init$ as cache_init$, useCache } from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
@@ -39,6 +41,7 @@ import {
   RENDER_CONTEXT,
   RENDER_STREAM,
   SERVER_CONTEXT,
+  SOURCEMAP_SUPPORT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
@@ -55,6 +58,39 @@ export default async function ssrHandler(root, options = {}) {
   const configRoot = config?.[CONFIG_ROOT] ?? {};
 
   await import("./manifest.mjs").then(({ init$ }) => init$(options));
+
+  // Install source map support for production stack trace rewriting (Node.js only)
+  // Skip if Node.js native source maps are already enabled via NODE_OPTIONS
+  const sourcemapSupport = getRuntime(SOURCEMAP_SUPPORT);
+  const nativeSourceMaps =
+    process.execArgv?.includes("--enable-source-maps") ||
+    process.env.NODE_OPTIONS?.includes("--enable-source-maps");
+  if (sourcemapSupport && !sys.isEdgeRuntime && !nativeSourceMaps) {
+    const { default: sourceMapSupport } = await import("source-map-support");
+    sourceMapSupport.install({
+      environment: "node",
+      hookRequire: sourcemapSupport === "inline",
+      handleUncaughtExceptions: false,
+      retrieveSourceMap:
+        sourcemapSupport === "hidden"
+          ? (source) => {
+              if (source.startsWith("file:")) {
+                const mapFilePath = fileURLToPath(source) + ".map";
+                if (existsSync(mapFilePath)) {
+                  return {
+                    url: source,
+                    map: readFileSync(mapFilePath, "utf8"),
+                  };
+                }
+              }
+              return null;
+            }
+          : undefined,
+    });
+    logger.info(
+      `Source map (${sourcemapSupport === true ? "file" : sourcemapSupport}) stack trace support enabled`
+    );
+  }
 
   const rootModule = sys.normalizePath(
     join(cwd, root ?? configRoot.entry ?? defaultRoot)

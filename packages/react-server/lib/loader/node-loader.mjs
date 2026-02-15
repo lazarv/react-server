@@ -35,6 +35,10 @@ export async function resolve(specifier, context, nextResolve) {
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/server-reference-map.mjs")).href
       );
+    case ".react-server/server/build-manifest":
+      return nextResolve(
+        pathToFileURL(join(cwd, outDir, "server/build-manifest.mjs")).href
+      );
     case ".react-server/server/server-manifest":
     case ".react-server/server/client-manifest":
     case ".react-server/client/browser-manifest":

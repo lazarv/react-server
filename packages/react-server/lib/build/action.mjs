@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { rm } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import colors from "picocolors";
@@ -53,6 +53,14 @@ export default async function build(root, options) {
   }
 
   const config = await loadConfig({}, { ...options, command: "build" });
+
+  // Apply sourcemap from config if not explicitly set via CLI
+  if (
+    !options.sourcemap &&
+    typeof config[CONFIG_ROOT]?.sourcemap !== "undefined"
+  ) {
+    options.sourcemap = config[CONFIG_ROOT].sourcemap;
+  }
 
   // Get adapter build options before build starts
   const adapterBuildOptions = await getAdapterBuildOptions(
@@ -138,6 +146,22 @@ export default async function build(root, options) {
           manifestSpinner.stop(
             `${colors.green("✔")} manifest generated in ${formatDuration(Date.now() - manifestStart)}`
           );
+
+          // Write build manifest module with build metadata
+          await writeFile(
+            join(cwd, options.outDir, "server/build-manifest.mjs"),
+            `export default ${JSON.stringify({
+              sourcemap: options.sourcemap
+                ? options.sourcemap === "server"
+                  ? true
+                  : options.sourcemap === "server-inline"
+                    ? "inline"
+                    : options.sourcemap
+                : false,
+            })};\n`,
+            "utf8"
+          );
+
           if (options.edge) {
             // empty line
             console.log();

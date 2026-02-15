@@ -6,7 +6,7 @@ export default (cli) =>
     .option("--minify", "minify", { default: true })
     .option(
       "--sourcemap [type]",
-      "[boolean|inline|hidden] generate source map",
+      "[boolean|inline|hidden|server|server-inline] generate source map",
       {
         default: false,
       }

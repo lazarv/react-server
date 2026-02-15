@@ -22,7 +22,7 @@ export const adapter = createAdapter({
   name: "Vercel",
   outDir,
   outStaticDir,
-  handler: async function ({ adapterOptions, copy }) {
+  handler: async function ({ adapterOptions, copy, options }) {
     if (adapterOptions?.serverlessFunctions !== false) {
       banner("building serverless functions", { emoji: "⚡" });
 
@@ -40,6 +40,13 @@ export const adapter = createAdapter({
         launcherType: "Nodejs",
         shouldAddHelpers: true,
         supportsResponseStreaming: true,
+        ...(options.sourcemap
+          ? {
+              environment: {
+                NODE_OPTIONS: "--enable-source-maps",
+              },
+            }
+          : {}),
         ...adapterOptions?.serverlessFunctions?.index,
       });
       success("index.func serverless function initialized");

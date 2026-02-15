@@ -7,7 +7,6 @@ import { chromium } from "playwright-chromium";
 import { afterAll, beforeAll, inject } from "vitest";
 
 export let browser;
-export let httpServer;
 export let page;
 export let server;
 export let hostname;
@@ -145,6 +144,8 @@ beforeAll(async ({ name, id }) => {
           }
         );
         let terminating = false;
+        // Don't let the worker thread prevent the fork process from exiting
+        worker.unref();
         worker.on("message", (msg) => {
           if (msg.port) {
             hostname = `http://localhost:${msg.port}`;
@@ -170,12 +171,6 @@ beforeAll(async ({ name, id }) => {
             reject(new Error(`Worker stopped with exit code ${code}`));
           }
         });
-        httpServer = {
-          close: () => {
-            terminating = true;
-            return worker.terminate();
-          },
-        };
       } catch (e) {
         reject(e);
       }
@@ -183,7 +178,6 @@ beforeAll(async ({ name, id }) => {
 });
 
 afterAll(async () => {
-  await httpServer?.close();
   await page?.close();
   await browser?.close();
   await cleanup();

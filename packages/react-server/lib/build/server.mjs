@@ -700,7 +700,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ...(options.edge
               ? {
                   "import.meta.__react_server_cwd__": JSON.stringify(cwd),
-                  "import.meta.url": JSON.stringify("file:///worker.mjs"),
+                  "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
                 }
               : {}),
           }),
@@ -977,7 +977,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ...(options.edge
               ? {
                   "import.meta.__react_server_cwd__": JSON.stringify(cwd),
-                  "import.meta.url": JSON.stringify("file:///worker.mjs"),
+                  "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
                 }
               : {}),
           }),

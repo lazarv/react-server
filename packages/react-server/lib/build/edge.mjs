@@ -156,7 +156,7 @@ export default async function edgeBuild(root, options) {
         plugins: [
           replace({
             preventAssignment: true,
-            "import.meta.url": JSON.stringify("file:///worker.mjs"),
+            "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
           }),
           {
             name: "react-server:edge",

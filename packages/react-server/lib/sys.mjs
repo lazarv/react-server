@@ -149,8 +149,8 @@ if (typeof Deno !== "undefined") {
 
 // In Cloudflare Workers, rootDir is not meaningful since modules are bundled
 // Use empty string to avoid fileURLToPath errors with undefined import.meta.url
-// On Windows, the build-time replacement of import.meta.url with "file:///worker.mjs"
-// causes fileURLToPath to fail because the path lacks a drive letter
+// The build-time replacement of import.meta.url uses "file:///C:/worker.mjs" which is a
+// valid file URL on all platforms (Linux: /C:/worker.mjs, Windows: C:\worker.mjs)
 export const rootDir = (() => {
   if (isEdgeRuntime) return "";
   try {

@@ -1,0 +1,217 @@
+---
+title: Netlify
+category: Deploy
+order: 3
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Netlify
+
+Netlify にデプロイするには、ビルトインの `netlify` アダプタを使用します。このアダプタは Netlify のサーバレス関数およびエッジネットワークと連携するために特化して設計されています。
+
+<Link name="installation">
+## インストール
+</Link>
+
+まず、Netlify アカウントと Netlify CLI がインストールされている必要があります：
+
+```sh
+npm install -g netlify-cli
+netlify login
+```
+
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+次に、`react-server.config.mjs` ファイルにアダプタを追加する必要があります：
+
+```mjs
+export default {
+  adapter: "netlify",
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+オプションを渡してアダプタをカスタマイズできます：
+
+```mjs
+export default {
+  adapter: [
+    "netlify",
+    {
+      name: "my-app", // Netlify サイト名
+      serverlessFunctions: {
+        server: {
+          // カスタム Netlify 関数設定
+          includedFiles: ["data/**"],
+          schedule: "@daily",
+        },
+      },
+      netlify: {
+        // 追加の netlify.toml 設定
+        build: {
+          environment: {
+            NODE_VERSION: "20",
+          },
+        },
+      },
+    },
+  ],
+};
+```
+
+静的のみのホスティングが必要な場合は、サーバレス関数を完全に無効にすることもできます：
+
+```mjs
+export default {
+  adapter: [
+    "netlify",
+    {
+      serverlessFunctions: false,
+    },
+  ],
+};
+```
+
+### 設定オプション
+
+- `name`: Netlify サイト名。`package.json` の name（スコープなし）にフォールバックします。
+- `serverlessFunctions`: サーバレス関数デプロイの有効/無効化（デフォルト: true）。静的のみのデプロイには `false` を設定します。
+  - `server`: サーバ関数の追加設定（関数の config エクスポートとマージされます）。
+- `netlify`: オブジェクトとしての追加 netlify.toml 設定（アダプタのデフォルトとマージされます）。
+
+<Link name="extending-netlify">
+## Netlify 設定の拡張
+</Link>
+
+生成された `netlify.toml` を拡張するには、プロジェクトルートに `react-server.netlify.toml` ファイルを作成します。アダプタはそれを自身の設定とマージします：
+
+- **プリミティブ値**: アダプタ設定が優先
+- **オブジェクト**: 再帰的にディープマージ
+- **配列**: カスタム設定のユニークなアイテムが保持され、アダプタのデフォルトの前に追加
+
+これにより、アダプタが必要な設定を管理しながら、カスタムヘッダー、リダイレクト、環境変数、その他の Netlify 固有の設定を追加できます。
+
+```toml filename="react-server.netlify.toml"
+[[redirects]]
+  from = "/old-path"
+  to = "/new-path"
+  status = 301
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+```
+
+<Link name="deploy">
+## デプロイ
+</Link>
+
+`@lazarv/react-server` を Netlify アダプタと共に使用する場合、以下のコマンドでアプリケーションをデプロイできます：
+
+```sh
+pnpm react-server build [root] # [root] はアプリケーションのエントリーポイント
+netlify deploy --prod
+```
+
+`react-server` CLI の `--deploy` 引数を使用してデプロイすることもできます：
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+これにより、アプリケーションがビルドされ、Netlify にデプロイされます。
+
+<Link name="serverless-functions">
+## サーバレス関数
+</Link>
+
+アダプタは `netlify/functions/server` ディレクトリに Netlify サーバレス関数を自動作成します。この関数はすべてのサーバサイドレンダリングと API ルートを処理します。
+
+この関数は以下のように設定されています：
+- ESM サポート付きの Node.js ランタイムを使用
+- `/*` パスですべてのリクエストを処理
+- 利用可能な場合は静的アセットを優先（`preferStatic: true`）
+- 依存関係の完全な制御のために `node_bundler: "none"` でバンドル
+
+アダプタ設定の `serverlessFunctions.server` オプションで関数設定をカスタマイズできます。
+
+<Link name="static-assets">
+## 静的アセット
+</Link>
+
+静的アセットは `netlify/static` ディレクトリに自動コピーされ、`netlify.toml` で公開ディレクトリとして設定されます。これには以下が含まれます：
+
+- クライアントサイド JavaScript バンドル
+- CSS ファイル
+- 公開アセット（画像、フォントなど）
+- プリレンダリングされた HTML ページ
+
+Netlify の CDN がこれらのアセットを最適なキャッシュと配信で自動提供します。
+
+<Link name="edge-functions">
+## Edge Functions
+</Link>
+
+サーバレス関数の代わりに、低レイテンシのためにエッジで Deno 上で実行される [Netlify Edge Functions](https://docs.netlify.com/platform/primitives/#edge-functions) を使用してアプリケーションをデプロイできます：
+
+```mjs
+export default {
+  adapter: [
+    "netlify",
+    {
+      edgeFunctions: true,
+    },
+  ],
+};
+```
+
+Edge Function の追加設定を渡すこともできます：
+
+```mjs
+export default {
+  adapter: [
+    "netlify",
+    {
+      edgeFunctions: {
+        config: {
+          // 追加の Edge Function 設定
+          // 参照: https://docs.netlify.com/edge-functions/api/#supported-fields
+        },
+      },
+    },
+  ],
+};
+```
+
+Edge Functions を使用すると、アダプタは自動的に：
+- `netlify/edge-functions/server` ディレクトリにサーバ Edge Function を作成
+- Edge Function から除外する静的ファイルの明示的なリストをビルド（CDN から直接配信されるように）
+- ファイルパスの特殊な URL パターン文字をエスケープ
+
+<Link name="excluded-paths">
+### 除外パスの拡張
+</Link>
+
+アダプタはすべての静的アセット（JavaScript バンドル、CSS ファイル、公開アセットなど）を含む `excludedPath` 配列を `netlify.toml` に自動生成します。これにより、静的ファイルが Edge Function を呼び出すことなく Netlify の CDN から直接配信されます。
+
+Edge Function をバイパスする追加パスを追加するには、`react-server.netlify.toml` ファイルを使用します：
+
+```toml filename="react-server.netlify.toml"
+[[edge_functions]]
+excludedPath = ["/_custom/*", "/api/external/*"]
+```
+
+カスタム除外パスは自動生成されたリストの前に追加されます。これは以下の場合に便利です：
+- 他のサービスが処理する外部 API パス
+- 他の Netlify インテグレーションが提供するパス
+- React Server の Edge Function をバイパスしたいルート
+
+最終的な `netlify.toml` には、カスタムパスが先頭に、続いて自動生成された静的アセットパスのすべてを含むマージされた `excludedPath` 配列が含まれます。
+
+> **注意:** バックグラウンド関数やスケジュール関数などの追加 Netlify 機能も `react-server.netlify.toml` ファイルで設定できます。利用可能な機能と設定オプションの詳細については、[Netlify ドキュメント](https://docs.netlify.com/)を参照してください。

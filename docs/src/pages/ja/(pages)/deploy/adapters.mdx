@@ -14,27 +14,20 @@ import Link from "../../../../components/Link.jsx";
 ### 利用可能なアダプタ
 </Link>
 
-- [x] `@lazarv/react-server-adapter-vercel` Vercel へのデプロイ
-
-
-<Link name="adapters-in-development">
-#### 開発中のアダプタ
-</Link>
-
-- [x] `@lazarv/react-server-adapter-netlify` Netlify へのデプロイ
-- [x] `@lazarv/react-server-adapter-cloudflare-pages` Cloudflare Pages へのデプロイ
-- [x] `@lazarv/react-server-adapter-cloudflare-workers` Cloudflare Workers へのデプロイ
-- [x] `@lazarv/react-server-adapter-sst` Serverless Stack へのデプロイ
+- [x] Vercel
+- [x] Netlify
+- [x] Cloudflare Workers/Pages
+- [x] Bun
 
 <Link name="configuration">
 ## 設定
 </Link>
 
-`react-server.config.mjs`ファイルに `adapter` エントリを追加します。アダプタ名は文字列で指定できます。そうすることで、アダプタパッケージはプロジェクトの依存関係から解決されます。
+`react-server.config.mjs`ファイルに `adapter` エントリを追加します。ビルトインアダプタの名前（`vercel`、`netlify`、`cloudflare`、または `bun`）を文字列で指定するか、外部アダプタパッケージを使用できます。
 
 ```mjs
 export default {
-  adapter: '@lazarv/react-server-adapter-vercel',
+  adapter: 'vercel',
 };
 ```
 
@@ -43,9 +36,9 @@ export default {
 ```mjs
 export default {
   adapter: [
-    '@lazarv/react-server-adapter-vercel',
+    'vercel',
     {
-      // Custom options
+      // カスタムオプション
     },
   ],
 };
@@ -54,11 +47,11 @@ export default {
 パッケージやファイルからアダプタをインポートすることもできます。
 
 ```mjs
-import adapter from '@lazarv/react-server-adapter-vercel';
+import adapter from '@lazarv/react-server/adapters/vercel';
 
 export default {
   adapter: adapter({
-    // Custom options
+    // カスタムオプション
   }),
 };
 ```

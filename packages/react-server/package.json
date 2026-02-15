@@ -106,6 +106,10 @@
       "types": "./adapters/core.d.ts",
       "default": "./adapters/core.mjs"
     },
+    "./adapters/bun": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/bun/index.mjs"
+    },
     "./adapters/cloudflare": {
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/cloudflare/index.mjs"

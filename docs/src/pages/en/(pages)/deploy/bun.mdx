@@ -1,0 +1,143 @@
+---
+title: Bun
+category: Deploy
+order: 4
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Bun
+
+To deploy as a standalone Bun server, use the built-in `bun` adapter. This adapter uses Bun's native `Bun.serve()` API with edge-compatible fetch handlers and zero-copy static file serving.
+
+<Link name="installation">
+## Installation
+</Link>
+
+You need [Bun](https://bun.sh) installed on your system:
+
+```sh
+curl -fsSL https://bun.sh/install | bash
+```
+
+No additional packages are needed - the adapter is built into `@lazarv/react-server`.
+
+Then add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "bun",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "bun",
+    {
+      name: "my-app", // Application name (used in generated package.json)
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `name`: Application name. Falls back to `package.json` name (without scope) or "react-server-app".
+
+### Environment Variables
+
+The generated server supports the following environment variables at runtime:
+
+- `PORT`: Server port (default: `3000`)
+- `HOST`: Server hostname (default: `0.0.0.0`)
+- `ORIGIN`: Override the origin URL for the server
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The Bun adapter uses an **edge build** mode, bundling your entire server into a single file. At build time, it:
+
+1. Bundles your server code into `.bun/server/.react-server/server/edge.mjs`
+2. Copies all static assets into `.bun/static/`
+3. Generates a `start.mjs` script with a **build-time static route map** that uses `Bun.serve({ static })` for zero-copy static file serving
+4. Creates a `package.json` for easy deployment
+
+Static files (HTML, CSS, JS, images, etc.) are served directly by Bun's optimized static file handling without going through the fetch handler, giving you the best possible performance for static assets.
+
+<Link name="build">
+## Build
+</Link>
+
+Build your application using the `react-server` CLI:
+
+```sh
+pnpm react-server build [root]
+```
+
+This produces a `.bun/` directory with the following structure:
+
+```
+.bun/
+├── start.mjs          # Entry point with static route map
+├── package.json       # Deployment metadata
+├── static/            # All static assets
+│   ├── assets/        # Hashed build assets (CSS, JS)
+│   ├── client/        # Client-side bundles
+│   └── ...            # Public files, pre-rendered HTML
+└── server/
+    └── .react-server/
+        └── server/
+            └── edge.mjs  # Bundled server
+```
+
+<Link name="deploy">
+## Deploy
+</Link>
+
+Start the production server directly:
+
+```sh
+bun .bun/start.mjs
+```
+
+Or use the `--deploy` flag to build and immediately start:
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+You can also use the generated `package.json` scripts:
+
+```sh
+cd .bun
+bun start
+```
+
+<Link name="deployment-targets">
+## Deployment targets
+</Link>
+
+Since the Bun adapter produces a self-contained server, you can deploy it anywhere Bun runs:
+
+- **Bare metal / VPS**: Copy the `.bun/` directory and run `bun start.mjs`
+- **Docker**: Use the [official Bun Docker image](https://hub.docker.com/r/oven/bun)
+- **Fly.io**: Deploy with `flyctl` using a Dockerfile
+- **Railway, Render**: Point the start command to `bun .bun/start.mjs`
+
+### Example Dockerfile
+
+```dockerfile
+FROM oven/bun:latest
+WORKDIR /app
+COPY .bun/ .
+EXPOSE 3000
+CMD ["bun", "start.mjs"]
+```

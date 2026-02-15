@@ -108,7 +108,12 @@ export default async function edgeBuild(root, options) {
       manifest: "server/edge-manifest.json",
       ssr: true,
       ssrEmitAssets: true,
-      sourcemap: options.sourcemap,
+      sourcemap:
+        options.sourcemap === "server"
+          ? true
+          : options.sourcemap === "server-inline"
+            ? "inline"
+            : options.sourcemap,
       chunkSizeWarningLimit: config.build?.chunkSizeWarningLimit ?? 1024,
       rolldownOptions: {
         ...config.build?.rollupOptions,
@@ -236,6 +241,10 @@ export default async function edgeBuild(root, options) {
                 case ".react-server/client/browser-manifest":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "client/browser-manifest.mjs")
+                  );
+                case ".react-server/server/build-manifest":
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/build-manifest.mjs")
                   );
               }
             },

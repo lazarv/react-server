@@ -535,7 +535,12 @@ export default async function serverBuild(root, options, clientManifestBus) {
       manifest: "server/server-manifest.json",
       ssr: true,
       ssrEmitAssets: true,
-      sourcemap: options.sourcemap,
+      sourcemap:
+        options.sourcemap === "server"
+          ? true
+          : options.sourcemap === "server-inline"
+            ? "inline"
+            : options.sourcemap,
       chunkSizeWarningLimit: config.build?.chunkSizeWarningLimit ?? 1024,
       rolldownOptions: {
         ...config.build?.rollupOptions,

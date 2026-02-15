@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Run hello-world (production + sourcemap)",
+      "cwd": "${workspaceFolder}/examples/hello-world",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["start"],
+      "preLaunchTask": "build-hello-world",
+      "console": "integratedTerminal"
+    }
+  ]
+}

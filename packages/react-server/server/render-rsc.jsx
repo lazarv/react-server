@@ -516,6 +516,9 @@ export async function render(Component, props = {}, options = {}) {
                   temporaryReferences,
                   onError(e) {
                     hasError = true;
+                    if (import.meta.env.PROD) {
+                      logger?.error(e);
+                    }
                     const redirect = getContext(REDIRECT_CONTEXT);
                     if (redirect?.response) {
                       return `Location=${redirect.response.headers.get("location")}`;
@@ -654,6 +657,9 @@ export async function render(Component, props = {}, options = {}) {
               temporaryReferences,
               onError(e) {
                 hasError = true;
+                if (import.meta.env.PROD) {
+                  logger?.error(e);
+                }
                 const redirect = getContext(REDIRECT_CONTEXT);
                 if (redirect?.response) {
                   return resolve(redirect.response);

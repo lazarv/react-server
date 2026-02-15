@@ -635,7 +635,12 @@ export function createAdapter({
       public: () => getFiles(["**/*"], publicDir),
       server: () =>
         getFiles(
-          ["**/*-manifest.json", "server/**/*.mjs", "static/**/*.mjs"],
+          [
+            "**/*-manifest.json",
+            "server/**/*.mjs",
+            "static/**/*.mjs",
+            ...(options.sourcemap ? ["server/**/*.map"] : []),
+          ],
           reactServerDir
         ),
       dependencies: (adapterFiles) =>

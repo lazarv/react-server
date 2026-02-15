@@ -9,6 +9,7 @@ import {
   MAIN_MODULE,
   MANIFEST,
   MODULE_LOADER,
+  SOURCEMAP_SUPPORT,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 
@@ -63,6 +64,17 @@ export async function init$(options = {}) {
     browser,
   };
   runtime$(MANIFEST, manifest);
+
+  // Load build manifest for build metadata (e.g., sourcemap setting)
+  try {
+    const { default: buildManifest } =
+      await import(".react-server/server/build-manifest");
+    if (buildManifest?.sourcemap) {
+      runtime$(SOURCEMAP_SUPPORT, buildManifest.sourcemap);
+    }
+  } catch {
+    // build-manifest may not exist for older builds
+  }
 
   const mainModule = `/${Object.values(manifest.browser).find((entry) => entry.name === "index")?.file}`;
   runtime$(MAIN_MODULE, [mainModule]);

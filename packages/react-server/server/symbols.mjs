@@ -52,4 +52,5 @@ export const CACHE_RESPONSE_TTL = Symbol.for("CACHE_RESPONSE_TTL");
 export const SERVER_FUNCTION_NOT_FOUND = Symbol.for(
   "SERVER_FUNCTION_NOT_FOUND"
 );
+export const SOURCEMAP_SUPPORT = Symbol.for("SOURCEMAP_SUPPORT");
 export const LIVE_IO = Symbol.for("LIVE_IO");

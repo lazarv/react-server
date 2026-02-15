@@ -42,76 +42,204 @@ pnpm react-server ./App.jsx
 
 To start the development server, you can use the following options:
 
-**host:** The host to listen on. Default is `localhost`.
+<Link name="dev-host">
+### --host
+</Link>
 
-**port:** The port to listen on. Default is `3000`.
+The host to listen on. Default is `localhost`.
 
-**https:** Use HTTPS protocol. Default is `false`.  
+<Link name="dev-port">
+### --port
+</Link>
+
+The port to listen on. Default is `3000`.
+
+<Link name="dev-https">
+### --https
+</Link>
+
+Use HTTPS protocol. Default is `false`.
+
 When you want to use HTTPS for your development server. You need to specify your HTTPS configuration in your `react-server.config.mjs` or `vite.config.mjs` file. See details in the Vite documentation at [server.https](https://vitejs.dev/config/server-options.html#server-https).
 
-**open:** Open browser on server start. Default is `false`.  
-Opens your app in the default browser.
+<Link name="dev-open">
+### --open
+</Link>
 
-**cors:** Enable CORS. Default is `false`.  
+Open browser on server start. Default is `false`. Opens your app in the default browser.
+
+<Link name="dev-cors">
+### --cors
+</Link>
+
+Enable CORS. Default is `false`.
+
 This is useful when you want to allow cross-origin requests. If you need more detailed CORS configuration, you can define the CORS configuration in your `react-server.config.mjs` or `vite.config.mjs` file. See details in the Vite documentation at [server.cors](https://vitejs.dev/config/server-options.html#server-cors).
 
-**force:** Force optimize deps. Default is `false`.  
-This is equal to `vite --force`. It will force the optimization of dependencies and clears the Vite cache.
+<Link name="dev-force">
+### --force
+</Link>
 
-**watch:** Watch for config changes. Default is `true`.  
-To disable watching for config changes, use `--no-watch`.
+Force optimize deps. Default is `false`. This is equal to `vite --force`. It will force the optimization of dependencies and clears the Vite cache.
 
-**clear-screen:** Clear screen on server start. Default is `false`.  
-If you want to start with a clean terminal screen.
+<Link name="dev-watch">
+### --watch
+</Link>
 
-**no-color:** Disable color output. Default is `false`.  
-This is useful for CI/CD environments.
+Watch for config changes. Default is `true`. To disable watching for config changes, use `--no-watch`.
 
-**eval:** Evaluate the server entrypoint from the argument, like `node -e`. You can also use _stdin_ as the entrypoint. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+<Link name="dev-clear-screen">
+### --clear-screen
+</Link>
 
-**version:** Display version number.  
-Output will also include your machine's architecture and node.js version.
+Clear screen on server start. Default is `false`. If you want to start with a clean terminal screen.
 
-**outDir:** Output directory for the build. Default is `.react-server`.
+<Link name="dev-no-color">
+### --no-color
+</Link>
 
-**name:** Name of the server. Default is `react-server`. Used for logging.
+Disable color output. Default is `false`. This is useful for CI/CD environments.
+
+<Link name="dev-eval">
+### --eval
+</Link>
+
+Evaluate the server entrypoint from the argument, like `node -e`. You can also use _stdin_ as the entrypoint. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+
+<Link name="dev-version">
+### --version
+</Link>
+
+Display version number. Output will also include your machine's architecture and node.js version.
+
+<Link name="dev-outdir">
+### --outDir
+</Link>
+
+Output directory for the build. Default is `.react-server`.
+
+<Link name="dev-name">
+### --name
+</Link>
+
+Name of the server. Default is `react-server`. Used for logging.
 
 <Link name="build-options">
 ## Build options
 </Link>
 
-**minify:** Minify your build. Default is `true`.  
+<Link name="build-minify">
+### --minify
+</Link>
+
+Minify your build. Default is `true`.
+
 You don't need to minify your app if you only use React Server Components and you are not using any client components, like in the [Todo](https://github.com/lazarv/react-server/tree/main/examples/todo) example. If you want to disable minification of client component code, use `--no-minify`.
 
-**sourcemap:** Generate source map. Default is `false`.
+<Link name="build-sourcemap">
+### --sourcemap
+</Link>
+
+Generate source maps for production builds. Default is `false`.
+
+Accepted values: `true`, `inline`, `hidden`, `server`, or `server-inline`.
+
+| Value | Description |
+|-------|-------------|
+| `true` | Generates `.map` files for both server and client bundles |
+| `inline` | Embeds source maps inline in the output files |
+| `hidden` | Generates `.map` files without `sourceMappingURL` comments |
+| `server` | Generates `.map` files **only for server bundles** |
+| `server-inline` | Embeds source maps inline **only in server bundles** |
+
+When source maps are enabled, server-side error stack traces in production are automatically rewritten to show original source file locations using `source-map-support`. If `NODE_OPTIONS='--enable-source-maps'` is already set, the `source-map-support` package is skipped to avoid conflicts.
+
+Use `--sourcemap=server` or `--sourcemap=server-inline` to keep your source code private from browser devtools while still getting mapped stack traces on the server.
+
+You can also configure this in `react-server.config.mjs`:
+
+```js
+export default {
+  sourcemap: true, // or "inline", "hidden", "server", "server-inline"
+};
+```
+
+> **Note:** When deploying with adapters, source maps are automatically handled per platform:<br/><br/>
+> - **Vercel**: `.map` files are included in the function bundle and `NODE_OPTIONS='--enable-source-maps'` is set.
+> - **Cloudflare**: `upload_source_maps` is enabled in `wrangler.toml` for dashboard and `wrangler tail` support.
+> - **Netlify**: `.map` files are deployed alongside functions. Deno-based edge functions pick them up natively.
+>
+> On edge runtimes, the `source-map-support` package is skipped since these platforms handle source maps at the infrastructure level.
+
 See more details in the Vite documentation at [build.sourcemap](https://vitejs.dev/config/build-options.html#build-sourcemap).
 
-**no-color:** Disable color output. Default is `false`.  
-This is useful for CI/CD environments.
+<Link name="build-no-color">
+### --no-color
+</Link>
 
-**export:** Static export. Default is `false`.  
+Disable color output. Default is `false`. This is useful for CI/CD environments.
+
+<Link name="build-export">
+### --export
+</Link>
+
+Static export. Default is `false`.
+
 You can export your app as static HTML pages. You can define the routes to export in your `react-server.config.mjs` file. See more details at [Static generation](/router/static).
 
-**compression:** Enable compression. Default is `false`.  
+<Link name="build-compression">
+### --compression
+</Link>
+
+Enable compression. Default is `false`.
+
 You can enable compression if you want to compress your static build. Compression is not enabled by default for static builds. Gzip and Brotli compression is used when compression is enabled. The production mode server serves these compressed files by default when the compressed static files are present.
 
-**deploy:** Deploy using adapter. Default is `false`.
+<Link name="build-deploy">
+### --deploy
+</Link>
+
+Deploy using adapter. Default is `false`.
+
 If you use an adapter in your `react-server.config.mjs` file, the adapter will pre-build your app for deployment and when you use this argument, the adapter will also deploy your app at the end of the build process.
 
-**eval:** Evaluate the server entrypoint from the argument, like `node -e`. You can also use _stdin_ as the entrypoint. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+<Link name="build-eval">
+### --eval
+</Link>
 
-**outDir:** Output directory for the build. Default is `.react-server`.
+Evaluate the server entrypoint from the argument, like `node -e`. You can also use _stdin_ as the entrypoint. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
 
-**mode:** Set the mode for the build. Default is `production`.
+<Link name="build-outdir">
+### --outDir
+</Link>
 
-**edge:** Enable edge build mode. Default is `false`.
-Builds your app for edge runtime environments.
+Output directory for the build. Default is `.react-server`.
 
-**silent:** Suppress build output. Default is `false`.  
+<Link name="build-mode">
+### --mode
+</Link>
+
+Set the mode for the build. Default is `production`.
+
+<Link name="build-edge">
+### --edge
+</Link>
+
+Enable edge build mode. Default is `false`. Builds your app for edge runtime environments.
+
+<Link name="build-silent">
+### --silent
+</Link>
+
+Suppress build output. Default is `false`.
+
 This option suppresses all build output from the bundler. Useful for CI/CD environments or when running builds programmatically where you don't want verbose output.
 
-**verbose:** Verbose build output. Default is `false`.
-Enables detailed build logs from the bundler.
+<Link name="build-verbose">
+### --verbose
+</Link>
+
+Verbose build output. Default is `false`. Enables detailed build logs from the bundler.
 
 <Link name="start-options">
 ## Start options
@@ -119,13 +247,26 @@ Enables detailed build logs from the bundler.
 
 **host**, **port**, **https** and **cors** are the same as in the development server options.
 
-**origin:**  
+<Link name="start-origin">
+### --origin
+</Link>
+
 Specify the origin part of the URL to a constant value. Same as using the `ORIGIN` environment variable.
 
-**trust-proxy:**
+<Link name="start-trust-proxy">
+### --trust-proxy
+</Link>
+
 Trust `X-Forwarded-*` headers.
 
-**build:**
+<Link name="start-build">
+### --build
+</Link>
+
 Runs the build command before starting the server using the provided entrypoint.
 
-**outDir:** Output directory for the build. Default is `.react-server`. You need to specify this option if you used a different output directory in the build command than the default.
+<Link name="start-outdir">
+### --outDir
+</Link>
+
+Output directory for the build. Default is `.react-server`. You need to specify this option if you used a different output directory in the build command than the default.

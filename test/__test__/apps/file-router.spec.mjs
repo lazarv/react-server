@@ -27,7 +27,7 @@ beforeAll(async () => {
 describe("file-router plugin", () => {
   test("forms", async () => {
     await page.goto(`${hostname}/forms`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(await page.textContent("body")).toContain("Layout (forms)");
     expect(await page.textContent("body")).not.toContain(
       "Layout (forms simple)"
@@ -36,21 +36,21 @@ describe("file-router plugin", () => {
 
   test("forms-simple", async () => {
     await page.goto(`${hostname}/forms-simple`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(await page.textContent("body")).not.toContain("Layout (forms)");
     expect(await page.textContent("body")).toContain("Layout (forms simple)");
   });
 
   test("form submission", async () => {
     await page.goto(`${hostname}/forms`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     const titleInput = await page.$('input[name="title"]');
     const noteInput = await page.$('textarea[name="note"]');
     await titleInput.fill("Test Title");
     await noteInput.fill("This is a test note.");
     const prevBody = await page.textContent("body");
     await page.click('button[type="submit"]');
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     await waitForChange(null, () => page.textContent("body"), prevBody);
     expect(await page.textContent("body")).toContain(
       "Welcome to the File Router Example"
@@ -59,7 +59,7 @@ describe("file-router plugin", () => {
 
   test("not found route", async () => {
     await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(await page.textContent("body")).toContain(
       "Welcome to the File Router Example"
     );
@@ -88,7 +88,7 @@ describe("file-router plugin", () => {
 
   test("external redirect", async () => {
     await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(await page.textContent("body")).toContain(
       "Welcome to the File Router Example"
     );
@@ -103,7 +103,7 @@ describe("file-router plugin", () => {
 
   test("external redirect via API", async () => {
     await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(await page.textContent("body")).toContain(
       "Welcome to the File Router Example"
     );
@@ -120,7 +120,7 @@ describe("file-router plugin", () => {
 
   test("internal redirect", async () => {
     await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(await page.textContent("body")).toContain(
       "Welcome to the File Router Example"
     );
@@ -129,13 +129,13 @@ describe("file-router plugin", () => {
     await waitForBodyUpdate(async () => {
       await linkToRedirectAbout.click();
     });
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(page.url()).toBe(`${hostname}/about`);
   });
 
   test("internal redirect to not found", async () => {
     await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(await page.textContent("body")).toContain(
       "Welcome to the File Router Example"
     );
@@ -165,7 +165,7 @@ describe("file-router plugin", () => {
 
   test("middleware error handling", async () => {
     await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     expect(await page.textContent("body")).toContain(
       "Welcome to the File Router Example"
     );

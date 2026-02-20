@@ -33,6 +33,6 @@ export default (cli) =>
     .action(async (...args) => {
       setEnv("NODE_ENV", "development");
       const { default: init$ } = await import("../../lib/loader/init.mjs");
-      await init$();
+      await init$({ command: "dev" });
       return (await import("../../lib/dev/action.mjs")).default(...args);
     });

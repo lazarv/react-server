@@ -16,6 +16,7 @@ import {
   LOGGER_CONTEXT,
   SERVER_CONTEXT,
 } from "../../server/symbols.mjs";
+import { isDeno, isBun } from "../sys.mjs";
 import banner from "../utils/banner.mjs";
 import { clearScreen } from "../utils/clear-screen.mjs";
 import { formatDuration } from "../utils/format.mjs";
@@ -110,6 +111,10 @@ export default async function dev(root, options) {
           };
 
           const startServer = async () => {
+            // Use Node.js-compatible Connect-based listener.
+            // Under Deno with DENO_COMPAT=1, node:http works and allows
+            // Vite's WebSocket upgrade handling to function correctly,
+            // while Deno APIs (Deno.openKv, etc.) remain available.
             const listener = server.listen(port, listenerHost);
             server.handlers = [...(server.handlers ?? []), listener];
             runtime$(SERVER_CONTEXT, listener);
@@ -156,6 +161,18 @@ export default async function dev(root, options) {
                 logger?.info?.(
                   `${colors.green("✔")} Ready in ${formatDuration(Date.now() - globalThis.__react_server_start__)} 🚀`
                 );
+
+                if (isDeno) {
+                  logger?.info?.(
+                    `${colors.cyan("🦕")} Running on Deno ${Deno.version.deno}`
+                  );
+                }
+
+                if (isBun) {
+                  logger?.info?.(
+                    `${colors.cyan("🍞")} Running on Bun ${Bun.version}`
+                  );
+                }
 
                 if (showHelp) {
                   logger.info?.("Press any key to open the command menu 💻");

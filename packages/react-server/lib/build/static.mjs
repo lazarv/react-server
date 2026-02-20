@@ -325,14 +325,6 @@ export default async function staticSiteGenerator(root, options) {
         return;
       }
 
-      if (configRoot.prerender === false) {
-        console.log(
-          colors.yellow(
-            "warning: partial pre-rendering is disabled, skipping pre-rendering..."
-          )
-        );
-      }
-
       const filenames = paths.flatMap(({ path, filename, outlet }) => {
         if (filename) {
           return [filename];

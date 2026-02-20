@@ -19,33 +19,33 @@ export async function initialize(data) {
 
 export async function resolve(specifier, context, nextResolve) {
   switch (specifier) {
-    case ".react-server/__react_server_config__/prebuilt":
+    case "@lazarv/react-server/dist/__react_server_config__/prebuilt":
       return nextResolve(
         pathToFileURL(
           join(cwd, outDir, "server/__react_server_config__/prebuilt.mjs")
         ).href
       );
-    case ".react-server/server/render":
+    case "@lazarv/react-server/dist/server/render":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/render.mjs")).href
       );
-    case ".react-server/server/root":
+    case "@lazarv/react-server/dist/server/root":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/root.mjs")).href
       );
-    case ".react-server/server/error":
+    case "@lazarv/react-server/dist/server/error":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/error.mjs")).href
       );
-    case ".react-server/server/error-boundary":
+    case "@lazarv/react-server/dist/server/error-boundary":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/error-boundary.mjs")).href
       );
-    case ".react-server/server/render-dom":
+    case "@lazarv/react-server/dist/server/render-dom":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/render-dom.mjs")).href
       );
-    case ".react-server/server/client-reference-map":
+    case "@lazarv/react-server/dist/server/client-reference-map":
       try {
         return await nextResolve(
           pathToFileURL(join(cwd, outDir, "server/client-reference-map.mjs"))
@@ -56,7 +56,7 @@ export async function resolve(specifier, context, nextResolve) {
           "@lazarv/react-server/server/client-reference-map.mjs"
         );
       }
-    case ".react-server/server/server-reference-map":
+    case "@lazarv/react-server/dist/server/server-reference-map":
       try {
         return await nextResolve(
           pathToFileURL(join(cwd, outDir, "server/server-reference-map.mjs"))
@@ -67,26 +67,26 @@ export async function resolve(specifier, context, nextResolve) {
           "@lazarv/react-server/server/server-reference-map.mjs"
         );
       }
-    case ".react-server/server/preload-manifest":
+    case "@lazarv/react-server/dist/server/preload-manifest":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/preload-manifest.mjs")).href
       );
-    case ".react-server/manifest-registry":
+    case "@lazarv/react-server/dist/manifest-registry":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/manifest-registry.mjs")).href
       );
-    case ".react-server/client/manifest-registry":
+    case "@lazarv/react-server/dist/client/manifest-registry":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/client/manifest-registry.mjs"))
           .href
       );
-    case ".react-server/server/build-manifest":
+    case "@lazarv/react-server/dist/server/build-manifest":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/build-manifest.mjs")).href
       );
-    case ".react-server/server/server-manifest":
-    case ".react-server/server/client-manifest":
-    case ".react-server/client/browser-manifest":
+    case "@lazarv/react-server/dist/server/server-manifest":
+    case "@lazarv/react-server/dist/server/client-manifest":
+    case "@lazarv/react-server/dist/client/browser-manifest":
       return nextResolve("@lazarv/react-server/lib/loader/manifest-loader.mjs");
   }
 

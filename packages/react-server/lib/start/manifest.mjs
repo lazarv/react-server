@@ -21,17 +21,17 @@ export async function init$(options = {}) {
     { registry: clientRegistry },
     { registry: serverRegistry },
   ] = await Promise.all([
-    import(".react-server/server/preload-manifest"),
+    import("@lazarv/react-server/dist/server/preload-manifest"),
     (async () => {
       try {
-        return await import(".react-server/client/manifest-registry");
+        return await import("@lazarv/react-server/dist/client/manifest-registry");
       } catch {
         return { registry: new Map() };
       }
     })(),
     (async () => {
       try {
-        return await import(".react-server/manifest-registry");
+        return await import("@lazarv/react-server/dist/manifest-registry");
       } catch {
         return { registry: new Map() };
       }
@@ -43,9 +43,9 @@ export async function init$(options = {}) {
     { default: clientLoader },
     { default: browserLoader },
   ] = await Promise.all([
-    import(".react-server/server/server-manifest"),
-    import(".react-server/server/client-manifest"),
-    import(".react-server/client/browser-manifest"),
+    import("@lazarv/react-server/dist/server/server-manifest"),
+    import("@lazarv/react-server/dist/server/client-manifest"),
+    import("@lazarv/react-server/dist/client/browser-manifest"),
   ]);
   const [server, client, browser] = await Promise.all([
     serverLoader(
@@ -68,7 +68,7 @@ export async function init$(options = {}) {
   // Load build manifest for build metadata (e.g., sourcemap setting)
   try {
     const { default: buildManifest } =
-      await import(".react-server/server/build-manifest");
+      await import("@lazarv/react-server/dist/server/build-manifest");
     if (buildManifest?.sourcemap) {
       runtime$(SOURCEMAP_SUPPORT, buildManifest.sourcemap);
     }

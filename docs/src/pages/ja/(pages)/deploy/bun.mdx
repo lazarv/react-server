@@ -22,7 +22,7 @@ curl -fsSL https://bun.sh/install | bash
 
 追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
 
-次に、`react-server.config.mjs` ファイルにアダプタを追加します：
+Bun でプロダクションビルドを実行すると、`bun` アダプタが**自動的に検出・使用されます** — 設定は不要です。明示的に指定したい場合やオプションを渡したい場合は、`react-server.config.mjs` ファイルにアダプタを追加します：
 
 ```mjs
 export default {
@@ -102,10 +102,16 @@ pnpm react-server build [root]
 ## デプロイ
 </Link>
 
-本番サーバを直接起動します：
+CLIを使用して本番サーバを起動します：
 
 ```sh
-bun .bun/start.mjs
+bun --bun react-server start
+```
+
+フレームワークなしで直接起動することもできます：
+
+```sh
+bun --bun .bun/start.mjs
 ```
 
 または `--deploy` フラグを使用してビルドと即時起動を行います：

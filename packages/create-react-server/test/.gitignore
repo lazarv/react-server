@@ -1,0 +1,5 @@
+.build/
+.npm-cache/
+.pnpm-store/
+.bun-cache/
+node_modules/

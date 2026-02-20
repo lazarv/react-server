@@ -1,5 +1,6 @@
 {
   "root": "src/app",
+  "prerender": false,
   "export": [
     {
       "path": "/"

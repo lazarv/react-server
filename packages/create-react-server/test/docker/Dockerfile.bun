@@ -1,0 +1,23 @@
+FROM oven/bun:latest
+
+RUN apt-get update && apt-get install -y curl git procps iproute2 && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 (needed for npm and some tooling)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm
+
+WORKDIR /workspace
+
+COPY react-server.tgz create-react-server.tgz ./
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
+# Install create-react-server and react-server in /tool using npm
+# (bun will be used at runtime to run the create script and the generated app)
+RUN mkdir -p /tool && cd /tool && \
+    echo '{"dependencies":{"@lazarv/react-server":"file:///workspace/react-server.tgz","@lazarv/create-react-server":"file:///workspace/create-react-server.tgz"},"trustedDependencies":["@lazarv/react-server"]}' > package.json && \
+    npm install --legacy-peer-deps
+
+ENTRYPOINT ["/workspace/entrypoint.sh"]

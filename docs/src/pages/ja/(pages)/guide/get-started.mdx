@@ -27,7 +27,9 @@ JavaScriptランタイムとしてBunを使用する場合は、他に何も必�
 
 - [Bun](https://bun.sh) v1.2.9 以降
 
-> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
+JavaScriptランタイムとしてDenoを使用する場合：
+
+- [Deno](https://deno.com) v2.0 以降
 
 <Link name="install">
 ## インストール
@@ -62,9 +64,9 @@ bun add @lazarv/react-server
 </Tab>
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
-
-> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
-
+```sh
+deno run -A npm:@lazarv/react-server
+```
 </Tab>
 
 </Tabs>
@@ -114,9 +116,9 @@ bun --bun react-server ./App.jsx
 </Tab>
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
-
-> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
-
+```sh
+deno run -A npm:@lazarv/react-server ./App.jsx
+```
 </Tab>
 
 </Tabs>
@@ -127,7 +129,7 @@ bun --bun react-server ./App.jsx
 ## プロダクションビルド
 </Link>
 
-アプリケーションの開発が終われば、プロダクションモードでビルドすることも出来ます。プロダクションビルドをすると `.react-server` ディレクトリの中にプロダクションモードでの実行に必要なファイルを作成します。
+アプリケーションの開発が終われば、プロダクションモードでビルドすることも出来ます。プロダクションビルドをすると `.react-server` ディレクトリの中にプロダクションモードでの実行に必要なファイルを作成します。BunまたはDenoを使用する場合、対応するアダプタが自動的に検出・使用され、`.bun/` または `.deno/` に自己完結型のエッジバンドルを生成します。`--adapter <name>` で自動検出を上書きするか、`--no-adapter` で無効にできます。
 
 <Tabs name="build">
 
@@ -156,9 +158,9 @@ bun --bun react-server build ./App.jsx
 </Tab>
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
-
-> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
-
+```sh
+deno run -A npm:@lazarv/react-server build ./App.jsx
+```
 </Tab>
 
 </Tabs>
@@ -167,7 +169,7 @@ bun --bun react-server build ./App.jsx
 ## プロダクションモード
 </Link>
 
-プロダクションモードでアプリケーションを実行するには`start`コマンドを実行してください。
+プロダクションモードでアプリケーションを実行するには`start`コマンドを実行してください。BunまたはDenoを使用する場合、startコマンドはアダプタが生成したエントリーポイントを直接実行します。
 
 <Tabs name="production-mode">
 
@@ -196,14 +198,14 @@ bun --bun react-server start
 </Tab>
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
-
-> **Note:** Denoはまだサポートされていません。後日アップデートを確認してください。
-
+```sh
+deno run -A npm:@lazarv/react-server start
+```
 </Tab>
 
 </Tabs>
 
-> **Note:** `@lazarv/react-server`をインストールせず高速にアプリを実行したい場合、`npx`を使って`react-server` CLIを実行することができます。JavaScriptを使用する場合、このようにすれば他のものをインストールする必要はありません。アプリの実行にはReact Server Componentをエクスポートした`.jsx`ファイルがあれば十分です。`npx @lazarv/react-server ./App.jsx` を実行すればディベロップメントモードでアプリケーションを立ち上げることが出来ます。Bunを使っている場合、`bunx --bun @lazarv/react-server`を実行すれば`react-server`CLIを実行することが出来ます。
+> **Note:** `@lazarv/react-server`をインストールせず高速にアプリを実行したい場合、`npx`を使って`react-server` CLIを実行することができます。JavaScriptを使用する場合、このようにすれば他のものをインストールする必要はありません。アプリの実行にはReact Server Componentをエクスポートした`.jsx`ファイルがあれば十分です。`npx @lazarv/react-server ./App.jsx` を実行すればディベロップメントモードでアプリケーションを立ち上げることが出来ます。Bunを使っている場合、`bunx --bun @lazarv/react-server`を実行すれば`react-server`CLIを実行することが出来ます。Denoを使っている場合、`deno run -A npm:@lazarv/react-server ./App.jsx`を実行すればディベロップメントサーバーを起動できます。
 
 <Link name="next-steps">
 ## 次のステップ

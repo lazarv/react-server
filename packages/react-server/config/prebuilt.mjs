@@ -5,7 +5,7 @@ const defaultConfig = {};
 
 export async function loadConfig(initialConfig) {
   const { default: config } =
-    await import(".react-server/__react_server_config__/prebuilt");
+    await import("@lazarv/react-server/dist/__react_server_config__/prebuilt");
   const configKeys = Object.keys(config);
   const root = configKeys.includes(".")
     ? "."

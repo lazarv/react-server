@@ -1,4 +1,4 @@
-import { setEnv } from "../../lib/sys.mjs";
+import { isBun, isDeno, setEnv } from "../../lib/sys.mjs";
 
 export default (cli) =>
   cli
@@ -37,8 +37,11 @@ export default (cli) =>
       if (options.verbose) {
         setEnv("REACT_SERVER_VERBOSE", "true");
       }
+      if (isBun || isDeno) {
+        options.edge = true;
+      }
       const { default: init$ } = await import("../../lib/loader/init.mjs");
-      await init$({ root, ...options });
+      await init$({ root, command: "build", ...options });
       const { default: build } = await import("../../lib/build/action.mjs");
       return build(root, options);
     });

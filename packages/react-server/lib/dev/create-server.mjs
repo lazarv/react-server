@@ -77,7 +77,13 @@ export default async function createServer(root, options) {
     options.outDir = ".react-server";
   }
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT];
-  const worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
+  let worker = null;
+  if (sys.isDeno) {
+    const { renderProcessSpawn } = await import("./render-process-spawn.mjs");
+    worker = await renderProcessSpawn();
+  } else {
+    worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
+  }
   runtime$(WORKER_THREAD, worker);
 
   const publicDir =
@@ -320,7 +326,7 @@ export default async function createServer(root, options) {
           ),
         },
         {
-          find: /^\.react-server\/server\/client-reference-map$/,
+          find: /^@lazarv\/react-server\/dist\/server\/client-reference-map$/,
           replacement: sys.normalizePath(
             __require.resolve(
               "@lazarv/react-server/server/client-reference-map.mjs"
@@ -328,7 +334,7 @@ export default async function createServer(root, options) {
           ),
         },
         {
-          find: /^\.react-server\/server\/server-reference-map$/,
+          find: /^@lazarv\/react-server\/dist\/server\/server-reference-map$/,
           replacement: sys.normalizePath(
             __require.resolve(
               "@lazarv/react-server/server/server-reference-map.mjs"
@@ -360,7 +366,7 @@ export default async function createServer(root, options) {
               options: {
                 resolve: {
                   dedupe: ["picocolors"],
-                  external: ["picocolors"],
+                  external: ["picocolors", /^bun:/],
                   alias: [
                     {
                       find: /^@lazarv\/react-server\/http-context$/,
@@ -406,6 +412,7 @@ export default async function createServer(root, options) {
                     "unstorage",
                     "@modelcontextprotocol/sdk",
                     "react-server-highlight.js",
+                    /^bun:/,
                   ],
                   alias: [
                     {
@@ -646,7 +653,7 @@ export default async function createServer(root, options) {
     }
   };
 
-  worker.on("message", async (payload) => {
+  worker?.on("message", async (payload) => {
     if (payload.type === "import") {
       const {
         name,
@@ -915,15 +922,13 @@ export default async function createServer(root, options) {
     initialHandlers.unshift(cors(serverCors));
   }
 
-  viteDevServer.middlewares.use(
-    createMiddleware(
-      compose(
-        typeof config.handlers === "function"
-          ? (config.handlers(initialHandlers) ?? initialHandlers)
-          : [...initialHandlers, ...(config.handlers ?? [])]
-      )
-    )
+  const composedHandlers = compose(
+    typeof config.handlers === "function"
+      ? (config.handlers(initialHandlers) ?? initialHandlers)
+      : [...initialHandlers, ...(config.handlers ?? [])]
   );
+
+  viteDevServer.middlewares.use(createMiddleware(composedHandlers));
 
   const localHostnames = new Set([
     "localhost",

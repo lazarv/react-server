@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,11 +5,12 @@ import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import {
   banner,
   createAdapter,
+  deepMerge,
   message,
   success,
   writeJSON,
 } from "@lazarv/react-server/adapters/core";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 const cwd = sys.cwd();
 const denoDir = join(cwd, ".deno");
@@ -109,15 +109,13 @@ export const adapter = createAdapter({
     let appName = adapterOptions?.name;
     if (!appName) {
       const packageJsonPath = join(cwd, "package.json");
-      if (existsSync(packageJsonPath)) {
-        try {
-          const packageJson = JSON.parse(
-            readFileSync(packageJsonPath, "utf-8")
-          );
-          appName = packageJson.name?.replace(/^@[^/]+\//, "");
-        } catch {
-          // Ignore parsing errors
-        }
+      try {
+        const packageJson = JSON.parse(
+          await readFile(packageJsonPath, "utf-8")
+        );
+        appName = packageJson.name?.replace(/^@[^/]+\//, "");
+      } catch {
+        // Ignore missing file or parsing errors
       }
     }
 
@@ -212,20 +210,38 @@ console.log(\`Deno server listening on http://\${hostname}:\${port}\`);
 
     // Write a deno.json for the output
     banner("creating deployment metadata", { emoji: "📦" });
-    message("creating", "deno.json");
-    await writeJSON(join(outDir, "deno.json"), {
+
+    const denoConfig = {
       tasks: {
         start:
           "deno run --allow-net --allow-read --allow-env --allow-sys start.mjs",
       },
       nodeModulesDir: "none",
-    });
+    };
+
+    // Merge with user's react-server.deno.json if present
+    const existingDenoJsonPath = join(cwd, "react-server.deno.json");
+    let finalConfig = denoConfig;
+    try {
+      const userConfig = JSON.parse(
+        await readFile(existingDenoJsonPath, "utf-8")
+      );
+      finalConfig = deepMerge(denoConfig, userConfig);
+      message("merging", "existing react-server.deno.json with adapter config");
+    } catch {
+      // Ignore missing file or parsing errors
+    }
+
+    message("creating", "deno.json");
+    await writeJSON(join(outDir, "deno.json"), finalConfig);
     success("deployment metadata created");
   },
   deploy: {
     command: "deno",
     args: [
       "run",
+      "--config",
+      ".deno/deno.json",
       "--allow-net",
       "--allow-read",
       "--allow-env",

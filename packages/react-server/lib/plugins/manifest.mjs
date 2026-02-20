@@ -6,30 +6,31 @@ const cwd = sys.cwd();
 export function manifestRegistry() {
   return {
     name: "react-server:manifest-registry",
+    enforce: "pre",
     buildStart() {
       this.emitFile({
         type: "chunk",
-        id: ".react-server/manifest-registry",
+        id: "@lazarv/react-server/dist/manifest-registry",
         name: "manifest-registry",
       });
       this.emitFile({
         type: "chunk",
-        id: ".react-server/client/manifest-registry",
+        id: "@lazarv/react-server/dist/client/manifest-registry",
         name: "client/manifest-registry",
       });
     },
     resolveId(id) {
       if (
-        id === ".react-server/manifest-registry" ||
-        id === ".react-server/client/manifest-registry"
+        id === "@lazarv/react-server/dist/manifest-registry" ||
+        id === "@lazarv/react-server/dist/client/manifest-registry"
       ) {
         return id;
       }
     },
     load(id) {
       if (
-        id === ".react-server/manifest-registry" ||
-        id === ".react-server/client/manifest-registry"
+        id === "@lazarv/react-server/dist/manifest-registry" ||
+        id === "@lazarv/react-server/dist/client/manifest-registry"
       ) {
         return `const registry = new Map();
 function registerClientReference(id, exports, importer) {
@@ -58,8 +59,8 @@ export function manifestGenerator(
   // SSR uses client/manifest-registry path to keep it separate from RSC's manifest-registry
   const registryPath =
     type === "ssr"
-      ? ".react-server/client/manifest-registry"
-      : ".react-server/manifest-registry";
+      ? "@lazarv/react-server/dist/client/manifest-registry"
+      : "@lazarv/react-server/dist/manifest-registry";
   return {
     name: "react-server:manifest-generator",
     resolveId(id) {

@@ -8,6 +8,7 @@ import host from "./host.mjs";
 import name from "./name.mjs";
 import packageManager from "./package.mjs";
 import port from "./port.mjs";
+import runtime from "./runtime.mjs";
 // import stateManagement from "./state-management.mjs";
 import preset, { prepare as preparePreset } from "./preset.mjs";
 // import thirdParty from "./third-party.mjs";
@@ -28,6 +29,7 @@ export default [
   port,
   preparePreset,
   deploy,
+  runtime,
   packageManager,
   prepareDeploy,
 ];

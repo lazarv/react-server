@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire, isBuiltin } from "node:module";
 import { join, relative, extname } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
 import glob from "fast-glob";
@@ -148,7 +149,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     "@lazarv/react-server/memory-cache",
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
-    /^\.react-server\//,
+    /^@lazarv\/react-server\/dist\//,
   ]);
   const ssrExternal = createExternal([
     /manifest\.json/,
@@ -159,6 +160,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     "@lazarv/react-server/memory-cache",
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
+    /^@lazarv\/react-server\/dist\//,
   ]);
 
   // Edge external - only externalize node builtins, bundle everything else
@@ -168,6 +170,10 @@ export default async function serverBuild(root, options, clientManifestBus) {
     }
     // Externalize node: protocol and manifest.json
     if (id.startsWith("node:") || /manifest\.json/.test(id)) {
+      return true;
+    }
+    // Externalize @lazarv/react-server/dist/ imports
+    if (/^@lazarv\/react-server\/dist\//.test(id)) {
       return true;
     }
     return false;
@@ -582,13 +588,14 @@ export default async function serverBuild(root, options, clientManifestBus) {
                 name(id) {
                   // Check for manifest-registry modules first - these must be in their own chunk
                   if (
-                    id === ".react-server/manifest-registry" ||
+                    id === "@lazarv/react-server/dist/manifest-registry" ||
                     id === "server/manifest-registry"
                   ) {
                     return "manifest-reference";
                   }
                   if (
-                    id === ".react-server/client/manifest-registry" ||
+                    id ===
+                      "@lazarv/react-server/dist/client/manifest-registry" ||
                     id === "server/client/manifest-registry"
                   ) {
                     return "client/manifest-reference";
@@ -670,9 +677,10 @@ export default async function serverBuild(root, options, clientManifestBus) {
         },
         input: {
           "server/__react_server_config__/prebuilt": "virtual:config/prebuilt",
-          "server/manifest-registry": ".react-server/manifest-registry",
+          "server/manifest-registry":
+            "@lazarv/react-server/dist/manifest-registry",
           // "server/client/manifest-registry":
-          //   ".react-server/client/manifest-registry",
+          //   "@lazarv/react-server/dist/client/manifest-registry",
           "server/render": renderModulePath,
           "server/root": rootModulePath,
           "server/error": errorModulePath,
@@ -705,7 +713,9 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ...(options.edge
               ? {
                   "import.meta.__react_server_cwd__": JSON.stringify(cwd),
-                  "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
+                  "import.meta.url": JSON.stringify(
+                    pathToFileURL(join(cwd, "worker.mjs")).href
+                  ),
                 }
               : {}),
           }),
@@ -883,13 +893,14 @@ export default async function serverBuild(root, options, clientManifestBus) {
                 name(id) {
                   // Check for manifest-registry modules first - these must be in their own chunk
                   if (
-                    id === ".react-server/client/manifest-registry" ||
+                    id ===
+                      "@lazarv/react-server/dist/client/manifest-registry" ||
                     id === "server/client/manifest-registry"
                   ) {
                     return "client/manifest-reference";
                   }
                   if (
-                    id === ".react-server/manifest-registry" ||
+                    id === "@lazarv/react-server/dist/manifest-registry" ||
                     id === "server/manifest-registry"
                   ) {
                     return "manifest-reference";
@@ -955,7 +966,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
         },
         input: {
           "server/client/manifest-registry":
-            ".react-server/client/manifest-registry",
+            "@lazarv/react-server/dist/client/manifest-registry",
           ...(options.edge || config.ssr?.worker === false
             ? {
                 "server/render-dom": __require.resolve(
@@ -982,7 +993,9 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ...(options.edge
               ? {
                   "import.meta.__react_server_cwd__": JSON.stringify(cwd),
-                  "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
+                  "import.meta.url": JSON.stringify(
+                    pathToFileURL(join(cwd, "worker.mjs")).href
+                  ),
                 }
               : {}),
           }),

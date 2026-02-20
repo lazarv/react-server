@@ -34,8 +34,25 @@ Please upgrade your Bun version.
   }
 }
 
+export function checkDenoVersion() {
+  const minDenoVersion = "2.0.0";
+  if (
+    semver.lt(Deno.version.deno, minDenoVersion, {
+      loose: true,
+    })
+  ) {
+    console.log(`Deno version ${colors.cyan(`v${minDenoVersion}`)} or higher is required to use ${colors.cyan("@lazarv/react-server")}.
+You are currently running Deno ${colors.cyan(`v${Deno.version.deno}`)}.
+Please upgrade your Deno version.
+      `);
+    return true;
+  }
+}
+
 export function checkJSRuntimeVersion() {
-  if (typeof Bun !== "undefined") {
+  if (typeof Deno !== "undefined") {
+    return checkDenoVersion();
+  } else if (typeof Bun !== "undefined") {
     return checkBunVersion();
   } else {
     return checkNodejsVersion();

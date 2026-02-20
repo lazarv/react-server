@@ -22,7 +22,7 @@ curl -fsSL https://deno.land/install.sh | sh
 
 追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
 
-次に、`react-server.config.mjs` ファイルにアダプタを追加します：
+Deno でプロダクションビルドを実行すると、`deno` アダプタが**自動的に検出・使用されます** — 設定は不要です。明示的に指定したい場合やオプションを渡したい場合は、`react-server.config.mjs` ファイルにアダプタを追加します：
 
 ```mjs
 export default {

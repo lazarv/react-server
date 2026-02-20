@@ -143,6 +143,15 @@ export default async (context) => {
       ]);
     }
 
+    const hasPackageJson = files.some(
+      ([src]) => relative(templateAppDir, src) === "package.json"
+    );
+    const nonPartialFiles = hasPackageJson
+      ? files.filter(
+          ([src]) => relative(templateAppDir, src) !== "package.json"
+        )
+      : files;
+
     return {
       ...context,
       interactive: !context.env.options.preset,
@@ -150,10 +159,10 @@ export default async (context) => {
         ...context.env,
         templateAppDir,
       },
-      files: [...(context.files ?? []), ...files, ...sharedFiles],
+      files: [...(context.files ?? []), ...nonPartialFiles, ...sharedFiles],
       partials: {
         ...context.partials,
-        ...(files.includes("package.json")
+        ...(hasPackageJson
           ? {
               "package.json": {
                 ...context.partials["package.json"],

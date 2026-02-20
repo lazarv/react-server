@@ -26,6 +26,8 @@ You can use adapters to configure your app for different deployment environments
 
 Add `adapter` entry to your `react-server.config.mjs` file. You can specify the name of a built-in adapter (`vercel`, `netlify`, `cloudflare`, `bun`, or `deno`) as a string, or use an external adapter package.
 
+> **Note:** When running a production build with **Bun** or **Deno**, the corresponding adapter is automatically detected and used without any configuration. You can override this with an explicit `adapter` setting in your config or via `--adapter <name>` on the CLI. Use `--no-adapter` to disable auto-detection.
+
 ```mjs
 export default {
   adapter: 'vercel',

@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire, isBuiltin } from "node:module";
 import { join, relative, extname } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
 import glob from "fast-glob";
@@ -712,7 +713,9 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ...(options.edge
               ? {
                   "import.meta.__react_server_cwd__": JSON.stringify(cwd),
-                  "import.meta.url": JSON.stringify("file:///worker.mjs"),
+                  "import.meta.url": JSON.stringify(
+                    pathToFileURL(join(cwd, "worker.mjs")).href
+                  ),
                 }
               : {}),
           }),
@@ -990,7 +993,9 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ...(options.edge
               ? {
                   "import.meta.__react_server_cwd__": JSON.stringify(cwd),
-                  "import.meta.url": JSON.stringify("file:///worker.mjs"),
+                  "import.meta.url": JSON.stringify(
+                    pathToFileURL(join(cwd, "worker.mjs")).href
+                  ),
                 }
               : {}),
           }),

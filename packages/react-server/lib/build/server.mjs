@@ -148,7 +148,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     "@lazarv/react-server/memory-cache",
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
-    ...(options.edge ? [] : [/^@lazarv\/react-server\/dist\//]),
+    /^@lazarv\/react-server\/dist\//,
   ]);
   const ssrExternal = createExternal([
     /manifest\.json/,
@@ -159,7 +159,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     "@lazarv/react-server/memory-cache",
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
-    ...(options.edge ? [] : [/^@lazarv\/react-server\/dist\//]),
+    /^@lazarv\/react-server\/dist\//,
   ]);
 
   // Edge external - only externalize node builtins, bundle everything else
@@ -169,6 +169,10 @@ export default async function serverBuild(root, options, clientManifestBus) {
     }
     // Externalize node: protocol and manifest.json
     if (id.startsWith("node:") || /manifest\.json/.test(id)) {
+      return true;
+    }
+    // Externalize @lazarv/react-server/dist/ imports
+    if (/^@lazarv\/react-server\/dist\//.test(id)) {
       return true;
     }
     return false;

@@ -64,22 +64,9 @@ bun add @lazarv/react-server
 </Tab>
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
-
-Denoはnpm指定子を使用してパッケージをインストールします。`deno.json`に`nodeModulesDir`を`"manual"`に設定し、`"byonm"`を有効にする必要があります：
-
-```json
-{
-  "nodeModulesDir": "manual",
-  "unstable": ["byonm"]
-}
-```
-
-npmでインストールします：
-
 ```sh
-npm install @lazarv/react-server
+deno run -A npm:@lazarv/react-server
 ```
-
 </Tab>
 
 </Tabs>

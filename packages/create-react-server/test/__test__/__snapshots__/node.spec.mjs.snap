@@ -165,7 +165,6 @@ exports[`create-react-server: node runtime (npm) > preset: get-started > creates
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -1372,7 +1371,6 @@ exports[`create-react-server: node runtime (npm) > preset: get-started-ts > crea
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -2662,7 +2660,6 @@ exports[`create-react-server: node runtime (npm) > preset: nextjs > creates the 
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -3971,7 +3968,6 @@ exports[`create-react-server: node runtime (npm) > preset: router > creates the 
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -5597,7 +5593,6 @@ exports[`create-react-server: node runtime (pnpm) > preset: get-started > create
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -6804,7 +6799,6 @@ exports[`create-react-server: node runtime (pnpm) > preset: get-started-ts > cre
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -8094,7 +8088,6 @@ exports[`create-react-server: node runtime (pnpm) > preset: nextjs > creates the
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -9403,7 +9396,6 @@ exports[`create-react-server: node runtime (pnpm) > preset: router > creates the
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",

@@ -165,7 +165,6 @@ exports[`create-react-server: bun runtime (bun) > preset: get-started > creates 
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -1450,7 +1449,6 @@ exports[`create-react-server: bun runtime (bun) > preset: get-started-ts > creat
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -2818,7 +2816,6 @@ exports[`create-react-server: bun runtime (bun) > preset: nextjs > creates the a
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -4205,7 +4202,6 @@ exports[`create-react-server: bun runtime (bun) > preset: router > creates the a
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -5909,7 +5905,6 @@ exports[`create-react-server: bun runtime (npm) > preset: get-started > creates 
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -7194,7 +7189,6 @@ exports[`create-react-server: bun runtime (npm) > preset: get-started-ts > creat
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -8562,7 +8556,6 @@ exports[`create-react-server: bun runtime (npm) > preset: nextjs > creates the a
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -9949,7 +9942,6 @@ exports[`create-react-server: bun runtime (npm) > preset: router > creates the a
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -11653,7 +11645,6 @@ exports[`create-react-server: bun runtime (pnpm) > preset: get-started > creates
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -12938,7 +12929,6 @@ exports[`create-react-server: bun runtime (pnpm) > preset: get-started-ts > crea
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -14306,7 +14296,6 @@ exports[`create-react-server: bun runtime (pnpm) > preset: nextjs > creates the 
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",
@@ -15693,7 +15682,6 @@ exports[`create-react-server: bun runtime (pnpm) > preset: router > creates the 
 	filemode = true
 	bare = false
 	logallrefupdates = true
-	ignorecase = true
 ",
   ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
 ",

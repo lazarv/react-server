@@ -54,7 +54,13 @@ export function collectFiles(dir, base = dir) {
       Object.assign(result, collectFiles(fullPath, base));
     } else {
       if (SKIP_FILES.has(entry)) continue;
-      result[relPath] = readFileSync(fullPath, "utf-8");
+      let content = readFileSync(fullPath, "utf-8");
+      // Normalize platform-specific git config options so snapshots
+      // generated on macOS (case-insensitive FS) match Linux output.
+      if (relPath === ".git/config") {
+        content = content.replace(/^\s*ignorecase\s*=.*\n/gm, "");
+      }
+      result[relPath] = content;
     }
   }
   return result;

@@ -1,11 +1,27 @@
 import Module, { createRequire } from "node:module";
-import { dirname, join } from "node:path";
-
-import moduleAlias from "module-alias";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { getEnv, normalizePath } from "../sys.mjs";
 
-const __require = createRequire(import.meta.url);
+const __require =
+  typeof Bun !== "undefined"
+    ? {
+        resolve: (id) => {
+          try {
+            return fileURLToPath(import.meta.resolve(id));
+          } catch (err) {
+            if (err.code === "ERR_MODULE_NOT_FOUND") {
+              throw new Error(
+                `Module not found: Can't resolve '${id}' in '${dirname(import.meta.url)}'`,
+                { cause: err }
+              );
+            }
+            throw err;
+          }
+        },
+      }
+    : createRequire(import.meta.url);
 
 export function moduleAliases(condition) {
   let react = normalizePath(__require.resolve("react"));
@@ -115,7 +131,9 @@ export function moduleAliases(condition) {
   return moduleAliases;
 }
 
+const moduleAliasRequire = createRequire(import.meta.url);
 export function alias(condition) {
+  const moduleAlias = moduleAliasRequire("module-alias");
   moduleAlias.addAliases(moduleAliases(condition));
 
   if (condition === "react-server" && getEnv("NODE_ENV") !== "production") {
@@ -158,42 +176,6 @@ export function reactServerPatch(code) {
 };`
     )
     .join("\n\n")}\n`;
-}
-
-export async function reactServerBunAliasPlugin() {
-  if (typeof Bun !== "undefined") {
-    const { plugin } = await import("bun");
-
-    plugin({
-      name: "react-server",
-      setup(build) {
-        build.onResolve({ filter: /\.js$/ }, (args) => {
-          const fullPath = args.path.startsWith(".")
-            ? join(dirname(args.importer), args.path)
-            : args.path;
-          if (fullPath.endsWith("react.development.js")) {
-            return {
-              ...args,
-              path: fullPath.replace(
-                /react\.development\.js$/,
-                "react.react-server.development.js"
-              ),
-            };
-          } else if (
-            fullPath.endsWith("react-jsx-dev-runtime.development.js")
-          ) {
-            return {
-              ...args,
-              path: fullPath.replace(
-                /react-jsx-dev-runtime\.development\.js$/,
-                "react-jsx-dev-runtime.react-server.development.js"
-              ),
-            };
-          }
-        });
-      },
-    });
-  }
 }
 
 export function reactServerPatchCjs() {

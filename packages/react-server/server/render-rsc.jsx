@@ -50,8 +50,8 @@ import {
 } from "@lazarv/react-server/server/symbols.mjs";
 import { ServerFunctionNotFoundError } from "./action-state.mjs";
 import { cwd } from "../lib/sys.mjs";
-import { clientReferenceMap } from ".react-server/server/client-reference-map";
-import { serverReferenceMap } from ".react-server/server/server-reference-map";
+import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-reference-map";
+import { serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
 
 export async function render(Component, props = {}, options = {}) {
   const logger = getContext(LOGGER_CONTEXT);
@@ -516,12 +516,12 @@ export async function render(Component, props = {}, options = {}) {
                   temporaryReferences,
                   onError(e) {
                     hasError = true;
-                    if (import.meta.env.PROD) {
-                      logger?.error(e);
-                    }
                     const redirect = getContext(REDIRECT_CONTEXT);
                     if (redirect?.response) {
                       return `Location=${redirect.response.headers.get("location")}`;
+                    }
+                    if (import.meta.env.PROD) {
+                      logger?.error(e);
                     }
                     return e?.digest ?? e?.message;
                   },
@@ -657,12 +657,12 @@ export async function render(Component, props = {}, options = {}) {
               temporaryReferences,
               onError(e) {
                 hasError = true;
-                if (import.meta.env.PROD) {
-                  logger?.error(e);
-                }
                 const redirect = getContext(REDIRECT_CONTEXT);
                 if (redirect?.response) {
                   return resolve(redirect.response);
+                }
+                if (import.meta.env.PROD) {
+                  logger?.error(e);
                 }
                 return e?.digest ?? e?.message;
               },

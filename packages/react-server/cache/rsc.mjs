@@ -6,7 +6,7 @@ import { concat, copyBytesFrom } from "../lib/sys.mjs";
 export function toBuffer(model, options = {}) {
   return new Promise(async (resolve, reject) => {
     const { clientReferenceMap } =
-      await import(".react-server/server/client-reference-map");
+      await import("@lazarv/react-server/dist/server/client-reference-map");
     const map = clientReferenceMap();
     const stream = renderToReadableStream(model, map, {
       ...options,
@@ -26,7 +26,7 @@ export function toBuffer(model, options = {}) {
 
 export async function toStream(model, options = {}) {
   const { clientReferenceMap } =
-    await import(".react-server/server/client-reference-map");
+    await import("@lazarv/react-server/dist/server/client-reference-map");
   const map = clientReferenceMap();
   return renderToReadableStream(model, map, options);
 }

@@ -1,8 +1,6 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
-// import { getRuntime } from "../../server/runtime.mjs";
-// import { MODULE_CACHE, LINK_QUEUE } from "../../server/symbols.mjs";
 import { isEdgeRuntime, cwd as sysCwd } from "../sys.mjs";
 
 function tryStat(path) {
@@ -60,30 +58,15 @@ export function hasRenderer(options) {
 export async function createRenderer() {
   const [parentPort, workerPort] = createChannelPair();
 
-  // await runtime_init$(async () => {
-  // const moduleCacheStorage = getRuntime(MODULE_CACHE);
-  // const linkQueueStorage = getRuntime(LINK_QUEUE);
-  //   const moduleCacheStorage = new AsyncLocalStorage();
-  //   const linkQueueStorage = new AsyncLocalStorage();
-  //   await import("./manifest.mjs").then(({ init$ }) => init$(options, "ssr"));
-  //   const moduleLoader = getRuntime(MODULE_LOADER);
-  //   await module_loader_init$(
-  //     moduleLoader,
-  //     moduleCacheStorage,
-  //     linkQueueStorage,
-  //     "ssr"
-  //   );
-  const { createRenderer } = await import(".react-server/server/render-dom");
+  const { createRenderer } =
+    await import("@lazarv/react-server/dist/server/render-dom");
 
   parentPort.on(
     "message",
     createRenderer({
-      // moduleCacheStorage,
-      // linkQueueStorage,
       parentPort,
     })
   );
-  // });
 
   return workerPort;
 }

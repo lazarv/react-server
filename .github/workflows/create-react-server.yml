@@ -1,0 +1,73 @@
+name: create-react-server 🧪
+
+env:
+  NODE_OPTIONS: --max-old-space-size=6144
+
+permissions: {}
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  changed:
+    name: Get changed files 📂
+    runs-on: ubuntu-latest
+    outputs:
+      all_changed_files: ${{ steps.changed-files.outputs.all_changed_files }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            packages/create-react-server/**
+            packages/react-server/**
+            .github/workflows/create-react-server.yml
+
+  test-create:
+    needs: changed
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/create-react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/create-react-server.yml')
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - runtime: node
+            pkg_mgr: npm
+          - runtime: node
+            pkg_mgr: pnpm
+          - runtime: bun
+            pkg_mgr: npm
+          - runtime: bun
+            pkg_mgr: pnpm
+          - runtime: bun
+            pkg_mgr: bun
+          - runtime: deno
+            pkg_mgr: npm
+          - runtime: deno
+            pkg_mgr: pnpm
+      fail-fast: false
+
+    name: "Test create ${{ matrix.runtime }}/${{ matrix.pkg_mgr }} 🧪"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+        with:
+          node_version: 20
+
+      - name: Test create-react-server (${{ matrix.runtime }}/${{ matrix.pkg_mgr }})
+        working-directory: ./packages/create-react-server/test
+        run: PKG_MGR=${{ matrix.pkg_mgr }} pnpm test:${{ matrix.runtime }}

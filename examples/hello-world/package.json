@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "react-server ./App.jsx",
     "build": "react-server build ./App.jsx",
-    "start": "react-server start"
+    "start": "react-server start",
+    "test-env": "node -e \"console.log(process.env._)\""
   },
   "dependencies": {
     "@lazarv/react-server": "workspace:^"

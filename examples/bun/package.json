@@ -1,0 +1,16 @@
+{
+  "name": "@lazarv/react-server-example-bun",
+  "private": true,
+  "description": "@lazarv/react-server Bun example application using Bun SQLite as a KV store",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "dev": "bun run --bun react-server ./App.jsx",
+    "build": "bun run --bun react-server build ./App.jsx",
+    "start": "bun run --bun react-server start"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^"
+  }
+}

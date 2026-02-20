@@ -130,6 +130,7 @@
     "./client/*": "./client/*",
     "./server/*": "./server/*",
     "./lib/*": "./lib/*",
+    "./dist/*": "./dist/*.mjs",
     "./*": "./*",
     ".": {
       "types": "./server/index.d.ts",
@@ -173,7 +174,7 @@
     "highlight.js": "^11.11.1",
     "micromatch": "^4.0.5",
     "mime": "^3.0.0",
-    "module-alias": "^2.2.3",
+    "module-alias": "~2.2.3",
     "open": "^9.1.0",
     "oxc-parser": "^0.98.0",
     "oxc-resolver": "^11.9.0",

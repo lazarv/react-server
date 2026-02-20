@@ -22,7 +22,7 @@ curl -fsSL https://deno.land/install.sh | sh
 
 No additional packages are needed - the adapter is built into `@lazarv/react-server`.
 
-Then add the adapter to your `react-server.config.mjs` file:
+When you run a production build with Deno, the `deno` adapter is **automatically detected and used** — no configuration is needed. If you want to be explicit or need to pass options, you can add the adapter to your `react-server.config.mjs` file:
 
 ```mjs
 export default {
@@ -102,10 +102,16 @@ This produces a `.deno/` directory with the following structure:
 ## Deploy
 </Link>
 
-Start the production server directly:
+Start the production server using the CLI:
 
 ```sh
-deno run --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs
+deno run -A npm:@lazarv/react-server start
+```
+
+Or run it directly without the framework installed:
+
+```sh
+deno run --config .deno/deno.json --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs
 ```
 
 Or use the `--deploy` flag to build and immediately start:

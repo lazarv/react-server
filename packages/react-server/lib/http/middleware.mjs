@@ -2,6 +2,7 @@ import { Readable } from "node:stream";
 
 import { parse as __cookieParse, serialize as __cookieSerialize } from "cookie";
 
+import { isDeno } from "../sys.mjs";
 import { compose } from "./middlewares/compose.mjs";
 
 export function createContext(
@@ -64,8 +65,26 @@ export function createMiddleware(handler, options = {}) {
         headers: headersObj,
       };
       if (!(req.method === "GET" || req.method === "HEAD")) {
-        requestInit.body = req;
-        requestInit.duplex = "half"; // Node streams are half-duplex
+        if (isDeno) {
+          // Under Deno's Node compat, passing the raw stream as body can cause
+          // BadResource errors when the body is consumed later (e.g. formData()).
+          // Buffer the body so the Request owns the data.
+          const chunks = [];
+          for await (const chunk of req) {
+            chunks.push(chunk);
+          }
+          requestInit.body = new Uint8Array(
+            chunks.reduce((acc, c) => acc + c.length, 0)
+          );
+          let offset = 0;
+          for (const chunk of chunks) {
+            requestInit.body.set(chunk, offset);
+            offset += chunk.length;
+          }
+        } else {
+          requestInit.body = req;
+          requestInit.duplex = "half"; // Node streams are half-duplex
+        }
       }
       const request = new Request(fullUrl, requestInit);
       const ctx = createContext(request, {

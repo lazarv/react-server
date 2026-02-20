@@ -1,0 +1,22 @@
+FROM node:20
+
+RUN apt-get update && apt-get install -y curl git procps iproute2 unzip && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm
+
+# Install Deno
+RUN curl -fsSL https://deno.land/install.sh | sh
+ENV DENO_DIR="/root/.deno"
+ENV PATH="/root/.deno/bin:$PATH"
+
+WORKDIR /workspace
+
+COPY react-server.tgz create-react-server.tgz ./
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
+# Install create-react-server and react-server in /tool
+RUN mkdir -p /tool && cd /tool && \
+    echo '{"dependencies":{"@lazarv/react-server":"file:///workspace/react-server.tgz","@lazarv/create-react-server":"file:///workspace/create-react-server.tgz"}}' > package.json && \
+    npm install --legacy-peer-deps
+
+ENTRYPOINT ["/workspace/entrypoint.sh"]

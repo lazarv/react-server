@@ -1,4 +1,4 @@
-import { setEnv } from "../../lib/sys.mjs";
+import { isBun, isDeno, setEnv, cwd } from "../../lib/sys.mjs";
 
 export default (cli) => {
   const command = cli
@@ -18,24 +18,93 @@ export default (cli) => {
       default: ".react-server",
     })
     .action(async (...args) => {
-      if (typeof Bun !== "undefined" && process.env.NODE_ENV !== "production") {
-        const { spawnSync } = await import("bun");
-        spawnSync(process.argv, {
-          env: {
-            ...process.env,
-            NODE_ENV: "production",
-          },
-          stdout: "inherit",
-          stderr: "inherit",
-        });
+      const [root, options] = args;
+      options.cwd = cwd();
+      setEnv("REACT_SERVER_CWD", options.cwd);
 
-        process.exit(0);
+      // Deno: import the generated .deno/start.mjs directly
+      if (isDeno) {
+        const [{ existsSync }, { join }, { cwd }, { generateDenoImportMap }] =
+          await Promise.all([
+            import("node:fs"),
+            import("node:path"),
+            import("../../lib/sys.mjs"),
+            import("../../lib/loader/deno.mjs"),
+          ]);
+
+        const importMapPath = await generateDenoImportMap({
+          ...options,
+          condition: "react-server",
+        });
+        const startScript = join(cwd(), ".deno", "start.mjs");
+
+        const env = Deno.env.toObject();
+        if (options.port) {
+          env.PORT = String(options.port);
+        }
+        if (options.host && options.host !== true) {
+          env.HOST = options.host;
+        }
+        if (options.origin) {
+          env.ORIGIN = options.origin;
+        }
+
+        if (existsSync(startScript)) {
+          const denoConfigPath = join(cwd(), "react-server.deno.json");
+
+          // Spawn .deno/start.mjs directly. If react-server.deno.json exists,
+          // apply it via --config so unstable flags (e.g. kv) are available.
+          // We use the project-level config (not .deno/deno.json) because the
+          // generated .deno/deno.json has "nodeModulesDir": "none".
+          const args = ["run"];
+          if (existsSync(denoConfigPath)) {
+            args.push("--config", denoConfigPath);
+          }
+          args.push("-A", "--import-map", importMapPath, startScript);
+
+          const cmd = new Deno.Command(Deno.execPath(), {
+            cwd: options.cwd,
+            args,
+            stdin: "inherit",
+            stdout: "inherit",
+            stderr: "inherit",
+            env,
+          });
+          const { code } = await cmd.output();
+          Deno.exit(code);
+        }
+
+        // No .deno/start.mjs — fall through to normal production start
+        // with Deno import map for .react-server/... specifier resolution
+      }
+
+      // Bun: import the generated .bun/start.mjs directly
+      if (isBun) {
+        const { join } = await import("node:path");
+        const { pathToFileURL } = await import("node:url");
+
+        if (options.port) {
+          setEnv("PORT", String(options.port));
+        }
+        if (options.host && options.host !== true) {
+          setEnv("HOST", options.host);
+        }
+        if (options.origin) {
+          setEnv("ORIGIN", options.origin);
+        }
+
+        const startScript = join(options.cwd, ".bun", "start.mjs");
+        try {
+          await import(pathToFileURL(startScript).href);
+          return;
+        } catch {
+          // No .bun/start.mjs — fall through to normal production start
+        }
       }
 
       setEnv("NODE_ENV", "production");
       const { default: init$ } = await import("../../lib/loader/init.mjs");
-      const [root, options] = args;
-      await init$({ root, ...options });
+      await init$({ root, command: "start", ...options });
       return (await import("../../lib/start/action.mjs")).default(
         root,
         options

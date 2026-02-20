@@ -98,6 +98,14 @@ export default async function edgeBuild(root, options) {
       ],
     },
     customLogger: customLogger(options.silent),
+    ssr: {
+      // Force all dependencies to be bundled into the edge output.
+      // Without this, Vite SSR mode externalizes installed (non-symlinked)
+      // npm packages, leaving bare specifiers like "@lazarv/react-server/http"
+      // in the output. Runtimes such as Deno (with nodeModulesDir: "none")
+      // cannot resolve those at runtime.
+      noExternal: true,
+    },
     build: {
       // write: false,
       ...config.build,
@@ -170,7 +178,7 @@ export default async function edgeBuild(root, options) {
               switch (id) {
                 case "virtual:empty-module":
                   return id;
-                case ".react-server/__react_server_config__/prebuilt":
+                case "@lazarv/react-server/dist/__react_server_config__/prebuilt":
                   return sys.normalizePath(
                     join(
                       cwd,
@@ -178,11 +186,11 @@ export default async function edgeBuild(root, options) {
                       "server/__react_server_config__/prebuilt.mjs"
                     )
                   );
-                case ".react-server/manifest-registry":
+                case "@lazarv/react-server/dist/manifest-registry":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/manifest-registry.mjs")
                   );
-                case ".react-server/client/manifest-registry":
+                case "@lazarv/react-server/dist/client/manifest-registry":
                   return sys.normalizePath(
                     join(
                       cwd,
@@ -190,35 +198,35 @@ export default async function edgeBuild(root, options) {
                       "server/client/manifest-registry.mjs"
                     )
                   );
-                case ".react-server/server/preload-manifest":
+                case "@lazarv/react-server/dist/server/preload-manifest":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/preload-manifest.mjs")
                   );
-                case ".react-server/server/server-reference-map":
+                case "@lazarv/react-server/dist/server/server-reference-map":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/server-reference-map.mjs")
                   );
-                case ".react-server/server/client-reference-map":
+                case "@lazarv/react-server/dist/server/client-reference-map":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/client-reference-map.mjs")
                   );
-                case ".react-server/server/root":
+                case "@lazarv/react-server/dist/server/root":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/root.mjs")
                   );
-                case ".react-server/server/render":
+                case "@lazarv/react-server/dist/server/render":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/render.mjs")
                   );
-                case ".react-server/server/render-dom":
+                case "@lazarv/react-server/dist/server/render-dom":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/render-dom.mjs")
                   );
-                case ".react-server/server/error":
+                case "@lazarv/react-server/dist/server/error":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/error.mjs")
                   );
-                case ".react-server/server/error-boundary":
+                case "@lazarv/react-server/dist/server/error-boundary":
                   const path = sys.normalizePath(
                     join(cwd, options.outDir, "server/error-boundary.mjs")
                   );
@@ -230,19 +238,19 @@ export default async function edgeBuild(root, options) {
                   } catch {
                     return "virtual:empty-module";
                   }
-                case ".react-server/server/server-manifest":
+                case "@lazarv/react-server/dist/server/server-manifest":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/server-manifest.mjs")
                   );
-                case ".react-server/server/client-manifest":
+                case "@lazarv/react-server/dist/server/client-manifest":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/client-manifest.mjs")
                   );
-                case ".react-server/client/browser-manifest":
+                case "@lazarv/react-server/dist/client/browser-manifest":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "client/browser-manifest.mjs")
                   );
-                case ".react-server/server/build-manifest":
+                case "@lazarv/react-server/dist/server/build-manifest":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/build-manifest.mjs")
                   );
@@ -268,7 +276,96 @@ export default async function edgeBuild(root, options) {
         ],
       },
     },
-    plugins: [fileListingReporterPlugin()],
+    plugins: [
+      {
+        name: "react-server:edge",
+        enforce: "pre",
+        async resolveId(id) {
+          switch (id) {
+            case "virtual:empty-module":
+              return id;
+            case "@lazarv/react-server/dist/__react_server_config__/prebuilt":
+              return sys.normalizePath(
+                join(
+                  cwd,
+                  options.outDir,
+                  "server/__react_server_config__/prebuilt.mjs"
+                )
+              );
+            case "@lazarv/react-server/dist/manifest-registry":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/manifest-registry.mjs")
+              );
+            case "@lazarv/react-server/dist/client/manifest-registry":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/client/manifest-registry.mjs")
+              );
+            case "@lazarv/react-server/dist/server/preload-manifest":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/preload-manifest.mjs")
+              );
+            case "@lazarv/react-server/dist/server/server-reference-map":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/server-reference-map.mjs")
+              );
+            case "@lazarv/react-server/dist/server/client-reference-map":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/client-reference-map.mjs")
+              );
+            case "@lazarv/react-server/dist/server/root":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/root.mjs")
+              );
+            case "@lazarv/react-server/dist/server/render":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/render.mjs")
+              );
+            case "@lazarv/react-server/dist/server/render-dom":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/render-dom.mjs")
+              );
+            case "@lazarv/react-server/dist/server/error":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/error.mjs")
+              );
+            case "@lazarv/react-server/dist/server/error-boundary":
+              const path = sys.normalizePath(
+                join(cwd, options.outDir, "server/error-boundary.mjs")
+              );
+              try {
+                if (await stat(path)) {
+                  return path;
+                }
+                return "virtual:empty-module";
+              } catch {
+                return "virtual:empty-module";
+              }
+            case "@lazarv/react-server/dist/server/server-manifest":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/server-manifest.mjs")
+              );
+            case "@lazarv/react-server/dist/server/client-manifest":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/client-manifest.mjs")
+              );
+            case "@lazarv/react-server/dist/client/browser-manifest":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "client/browser-manifest.mjs")
+              );
+            case "@lazarv/react-server/dist/server/build-manifest":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/build-manifest.mjs")
+              );
+          }
+        },
+        load(id) {
+          if (id === "virtual:empty-module") {
+            return "export default null;";
+          }
+        },
+      },
+      fileListingReporterPlugin(),
+    ],
   };
 
   await viteBuild(viteConfigEdge);

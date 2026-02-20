@@ -97,6 +97,20 @@ export default async function build(root, options) {
             force: true,
           });
 
+          if (sys.isDeno) {
+            await rm(join(cwd, ".deno"), {
+              recursive: true,
+              force: true,
+            });
+          }
+
+          if (sys.isBun) {
+            await rm(join(cwd, ".bun"), {
+              recursive: true,
+              force: true,
+            });
+          }
+
           // Create event bus for parallel builds
           // This allows RSC build to emit client component entries
           // that SSR and Client builds consume dynamically

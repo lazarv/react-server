@@ -27,7 +27,9 @@ or when using Bun as your JavaScript runtime, you don't need anything else, just
 
 - [Bun](https://bun.sh) v1.2.9 or higher
 
-> **Note:** Deno is not supported yet. Please check back later for updates.
+or when using Deno as your JavaScript runtime:
+
+- [Deno](https://deno.com) v2.0 or higher
 
 <Link name="install">
 ## Install
@@ -63,7 +65,20 @@ bun add @lazarv/react-server
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
 
-> **Note:** Deno is not supported yet. Please check back later for updates.
+Deno uses npm specifiers to install packages. You need a `deno.json` with `nodeModulesDir` set to `"manual"` and `"byonm"` enabled:
+
+```json
+{
+  "nodeModulesDir": "manual",
+  "unstable": ["byonm"]
+}
+```
+
+Then install with npm:
+
+```sh
+npm install @lazarv/react-server
+```
 
 </Tab>
 
@@ -114,9 +129,9 @@ bun --bun react-server ./App.jsx
 </Tab>
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
-
-> **Note:** Deno is not supported yet. Please check back later for updates.
-
+```sh
+deno run -A npm:@lazarv/react-server ./App.jsx
+```
 </Tab>
 
 </Tabs>
@@ -127,7 +142,7 @@ bun --bun react-server ./App.jsx
 ## Build
 </Link>
 
-After you have developed your application, you can build it for production. This will create a `.react-server` folder with all files needed to run your application in production mode.
+After you have developed your application, you can build it for production. This will create a `.react-server` folder with all files needed to run your application in production mode. When using Bun or Deno, the corresponding adapter is automatically detected and used, producing a self-contained bundle in `.bun/` or `.deno/`. You can override the auto-detected adapter with `--adapter <name>` or disable it with `--no-adapter`.
 
 <Tabs name="build">
 
@@ -156,9 +171,9 @@ bun --bun react-server build ./App.jsx
 </Tab>
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
-
-> **Note:** Deno is not supported yet. Please check back later for updates.
-
+```sh
+deno run -A npm:@lazarv/react-server build ./App.jsx
+```
 </Tab>
 
 </Tabs>
@@ -167,7 +182,7 @@ bun --bun react-server build ./App.jsx
 ## Production mode
 </Link>
 
-To start your application in production, just use the `start` command. This will start your application in production mode.
+To start your application in production, just use the `start` command. This will start your application in production mode. When using Bun or Deno, the start command runs the adapter's generated entry point directly.
 
 <Tabs name="production-mode">
 
@@ -196,14 +211,14 @@ bun --bun react-server start
 </Tab>
 
 <Tab title={<><Deno className="w-4 max-h-4" />Deno</>}>
-
-> **Note:** Deno is not supported yet. Please check back later for updates.
-
+```sh
+deno run -A npm:@lazarv/react-server start
+```
 </Tab>
 
 </Tabs>
 
-> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx` to start your application in development mode. When using Bun, you can use `bunx --bun @lazarv/react-server` to run the `react-server` CLI.
+> **Note:** if you don't want to install the `@lazarv/react-server` package and you just want to try out something quickly, you can use `npx` to run the `react-server` CLI. This way, it's not required to install anything else if you use JavaScript. It's enough to have a `.jsx` file with a React Server Component exported as default to run your application. Just run `npx @lazarv/react-server ./App.jsx` to start your application in development mode. When using Bun, you can use `bunx --bun @lazarv/react-server` to run the `react-server` CLI. When using Deno, you can use `deno run -A npm:@lazarv/react-server ./App.jsx` to start a development server.
 
 <Link name="next-steps">
 ## Next steps

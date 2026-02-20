@@ -9,14 +9,57 @@ import * as sys from "../sys.mjs";
 const __require = createRequire(import.meta.url);
 const cwd = sys.cwd();
 
+/**
+ * Detect the runtime-appropriate adapter when none is explicitly configured.
+ * Returns "bun" or "deno" when running under those runtimes, otherwise undefined.
+ *
+ * When `bun run` is used without `--bun` (e.g. in a pnpm workspace where Bun
+ * can't resolve packages), the script runs on Node.js so `typeof Bun` is
+ * undefined.  We fall back to checking whether the parent process is bun,
+ * which reliably detects the `pnpm → bun run → node` chain.
+ */
+function detectRuntimeAdapter() {
+  if (sys.isBun) return "bun";
+  if (sys.isDeno) return "deno";
+
+  // Detect `bun run` launching Node.js (e.g. pnpm workspace → bun run → node)
+  // Check env vars first (cheap): npm_execpath or _ may point to bun
+  if (
+    /\bbun\b/.test(process.env.npm_execpath ?? "") ||
+    /\bbun\b/.test(process.env._ ?? "")
+  ) {
+    return "bun";
+  }
+
+  // Last resort: check if the parent process is bun via `ps` (Unix only)
+  try {
+    const { execSync } = __require("node:child_process");
+    const parentName = execSync(`ps -p ${process.ppid} -o comm=`, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (/\bbun$/.test(parentName)) return "bun";
+    if (/\bdeno$/.test(parentName)) return "deno";
+  } catch {
+    // ps not available (e.g. Windows without WSL) – skip
+  }
+
+  return undefined;
+}
+
 function resolveAdapter(config, options) {
-  const adapter =
-    options?.adapter?.[0] === "false"
-      ? null
-      : typeof options.adapter?.[0] === "string" && options.adapter?.[0]
-        ? options.adapter?.[0]
-        : config.adapter;
-  return adapter;
+  if (options?.adapter?.[0] === "false") return null;
+
+  // Explicit CLI --adapter flag takes highest priority
+  if (typeof options?.adapter?.[0] === "string" && options.adapter[0]) {
+    return options.adapter[0];
+  }
+
+  // Config file adapter setting
+  if (config.adapter) return config.adapter;
+
+  // Auto-detect from runtime (Bun / Deno)
+  return detectRuntimeAdapter();
 }
 
 function tryResolveBuiltInAdapter(adapterModule) {

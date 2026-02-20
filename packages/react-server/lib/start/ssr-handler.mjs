@@ -105,12 +105,12 @@ export default async function ssrHandler(root, options = {}) {
     { default: ErrorBoundary },
     rscSerializer,
   ] = await Promise.all([
-    import(".react-server/server/render"),
-    import(".react-server/server/root"),
-    import(".react-server/server/error"),
+    import("@lazarv/react-server/dist/server/render"),
+    import("@lazarv/react-server/dist/server/root"),
+    import("@lazarv/react-server/dist/server/error"),
     (async () => {
       try {
-        return await import(".react-server/server/error-boundary");
+        return await import("@lazarv/react-server/dist/server/error-boundary");
       } catch {
         return { default: null };
       }
@@ -121,12 +121,17 @@ export default async function ssrHandler(root, options = {}) {
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const clientModules = getRuntime(COLLECT_CLIENT_MODULES)?.(rootModule) ?? [];
   const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
-  const mainModule = getRuntime(MAIN_MODULE)?.map((mod) =>
-    `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")
+  const manifest = getRuntime(MANIFEST);
+  const hasClientComponents = Object.values(manifest.client).some(
+    (entry) => entry.isDynamicEntry
   );
+  const mainModule = hasClientComponents
+    ? getRuntime(MAIN_MODULE)?.map((mod) =>
+        `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")
+      )
+    : [];
   const moduleLoader = getRuntime(MODULE_LOADER);
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
-  const manifest = getRuntime(MANIFEST);
   const moduleCacheStorage = new AsyncLocalStorage();
   const linkQueueStorage = new AsyncLocalStorage();
   await module_loader_init$(

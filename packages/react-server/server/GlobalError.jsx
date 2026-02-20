@@ -83,10 +83,12 @@ export default async function GlobalError({ error }) {
                     .value,
                 }}
               />
-              <div
-                className="react-server-global-error-loc"
-                style={{ "--line": error.loc.line }}
-              />
+              {error.loc ? (
+                <div
+                  className="react-server-global-error-loc"
+                  style={{ "--line": error.loc.line }}
+                />
+              ) : null}
             </pre>
           </details>
         ) : error.frame ? (

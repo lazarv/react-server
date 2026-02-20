@@ -7,8 +7,8 @@ export const createTreeshake = (config) => ({
       id.startsWith("virtual:rsc:react-server-reference:") ||
       id.startsWith("virtual:ssr:react-client-reference:") ||
       id.startsWith("virtual:ssr:react-server-reference:") ||
-      id.includes(".react-server/manifest-registry") ||
-      id.includes(".react-server/client/manifest-registry") ||
+      id.includes("@lazarv/react-server/dist/manifest-registry") ||
+      id.includes("@lazarv/react-server/dist/client/manifest-registry") ||
       id.includes("server/manifest-registry") ||
       id.includes("server/client/manifest-registry")
     ) {

@@ -10,7 +10,7 @@ export const CLIENT_REFERENCE_MAP_PLACEHOLDER =
   "__REACT_SERVER_CLIENT_REFERENCE_MAP_PLACEHOLDER__";
 
 export const VIRTUAL_CLIENT_REFERENCE_MAP_ID =
-  ".react-server/server/client-reference-map";
+  "@lazarv/react-server/dist/server/client-reference-map";
 
 /**
  * Virtual module plugin for client-reference-map.
@@ -22,14 +22,13 @@ export const VIRTUAL_CLIENT_REFERENCE_MAP_ID =
 export function clientReferenceMapVirtual(_options) {
   return {
     name: "react-server:client-reference-map-virtual",
-
+    enforce: "pre",
     resolveId(id) {
       if (id === VIRTUAL_CLIENT_REFERENCE_MAP_ID) {
         // Return a virtual module ID (prefix with \0 to mark as virtual for Vite/Rolldown)
         return `\0${VIRTUAL_CLIENT_REFERENCE_MAP_ID}`;
       }
     },
-
     load(id) {
       if (id === `\0${VIRTUAL_CLIENT_REFERENCE_MAP_ID}`) {
         // Return placeholder code that has the same shape as the real module

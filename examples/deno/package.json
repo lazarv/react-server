@@ -1,0 +1,16 @@
+{
+  "name": "@lazarv/react-server-example-deno",
+  "private": true,
+  "description": "@lazarv/react-server Deno example application using Deno KV",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "dev": "deno run -A npm:@lazarv/react-server ./App.jsx",
+    "build": "deno run -A npm:@lazarv/react-server build ./App.jsx",
+    "start": "deno run -A npm:@lazarv/react-server start"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^"
+  }
+}

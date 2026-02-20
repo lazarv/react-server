@@ -11,11 +11,15 @@ import { experimentalWarningSilence, setEnv } from "../sys.mjs";
 
 experimentalWarningSilence();
 alias();
-register("../loader/node-loader.mjs", import.meta.url, {
-  data: {
-    options: workerData.options,
-  },
-});
+try {
+  register("../loader/node-loader.mjs", import.meta.url, {
+    data: {
+      options: workerData.options,
+    },
+  });
+} catch {
+  // Deno/Bun may not fully support module.register()
+}
 setEnv("NODE_ENV", "production");
 
 await runtime_init$(async () => {

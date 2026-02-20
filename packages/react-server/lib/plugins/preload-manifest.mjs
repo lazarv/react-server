@@ -12,7 +12,7 @@ const PRELOAD_MANIFEST_OUTDIR_PLACEHOLDER =
   "__REACT_SERVER_PRELOAD_MANIFEST_OUTDIR__";
 
 export const VIRTUAL_PRELOAD_MANIFEST_ID =
-  ".react-server/server/preload-manifest";
+  "@lazarv/react-server/dist/server/preload-manifest";
 
 /**
  * Virtual module plugin for preload-manifest.

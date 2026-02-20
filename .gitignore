@@ -19,3 +19,4 @@ deno.lock
 *.sqlite
 *.log
 .eslintcache
+.npm-cache

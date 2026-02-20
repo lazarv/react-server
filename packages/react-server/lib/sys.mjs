@@ -2,6 +2,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format } from "node:util";
 
+export const isDeno = typeof Deno !== "undefined";
+export const isBun = typeof Bun !== "undefined";
+
 export function normalizePath(path) {
   return path?.replace(/\\/g, "/");
 }
@@ -39,7 +42,8 @@ export function cwd() {
     return "";
   }
   return normalizePath(
-    typeof Deno !== "undefined" ? Deno.cwd() : process.cwd()
+    getEnv("REACT_SERVER_CWD") ||
+      (typeof Deno !== "undefined" ? Deno.cwd() : process.cwd())
   );
 }
 
@@ -147,13 +151,29 @@ export function suppressReactWarnings() {
   };
 }
 
-if (typeof Deno !== "undefined") {
+if (typeof Deno !== "undefined" && typeof globalThis.process === "undefined") {
+  // Minimal process shim for Deno environments without Node.js compat
+  // (e.g., edge runtimes). When running with Deno 2.x Node compat,
+  // the built-in process global is already available and should not
+  // be overwritten.
   globalThis.process = {
     env: Deno.env.toObject(),
     cwd: Deno.cwd,
     argv: [Deno.execPath(), Deno.mainModule, ...Deno.args],
     exit: Deno.exit,
     emit: function () {},
+    on: function () {
+      return this;
+    },
+    off: function () {
+      return this;
+    },
+    once: function () {
+      return this;
+    },
+    version: "",
+    versions: { node: "", deno: Deno.version.deno },
+    stdin: { isTTY: Deno.stdin?.isTerminal?.() ?? false },
   };
 }
 

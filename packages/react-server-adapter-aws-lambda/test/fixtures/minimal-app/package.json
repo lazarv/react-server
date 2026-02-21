@@ -1,0 +1,9 @@
+{
+  "name": "@fixture/minimal-app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-aws-lambda": "workspace:^"
+  }
+}

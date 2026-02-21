@@ -111,7 +111,7 @@ async function findPackagesWithClientComponents() {
   return [...packages];
 }
 
-// Generate advancedChunks groups for packages with client components
+// Generate codeSplitting groups for packages with client components
 // Uses a name function that returns chunk name for matching modules, undefined otherwise
 // Entry points (client component files) are excluded - only their dependencies are grouped
 export function generateClientComponentChunkGroups(

@@ -42,6 +42,8 @@ export default (cli) =>
       }
       const { default: init$ } = await import("../../lib/loader/init.mjs");
       await init$({ root, command: "build", ...options });
+      const { patchViteForDeno } = await import("../../lib/loader/deno.mjs");
+      patchViteForDeno();
       const { default: build } = await import("../../lib/build/action.mjs");
       return build(root, options);
     });

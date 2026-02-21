@@ -96,7 +96,7 @@ export default async function manifest(
   await yieldToEventLoop();
 
   const clientManifestEntries = Object.values(clientManifest).filter(
-    (entry) => entry.isEntry || entry.isDynamicEntry
+    (entry) => entry.isEntry
   );
   const clientReferenceMap = {};
 

@@ -129,10 +129,7 @@ export async function init$(options = {}) {
     if (browserEntry) {
       entry = Object.values(manifest.client).find((entry) => {
         try {
-          return (
-            (entry.isEntry || entry.isDynamicEntry) &&
-            browserEntry.src === entry.src
-          );
+          return entry.isEntry && browserEntry.src === entry.src;
         } catch {
           return false;
         }

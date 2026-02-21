@@ -10,8 +10,8 @@ import {
   createServer as createViteDevServer,
   DevEnvironment,
   loadEnv,
-} from "rolldown-vite";
-import { ModuleRunner } from "rolldown-vite/module-runner";
+} from "vite";
+import { ModuleRunner } from "vite/module-runner";
 import memoryDriver from "unstorage/drivers/memory";
 import inspect from "vite-plugin-inspect";
 
@@ -175,6 +175,15 @@ export default async function createServer(root, options) {
     optimizeDeps: {
       holdUntilCrawlEnd: true,
       ...config.optimizeDeps,
+      rolldownOptions: {
+        ...config.optimizeDeps?.rolldownOptions,
+        treeshake: false,
+        output: {
+          ...config.optimizeDeps?.rolldownOptions?.output,
+          minify: false,
+          minifyInternalExports: false,
+        },
+      },
       force: options.force || config.optimizeDeps?.force,
       include: [
         "react",

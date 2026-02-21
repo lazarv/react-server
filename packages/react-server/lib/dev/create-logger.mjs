@@ -1,7 +1,7 @@
 import { format, formatWithOptions } from "node:util";
 
 import colors from "picocolors";
-import { createLogger as createViteLogger } from "rolldown-vite";
+import { createLogger as createViteLogger } from "vite";
 import strip from "strip-ansi";
 
 import { prepareError } from "../handlers/error.mjs";

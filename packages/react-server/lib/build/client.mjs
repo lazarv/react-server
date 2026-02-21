@@ -3,7 +3,7 @@ import { isAbsolute, join } from "node:path";
 
 import colors from "picocolors";
 import replace from "@rollup/plugin-replace";
-import { build as viteBuild } from "rolldown-vite";
+import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import merge from "../../lib/utils/merge.mjs";
@@ -277,6 +277,12 @@ export default async function clientBuild(
       rolldownOptions: {
         ...config.build?.rollupOptions,
         ...config.build?.rolldownOptions,
+        checks: {
+          ...config.build?.rollupOptions?.checks,
+          ...config.build?.rolldownOptions?.checks,
+          pluginTimings:
+            typeof sys.getEnv("ROLLDOWN_PLUGIN_TIMINGS") !== "undefined",
+        },
         preserveEntrySignatures: "strict",
         treeshake: createTreeshake(config),
         external: [
@@ -296,7 +302,7 @@ export default async function clientBuild(
             config.resolve?.shared?.length > 0 ? false : undefined,
           entryFileNames: "client/[name].[hash].mjs",
           chunkFileNames: "client/[name].[hash].mjs",
-          advancedChunks: {
+          codeSplitting: {
             groups: [
               {
                 name: "react",
@@ -307,10 +313,13 @@ export default async function clientBuild(
                 test: /react-server\/client\/context/,
               },
               ...autoChunkGroups,
-              ...(config.build?.rollupOptions?.output?.advancedChunks?.groups ??
+              ...(config.build?.rollupOptions?.output?.codeSplitting?.groups ??
+                config.build?.rollupOptions?.output?.advancedChunks?.groups ??
                 []),
-              ...(config.build?.rolldownOptions?.output?.advancedChunks
-                ?.groups ?? []),
+              ...(config.build?.rolldownOptions?.output?.codeSplitting
+                ?.groups ??
+                config.build?.rolldownOptions?.output?.advancedChunks?.groups ??
+                []),
             ],
           },
         },

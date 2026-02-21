@@ -1,5 +1,5 @@
 import colors from "picocolors";
-import { createLogger } from "rolldown-vite";
+import { createLogger } from "vite";
 
 export default function customLogger(silent = false) {
   if (silent) {

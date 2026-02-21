@@ -11,11 +11,17 @@ suppressReactWarnings();
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import createLogger from "@lazarv/react-server/lib/dev/create-logger.mjs";
 import cac from "cac";
 
 (async () => {
   try {
+    // Patch Vite for Deno before loading create-logger (which statically imports Vite)
+    const { patchViteForDeno } =
+      await import("@lazarv/react-server/lib/loader/deno.mjs");
+    patchViteForDeno();
+    const { default: createLogger } =
+      await import("@lazarv/react-server/lib/dev/create-logger.mjs");
+
     const cli = cac();
 
     const { default: packageJson } = await import("./package.json", {

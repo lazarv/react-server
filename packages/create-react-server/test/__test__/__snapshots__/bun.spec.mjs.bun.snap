@@ -1,0 +1,5741 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`create-react-server: bun runtime (bun) > preset: blank > creates the app 1`] = `
+{
+  "README.md": "This is a [@lazarv/react-server](https://react-server.dev) project bootstrapped with [\`create-react-server\`](https://react-server.dev/guide/quick-start).
+
+## Getting Started
+
+First, run the development server:
+
+\`\`\`sh
+npm run dev
+\`\`\`
+
+Use the \`--open\` flag, the development server command menu or navigate to [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying \`\`. The page auto-updates as you edit the file.
+
+## Build
+
+To build the application for production, run:
+
+\`\`\`sh
+npm run build
+\`\`\`
+
+The build output will be in the \`.react-server\` directory.
+
+To run the production server, run:
+
+\`\`\`sh
+npm start start
+\`\`\`
+
+## Learn More
+
+To learn more about [@lazarv/react-server](https://react-server.dev), take a look at the documentation or search the documentation using the development server.
+
+You can check out framework on [GitHub](https://github.com/lazarv/react-server) - your feedback and contributions are welcome!
+",
+  "package.json": "{
+  "name": "test-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun react-server ./src/App.jsx",
+    "build": "bun --bun react-server build ./src/App.jsx",
+    "start": "bun --bun react-server start"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+  },
+  "devDependencies": {}
+}",
+  "src/App.jsx": "import { version } from "@lazarv/react-server";
+
+export default function App() {
+  return <>{version}</>;
+}
+",
+}
+`;
+
+exports[`create-react-server: bun runtime (bun) > preset: blank-ts > creates the app 1`] = `
+{
+  "README.md": "This is a [@lazarv/react-server](https://react-server.dev) project bootstrapped with [\`create-react-server\`](https://react-server.dev/guide/quick-start).
+
+## Getting Started
+
+First, run the development server:
+
+\`\`\`sh
+npm run dev
+\`\`\`
+
+Use the \`--open\` flag, the development server command menu or navigate to [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying \`\`. The page auto-updates as you edit the file.
+
+## Build
+
+To build the application for production, run:
+
+\`\`\`sh
+npm run build
+\`\`\`
+
+The build output will be in the \`.react-server\` directory.
+
+To run the production server, run:
+
+\`\`\`sh
+npm start start
+\`\`\`
+
+## Learn More
+
+To learn more about [@lazarv/react-server](https://react-server.dev), take a look at the documentation or search the documentation using the development server.
+
+You can check out framework on [GitHub](https://github.com/lazarv/react-server) - your feedback and contributions are welcome!
+",
+  "package.json": "{
+  "name": "test-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun react-server ./src/App.tsx",
+    "build": "bun --bun react-server build ./src/App.tsx",
+    "start": "bun --bun react-server start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "typescript": "^5.6.2",
+    "vite": "^6.2.3"
+  }
+}",
+  "src/App.tsx": "import { version } from "@lazarv/react-server";
+
+export default function App() {
+  return <>{version}</>;
+}
+",
+  "tsconfig.json": "{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["react/experimental", "react-dom/experimental"],
+    "jsx": "preserve",
+    "baseUrl": "./src",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "paths": {
+      "~/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}
+",
+  "vite.config.ts": "import { defineConfig } from "vite";
+
+export default defineConfig({
+  resolve: { alias: { "~/": "/src/" } },
+});
+",
+}
+`;
+
+exports[`create-react-server: bun runtime (bun) > preset: get-started > creates the app 1`] = `
+{
+  ".git/HEAD": "ref: refs/heads/master
+",
+  ".git/config": "[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+",
+  ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
+",
+  ".git/hooks/applypatch-msg.sample": "#!/bin/sh
+#
+# An example hook script to check the commit log message taken by
+# applypatch from an e-mail message.
+#
+# The hook should exit with non-zero status after issuing an
+# appropriate message if it wants to stop the commit.  The hook is
+# allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "applypatch-msg".
+
+. git-sh-setup
+commitmsg="$(git rev-parse --git-path hooks/commit-msg)"
+test -x "$commitmsg" && exec "$commitmsg" \${1+"$@"}
+:
+",
+  ".git/hooks/commit-msg.sample": "#!/bin/sh
+#
+# An example hook script to check the commit log message.
+# Called by "git commit" with one argument, the name of the file
+# that has the commit message.  The hook should exit with non-zero
+# status after issuing an appropriate message if it wants to stop the
+# commit.  The hook is allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "commit-msg".
+
+# Uncomment the below to add a Signed-off-by line to the message.
+# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
+# hook is more suited to it.
+#
+# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')
+# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
+
+# This example catches duplicate Signed-off-by lines.
+
+test "" = "$(grep '^Signed-off-by: ' "$1" |
+	 sort | uniq -c | sed -e '/^[ 	]*1[ 	]/d')" || {
+	echo >&2 Duplicate Signed-off-by lines.
+	exit 1
+}
+",
+  ".git/hooks/fsmonitor-watchman.sample": "#!/usr/bin/perl
+
+use strict;
+use warnings;
+use IPC::Open2;
+
+# An example hook script to integrate Watchman
+# (https://facebook.github.io/watchman/) with git to speed up detecting
+# new and modified files.
+#
+# The hook is passed a version (currently 2) and last update token
+# formatted as a string and outputs to stdout a new update token and
+# all files that have been modified since the update token. Paths must
+# be relative to the root of the working tree and separated by a single NUL.
+#
+# To enable this hook, rename this file to "query-watchman" and set
+# 'git config core.fsmonitor .git/hooks/query-watchman'
+#
+my ($version, $last_update_token) = @ARGV;
+
+# Uncomment for debugging
+# print STDERR "$0 $version $last_update_token\\n";
+
+# Check the hook interface version
+if ($version ne 2) {
+	die "Unsupported query-fsmonitor hook version '$version'.\\n" .
+	    "Falling back to scanning...\\n";
+}
+
+my $git_work_tree = get_working_dir();
+
+my $retry = 1;
+
+my $json_pkg;
+eval {
+	require JSON::XS;
+	$json_pkg = "JSON::XS";
+	1;
+} or do {
+	require JSON::PP;
+	$json_pkg = "JSON::PP";
+};
+
+launch_watchman();
+
+sub launch_watchman {
+	my $o = watchman_query();
+	if (is_work_tree_watched($o)) {
+		output_result($o->{clock}, @{$o->{files}});
+	}
+}
+
+sub output_result {
+	my ($clockid, @files) = @_;
+
+	# Uncomment for debugging watchman output
+	# open (my $fh, ">", ".git/watchman-output.out");
+	# binmode $fh, ":utf8";
+	# print $fh "$clockid\\n@files\\n";
+	# close $fh;
+
+	binmode STDOUT, ":utf8";
+	print $clockid;
+	print "\\0";
+	local $, = "\\0";
+	print @files;
+}
+
+sub watchman_clock {
+	my $response = qx/watchman clock "$git_work_tree"/;
+	die "Failed to get clock id on '$git_work_tree'.\\n" .
+		"Falling back to scanning...\\n" if $? != 0;
+
+	return $json_pkg->new->utf8->decode($response);
+}
+
+sub watchman_query {
+	my $pid = open2(\\*CHLD_OUT, \\*CHLD_IN, 'watchman -j --no-pretty')
+	or die "open2() failed: $!\\n" .
+	"Falling back to scanning...\\n";
+
+	# In the query expression below we're asking for names of files that
+	# changed since $last_update_token but not from the .git folder.
+	#
+	# To accomplish this, we're using the "since" generator to use the
+	# recency index to select candidate nodes and "fields" to limit the
+	# output to file names only. Then we're using the "expression" term to
+	# further constrain the results.
+	my $last_update_line = "";
+	if (substr($last_update_token, 0, 1) eq "c") {
+		$last_update_token = "\\"$last_update_token\\"";
+		$last_update_line = qq[\\n"since": $last_update_token,];
+	}
+	my $query = <<"	END";
+		["query", "$git_work_tree", {$last_update_line
+			"fields": ["name"],
+			"expression": ["not", ["dirname", ".git"]]
+		}]
+	END
+
+	# Uncomment for debugging the watchman query
+	# open (my $fh, ">", ".git/watchman-query.json");
+	# print $fh $query;
+	# close $fh;
+
+	print CHLD_IN $query;
+	close CHLD_IN;
+	my $response = do {local $/; <CHLD_OUT>};
+
+	# Uncomment for debugging the watch response
+	# open ($fh, ">", ".git/watchman-response.json");
+	# print $fh $response;
+	# close $fh;
+
+	die "Watchman: command returned no output.\\n" .
+	"Falling back to scanning...\\n" if $response eq "";
+	die "Watchman: command returned invalid output: $response\\n" .
+	"Falling back to scanning...\\n" unless $response =~ /^\\{/;
+
+	return $json_pkg->new->utf8->decode($response);
+}
+
+sub is_work_tree_watched {
+	my ($output) = @_;
+	my $error = $output->{error};
+	if ($retry > 0 and $error and $error =~ m/unable to resolve root .* directory (.*) is not watched/) {
+		$retry--;
+		my $response = qx/watchman watch "$git_work_tree"/;
+		die "Failed to make watchman watch '$git_work_tree'.\\n" .
+		    "Falling back to scanning...\\n" if $? != 0;
+		$output = $json_pkg->new->utf8->decode($response);
+		$error = $output->{error};
+		die "Watchman: $error.\\n" .
+		"Falling back to scanning...\\n" if $error;
+
+		# Uncomment for debugging watchman output
+		# open (my $fh, ">", ".git/watchman-output.out");
+		# close $fh;
+
+		# Watchman will always return all files on the first query so
+		# return the fast "everything is dirty" flag to git and do the
+		# Watchman query just to get it over with now so we won't pay
+		# the cost in git to look up each individual file.
+		my $o = watchman_clock();
+		$error = $output->{error};
+
+		die "Watchman: $error.\\n" .
+		"Falling back to scanning...\\n" if $error;
+
+		output_result($o->{clock}, ("/"));
+		$last_update_token = $o->{clock};
+
+		eval { launch_watchman() };
+		return 0;
+	}
+
+	die "Watchman: $error.\\n" .
+	"Falling back to scanning...\\n" if $error;
+
+	return 1;
+}
+
+sub get_working_dir {
+	my $working_dir;
+	if ($^O =~ 'msys' || $^O =~ 'cygwin') {
+		$working_dir = Win32::GetCwd();
+		$working_dir =~ tr/\\\\/\\//;
+	} else {
+		require Cwd;
+		$working_dir = Cwd::cwd();
+	}
+
+	return $working_dir;
+}
+",
+  ".git/hooks/post-update.sample": "#!/bin/sh
+#
+# An example hook script to prepare a packed repository for use over
+# dumb transports.
+#
+# To enable this hook, rename this file to "post-update".
+
+exec git update-server-info
+",
+  ".git/hooks/pre-applypatch.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed
+# by applypatch from an e-mail message.
+#
+# The hook should exit with non-zero status after issuing an
+# appropriate message if it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-applypatch".
+
+. git-sh-setup
+precommit="$(git rev-parse --git-path hooks/pre-commit)"
+test -x "$precommit" && exec "$precommit" \${1+"$@"}
+:
+",
+  ".git/hooks/pre-commit.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+	against=HEAD
+else
+	# Initial commit: diff against an empty tree object
+	against=$(git hash-object -t tree /dev/null)
+fi
+
+# If you want to allow non-ASCII filenames set this variable to true.
+allownonascii=$(git config --type=bool hooks.allownonascii)
+
+# Redirect output to stderr.
+exec 1>&2
+
+# Cross platform projects tend to avoid non-ASCII filenames; prevent
+# them from being added to the repository. We exploit the fact that the
+# printable range starts at the space character and ends with tilde.
+if [ "$allownonascii" != "true" ] &&
+	# Note that the use of brackets around a tr range is ok here, (it's
+	# even required, for portability to Solaris 10's /usr/bin/tr), since
+	# the square bracket bytes happen to fall in the designated range.
+	test $(git diff-index --cached --name-only --diff-filter=A -z $against |
+	  LC_ALL=C tr -d '[ -~]\\0' | wc -c) != 0
+then
+	cat <<\\EOF
+Error: Attempt to add a non-ASCII file name.
+
+This can cause problems if you want to work with people on other platforms.
+
+To be portable it is advisable to rename the file.
+
+If you know what you are doing you can disable this check using:
+
+  git config hooks.allownonascii true
+EOF
+	exit 1
+fi
+
+# If there are whitespace errors, print the offending file names and fail.
+exec git diff-index --check --cached $against --
+",
+  ".git/hooks/pre-merge-commit.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git merge" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message to
+# stderr if it wants to stop the merge commit.
+#
+# To enable this hook, rename this file to "pre-merge-commit".
+
+. git-sh-setup
+test -x "$GIT_DIR/hooks/pre-commit" &&
+        exec "$GIT_DIR/hooks/pre-commit"
+:
+",
+  ".git/hooks/pre-push.sample": "#!/bin/sh
+
+# An example hook script to verify what is about to be pushed.  Called by "git
+# push" after it has checked the remote status, but before anything has been
+# pushed.  If this script exits with a non-zero status nothing will be pushed.
+#
+# This hook is called with the following parameters:
+#
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+#
+# If pushing without using a named remote those arguments will be equal.
+#
+# Information about the commits which are being pushed is supplied as lines to
+# the standard input in the form:
+#
+#   <local ref> <local oid> <remote ref> <remote oid>
+#
+# This sample shows how to prevent push of commits where the log message starts
+# with "WIP" (work in progress).
+
+remote="$1"
+url="$2"
+
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+
+while read local_ref local_oid remote_ref remote_oid
+do
+	if test "$local_oid" = "$zero"
+	then
+		# Handle delete
+		:
+	else
+		if test "$remote_oid" = "$zero"
+		then
+			# New branch, examine all commits
+			range="$local_oid"
+		else
+			# Update to existing branch, examine new commits
+			range="$remote_oid..$local_oid"
+		fi
+
+		# Check for WIP commit
+		commit=$(git rev-list -n 1 --grep '^WIP' "$range")
+		if test -n "$commit"
+		then
+			echo >&2 "Found WIP commit in $local_ref, not pushing"
+			exit 1
+		fi
+	fi
+done
+
+exit 0
+",
+  ".git/hooks/pre-rebase.sample": "#!/bin/sh
+#
+# Copyright (c) 2006, 2008 Junio C Hamano
+#
+# The "pre-rebase" hook is run just before "git rebase" starts doing
+# its job, and can prevent the command from running by exiting with
+# non-zero status.
+#
+# The hook is called with the following parameters:
+#
+# $1 -- the upstream the series was forked from.
+# $2 -- the branch being rebased (or empty when rebasing the current branch).
+#
+# This sample shows how to prevent topic branches that are already
+# merged to 'next' branch from getting rebased, because allowing it
+# would result in rebasing already published history.
+
+publish=next
+basebranch="$1"
+if test "$#" = 2
+then
+	topic="refs/heads/$2"
+else
+	topic=\`git symbolic-ref HEAD\` ||
+	exit 0 ;# we do not interrupt rebasing detached HEAD
+fi
+
+case "$topic" in
+refs/heads/??/*)
+	;;
+*)
+	exit 0 ;# we do not interrupt others.
+	;;
+esac
+
+# Now we are dealing with a topic branch being rebased
+# on top of master.  Is it OK to rebase it?
+
+# Does the topic really exist?
+git show-ref -q "$topic" || {
+	echo >&2 "No such branch $topic"
+	exit 1
+}
+
+# Is topic fully merged to master?
+not_in_master=\`git rev-list --pretty=oneline ^master "$topic"\`
+if test -z "$not_in_master"
+then
+	echo >&2 "$topic is fully merged to master; better remove it."
+	exit 1 ;# we could allow it, but there is no point.
+fi
+
+# Is topic ever merged to next?  If so you should not be rebasing it.
+only_next_1=\`git rev-list ^master "^$topic" \${publish} | sort\`
+only_next_2=\`git rev-list ^master           \${publish} | sort\`
+if test "$only_next_1" = "$only_next_2"
+then
+	not_in_topic=\`git rev-list "^$topic" master\`
+	if test -z "$not_in_topic"
+	then
+		echo >&2 "$topic is already up to date with master"
+		exit 1 ;# we could allow it, but there is no point.
+	else
+		exit 0
+	fi
+else
+	not_in_next=\`git rev-list --pretty=oneline ^\${publish} "$topic"\`
+	/usr/bin/perl -e '
+		my $topic = $ARGV[0];
+		my $msg = "* $topic has commits already merged to public branch:\\n";
+		my (%not_in_next) = map {
+			/^([0-9a-f]+) /;
+			($1 => 1);
+		} split(/\\n/, $ARGV[1]);
+		for my $elem (map {
+				/^([0-9a-f]+) (.*)$/;
+				[$1 => $2];
+			} split(/\\n/, $ARGV[2])) {
+			if (!exists $not_in_next{$elem->[0]}) {
+				if ($msg) {
+					print STDERR $msg;
+					undef $msg;
+				}
+				print STDERR " $elem->[1]\\n";
+			}
+		}
+	' "$topic" "$not_in_next" "$not_in_master"
+	exit 1
+fi
+
+<<\\DOC_END
+
+This sample hook safeguards topic branches that have been
+published from being rewound.
+
+The workflow assumed here is:
+
+ * Once a topic branch forks from "master", "master" is never
+   merged into it again (either directly or indirectly).
+
+ * Once a topic branch is fully cooked and merged into "master",
+   it is deleted.  If you need to build on top of it to correct
+   earlier mistakes, a new topic branch is created by forking at
+   the tip of the "master".  This is not strictly necessary, but
+   it makes it easier to keep your history simple.
+
+ * Whenever you need to test or publish your changes to topic
+   branches, merge them into "next" branch.
+
+The script, being an example, hardcodes the publish branch name
+to be "next", but it is trivial to make it configurable via
+$GIT_DIR/config mechanism.
+
+With this workflow, you would want to know:
+
+(1) ... if a topic branch has ever been merged to "next".  Young
+    topic branches can have stupid mistakes you would rather
+    clean up before publishing, and things that have not been
+    merged into other branches can be easily rebased without
+    affecting other people.  But once it is published, you would
+    not want to rewind it.
+
+(2) ... if a topic branch has been fully merged to "master".
+    Then you can delete it.  More importantly, you should not
+    build on top of it -- other people may already want to
+    change things related to the topic as patches against your
+    "master", so if you need further changes, it is better to
+    fork the topic (perhaps with the same name) afresh from the
+    tip of "master".
+
+Let's look at this example:
+
+		   o---o---o---o---o---o---o---o---o---o "next"
+		  /       /           /           /
+		 /   a---a---b A     /           /
+		/   /               /           /
+	       /   /   c---c---c---c B         /
+	      /   /   /             \\         /
+	     /   /   /   b---b C     \\       /
+	    /   /   /   /             \\     /
+    ---o---o---o---o---o---o---o---o---o---o---o "master"
+
+
+A, B and C are topic branches.
+
+ * A has one fix since it was merged up to "next".
+
+ * B has finished.  It has been fully merged up to "master" and "next",
+   and is ready to be deleted.
+
+ * C has not merged to "next" at all.
+
+We would want to allow C to be rebased, refuse A, and encourage
+B to be deleted.
+
+To compute (1):
+
+	git rev-list ^master ^topic next
+	git rev-list ^master        next
+
+	if these match, topic has not merged in next at all.
+
+To compute (2):
+
+	git rev-list master..topic
+
+	if this is empty, it is fully merged to "master".
+
+DOC_END
+",
+  ".git/hooks/pre-receive.sample": "#!/bin/sh
+#
+# An example hook script to make use of push options.
+# The example simply echoes all push options that start with 'echoback='
+# and rejects all pushes when the "reject" push option is used.
+#
+# To enable this hook, rename this file to "pre-receive".
+
+if test -n "$GIT_PUSH_OPTION_COUNT"
+then
+	i=0
+	while test "$i" -lt "$GIT_PUSH_OPTION_COUNT"
+	do
+		eval "value=\\$GIT_PUSH_OPTION_$i"
+		case "$value" in
+		echoback=*)
+			echo "echo from the pre-receive-hook: \${value#*=}" >&2
+			;;
+		reject)
+			exit 1
+		esac
+		i=$((i + 1))
+	done
+fi
+",
+  ".git/hooks/prepare-commit-msg.sample": "#!/bin/sh
+#
+# An example hook script to prepare the commit log message.
+# Called by "git commit" with the name of the file that has the
+# commit message, followed by the description of the commit
+# message's source.  The hook's purpose is to edit the commit
+# message file.  If the hook fails with a non-zero status,
+# the commit is aborted.
+#
+# To enable this hook, rename this file to "prepare-commit-msg".
+
+# This hook includes three examples. The first one removes the
+# "# Please enter the commit message..." help message.
+#
+# The second includes the output of "git diff --name-status -r"
+# into the message, just before the "git status" output.  It is
+# commented because it doesn't cope with --amend or with squashed
+# commits.
+#
+# The third example adds a Signed-off-by line to the message, that can
+# still be edited.  This is rarely a good idea.
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+SHA1=$3
+
+/usr/bin/perl -i.bak -ne 'print unless(m/^. Please enter the commit message/..m/^#$/)' "$COMMIT_MSG_FILE"
+
+# case "$COMMIT_SOURCE,$SHA1" in
+#  ,|template,)
+#    /usr/bin/perl -i.bak -pe '
+#       print "\\n" . \`git diff --cached --name-status -r\`
+# 	 if /^#/ && $first++ == 0' "$COMMIT_MSG_FILE" ;;
+#  *) ;;
+# esac
+
+# SOB=$(git var GIT_COMMITTER_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')
+# git interpret-trailers --in-place --trailer "$SOB" "$COMMIT_MSG_FILE"
+# if test -z "$COMMIT_SOURCE"
+# then
+#   /usr/bin/perl -i.bak -pe 'print "\\n" if !$first_line++' "$COMMIT_MSG_FILE"
+# fi
+",
+  ".git/hooks/push-to-checkout.sample": "#!/bin/sh
+
+# An example hook script to update a checked-out tree on a git push.
+#
+# This hook is invoked by git-receive-pack(1) when it reacts to git
+# push and updates reference(s) in its repository, and when the push
+# tries to update the branch that is currently checked out and the
+# receive.denyCurrentBranch configuration variable is set to
+# updateInstead.
+#
+# By default, such a push is refused if the working tree and the index
+# of the remote repository has any difference from the currently
+# checked out commit; when both the working tree and the index match
+# the current commit, they are updated to match the newly pushed tip
+# of the branch. This hook is to be used to override the default
+# behaviour; however the code below reimplements the default behaviour
+# as a starting point for convenient modification.
+#
+# The hook receives the commit with which the tip of the current
+# branch is going to be updated:
+commit=$1
+
+# It can exit with a non-zero status to refuse the push (when it does
+# so, it must not modify the index or the working tree).
+die () {
+	echo >&2 "$*"
+	exit 1
+}
+
+# Or it can make any necessary changes to the working tree and to the
+# index to bring them to the desired state when the tip of the current
+# branch is updated to the new commit, and exit with a zero status.
+#
+# For example, the hook can simply run git read-tree -u -m HEAD "$1"
+# in order to emulate git fetch that is run in the reverse direction
+# with git push, as the two-tree form of git read-tree -u -m is
+# essentially the same as git switch or git checkout that switches
+# branches while keeping the local changes in the working tree that do
+# not interfere with the difference between the branches.
+
+# The below is a more-or-less exact translation to shell of the C code
+# for the default behaviour for git's push-to-checkout hook defined in
+# the push_to_deploy() function in builtin/receive-pack.c.
+#
+# Note that the hook will be executed from the repository directory,
+# not from the working tree, so if you want to perform operations on
+# the working tree, you will have to adapt your code accordingly, e.g.
+# by adding "cd .." or using relative paths.
+
+if ! git update-index -q --ignore-submodules --refresh
+then
+	die "Up-to-date check failed"
+fi
+
+if ! git diff-files --quiet --ignore-submodules --
+then
+	die "Working directory has unstaged changes"
+fi
+
+# This is a rough translation of:
+#
+#   head_has_history() ? "HEAD" : EMPTY_TREE_SHA1_HEX
+if git cat-file -e HEAD 2>/dev/null
+then
+	head=HEAD
+else
+	head=$(git hash-object -t tree --stdin </dev/null)
+fi
+
+if ! git diff-index --quiet --cached --ignore-submodules $head --
+then
+	die "Working directory has staged changes"
+fi
+
+if ! git read-tree -u -m "$commit"
+then
+	die "Could not update working tree to new HEAD"
+fi
+",
+  ".git/hooks/sendemail-validate.sample": "#!/bin/sh
+
+# An example hook script to validate a patch (and/or patch series) before
+# sending it via email.
+#
+# The hook should exit with non-zero status after issuing an appropriate
+# message if it wants to prevent the email(s) from being sent.
+#
+# To enable this hook, rename this file to "sendemail-validate".
+#
+# By default, it will only check that the patch(es) can be applied on top of
+# the default upstream branch without conflicts in a secondary worktree. After
+# validation (successful or not) of the last patch of a series, the worktree
+# will be deleted.
+#
+# The following config variables can be set to change the default remote and
+# remote ref that are used to apply the patches against:
+#
+#   sendemail.validateRemote (default: origin)
+#   sendemail.validateRemoteRef (default: HEAD)
+#
+# Replace the TODO placeholders with appropriate checks according to your
+# needs.
+
+validate_cover_letter () {
+	file="$1"
+	# TODO: Replace with appropriate checks (e.g. spell checking).
+	true
+}
+
+validate_patch () {
+	file="$1"
+	# Ensure that the patch applies without conflicts.
+	git am -3 "$file" || return
+	# TODO: Replace with appropriate checks for this patch
+	# (e.g. checkpatch.pl).
+	true
+}
+
+validate_series () {
+	# TODO: Replace with appropriate checks for the whole series
+	# (e.g. quick build, coding style checks, etc.).
+	true
+}
+
+# main -------------------------------------------------------------------------
+
+if test "$GIT_SENDEMAIL_FILE_COUNTER" = 1
+then
+	remote=$(git config --default origin --get sendemail.validateRemote) &&
+	ref=$(git config --default HEAD --get sendemail.validateRemoteRef) &&
+	worktree=$(mktemp --tmpdir -d sendemail-validate.XXXXXXX) &&
+	git worktree add -fd --checkout "$worktree" "refs/remotes/$remote/$ref" &&
+	git config --replace-all sendemail.validateWorktree "$worktree"
+else
+	worktree=$(git config --get sendemail.validateWorktree)
+fi || {
+	echo "sendemail-validate: error: failed to prepare worktree" >&2
+	exit 1
+}
+
+unset GIT_DIR GIT_WORK_TREE
+cd "$worktree" &&
+
+if grep -q "^diff --git " "$1"
+then
+	validate_patch "$1"
+else
+	validate_cover_letter "$1"
+fi &&
+
+if test "$GIT_SENDEMAIL_FILE_COUNTER" = "$GIT_SENDEMAIL_FILE_TOTAL"
+then
+	git config --unset-all sendemail.validateWorktree &&
+	trap 'git worktree remove -ff "$worktree"' EXIT &&
+	validate_series
+fi
+",
+  ".git/hooks/update.sample": "#!/bin/sh
+#
+# An example hook script to block unannotated tags from entering.
+# Called by "git receive-pack" with arguments: refname sha1-old sha1-new
+#
+# To enable this hook, rename this file to "update".
+#
+# Config
+# ------
+# hooks.allowunannotated
+#   This boolean sets whether unannotated tags will be allowed into the
+#   repository.  By default they won't be.
+# hooks.allowdeletetag
+#   This boolean sets whether deleting tags will be allowed in the
+#   repository.  By default they won't be.
+# hooks.allowmodifytag
+#   This boolean sets whether a tag may be modified after creation. By default
+#   it won't be.
+# hooks.allowdeletebranch
+#   This boolean sets whether deleting branches will be allowed in the
+#   repository.  By default they won't be.
+# hooks.denycreatebranch
+#   This boolean sets whether remotely creating branches will be denied
+#   in the repository.  By default this is allowed.
+#
+
+# --- Command line
+refname="$1"
+oldrev="$2"
+newrev="$3"
+
+# --- Safety check
+if [ -z "$GIT_DIR" ]; then
+	echo "Don't run this script from the command line." >&2
+	echo " (if you want, you could supply GIT_DIR then run" >&2
+	echo "  $0 <ref> <oldrev> <newrev>)" >&2
+	exit 1
+fi
+
+if [ -z "$refname" -o -z "$oldrev" -o -z "$newrev" ]; then
+	echo "usage: $0 <ref> <oldrev> <newrev>" >&2
+	exit 1
+fi
+
+# --- Config
+allowunannotated=$(git config --type=bool hooks.allowunannotated)
+allowdeletebranch=$(git config --type=bool hooks.allowdeletebranch)
+denycreatebranch=$(git config --type=bool hooks.denycreatebranch)
+allowdeletetag=$(git config --type=bool hooks.allowdeletetag)
+allowmodifytag=$(git config --type=bool hooks.allowmodifytag)
+
+# check for no description
+projectdesc=$(sed -e '1q' "$GIT_DIR/description")
+case "$projectdesc" in
+"Unnamed repository"* | "")
+	echo "*** Project description file hasn't been set" >&2
+	exit 1
+	;;
+esac
+
+# --- Check types
+# if $newrev is 0000...0000, it's a commit to delete a ref.
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+if [ "$newrev" = "$zero" ]; then
+	newrev_type=delete
+else
+	newrev_type=$(git cat-file -t $newrev)
+fi
+
+case "$refname","$newrev_type" in
+	refs/tags/*,commit)
+		# un-annotated tag
+		short_refname=\${refname##refs/tags/}
+		if [ "$allowunannotated" != "true" ]; then
+			echo "*** The un-annotated tag, $short_refname, is not allowed in this repository" >&2
+			echo "*** Use 'git tag [ -a | -s ]' for tags you want to propagate." >&2
+			exit 1
+		fi
+		;;
+	refs/tags/*,delete)
+		# delete tag
+		if [ "$allowdeletetag" != "true" ]; then
+			echo "*** Deleting a tag is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/tags/*,tag)
+		# annotated tag
+		if [ "$allowmodifytag" != "true" ] && git rev-parse $refname > /dev/null 2>&1
+		then
+			echo "*** Tag '$refname' already exists." >&2
+			echo "*** Modifying a tag is not allowed in this repository." >&2
+			exit 1
+		fi
+		;;
+	refs/heads/*,commit)
+		# branch
+		if [ "$oldrev" = "$zero" -a "$denycreatebranch" = "true" ]; then
+			echo "*** Creating a branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/heads/*,delete)
+		# delete branch
+		if [ "$allowdeletebranch" != "true" ]; then
+			echo "*** Deleting a branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/remotes/*,commit)
+		# tracking branch
+		;;
+	refs/remotes/*,delete)
+		# delete tracking branch
+		if [ "$allowdeletebranch" != "true" ]; then
+			echo "*** Deleting a tracking branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	*)
+		# Anything else (is there anything else?)
+		echo "*** Update hook: unknown type of update to ref $refname of type $newrev_type" >&2
+		exit 1
+		;;
+esac
+
+# --- Finished
+exit 0
+",
+  ".git/info/exclude": "# git ls-files --others --exclude-from=.git/info/exclude
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+# *.[oa]
+# *~
+",
+  ".gitignore": "# Dependencies
+node_modules
+
+# @lazarv/react-server specific
+.react-server
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Cache
+.eslintcache
+
+# Vercel
+.vercel
+
+# Cache
+.eslintcache
+",
+  ".prettierignore": "*.md
+*-lock.*
+*.lock",
+  ".prettierrc": "{
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "quoteProps": "as-needed",
+  "trailingComma": "es5",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+}
+",
+  "README.md": "This is a [@lazarv/react-server](https://react-server.dev) project bootstrapped with [\`create-react-server\`](https://react-server.dev/guide/quick-start).
+
+## Getting Started
+
+First, run the development server:
+
+\`\`\`sh
+npm run dev
+\`\`\`
+
+Use the \`--open\` flag, the development server command menu or navigate to [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying \`\`. The page auto-updates as you edit the file.
+
+## Build
+
+To build the application for production, run:
+
+\`\`\`sh
+npm run build
+\`\`\`
+
+The build output will be in the \`.react-server\` directory.
+
+To run the production server, run:
+
+\`\`\`sh
+npm start start
+\`\`\`
+
+## Learn More
+
+To learn more about [@lazarv/react-server](https://react-server.dev), take a look at the documentation or search the documentation using the development server.
+
+You can check out framework on [GitHub](https://github.com/lazarv/react-server) - your feedback and contributions are welcome!
+",
+  "eslint.config.mjs": "import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import babelParser from "@babel/eslint-parser";
+import { FlatCompat } from "@eslint/eslintrc";
+import js from "@eslint/js";
+import jsxA11Y from "eslint-plugin-jsx-a11y";
+import prettier from "eslint-plugin-prettier";
+import react from "eslint-plugin-react";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
+});
+
+export default [
+  {
+    ignores: [
+      "**/node_modules/",
+      "**/dist/",
+      "**/build/",
+      "**/.react-server/",
+      "**/.react-server*/",
+      "**/.vercel/",
+      "*.mdx",
+      "*.md",
+      "*.json",
+      "*-lock.*",
+    ],
+  },
+  ...compat.extends(
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
+    "plugin:jsx-a11y/recommended",
+    "plugin:prettier/recommended"
+  ),
+  {
+    plugins: {
+      react,
+
+      "simple-import-sort": simpleImportSort,
+      prettier,
+      "jsx-a11y": jsxA11Y,
+    },
+
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        Deno: "readonly",
+      },
+
+      parser: babelParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
+
+      parserOptions: {
+        requireConfigFile: false,
+
+        babelOptions: {
+          presets: ["@babel/preset-react"],
+          plugins: ["@babel/plugin-syntax-import-assertions"],
+        },
+
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+
+    settings: {
+      react: {
+        version: "19.0.0",
+      },
+    },
+
+    rules: {
+      "react/prop-types": "off",
+
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [["^\\\\u0000"], ["^node:"], ["^react"], ["^[^.]"], ["^\\\\."]],
+        },
+      ],
+
+      "no-async-promise-executor": "off",
+
+      "prettier/prettier": [
+        "error",
+        {
+          endOfLine: "auto",
+        },
+      ],
+    },
+  },
+];
+",
+  "package.json": "{
+  "name": "test-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun react-server ./src/App.jsx",
+    "build": "bun --bun react-server build ./src/App.jsx",
+    "start": "bun --bun react-server start",
+    "lint": "eslint",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.25.9",
+    "@babel/plugin-syntax-import-assertions": "^7.25.9",
+    "@babel/preset-react": "^7.25.9",
+    "@eslint/eslintrc": "^3.1.0",
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.1",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^15.11.0",
+    "prettier": "^3.2.5",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3"
+  }
+}",
+  "postcss.config.mjs": "export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+",
+  "public/github.svg": "<svg width="98" height="96" viewBox="0 0 98 96" fill="none"
+  xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" fill="#24292f"/>
+</svg>",
+  "public/react-server.svg": "<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 33.866666 33.866667"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs1" /><g
+     id="layer1"><g
+       id="g1"
+       transform="matrix(1.4232434,0,0,1.4232434,16.915196,17.10368)"><g
+         stroke="#61dafb"
+         stroke-width="1"
+         fill="none"
+         id="g3"><ellipse
+           rx="11"
+           ry="4.1999998"
+           id="ellipse1"
+           cx="0"
+           cy="0" /><ellipse
+           rx="11"
+           ry="4.1999998"
+           transform="rotate(60)"
+           id="ellipse2"
+           cx="0"
+           cy="0" /><ellipse
+           rx="11"
+           ry="4.1999998"
+           transform="rotate(120)"
+           id="ellipse3"
+           cx="0"
+           cy="0"
+           style="fill:#ffffff;fill-opacity:0" /></g><ellipse
+         fill="#61dafb"
+         id="circle1-46"
+         style="stroke-width:1.01735"
+         ry="4.826261"
+         rx="4.215796"
+         cy="0.15913987"
+         cx="-0.031601399" /></g><path
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.1;stroke-dasharray:none;stroke-opacity:1;stroke-linejoin:round;stroke-linecap:butt"
+       d="m 12.509642,30.690503 -0.05834,-0.05685 -7.23e-4,-0.0561 -7.23e-4,-0.05611 0.768979,-2.092476 0.768982,-2.092473 0.556751,-1.543372 0.556748,-1.543368 0.006,-0.120103 0.006,-0.120088 -1.470798,0.0062 -1.470797,0.0062 -0.06194,-0.0727 -0.06194,-0.0727 0.233074,-0.46889 0.233073,-0.468892 0.856189,-1.667244 0.85619,-1.667245 0.41769,-0.85935 0.417689,-0.859349 -0.02911,-0.04578 -0.02911,-0.04576 -1.464266,0.01887 -1.464263,0.01887 -0.09348,-0.0485 -0.09349,-0.0485 -0.0011,-0.08618 -0.0011,-0.08616 0.11036,-0.213586 0.110359,-0.213582 1.014121,-2.024324 1.014119,-2.024327 0.696804,-1.43016 0.696802,-1.4301581 0.701201,-1.4012125 0.701198,-1.4012124 2.501594,-0.044655 2.501597,-0.044655 0.03154,0.079108 0.03152,0.079108 -0.04589,0.1264481 -0.04587,0.1264636 -0.768293,1.3291372 -0.768291,1.3291355 -0.6677,1.1797846 -0.6677,1.179784 0.02576,0.06464 0.02576,0.06464 1.695367,-0.02185 1.695368,-0.02185 0.07639,0.07444 0.07639,0.07446 7.89e-4,0.06124 7.9e-4,0.06124 -0.249474,0.406592 -0.249474,0.40659 -0.614255,0.968038 -0.614255,0.968039 -1.187109,1.911536 -1.187107,1.91154 -0.06878,0.13724 -0.06879,0.13724 0.02683,0.06732 0.02683,0.06732 1.62427,-0.02093 1.624265,-0.02093 0.09295,0.06616 0.09294,0.06612 -0.04534,0.122827 -0.04534,0.122843 -1.34915,1.664026 -1.349152,1.664023 -0.8062,1.018519 -0.8062,1.018517 -0.670268,0.824742 -0.670264,0.824741 -1.724844,2.146499 -1.724842,2.146498 -0.05964,7.69e-4 -0.05966,7.69e-4 z"
+       id="path1-1" /><path
+       style="fill:#ffd22a;fill-opacity:1;stroke:#ffffff;stroke-width:0.4;stroke-dasharray:none;stroke-opacity:1;stroke-linejoin:round;stroke-linecap:round"
+       d="m 12.509642,30.690503 -0.05834,-0.05685 -7.23e-4,-0.0561 -7.23e-4,-0.05611 0.768979,-2.092476 0.768982,-2.092473 0.556751,-1.543372 0.556748,-1.543368 0.006,-0.120103 0.006,-0.120088 -1.470798,0.0062 -1.470797,0.0062 -0.06194,-0.0727 -0.06194,-0.0727 0.233074,-0.46889 0.233073,-0.468892 0.856189,-1.667244 0.85619,-1.667245 0.41769,-0.85935 0.417689,-0.859349 -0.02911,-0.04578 -0.02911,-0.04576 -1.464266,0.01887 -1.464263,0.01887 -0.09348,-0.0485 -0.09349,-0.0485 -0.0011,-0.08618 -0.0011,-0.08616 0.11036,-0.213586 0.110359,-0.213582 1.014121,-2.024324 1.014119,-2.024327 0.696804,-1.43016 0.696802,-1.4301581 0.701201,-1.4012125 0.701198,-1.4012124 2.501594,-0.044655 2.501597,-0.044655 0.03154,0.079108 0.03152,0.079108 -0.04589,0.1264481 -0.04587,0.1264636 -0.768293,1.3291372 -0.768291,1.3291355 -0.6677,1.1797846 -0.6677,1.179784 0.02576,0.06464 0.02576,0.06464 1.695367,-0.02185 1.695368,-0.02185 0.07639,0.07444 0.07639,0.07446 7.89e-4,0.06124 7.9e-4,0.06124 -0.249474,0.406592 -0.249474,0.40659 -0.614255,0.968038 -0.614255,0.968039 -1.187109,1.911536 -1.187107,1.91154 -0.06878,0.13724 -0.06879,0.13724 0.02683,0.06732 0.02683,0.06732 1.62427,-0.02093 1.624265,-0.02093 0.09295,0.06616 0.09294,0.06612 -0.04534,0.122827 -0.04534,0.122843 -1.34915,1.664026 -1.349152,1.664023 -0.8062,1.018519 -0.8062,1.018517 -0.670268,0.824742 -0.670264,0.824741 -1.724844,2.146499 -1.724842,2.146498 -0.05964,7.69e-4 -0.05966,7.69e-4 z"
+       id="path1" /></g></svg>
+",
+  "src/App.jsx": "import "./global.css";
+import Confetti from "./Confetti";
+
+export default function App() {
+  return (
+    <html lang="en" className="h-screen" suppressHydrationWarning>
+      <head></head>
+      <body
+        className="w-full min-h-full flex flex-col justify-center items-center dark:bg-zinc-900 dark:text-gray-400"
+        suppressHydrationWarning
+      >
+        <a href="https://github.com/lazarv/react-server" target="_blank">
+          <img
+            src="/github.svg"
+            alt="GitHub page"
+            className="absolute top-2 right-2 w-6 h-6"
+          />
+        </a>
+
+        <section className="flex flex-col mt-auto">
+          <div className="relative">
+            <img
+              src="/react-server.svg"
+              className="absolute h-[85%] top-1/2 -translate-x-full -translate-y-1/2 -ml-1"
+              alt="@lazarv/react-server logo"
+            />
+            <h2 className="text-xs font-semibold m-0 pt-0 border-none dark:text-yellow-500 mt-4 sm:mt-0">
+              @lazarv
+            </h2>
+            <h1 className="text-5xl font-semibold m-0 -mt-4 whitespace-nowrap sm:text-6xl dark:text-yellow-500">
+              react-server
+            </h1>
+          </div>
+
+          <p className="text-lg">
+            Welcome to your <b>@lazarv/react-server</b> app!
+          </p>
+        </section>
+
+        <Confetti className="mt-4" />
+
+        <p className="text-sm mt-4">
+          Try editing <b>src/App.jsx</b> and save to reload.
+        </p>
+
+        <p className="text-sm mt-auto mb-2">
+          Visit{" "}
+          <a
+            href="https://react-server.dev"
+            target="_blank"
+            className="text-indigo-500 dark:text-yellow-500"
+          >
+            react-server.dev
+          </a>{" "}
+          to learn more about <b>@lazarv/react-server</b>.
+        </p>
+      </body>
+    </html>
+  );
+}
+",
+  "src/Button.jsx": "export default function Button({ className, children, ...props }) {
+  return (
+    <button
+      className={\`\${className} rounded-full p-1 inline-flex items-center text-black hover:no-underline from-rose-400 via-fuchsia-500 to-indigo-500 bg-gradient-to-r hover:drop-shadow\`}
+    >
+      <div
+        {...props}
+        className="block rounded-full p-2 px-4 text-sm sm:text-base bg-white dark:bg-gray-900 dark:text-white hover:bg-transparent dark:hover:bg-transparent hover:text-white dark:hover:text-white"
+      >
+        {children}
+      </div>
+    </button>
+  );
+}
+",
+  "src/Confetti.jsx": ""use client";
+
+import Button from "./Button";
+
+export default function Confetti(props) {
+  return (
+    <Button
+      {...props}
+      onClick={async () => {
+        const { default: confetti } =
+          await import("https://esm.sh/canvas-confetti");
+        confetti();
+      }}
+    >
+      Celebrate!
+    </Button>
+  );
+}
+",
+  "src/global.css": "@tailwind base;
+@tailwind components;
+@tailwind utilities;",
+  "tailwind.config.mjs": "/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["src/**/*.{js,jsx,ts,tsx}"],
+  theme: {},
+  plugins: [],
+};
+",
+}
+`;
+
+exports[`create-react-server: bun runtime (bun) > preset: get-started-ts > creates the app 1`] = `
+{
+  ".git/HEAD": "ref: refs/heads/master
+",
+  ".git/config": "[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+",
+  ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
+",
+  ".git/hooks/applypatch-msg.sample": "#!/bin/sh
+#
+# An example hook script to check the commit log message taken by
+# applypatch from an e-mail message.
+#
+# The hook should exit with non-zero status after issuing an
+# appropriate message if it wants to stop the commit.  The hook is
+# allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "applypatch-msg".
+
+. git-sh-setup
+commitmsg="$(git rev-parse --git-path hooks/commit-msg)"
+test -x "$commitmsg" && exec "$commitmsg" \${1+"$@"}
+:
+",
+  ".git/hooks/commit-msg.sample": "#!/bin/sh
+#
+# An example hook script to check the commit log message.
+# Called by "git commit" with one argument, the name of the file
+# that has the commit message.  The hook should exit with non-zero
+# status after issuing an appropriate message if it wants to stop the
+# commit.  The hook is allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "commit-msg".
+
+# Uncomment the below to add a Signed-off-by line to the message.
+# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
+# hook is more suited to it.
+#
+# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')
+# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
+
+# This example catches duplicate Signed-off-by lines.
+
+test "" = "$(grep '^Signed-off-by: ' "$1" |
+	 sort | uniq -c | sed -e '/^[ 	]*1[ 	]/d')" || {
+	echo >&2 Duplicate Signed-off-by lines.
+	exit 1
+}
+",
+  ".git/hooks/fsmonitor-watchman.sample": "#!/usr/bin/perl
+
+use strict;
+use warnings;
+use IPC::Open2;
+
+# An example hook script to integrate Watchman
+# (https://facebook.github.io/watchman/) with git to speed up detecting
+# new and modified files.
+#
+# The hook is passed a version (currently 2) and last update token
+# formatted as a string and outputs to stdout a new update token and
+# all files that have been modified since the update token. Paths must
+# be relative to the root of the working tree and separated by a single NUL.
+#
+# To enable this hook, rename this file to "query-watchman" and set
+# 'git config core.fsmonitor .git/hooks/query-watchman'
+#
+my ($version, $last_update_token) = @ARGV;
+
+# Uncomment for debugging
+# print STDERR "$0 $version $last_update_token\\n";
+
+# Check the hook interface version
+if ($version ne 2) {
+	die "Unsupported query-fsmonitor hook version '$version'.\\n" .
+	    "Falling back to scanning...\\n";
+}
+
+my $git_work_tree = get_working_dir();
+
+my $retry = 1;
+
+my $json_pkg;
+eval {
+	require JSON::XS;
+	$json_pkg = "JSON::XS";
+	1;
+} or do {
+	require JSON::PP;
+	$json_pkg = "JSON::PP";
+};
+
+launch_watchman();
+
+sub launch_watchman {
+	my $o = watchman_query();
+	if (is_work_tree_watched($o)) {
+		output_result($o->{clock}, @{$o->{files}});
+	}
+}
+
+sub output_result {
+	my ($clockid, @files) = @_;
+
+	# Uncomment for debugging watchman output
+	# open (my $fh, ">", ".git/watchman-output.out");
+	# binmode $fh, ":utf8";
+	# print $fh "$clockid\\n@files\\n";
+	# close $fh;
+
+	binmode STDOUT, ":utf8";
+	print $clockid;
+	print "\\0";
+	local $, = "\\0";
+	print @files;
+}
+
+sub watchman_clock {
+	my $response = qx/watchman clock "$git_work_tree"/;
+	die "Failed to get clock id on '$git_work_tree'.\\n" .
+		"Falling back to scanning...\\n" if $? != 0;
+
+	return $json_pkg->new->utf8->decode($response);
+}
+
+sub watchman_query {
+	my $pid = open2(\\*CHLD_OUT, \\*CHLD_IN, 'watchman -j --no-pretty')
+	or die "open2() failed: $!\\n" .
+	"Falling back to scanning...\\n";
+
+	# In the query expression below we're asking for names of files that
+	# changed since $last_update_token but not from the .git folder.
+	#
+	# To accomplish this, we're using the "since" generator to use the
+	# recency index to select candidate nodes and "fields" to limit the
+	# output to file names only. Then we're using the "expression" term to
+	# further constrain the results.
+	my $last_update_line = "";
+	if (substr($last_update_token, 0, 1) eq "c") {
+		$last_update_token = "\\"$last_update_token\\"";
+		$last_update_line = qq[\\n"since": $last_update_token,];
+	}
+	my $query = <<"	END";
+		["query", "$git_work_tree", {$last_update_line
+			"fields": ["name"],
+			"expression": ["not", ["dirname", ".git"]]
+		}]
+	END
+
+	# Uncomment for debugging the watchman query
+	# open (my $fh, ">", ".git/watchman-query.json");
+	# print $fh $query;
+	# close $fh;
+
+	print CHLD_IN $query;
+	close CHLD_IN;
+	my $response = do {local $/; <CHLD_OUT>};
+
+	# Uncomment for debugging the watch response
+	# open ($fh, ">", ".git/watchman-response.json");
+	# print $fh $response;
+	# close $fh;
+
+	die "Watchman: command returned no output.\\n" .
+	"Falling back to scanning...\\n" if $response eq "";
+	die "Watchman: command returned invalid output: $response\\n" .
+	"Falling back to scanning...\\n" unless $response =~ /^\\{/;
+
+	return $json_pkg->new->utf8->decode($response);
+}
+
+sub is_work_tree_watched {
+	my ($output) = @_;
+	my $error = $output->{error};
+	if ($retry > 0 and $error and $error =~ m/unable to resolve root .* directory (.*) is not watched/) {
+		$retry--;
+		my $response = qx/watchman watch "$git_work_tree"/;
+		die "Failed to make watchman watch '$git_work_tree'.\\n" .
+		    "Falling back to scanning...\\n" if $? != 0;
+		$output = $json_pkg->new->utf8->decode($response);
+		$error = $output->{error};
+		die "Watchman: $error.\\n" .
+		"Falling back to scanning...\\n" if $error;
+
+		# Uncomment for debugging watchman output
+		# open (my $fh, ">", ".git/watchman-output.out");
+		# close $fh;
+
+		# Watchman will always return all files on the first query so
+		# return the fast "everything is dirty" flag to git and do the
+		# Watchman query just to get it over with now so we won't pay
+		# the cost in git to look up each individual file.
+		my $o = watchman_clock();
+		$error = $output->{error};
+
+		die "Watchman: $error.\\n" .
+		"Falling back to scanning...\\n" if $error;
+
+		output_result($o->{clock}, ("/"));
+		$last_update_token = $o->{clock};
+
+		eval { launch_watchman() };
+		return 0;
+	}
+
+	die "Watchman: $error.\\n" .
+	"Falling back to scanning...\\n" if $error;
+
+	return 1;
+}
+
+sub get_working_dir {
+	my $working_dir;
+	if ($^O =~ 'msys' || $^O =~ 'cygwin') {
+		$working_dir = Win32::GetCwd();
+		$working_dir =~ tr/\\\\/\\//;
+	} else {
+		require Cwd;
+		$working_dir = Cwd::cwd();
+	}
+
+	return $working_dir;
+}
+",
+  ".git/hooks/post-update.sample": "#!/bin/sh
+#
+# An example hook script to prepare a packed repository for use over
+# dumb transports.
+#
+# To enable this hook, rename this file to "post-update".
+
+exec git update-server-info
+",
+  ".git/hooks/pre-applypatch.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed
+# by applypatch from an e-mail message.
+#
+# The hook should exit with non-zero status after issuing an
+# appropriate message if it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-applypatch".
+
+. git-sh-setup
+precommit="$(git rev-parse --git-path hooks/pre-commit)"
+test -x "$precommit" && exec "$precommit" \${1+"$@"}
+:
+",
+  ".git/hooks/pre-commit.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+	against=HEAD
+else
+	# Initial commit: diff against an empty tree object
+	against=$(git hash-object -t tree /dev/null)
+fi
+
+# If you want to allow non-ASCII filenames set this variable to true.
+allownonascii=$(git config --type=bool hooks.allownonascii)
+
+# Redirect output to stderr.
+exec 1>&2
+
+# Cross platform projects tend to avoid non-ASCII filenames; prevent
+# them from being added to the repository. We exploit the fact that the
+# printable range starts at the space character and ends with tilde.
+if [ "$allownonascii" != "true" ] &&
+	# Note that the use of brackets around a tr range is ok here, (it's
+	# even required, for portability to Solaris 10's /usr/bin/tr), since
+	# the square bracket bytes happen to fall in the designated range.
+	test $(git diff-index --cached --name-only --diff-filter=A -z $against |
+	  LC_ALL=C tr -d '[ -~]\\0' | wc -c) != 0
+then
+	cat <<\\EOF
+Error: Attempt to add a non-ASCII file name.
+
+This can cause problems if you want to work with people on other platforms.
+
+To be portable it is advisable to rename the file.
+
+If you know what you are doing you can disable this check using:
+
+  git config hooks.allownonascii true
+EOF
+	exit 1
+fi
+
+# If there are whitespace errors, print the offending file names and fail.
+exec git diff-index --check --cached $against --
+",
+  ".git/hooks/pre-merge-commit.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git merge" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message to
+# stderr if it wants to stop the merge commit.
+#
+# To enable this hook, rename this file to "pre-merge-commit".
+
+. git-sh-setup
+test -x "$GIT_DIR/hooks/pre-commit" &&
+        exec "$GIT_DIR/hooks/pre-commit"
+:
+",
+  ".git/hooks/pre-push.sample": "#!/bin/sh
+
+# An example hook script to verify what is about to be pushed.  Called by "git
+# push" after it has checked the remote status, but before anything has been
+# pushed.  If this script exits with a non-zero status nothing will be pushed.
+#
+# This hook is called with the following parameters:
+#
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+#
+# If pushing without using a named remote those arguments will be equal.
+#
+# Information about the commits which are being pushed is supplied as lines to
+# the standard input in the form:
+#
+#   <local ref> <local oid> <remote ref> <remote oid>
+#
+# This sample shows how to prevent push of commits where the log message starts
+# with "WIP" (work in progress).
+
+remote="$1"
+url="$2"
+
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+
+while read local_ref local_oid remote_ref remote_oid
+do
+	if test "$local_oid" = "$zero"
+	then
+		# Handle delete
+		:
+	else
+		if test "$remote_oid" = "$zero"
+		then
+			# New branch, examine all commits
+			range="$local_oid"
+		else
+			# Update to existing branch, examine new commits
+			range="$remote_oid..$local_oid"
+		fi
+
+		# Check for WIP commit
+		commit=$(git rev-list -n 1 --grep '^WIP' "$range")
+		if test -n "$commit"
+		then
+			echo >&2 "Found WIP commit in $local_ref, not pushing"
+			exit 1
+		fi
+	fi
+done
+
+exit 0
+",
+  ".git/hooks/pre-rebase.sample": "#!/bin/sh
+#
+# Copyright (c) 2006, 2008 Junio C Hamano
+#
+# The "pre-rebase" hook is run just before "git rebase" starts doing
+# its job, and can prevent the command from running by exiting with
+# non-zero status.
+#
+# The hook is called with the following parameters:
+#
+# $1 -- the upstream the series was forked from.
+# $2 -- the branch being rebased (or empty when rebasing the current branch).
+#
+# This sample shows how to prevent topic branches that are already
+# merged to 'next' branch from getting rebased, because allowing it
+# would result in rebasing already published history.
+
+publish=next
+basebranch="$1"
+if test "$#" = 2
+then
+	topic="refs/heads/$2"
+else
+	topic=\`git symbolic-ref HEAD\` ||
+	exit 0 ;# we do not interrupt rebasing detached HEAD
+fi
+
+case "$topic" in
+refs/heads/??/*)
+	;;
+*)
+	exit 0 ;# we do not interrupt others.
+	;;
+esac
+
+# Now we are dealing with a topic branch being rebased
+# on top of master.  Is it OK to rebase it?
+
+# Does the topic really exist?
+git show-ref -q "$topic" || {
+	echo >&2 "No such branch $topic"
+	exit 1
+}
+
+# Is topic fully merged to master?
+not_in_master=\`git rev-list --pretty=oneline ^master "$topic"\`
+if test -z "$not_in_master"
+then
+	echo >&2 "$topic is fully merged to master; better remove it."
+	exit 1 ;# we could allow it, but there is no point.
+fi
+
+# Is topic ever merged to next?  If so you should not be rebasing it.
+only_next_1=\`git rev-list ^master "^$topic" \${publish} | sort\`
+only_next_2=\`git rev-list ^master           \${publish} | sort\`
+if test "$only_next_1" = "$only_next_2"
+then
+	not_in_topic=\`git rev-list "^$topic" master\`
+	if test -z "$not_in_topic"
+	then
+		echo >&2 "$topic is already up to date with master"
+		exit 1 ;# we could allow it, but there is no point.
+	else
+		exit 0
+	fi
+else
+	not_in_next=\`git rev-list --pretty=oneline ^\${publish} "$topic"\`
+	/usr/bin/perl -e '
+		my $topic = $ARGV[0];
+		my $msg = "* $topic has commits already merged to public branch:\\n";
+		my (%not_in_next) = map {
+			/^([0-9a-f]+) /;
+			($1 => 1);
+		} split(/\\n/, $ARGV[1]);
+		for my $elem (map {
+				/^([0-9a-f]+) (.*)$/;
+				[$1 => $2];
+			} split(/\\n/, $ARGV[2])) {
+			if (!exists $not_in_next{$elem->[0]}) {
+				if ($msg) {
+					print STDERR $msg;
+					undef $msg;
+				}
+				print STDERR " $elem->[1]\\n";
+			}
+		}
+	' "$topic" "$not_in_next" "$not_in_master"
+	exit 1
+fi
+
+<<\\DOC_END
+
+This sample hook safeguards topic branches that have been
+published from being rewound.
+
+The workflow assumed here is:
+
+ * Once a topic branch forks from "master", "master" is never
+   merged into it again (either directly or indirectly).
+
+ * Once a topic branch is fully cooked and merged into "master",
+   it is deleted.  If you need to build on top of it to correct
+   earlier mistakes, a new topic branch is created by forking at
+   the tip of the "master".  This is not strictly necessary, but
+   it makes it easier to keep your history simple.
+
+ * Whenever you need to test or publish your changes to topic
+   branches, merge them into "next" branch.
+
+The script, being an example, hardcodes the publish branch name
+to be "next", but it is trivial to make it configurable via
+$GIT_DIR/config mechanism.
+
+With this workflow, you would want to know:
+
+(1) ... if a topic branch has ever been merged to "next".  Young
+    topic branches can have stupid mistakes you would rather
+    clean up before publishing, and things that have not been
+    merged into other branches can be easily rebased without
+    affecting other people.  But once it is published, you would
+    not want to rewind it.
+
+(2) ... if a topic branch has been fully merged to "master".
+    Then you can delete it.  More importantly, you should not
+    build on top of it -- other people may already want to
+    change things related to the topic as patches against your
+    "master", so if you need further changes, it is better to
+    fork the topic (perhaps with the same name) afresh from the
+    tip of "master".
+
+Let's look at this example:
+
+		   o---o---o---o---o---o---o---o---o---o "next"
+		  /       /           /           /
+		 /   a---a---b A     /           /
+		/   /               /           /
+	       /   /   c---c---c---c B         /
+	      /   /   /             \\         /
+	     /   /   /   b---b C     \\       /
+	    /   /   /   /             \\     /
+    ---o---o---o---o---o---o---o---o---o---o---o "master"
+
+
+A, B and C are topic branches.
+
+ * A has one fix since it was merged up to "next".
+
+ * B has finished.  It has been fully merged up to "master" and "next",
+   and is ready to be deleted.
+
+ * C has not merged to "next" at all.
+
+We would want to allow C to be rebased, refuse A, and encourage
+B to be deleted.
+
+To compute (1):
+
+	git rev-list ^master ^topic next
+	git rev-list ^master        next
+
+	if these match, topic has not merged in next at all.
+
+To compute (2):
+
+	git rev-list master..topic
+
+	if this is empty, it is fully merged to "master".
+
+DOC_END
+",
+  ".git/hooks/pre-receive.sample": "#!/bin/sh
+#
+# An example hook script to make use of push options.
+# The example simply echoes all push options that start with 'echoback='
+# and rejects all pushes when the "reject" push option is used.
+#
+# To enable this hook, rename this file to "pre-receive".
+
+if test -n "$GIT_PUSH_OPTION_COUNT"
+then
+	i=0
+	while test "$i" -lt "$GIT_PUSH_OPTION_COUNT"
+	do
+		eval "value=\\$GIT_PUSH_OPTION_$i"
+		case "$value" in
+		echoback=*)
+			echo "echo from the pre-receive-hook: \${value#*=}" >&2
+			;;
+		reject)
+			exit 1
+		esac
+		i=$((i + 1))
+	done
+fi
+",
+  ".git/hooks/prepare-commit-msg.sample": "#!/bin/sh
+#
+# An example hook script to prepare the commit log message.
+# Called by "git commit" with the name of the file that has the
+# commit message, followed by the description of the commit
+# message's source.  The hook's purpose is to edit the commit
+# message file.  If the hook fails with a non-zero status,
+# the commit is aborted.
+#
+# To enable this hook, rename this file to "prepare-commit-msg".
+
+# This hook includes three examples. The first one removes the
+# "# Please enter the commit message..." help message.
+#
+# The second includes the output of "git diff --name-status -r"
+# into the message, just before the "git status" output.  It is
+# commented because it doesn't cope with --amend or with squashed
+# commits.
+#
+# The third example adds a Signed-off-by line to the message, that can
+# still be edited.  This is rarely a good idea.
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+SHA1=$3
+
+/usr/bin/perl -i.bak -ne 'print unless(m/^. Please enter the commit message/..m/^#$/)' "$COMMIT_MSG_FILE"
+
+# case "$COMMIT_SOURCE,$SHA1" in
+#  ,|template,)
+#    /usr/bin/perl -i.bak -pe '
+#       print "\\n" . \`git diff --cached --name-status -r\`
+# 	 if /^#/ && $first++ == 0' "$COMMIT_MSG_FILE" ;;
+#  *) ;;
+# esac
+
+# SOB=$(git var GIT_COMMITTER_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')
+# git interpret-trailers --in-place --trailer "$SOB" "$COMMIT_MSG_FILE"
+# if test -z "$COMMIT_SOURCE"
+# then
+#   /usr/bin/perl -i.bak -pe 'print "\\n" if !$first_line++' "$COMMIT_MSG_FILE"
+# fi
+",
+  ".git/hooks/push-to-checkout.sample": "#!/bin/sh
+
+# An example hook script to update a checked-out tree on a git push.
+#
+# This hook is invoked by git-receive-pack(1) when it reacts to git
+# push and updates reference(s) in its repository, and when the push
+# tries to update the branch that is currently checked out and the
+# receive.denyCurrentBranch configuration variable is set to
+# updateInstead.
+#
+# By default, such a push is refused if the working tree and the index
+# of the remote repository has any difference from the currently
+# checked out commit; when both the working tree and the index match
+# the current commit, they are updated to match the newly pushed tip
+# of the branch. This hook is to be used to override the default
+# behaviour; however the code below reimplements the default behaviour
+# as a starting point for convenient modification.
+#
+# The hook receives the commit with which the tip of the current
+# branch is going to be updated:
+commit=$1
+
+# It can exit with a non-zero status to refuse the push (when it does
+# so, it must not modify the index or the working tree).
+die () {
+	echo >&2 "$*"
+	exit 1
+}
+
+# Or it can make any necessary changes to the working tree and to the
+# index to bring them to the desired state when the tip of the current
+# branch is updated to the new commit, and exit with a zero status.
+#
+# For example, the hook can simply run git read-tree -u -m HEAD "$1"
+# in order to emulate git fetch that is run in the reverse direction
+# with git push, as the two-tree form of git read-tree -u -m is
+# essentially the same as git switch or git checkout that switches
+# branches while keeping the local changes in the working tree that do
+# not interfere with the difference between the branches.
+
+# The below is a more-or-less exact translation to shell of the C code
+# for the default behaviour for git's push-to-checkout hook defined in
+# the push_to_deploy() function in builtin/receive-pack.c.
+#
+# Note that the hook will be executed from the repository directory,
+# not from the working tree, so if you want to perform operations on
+# the working tree, you will have to adapt your code accordingly, e.g.
+# by adding "cd .." or using relative paths.
+
+if ! git update-index -q --ignore-submodules --refresh
+then
+	die "Up-to-date check failed"
+fi
+
+if ! git diff-files --quiet --ignore-submodules --
+then
+	die "Working directory has unstaged changes"
+fi
+
+# This is a rough translation of:
+#
+#   head_has_history() ? "HEAD" : EMPTY_TREE_SHA1_HEX
+if git cat-file -e HEAD 2>/dev/null
+then
+	head=HEAD
+else
+	head=$(git hash-object -t tree --stdin </dev/null)
+fi
+
+if ! git diff-index --quiet --cached --ignore-submodules $head --
+then
+	die "Working directory has staged changes"
+fi
+
+if ! git read-tree -u -m "$commit"
+then
+	die "Could not update working tree to new HEAD"
+fi
+",
+  ".git/hooks/sendemail-validate.sample": "#!/bin/sh
+
+# An example hook script to validate a patch (and/or patch series) before
+# sending it via email.
+#
+# The hook should exit with non-zero status after issuing an appropriate
+# message if it wants to prevent the email(s) from being sent.
+#
+# To enable this hook, rename this file to "sendemail-validate".
+#
+# By default, it will only check that the patch(es) can be applied on top of
+# the default upstream branch without conflicts in a secondary worktree. After
+# validation (successful or not) of the last patch of a series, the worktree
+# will be deleted.
+#
+# The following config variables can be set to change the default remote and
+# remote ref that are used to apply the patches against:
+#
+#   sendemail.validateRemote (default: origin)
+#   sendemail.validateRemoteRef (default: HEAD)
+#
+# Replace the TODO placeholders with appropriate checks according to your
+# needs.
+
+validate_cover_letter () {
+	file="$1"
+	# TODO: Replace with appropriate checks (e.g. spell checking).
+	true
+}
+
+validate_patch () {
+	file="$1"
+	# Ensure that the patch applies without conflicts.
+	git am -3 "$file" || return
+	# TODO: Replace with appropriate checks for this patch
+	# (e.g. checkpatch.pl).
+	true
+}
+
+validate_series () {
+	# TODO: Replace with appropriate checks for the whole series
+	# (e.g. quick build, coding style checks, etc.).
+	true
+}
+
+# main -------------------------------------------------------------------------
+
+if test "$GIT_SENDEMAIL_FILE_COUNTER" = 1
+then
+	remote=$(git config --default origin --get sendemail.validateRemote) &&
+	ref=$(git config --default HEAD --get sendemail.validateRemoteRef) &&
+	worktree=$(mktemp --tmpdir -d sendemail-validate.XXXXXXX) &&
+	git worktree add -fd --checkout "$worktree" "refs/remotes/$remote/$ref" &&
+	git config --replace-all sendemail.validateWorktree "$worktree"
+else
+	worktree=$(git config --get sendemail.validateWorktree)
+fi || {
+	echo "sendemail-validate: error: failed to prepare worktree" >&2
+	exit 1
+}
+
+unset GIT_DIR GIT_WORK_TREE
+cd "$worktree" &&
+
+if grep -q "^diff --git " "$1"
+then
+	validate_patch "$1"
+else
+	validate_cover_letter "$1"
+fi &&
+
+if test "$GIT_SENDEMAIL_FILE_COUNTER" = "$GIT_SENDEMAIL_FILE_TOTAL"
+then
+	git config --unset-all sendemail.validateWorktree &&
+	trap 'git worktree remove -ff "$worktree"' EXIT &&
+	validate_series
+fi
+",
+  ".git/hooks/update.sample": "#!/bin/sh
+#
+# An example hook script to block unannotated tags from entering.
+# Called by "git receive-pack" with arguments: refname sha1-old sha1-new
+#
+# To enable this hook, rename this file to "update".
+#
+# Config
+# ------
+# hooks.allowunannotated
+#   This boolean sets whether unannotated tags will be allowed into the
+#   repository.  By default they won't be.
+# hooks.allowdeletetag
+#   This boolean sets whether deleting tags will be allowed in the
+#   repository.  By default they won't be.
+# hooks.allowmodifytag
+#   This boolean sets whether a tag may be modified after creation. By default
+#   it won't be.
+# hooks.allowdeletebranch
+#   This boolean sets whether deleting branches will be allowed in the
+#   repository.  By default they won't be.
+# hooks.denycreatebranch
+#   This boolean sets whether remotely creating branches will be denied
+#   in the repository.  By default this is allowed.
+#
+
+# --- Command line
+refname="$1"
+oldrev="$2"
+newrev="$3"
+
+# --- Safety check
+if [ -z "$GIT_DIR" ]; then
+	echo "Don't run this script from the command line." >&2
+	echo " (if you want, you could supply GIT_DIR then run" >&2
+	echo "  $0 <ref> <oldrev> <newrev>)" >&2
+	exit 1
+fi
+
+if [ -z "$refname" -o -z "$oldrev" -o -z "$newrev" ]; then
+	echo "usage: $0 <ref> <oldrev> <newrev>" >&2
+	exit 1
+fi
+
+# --- Config
+allowunannotated=$(git config --type=bool hooks.allowunannotated)
+allowdeletebranch=$(git config --type=bool hooks.allowdeletebranch)
+denycreatebranch=$(git config --type=bool hooks.denycreatebranch)
+allowdeletetag=$(git config --type=bool hooks.allowdeletetag)
+allowmodifytag=$(git config --type=bool hooks.allowmodifytag)
+
+# check for no description
+projectdesc=$(sed -e '1q' "$GIT_DIR/description")
+case "$projectdesc" in
+"Unnamed repository"* | "")
+	echo "*** Project description file hasn't been set" >&2
+	exit 1
+	;;
+esac
+
+# --- Check types
+# if $newrev is 0000...0000, it's a commit to delete a ref.
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+if [ "$newrev" = "$zero" ]; then
+	newrev_type=delete
+else
+	newrev_type=$(git cat-file -t $newrev)
+fi
+
+case "$refname","$newrev_type" in
+	refs/tags/*,commit)
+		# un-annotated tag
+		short_refname=\${refname##refs/tags/}
+		if [ "$allowunannotated" != "true" ]; then
+			echo "*** The un-annotated tag, $short_refname, is not allowed in this repository" >&2
+			echo "*** Use 'git tag [ -a | -s ]' for tags you want to propagate." >&2
+			exit 1
+		fi
+		;;
+	refs/tags/*,delete)
+		# delete tag
+		if [ "$allowdeletetag" != "true" ]; then
+			echo "*** Deleting a tag is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/tags/*,tag)
+		# annotated tag
+		if [ "$allowmodifytag" != "true" ] && git rev-parse $refname > /dev/null 2>&1
+		then
+			echo "*** Tag '$refname' already exists." >&2
+			echo "*** Modifying a tag is not allowed in this repository." >&2
+			exit 1
+		fi
+		;;
+	refs/heads/*,commit)
+		# branch
+		if [ "$oldrev" = "$zero" -a "$denycreatebranch" = "true" ]; then
+			echo "*** Creating a branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/heads/*,delete)
+		# delete branch
+		if [ "$allowdeletebranch" != "true" ]; then
+			echo "*** Deleting a branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/remotes/*,commit)
+		# tracking branch
+		;;
+	refs/remotes/*,delete)
+		# delete tracking branch
+		if [ "$allowdeletebranch" != "true" ]; then
+			echo "*** Deleting a tracking branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	*)
+		# Anything else (is there anything else?)
+		echo "*** Update hook: unknown type of update to ref $refname of type $newrev_type" >&2
+		exit 1
+		;;
+esac
+
+# --- Finished
+exit 0
+",
+  ".git/info/exclude": "# git ls-files --others --exclude-from=.git/info/exclude
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+# *.[oa]
+# *~
+",
+  ".gitignore": "# Dependencies
+node_modules
+
+# @lazarv/react-server specific
+.react-server
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Cache
+.eslintcache
+
+# Vercel
+.vercel
+
+# Cache
+.eslintcache
+",
+  ".prettierignore": "*.md
+*-lock.*
+*.lock",
+  ".prettierrc": "{
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "quoteProps": "as-needed",
+  "trailingComma": "es5",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+}
+",
+  "README.md": "This is a [@lazarv/react-server](https://react-server.dev) project bootstrapped with [\`create-react-server\`](https://react-server.dev/guide/quick-start).
+
+## Getting Started
+
+First, run the development server:
+
+\`\`\`sh
+npm run dev
+\`\`\`
+
+Use the \`--open\` flag, the development server command menu or navigate to [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying \`\`. The page auto-updates as you edit the file.
+
+## Build
+
+To build the application for production, run:
+
+\`\`\`sh
+npm run build
+\`\`\`
+
+The build output will be in the \`.react-server\` directory.
+
+To run the production server, run:
+
+\`\`\`sh
+npm start start
+\`\`\`
+
+## Learn More
+
+To learn more about [@lazarv/react-server](https://react-server.dev), take a look at the documentation or search the documentation using the development server.
+
+You can check out framework on [GitHub](https://github.com/lazarv/react-server) - your feedback and contributions are welcome!
+",
+  "eslint.config.mjs": "import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import babelParser from "@babel/eslint-parser";
+import { FlatCompat } from "@eslint/eslintrc";
+import js from "@eslint/js";
+import typescriptEslint from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
+import jsxA11Y from "eslint-plugin-jsx-a11y";
+import prettier from "eslint-plugin-prettier";
+import react from "eslint-plugin-react";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
+});
+
+export default [
+  {
+    ignores: [
+      "**/node_modules/",
+      "**/dist/",
+      "**/build/",
+      "**/.react-server/",
+      "**/.react-server*/",
+      "**/.vercel/",
+      "*.mdx",
+      "*.md",
+      "*.json",
+      "*-lock.*",
+    ],
+  },
+  ...compat.extends(
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
+    "plugin:jsx-a11y/recommended",
+    "plugin:prettier/recommended"
+  ),
+  {
+    plugins: {
+      react,
+
+      "simple-import-sort": simpleImportSort,
+      prettier,
+      "jsx-a11y": jsxA11Y,
+    },
+
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        Deno: "readonly",
+      },
+
+      parser: babelParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
+
+      parserOptions: {
+        requireConfigFile: false,
+
+        babelOptions: {
+          presets: ["@babel/preset-react"],
+          plugins: ["@babel/plugin-syntax-import-assertions"],
+        },
+
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+
+    settings: {
+      react: {
+        version: "19.0.0",
+      },
+    },
+
+    rules: {
+      "react/prop-types": "off",
+
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [["^\\\\u0000"], ["^node:"], ["^react"], ["^[^.]"], ["^\\\\."]],
+        },
+      ],
+
+      "no-async-promise-executor": "off",
+
+      "prettier/prettier": [
+        "error",
+        {
+          endOfLine: "auto",
+        },
+      ],
+    },
+  },
+  ...compat
+    .extends("eslint:recommended", "plugin:@typescript-eslint/recommended")
+    .map((config) => ({
+      ...config,
+      files: ["**/*.{ts,tsx}"],
+    })),
+  {
+    files: ["**/*.{ts,tsx}"],
+
+    plugins: {
+      "@typescript-eslint": typescriptEslint,
+    },
+
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+
+      parser: tsParser,
+    },
+
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+        },
+      ],
+
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+    },
+  },
+];
+",
+  "globals.d.ts": "declare module "https://esm.sh/canvas-confetti" {
+  export default function confetti(): void;
+}
+",
+  "package.json": "{
+  "name": "test-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun react-server ./src/App.tsx",
+    "build": "bun --bun react-server build ./src/App.tsx",
+    "start": "bun --bun react-server start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.25.9",
+    "@babel/plugin-syntax-import-assertions": "^7.25.9",
+    "@babel/preset-react": "^7.25.9",
+    "@eslint/eslintrc": "^3.1.0",
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.1",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^15.11.0",
+    "@types/node": "^20.12.12",
+    "@typescript-eslint/eslint-plugin": "^8.11.0",
+    "@typescript-eslint/parser": "^8.11.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "typescript": "^5.6.2",
+    "vite": "^6.2.3",
+    "prettier": "^3.2.5",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3"
+  }
+}",
+  "postcss.config.mjs": "export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+",
+  "public/github.svg": "<svg width="98" height="96" viewBox="0 0 98 96" fill="none"
+  xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" fill="#24292f"/>
+</svg>",
+  "public/react-server.svg": "<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 33.866666 33.866667"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs1" /><g
+     id="layer1"><g
+       id="g1"
+       transform="matrix(1.4232434,0,0,1.4232434,16.915196,17.10368)"><g
+         stroke="#61dafb"
+         stroke-width="1"
+         fill="none"
+         id="g3"><ellipse
+           rx="11"
+           ry="4.1999998"
+           id="ellipse1"
+           cx="0"
+           cy="0" /><ellipse
+           rx="11"
+           ry="4.1999998"
+           transform="rotate(60)"
+           id="ellipse2"
+           cx="0"
+           cy="0" /><ellipse
+           rx="11"
+           ry="4.1999998"
+           transform="rotate(120)"
+           id="ellipse3"
+           cx="0"
+           cy="0"
+           style="fill:#ffffff;fill-opacity:0" /></g><ellipse
+         fill="#61dafb"
+         id="circle1-46"
+         style="stroke-width:1.01735"
+         ry="4.826261"
+         rx="4.215796"
+         cy="0.15913987"
+         cx="-0.031601399" /></g><path
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.1;stroke-dasharray:none;stroke-opacity:1;stroke-linejoin:round;stroke-linecap:butt"
+       d="m 12.509642,30.690503 -0.05834,-0.05685 -7.23e-4,-0.0561 -7.23e-4,-0.05611 0.768979,-2.092476 0.768982,-2.092473 0.556751,-1.543372 0.556748,-1.543368 0.006,-0.120103 0.006,-0.120088 -1.470798,0.0062 -1.470797,0.0062 -0.06194,-0.0727 -0.06194,-0.0727 0.233074,-0.46889 0.233073,-0.468892 0.856189,-1.667244 0.85619,-1.667245 0.41769,-0.85935 0.417689,-0.859349 -0.02911,-0.04578 -0.02911,-0.04576 -1.464266,0.01887 -1.464263,0.01887 -0.09348,-0.0485 -0.09349,-0.0485 -0.0011,-0.08618 -0.0011,-0.08616 0.11036,-0.213586 0.110359,-0.213582 1.014121,-2.024324 1.014119,-2.024327 0.696804,-1.43016 0.696802,-1.4301581 0.701201,-1.4012125 0.701198,-1.4012124 2.501594,-0.044655 2.501597,-0.044655 0.03154,0.079108 0.03152,0.079108 -0.04589,0.1264481 -0.04587,0.1264636 -0.768293,1.3291372 -0.768291,1.3291355 -0.6677,1.1797846 -0.6677,1.179784 0.02576,0.06464 0.02576,0.06464 1.695367,-0.02185 1.695368,-0.02185 0.07639,0.07444 0.07639,0.07446 7.89e-4,0.06124 7.9e-4,0.06124 -0.249474,0.406592 -0.249474,0.40659 -0.614255,0.968038 -0.614255,0.968039 -1.187109,1.911536 -1.187107,1.91154 -0.06878,0.13724 -0.06879,0.13724 0.02683,0.06732 0.02683,0.06732 1.62427,-0.02093 1.624265,-0.02093 0.09295,0.06616 0.09294,0.06612 -0.04534,0.122827 -0.04534,0.122843 -1.34915,1.664026 -1.349152,1.664023 -0.8062,1.018519 -0.8062,1.018517 -0.670268,0.824742 -0.670264,0.824741 -1.724844,2.146499 -1.724842,2.146498 -0.05964,7.69e-4 -0.05966,7.69e-4 z"
+       id="path1-1" /><path
+       style="fill:#ffd22a;fill-opacity:1;stroke:#ffffff;stroke-width:0.4;stroke-dasharray:none;stroke-opacity:1;stroke-linejoin:round;stroke-linecap:round"
+       d="m 12.509642,30.690503 -0.05834,-0.05685 -7.23e-4,-0.0561 -7.23e-4,-0.05611 0.768979,-2.092476 0.768982,-2.092473 0.556751,-1.543372 0.556748,-1.543368 0.006,-0.120103 0.006,-0.120088 -1.470798,0.0062 -1.470797,0.0062 -0.06194,-0.0727 -0.06194,-0.0727 0.233074,-0.46889 0.233073,-0.468892 0.856189,-1.667244 0.85619,-1.667245 0.41769,-0.85935 0.417689,-0.859349 -0.02911,-0.04578 -0.02911,-0.04576 -1.464266,0.01887 -1.464263,0.01887 -0.09348,-0.0485 -0.09349,-0.0485 -0.0011,-0.08618 -0.0011,-0.08616 0.11036,-0.213586 0.110359,-0.213582 1.014121,-2.024324 1.014119,-2.024327 0.696804,-1.43016 0.696802,-1.4301581 0.701201,-1.4012125 0.701198,-1.4012124 2.501594,-0.044655 2.501597,-0.044655 0.03154,0.079108 0.03152,0.079108 -0.04589,0.1264481 -0.04587,0.1264636 -0.768293,1.3291372 -0.768291,1.3291355 -0.6677,1.1797846 -0.6677,1.179784 0.02576,0.06464 0.02576,0.06464 1.695367,-0.02185 1.695368,-0.02185 0.07639,0.07444 0.07639,0.07446 7.89e-4,0.06124 7.9e-4,0.06124 -0.249474,0.406592 -0.249474,0.40659 -0.614255,0.968038 -0.614255,0.968039 -1.187109,1.911536 -1.187107,1.91154 -0.06878,0.13724 -0.06879,0.13724 0.02683,0.06732 0.02683,0.06732 1.62427,-0.02093 1.624265,-0.02093 0.09295,0.06616 0.09294,0.06612 -0.04534,0.122827 -0.04534,0.122843 -1.34915,1.664026 -1.349152,1.664023 -0.8062,1.018519 -0.8062,1.018517 -0.670268,0.824742 -0.670264,0.824741 -1.724844,2.146499 -1.724842,2.146498 -0.05964,7.69e-4 -0.05966,7.69e-4 z"
+       id="path1" /></g></svg>
+",
+  "src/App.tsx": "import "~/global.css";
+
+import Confetti from "~/Confetti";
+
+export default function App() {
+  return (
+    <html lang="en" className="h-screen" suppressHydrationWarning>
+      <head></head>
+      <body
+        className="w-full min-h-full flex flex-col justify-center items-center dark:bg-zinc-900 dark:text-gray-400"
+        suppressHydrationWarning
+      >
+        <a
+          href="https://github.com/lazarv/react-server"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <img
+            src="/github.svg"
+            alt="GitHub page"
+            className="absolute top-2 right-2 w-6 h-6"
+          />
+        </a>
+
+        <section className="flex flex-col mt-auto">
+          <div className="relative">
+            <img
+              src="/react-server.svg"
+              className="absolute h-[85%] top-1/2 -translate-x-full -translate-y-1/2 -ml-1"
+              alt="@lazarv/react-server logo"
+            />
+            <h2 className="text-xs font-semibold m-0 pt-0 border-none dark:text-yellow-500 mt-4 sm:mt-0">
+              @lazarv
+            </h2>
+            <h1 className="text-5xl font-semibold m-0 -mt-4 whitespace-nowrap sm:text-6xl dark:text-yellow-500">
+              react-server
+            </h1>
+          </div>
+
+          <p className="text-lg">
+            Welcome to your <b>@lazarv/react-server</b> app!
+          </p>
+        </section>
+
+        <Confetti className="mt-4" />
+
+        <p className="text-sm mt-4">
+          Try editing <b>src/App.tsx</b> and save to reload.
+        </p>
+
+        <p className="text-sm mt-auto mb-2">
+          Visit{" "}
+          <a
+            href="https://react-server.dev"
+            target="_blank"
+            className="text-indigo-500 dark:text-yellow-500"
+            rel="noreferrer"
+          >
+            react-server.dev
+          </a>{" "}
+          to learn more about <b>@lazarv/react-server</b>.
+        </p>
+      </body>
+    </html>
+  );
+}
+",
+  "src/Button.tsx": "export type ButtonProps = React.PropsWithChildren<
+  React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>
+>;
+
+export default function Button({ className, children, ...props }: ButtonProps) {
+  return (
+    <button
+      className={\`\${className} rounded-full p-1 inline-flex items-center text-black hover:no-underline from-rose-400 via-fuchsia-500 to-indigo-500 bg-gradient-to-r hover:drop-shadow\`}
+    >
+      <div
+        {...props}
+        className="block rounded-full p-2 px-4 text-sm sm:text-base bg-white dark:bg-gray-900 dark:text-white hover:bg-transparent dark:hover:bg-transparent hover:text-white dark:hover:text-white"
+      >
+        {children}
+      </div>
+    </button>
+  );
+}
+",
+  "src/Confetti.tsx": ""use client";
+
+import Button, { type ButtonProps } from "~/Button";
+
+export default function Confetti(props: ButtonProps) {
+  return (
+    <Button
+      {...props}
+      onClick={async () => {
+        const { default: confetti } =
+          await import("https://esm.sh/canvas-confetti");
+        confetti();
+      }}
+    >
+      Celebrate!
+    </Button>
+  );
+}
+",
+  "src/global.css": "@tailwind base;
+@tailwind components;
+@tailwind utilities;",
+  "tailwind.config.mjs": "/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["src/**/*.{js,jsx,ts,tsx}"],
+  theme: {},
+  plugins: [],
+};
+",
+  "tsconfig.json": "{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["react/experimental", "react-dom/experimental"],
+    "jsx": "preserve",
+    "baseUrl": "./src",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "paths": {
+      "~/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}
+",
+  "vite.config.ts": "import { defineConfig } from "vite";
+
+export default defineConfig({
+  resolve: { alias: { "~/": "/src/" } },
+});
+",
+}
+`;
+
+exports[`create-react-server: bun runtime (bun) > preset: nextjs > creates the app 1`] = `
+{
+  ".git/HEAD": "ref: refs/heads/master
+",
+  ".git/config": "[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+",
+  ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
+",
+  ".git/hooks/applypatch-msg.sample": "#!/bin/sh
+#
+# An example hook script to check the commit log message taken by
+# applypatch from an e-mail message.
+#
+# The hook should exit with non-zero status after issuing an
+# appropriate message if it wants to stop the commit.  The hook is
+# allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "applypatch-msg".
+
+. git-sh-setup
+commitmsg="$(git rev-parse --git-path hooks/commit-msg)"
+test -x "$commitmsg" && exec "$commitmsg" \${1+"$@"}
+:
+",
+  ".git/hooks/commit-msg.sample": "#!/bin/sh
+#
+# An example hook script to check the commit log message.
+# Called by "git commit" with one argument, the name of the file
+# that has the commit message.  The hook should exit with non-zero
+# status after issuing an appropriate message if it wants to stop the
+# commit.  The hook is allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "commit-msg".
+
+# Uncomment the below to add a Signed-off-by line to the message.
+# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
+# hook is more suited to it.
+#
+# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')
+# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
+
+# This example catches duplicate Signed-off-by lines.
+
+test "" = "$(grep '^Signed-off-by: ' "$1" |
+	 sort | uniq -c | sed -e '/^[ 	]*1[ 	]/d')" || {
+	echo >&2 Duplicate Signed-off-by lines.
+	exit 1
+}
+",
+  ".git/hooks/fsmonitor-watchman.sample": "#!/usr/bin/perl
+
+use strict;
+use warnings;
+use IPC::Open2;
+
+# An example hook script to integrate Watchman
+# (https://facebook.github.io/watchman/) with git to speed up detecting
+# new and modified files.
+#
+# The hook is passed a version (currently 2) and last update token
+# formatted as a string and outputs to stdout a new update token and
+# all files that have been modified since the update token. Paths must
+# be relative to the root of the working tree and separated by a single NUL.
+#
+# To enable this hook, rename this file to "query-watchman" and set
+# 'git config core.fsmonitor .git/hooks/query-watchman'
+#
+my ($version, $last_update_token) = @ARGV;
+
+# Uncomment for debugging
+# print STDERR "$0 $version $last_update_token\\n";
+
+# Check the hook interface version
+if ($version ne 2) {
+	die "Unsupported query-fsmonitor hook version '$version'.\\n" .
+	    "Falling back to scanning...\\n";
+}
+
+my $git_work_tree = get_working_dir();
+
+my $retry = 1;
+
+my $json_pkg;
+eval {
+	require JSON::XS;
+	$json_pkg = "JSON::XS";
+	1;
+} or do {
+	require JSON::PP;
+	$json_pkg = "JSON::PP";
+};
+
+launch_watchman();
+
+sub launch_watchman {
+	my $o = watchman_query();
+	if (is_work_tree_watched($o)) {
+		output_result($o->{clock}, @{$o->{files}});
+	}
+}
+
+sub output_result {
+	my ($clockid, @files) = @_;
+
+	# Uncomment for debugging watchman output
+	# open (my $fh, ">", ".git/watchman-output.out");
+	# binmode $fh, ":utf8";
+	# print $fh "$clockid\\n@files\\n";
+	# close $fh;
+
+	binmode STDOUT, ":utf8";
+	print $clockid;
+	print "\\0";
+	local $, = "\\0";
+	print @files;
+}
+
+sub watchman_clock {
+	my $response = qx/watchman clock "$git_work_tree"/;
+	die "Failed to get clock id on '$git_work_tree'.\\n" .
+		"Falling back to scanning...\\n" if $? != 0;
+
+	return $json_pkg->new->utf8->decode($response);
+}
+
+sub watchman_query {
+	my $pid = open2(\\*CHLD_OUT, \\*CHLD_IN, 'watchman -j --no-pretty')
+	or die "open2() failed: $!\\n" .
+	"Falling back to scanning...\\n";
+
+	# In the query expression below we're asking for names of files that
+	# changed since $last_update_token but not from the .git folder.
+	#
+	# To accomplish this, we're using the "since" generator to use the
+	# recency index to select candidate nodes and "fields" to limit the
+	# output to file names only. Then we're using the "expression" term to
+	# further constrain the results.
+	my $last_update_line = "";
+	if (substr($last_update_token, 0, 1) eq "c") {
+		$last_update_token = "\\"$last_update_token\\"";
+		$last_update_line = qq[\\n"since": $last_update_token,];
+	}
+	my $query = <<"	END";
+		["query", "$git_work_tree", {$last_update_line
+			"fields": ["name"],
+			"expression": ["not", ["dirname", ".git"]]
+		}]
+	END
+
+	# Uncomment for debugging the watchman query
+	# open (my $fh, ">", ".git/watchman-query.json");
+	# print $fh $query;
+	# close $fh;
+
+	print CHLD_IN $query;
+	close CHLD_IN;
+	my $response = do {local $/; <CHLD_OUT>};
+
+	# Uncomment for debugging the watch response
+	# open ($fh, ">", ".git/watchman-response.json");
+	# print $fh $response;
+	# close $fh;
+
+	die "Watchman: command returned no output.\\n" .
+	"Falling back to scanning...\\n" if $response eq "";
+	die "Watchman: command returned invalid output: $response\\n" .
+	"Falling back to scanning...\\n" unless $response =~ /^\\{/;
+
+	return $json_pkg->new->utf8->decode($response);
+}
+
+sub is_work_tree_watched {
+	my ($output) = @_;
+	my $error = $output->{error};
+	if ($retry > 0 and $error and $error =~ m/unable to resolve root .* directory (.*) is not watched/) {
+		$retry--;
+		my $response = qx/watchman watch "$git_work_tree"/;
+		die "Failed to make watchman watch '$git_work_tree'.\\n" .
+		    "Falling back to scanning...\\n" if $? != 0;
+		$output = $json_pkg->new->utf8->decode($response);
+		$error = $output->{error};
+		die "Watchman: $error.\\n" .
+		"Falling back to scanning...\\n" if $error;
+
+		# Uncomment for debugging watchman output
+		# open (my $fh, ">", ".git/watchman-output.out");
+		# close $fh;
+
+		# Watchman will always return all files on the first query so
+		# return the fast "everything is dirty" flag to git and do the
+		# Watchman query just to get it over with now so we won't pay
+		# the cost in git to look up each individual file.
+		my $o = watchman_clock();
+		$error = $output->{error};
+
+		die "Watchman: $error.\\n" .
+		"Falling back to scanning...\\n" if $error;
+
+		output_result($o->{clock}, ("/"));
+		$last_update_token = $o->{clock};
+
+		eval { launch_watchman() };
+		return 0;
+	}
+
+	die "Watchman: $error.\\n" .
+	"Falling back to scanning...\\n" if $error;
+
+	return 1;
+}
+
+sub get_working_dir {
+	my $working_dir;
+	if ($^O =~ 'msys' || $^O =~ 'cygwin') {
+		$working_dir = Win32::GetCwd();
+		$working_dir =~ tr/\\\\/\\//;
+	} else {
+		require Cwd;
+		$working_dir = Cwd::cwd();
+	}
+
+	return $working_dir;
+}
+",
+  ".git/hooks/post-update.sample": "#!/bin/sh
+#
+# An example hook script to prepare a packed repository for use over
+# dumb transports.
+#
+# To enable this hook, rename this file to "post-update".
+
+exec git update-server-info
+",
+  ".git/hooks/pre-applypatch.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed
+# by applypatch from an e-mail message.
+#
+# The hook should exit with non-zero status after issuing an
+# appropriate message if it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-applypatch".
+
+. git-sh-setup
+precommit="$(git rev-parse --git-path hooks/pre-commit)"
+test -x "$precommit" && exec "$precommit" \${1+"$@"}
+:
+",
+  ".git/hooks/pre-commit.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+	against=HEAD
+else
+	# Initial commit: diff against an empty tree object
+	against=$(git hash-object -t tree /dev/null)
+fi
+
+# If you want to allow non-ASCII filenames set this variable to true.
+allownonascii=$(git config --type=bool hooks.allownonascii)
+
+# Redirect output to stderr.
+exec 1>&2
+
+# Cross platform projects tend to avoid non-ASCII filenames; prevent
+# them from being added to the repository. We exploit the fact that the
+# printable range starts at the space character and ends with tilde.
+if [ "$allownonascii" != "true" ] &&
+	# Note that the use of brackets around a tr range is ok here, (it's
+	# even required, for portability to Solaris 10's /usr/bin/tr), since
+	# the square bracket bytes happen to fall in the designated range.
+	test $(git diff-index --cached --name-only --diff-filter=A -z $against |
+	  LC_ALL=C tr -d '[ -~]\\0' | wc -c) != 0
+then
+	cat <<\\EOF
+Error: Attempt to add a non-ASCII file name.
+
+This can cause problems if you want to work with people on other platforms.
+
+To be portable it is advisable to rename the file.
+
+If you know what you are doing you can disable this check using:
+
+  git config hooks.allownonascii true
+EOF
+	exit 1
+fi
+
+# If there are whitespace errors, print the offending file names and fail.
+exec git diff-index --check --cached $against --
+",
+  ".git/hooks/pre-merge-commit.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git merge" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message to
+# stderr if it wants to stop the merge commit.
+#
+# To enable this hook, rename this file to "pre-merge-commit".
+
+. git-sh-setup
+test -x "$GIT_DIR/hooks/pre-commit" &&
+        exec "$GIT_DIR/hooks/pre-commit"
+:
+",
+  ".git/hooks/pre-push.sample": "#!/bin/sh
+
+# An example hook script to verify what is about to be pushed.  Called by "git
+# push" after it has checked the remote status, but before anything has been
+# pushed.  If this script exits with a non-zero status nothing will be pushed.
+#
+# This hook is called with the following parameters:
+#
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+#
+# If pushing without using a named remote those arguments will be equal.
+#
+# Information about the commits which are being pushed is supplied as lines to
+# the standard input in the form:
+#
+#   <local ref> <local oid> <remote ref> <remote oid>
+#
+# This sample shows how to prevent push of commits where the log message starts
+# with "WIP" (work in progress).
+
+remote="$1"
+url="$2"
+
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+
+while read local_ref local_oid remote_ref remote_oid
+do
+	if test "$local_oid" = "$zero"
+	then
+		# Handle delete
+		:
+	else
+		if test "$remote_oid" = "$zero"
+		then
+			# New branch, examine all commits
+			range="$local_oid"
+		else
+			# Update to existing branch, examine new commits
+			range="$remote_oid..$local_oid"
+		fi
+
+		# Check for WIP commit
+		commit=$(git rev-list -n 1 --grep '^WIP' "$range")
+		if test -n "$commit"
+		then
+			echo >&2 "Found WIP commit in $local_ref, not pushing"
+			exit 1
+		fi
+	fi
+done
+
+exit 0
+",
+  ".git/hooks/pre-rebase.sample": "#!/bin/sh
+#
+# Copyright (c) 2006, 2008 Junio C Hamano
+#
+# The "pre-rebase" hook is run just before "git rebase" starts doing
+# its job, and can prevent the command from running by exiting with
+# non-zero status.
+#
+# The hook is called with the following parameters:
+#
+# $1 -- the upstream the series was forked from.
+# $2 -- the branch being rebased (or empty when rebasing the current branch).
+#
+# This sample shows how to prevent topic branches that are already
+# merged to 'next' branch from getting rebased, because allowing it
+# would result in rebasing already published history.
+
+publish=next
+basebranch="$1"
+if test "$#" = 2
+then
+	topic="refs/heads/$2"
+else
+	topic=\`git symbolic-ref HEAD\` ||
+	exit 0 ;# we do not interrupt rebasing detached HEAD
+fi
+
+case "$topic" in
+refs/heads/??/*)
+	;;
+*)
+	exit 0 ;# we do not interrupt others.
+	;;
+esac
+
+# Now we are dealing with a topic branch being rebased
+# on top of master.  Is it OK to rebase it?
+
+# Does the topic really exist?
+git show-ref -q "$topic" || {
+	echo >&2 "No such branch $topic"
+	exit 1
+}
+
+# Is topic fully merged to master?
+not_in_master=\`git rev-list --pretty=oneline ^master "$topic"\`
+if test -z "$not_in_master"
+then
+	echo >&2 "$topic is fully merged to master; better remove it."
+	exit 1 ;# we could allow it, but there is no point.
+fi
+
+# Is topic ever merged to next?  If so you should not be rebasing it.
+only_next_1=\`git rev-list ^master "^$topic" \${publish} | sort\`
+only_next_2=\`git rev-list ^master           \${publish} | sort\`
+if test "$only_next_1" = "$only_next_2"
+then
+	not_in_topic=\`git rev-list "^$topic" master\`
+	if test -z "$not_in_topic"
+	then
+		echo >&2 "$topic is already up to date with master"
+		exit 1 ;# we could allow it, but there is no point.
+	else
+		exit 0
+	fi
+else
+	not_in_next=\`git rev-list --pretty=oneline ^\${publish} "$topic"\`
+	/usr/bin/perl -e '
+		my $topic = $ARGV[0];
+		my $msg = "* $topic has commits already merged to public branch:\\n";
+		my (%not_in_next) = map {
+			/^([0-9a-f]+) /;
+			($1 => 1);
+		} split(/\\n/, $ARGV[1]);
+		for my $elem (map {
+				/^([0-9a-f]+) (.*)$/;
+				[$1 => $2];
+			} split(/\\n/, $ARGV[2])) {
+			if (!exists $not_in_next{$elem->[0]}) {
+				if ($msg) {
+					print STDERR $msg;
+					undef $msg;
+				}
+				print STDERR " $elem->[1]\\n";
+			}
+		}
+	' "$topic" "$not_in_next" "$not_in_master"
+	exit 1
+fi
+
+<<\\DOC_END
+
+This sample hook safeguards topic branches that have been
+published from being rewound.
+
+The workflow assumed here is:
+
+ * Once a topic branch forks from "master", "master" is never
+   merged into it again (either directly or indirectly).
+
+ * Once a topic branch is fully cooked and merged into "master",
+   it is deleted.  If you need to build on top of it to correct
+   earlier mistakes, a new topic branch is created by forking at
+   the tip of the "master".  This is not strictly necessary, but
+   it makes it easier to keep your history simple.
+
+ * Whenever you need to test or publish your changes to topic
+   branches, merge them into "next" branch.
+
+The script, being an example, hardcodes the publish branch name
+to be "next", but it is trivial to make it configurable via
+$GIT_DIR/config mechanism.
+
+With this workflow, you would want to know:
+
+(1) ... if a topic branch has ever been merged to "next".  Young
+    topic branches can have stupid mistakes you would rather
+    clean up before publishing, and things that have not been
+    merged into other branches can be easily rebased without
+    affecting other people.  But once it is published, you would
+    not want to rewind it.
+
+(2) ... if a topic branch has been fully merged to "master".
+    Then you can delete it.  More importantly, you should not
+    build on top of it -- other people may already want to
+    change things related to the topic as patches against your
+    "master", so if you need further changes, it is better to
+    fork the topic (perhaps with the same name) afresh from the
+    tip of "master".
+
+Let's look at this example:
+
+		   o---o---o---o---o---o---o---o---o---o "next"
+		  /       /           /           /
+		 /   a---a---b A     /           /
+		/   /               /           /
+	       /   /   c---c---c---c B         /
+	      /   /   /             \\         /
+	     /   /   /   b---b C     \\       /
+	    /   /   /   /             \\     /
+    ---o---o---o---o---o---o---o---o---o---o---o "master"
+
+
+A, B and C are topic branches.
+
+ * A has one fix since it was merged up to "next".
+
+ * B has finished.  It has been fully merged up to "master" and "next",
+   and is ready to be deleted.
+
+ * C has not merged to "next" at all.
+
+We would want to allow C to be rebased, refuse A, and encourage
+B to be deleted.
+
+To compute (1):
+
+	git rev-list ^master ^topic next
+	git rev-list ^master        next
+
+	if these match, topic has not merged in next at all.
+
+To compute (2):
+
+	git rev-list master..topic
+
+	if this is empty, it is fully merged to "master".
+
+DOC_END
+",
+  ".git/hooks/pre-receive.sample": "#!/bin/sh
+#
+# An example hook script to make use of push options.
+# The example simply echoes all push options that start with 'echoback='
+# and rejects all pushes when the "reject" push option is used.
+#
+# To enable this hook, rename this file to "pre-receive".
+
+if test -n "$GIT_PUSH_OPTION_COUNT"
+then
+	i=0
+	while test "$i" -lt "$GIT_PUSH_OPTION_COUNT"
+	do
+		eval "value=\\$GIT_PUSH_OPTION_$i"
+		case "$value" in
+		echoback=*)
+			echo "echo from the pre-receive-hook: \${value#*=}" >&2
+			;;
+		reject)
+			exit 1
+		esac
+		i=$((i + 1))
+	done
+fi
+",
+  ".git/hooks/prepare-commit-msg.sample": "#!/bin/sh
+#
+# An example hook script to prepare the commit log message.
+# Called by "git commit" with the name of the file that has the
+# commit message, followed by the description of the commit
+# message's source.  The hook's purpose is to edit the commit
+# message file.  If the hook fails with a non-zero status,
+# the commit is aborted.
+#
+# To enable this hook, rename this file to "prepare-commit-msg".
+
+# This hook includes three examples. The first one removes the
+# "# Please enter the commit message..." help message.
+#
+# The second includes the output of "git diff --name-status -r"
+# into the message, just before the "git status" output.  It is
+# commented because it doesn't cope with --amend or with squashed
+# commits.
+#
+# The third example adds a Signed-off-by line to the message, that can
+# still be edited.  This is rarely a good idea.
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+SHA1=$3
+
+/usr/bin/perl -i.bak -ne 'print unless(m/^. Please enter the commit message/..m/^#$/)' "$COMMIT_MSG_FILE"
+
+# case "$COMMIT_SOURCE,$SHA1" in
+#  ,|template,)
+#    /usr/bin/perl -i.bak -pe '
+#       print "\\n" . \`git diff --cached --name-status -r\`
+# 	 if /^#/ && $first++ == 0' "$COMMIT_MSG_FILE" ;;
+#  *) ;;
+# esac
+
+# SOB=$(git var GIT_COMMITTER_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')
+# git interpret-trailers --in-place --trailer "$SOB" "$COMMIT_MSG_FILE"
+# if test -z "$COMMIT_SOURCE"
+# then
+#   /usr/bin/perl -i.bak -pe 'print "\\n" if !$first_line++' "$COMMIT_MSG_FILE"
+# fi
+",
+  ".git/hooks/push-to-checkout.sample": "#!/bin/sh
+
+# An example hook script to update a checked-out tree on a git push.
+#
+# This hook is invoked by git-receive-pack(1) when it reacts to git
+# push and updates reference(s) in its repository, and when the push
+# tries to update the branch that is currently checked out and the
+# receive.denyCurrentBranch configuration variable is set to
+# updateInstead.
+#
+# By default, such a push is refused if the working tree and the index
+# of the remote repository has any difference from the currently
+# checked out commit; when both the working tree and the index match
+# the current commit, they are updated to match the newly pushed tip
+# of the branch. This hook is to be used to override the default
+# behaviour; however the code below reimplements the default behaviour
+# as a starting point for convenient modification.
+#
+# The hook receives the commit with which the tip of the current
+# branch is going to be updated:
+commit=$1
+
+# It can exit with a non-zero status to refuse the push (when it does
+# so, it must not modify the index or the working tree).
+die () {
+	echo >&2 "$*"
+	exit 1
+}
+
+# Or it can make any necessary changes to the working tree and to the
+# index to bring them to the desired state when the tip of the current
+# branch is updated to the new commit, and exit with a zero status.
+#
+# For example, the hook can simply run git read-tree -u -m HEAD "$1"
+# in order to emulate git fetch that is run in the reverse direction
+# with git push, as the two-tree form of git read-tree -u -m is
+# essentially the same as git switch or git checkout that switches
+# branches while keeping the local changes in the working tree that do
+# not interfere with the difference between the branches.
+
+# The below is a more-or-less exact translation to shell of the C code
+# for the default behaviour for git's push-to-checkout hook defined in
+# the push_to_deploy() function in builtin/receive-pack.c.
+#
+# Note that the hook will be executed from the repository directory,
+# not from the working tree, so if you want to perform operations on
+# the working tree, you will have to adapt your code accordingly, e.g.
+# by adding "cd .." or using relative paths.
+
+if ! git update-index -q --ignore-submodules --refresh
+then
+	die "Up-to-date check failed"
+fi
+
+if ! git diff-files --quiet --ignore-submodules --
+then
+	die "Working directory has unstaged changes"
+fi
+
+# This is a rough translation of:
+#
+#   head_has_history() ? "HEAD" : EMPTY_TREE_SHA1_HEX
+if git cat-file -e HEAD 2>/dev/null
+then
+	head=HEAD
+else
+	head=$(git hash-object -t tree --stdin </dev/null)
+fi
+
+if ! git diff-index --quiet --cached --ignore-submodules $head --
+then
+	die "Working directory has staged changes"
+fi
+
+if ! git read-tree -u -m "$commit"
+then
+	die "Could not update working tree to new HEAD"
+fi
+",
+  ".git/hooks/sendemail-validate.sample": "#!/bin/sh
+
+# An example hook script to validate a patch (and/or patch series) before
+# sending it via email.
+#
+# The hook should exit with non-zero status after issuing an appropriate
+# message if it wants to prevent the email(s) from being sent.
+#
+# To enable this hook, rename this file to "sendemail-validate".
+#
+# By default, it will only check that the patch(es) can be applied on top of
+# the default upstream branch without conflicts in a secondary worktree. After
+# validation (successful or not) of the last patch of a series, the worktree
+# will be deleted.
+#
+# The following config variables can be set to change the default remote and
+# remote ref that are used to apply the patches against:
+#
+#   sendemail.validateRemote (default: origin)
+#   sendemail.validateRemoteRef (default: HEAD)
+#
+# Replace the TODO placeholders with appropriate checks according to your
+# needs.
+
+validate_cover_letter () {
+	file="$1"
+	# TODO: Replace with appropriate checks (e.g. spell checking).
+	true
+}
+
+validate_patch () {
+	file="$1"
+	# Ensure that the patch applies without conflicts.
+	git am -3 "$file" || return
+	# TODO: Replace with appropriate checks for this patch
+	# (e.g. checkpatch.pl).
+	true
+}
+
+validate_series () {
+	# TODO: Replace with appropriate checks for the whole series
+	# (e.g. quick build, coding style checks, etc.).
+	true
+}
+
+# main -------------------------------------------------------------------------
+
+if test "$GIT_SENDEMAIL_FILE_COUNTER" = 1
+then
+	remote=$(git config --default origin --get sendemail.validateRemote) &&
+	ref=$(git config --default HEAD --get sendemail.validateRemoteRef) &&
+	worktree=$(mktemp --tmpdir -d sendemail-validate.XXXXXXX) &&
+	git worktree add -fd --checkout "$worktree" "refs/remotes/$remote/$ref" &&
+	git config --replace-all sendemail.validateWorktree "$worktree"
+else
+	worktree=$(git config --get sendemail.validateWorktree)
+fi || {
+	echo "sendemail-validate: error: failed to prepare worktree" >&2
+	exit 1
+}
+
+unset GIT_DIR GIT_WORK_TREE
+cd "$worktree" &&
+
+if grep -q "^diff --git " "$1"
+then
+	validate_patch "$1"
+else
+	validate_cover_letter "$1"
+fi &&
+
+if test "$GIT_SENDEMAIL_FILE_COUNTER" = "$GIT_SENDEMAIL_FILE_TOTAL"
+then
+	git config --unset-all sendemail.validateWorktree &&
+	trap 'git worktree remove -ff "$worktree"' EXIT &&
+	validate_series
+fi
+",
+  ".git/hooks/update.sample": "#!/bin/sh
+#
+# An example hook script to block unannotated tags from entering.
+# Called by "git receive-pack" with arguments: refname sha1-old sha1-new
+#
+# To enable this hook, rename this file to "update".
+#
+# Config
+# ------
+# hooks.allowunannotated
+#   This boolean sets whether unannotated tags will be allowed into the
+#   repository.  By default they won't be.
+# hooks.allowdeletetag
+#   This boolean sets whether deleting tags will be allowed in the
+#   repository.  By default they won't be.
+# hooks.allowmodifytag
+#   This boolean sets whether a tag may be modified after creation. By default
+#   it won't be.
+# hooks.allowdeletebranch
+#   This boolean sets whether deleting branches will be allowed in the
+#   repository.  By default they won't be.
+# hooks.denycreatebranch
+#   This boolean sets whether remotely creating branches will be denied
+#   in the repository.  By default this is allowed.
+#
+
+# --- Command line
+refname="$1"
+oldrev="$2"
+newrev="$3"
+
+# --- Safety check
+if [ -z "$GIT_DIR" ]; then
+	echo "Don't run this script from the command line." >&2
+	echo " (if you want, you could supply GIT_DIR then run" >&2
+	echo "  $0 <ref> <oldrev> <newrev>)" >&2
+	exit 1
+fi
+
+if [ -z "$refname" -o -z "$oldrev" -o -z "$newrev" ]; then
+	echo "usage: $0 <ref> <oldrev> <newrev>" >&2
+	exit 1
+fi
+
+# --- Config
+allowunannotated=$(git config --type=bool hooks.allowunannotated)
+allowdeletebranch=$(git config --type=bool hooks.allowdeletebranch)
+denycreatebranch=$(git config --type=bool hooks.denycreatebranch)
+allowdeletetag=$(git config --type=bool hooks.allowdeletetag)
+allowmodifytag=$(git config --type=bool hooks.allowmodifytag)
+
+# check for no description
+projectdesc=$(sed -e '1q' "$GIT_DIR/description")
+case "$projectdesc" in
+"Unnamed repository"* | "")
+	echo "*** Project description file hasn't been set" >&2
+	exit 1
+	;;
+esac
+
+# --- Check types
+# if $newrev is 0000...0000, it's a commit to delete a ref.
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+if [ "$newrev" = "$zero" ]; then
+	newrev_type=delete
+else
+	newrev_type=$(git cat-file -t $newrev)
+fi
+
+case "$refname","$newrev_type" in
+	refs/tags/*,commit)
+		# un-annotated tag
+		short_refname=\${refname##refs/tags/}
+		if [ "$allowunannotated" != "true" ]; then
+			echo "*** The un-annotated tag, $short_refname, is not allowed in this repository" >&2
+			echo "*** Use 'git tag [ -a | -s ]' for tags you want to propagate." >&2
+			exit 1
+		fi
+		;;
+	refs/tags/*,delete)
+		# delete tag
+		if [ "$allowdeletetag" != "true" ]; then
+			echo "*** Deleting a tag is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/tags/*,tag)
+		# annotated tag
+		if [ "$allowmodifytag" != "true" ] && git rev-parse $refname > /dev/null 2>&1
+		then
+			echo "*** Tag '$refname' already exists." >&2
+			echo "*** Modifying a tag is not allowed in this repository." >&2
+			exit 1
+		fi
+		;;
+	refs/heads/*,commit)
+		# branch
+		if [ "$oldrev" = "$zero" -a "$denycreatebranch" = "true" ]; then
+			echo "*** Creating a branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/heads/*,delete)
+		# delete branch
+		if [ "$allowdeletebranch" != "true" ]; then
+			echo "*** Deleting a branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/remotes/*,commit)
+		# tracking branch
+		;;
+	refs/remotes/*,delete)
+		# delete tracking branch
+		if [ "$allowdeletebranch" != "true" ]; then
+			echo "*** Deleting a tracking branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	*)
+		# Anything else (is there anything else?)
+		echo "*** Update hook: unknown type of update to ref $refname of type $newrev_type" >&2
+		exit 1
+		;;
+esac
+
+# --- Finished
+exit 0
+",
+  ".git/info/exclude": "# git ls-files --others --exclude-from=.git/info/exclude
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+# *.[oa]
+# *~
+",
+  ".gitignore": "# Dependencies
+node_modules
+
+# @lazarv/react-server specific
+.react-server
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Cache
+.eslintcache
+
+# Vercel
+.vercel
+
+# Cache
+.eslintcache
+",
+  ".prettierignore": "*.md
+*-lock.*
+*.lock",
+  ".prettierrc": "{
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "quoteProps": "as-needed",
+  "trailingComma": "es5",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+}
+",
+  "README.md": "This is a [@lazarv/react-server](https://react-server.dev) project bootstrapped with [\`create-react-server\`](https://react-server.dev/guide/quick-start).
+
+## Getting Started
+
+First, run the development server:
+
+\`\`\`sh
+npm run dev
+\`\`\`
+
+Use the \`--open\` flag, the development server command menu or navigate to [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying \`\`. The page auto-updates as you edit the file.
+
+## Build
+
+To build the application for production, run:
+
+\`\`\`sh
+npm run build
+\`\`\`
+
+The build output will be in the \`.react-server\` directory.
+
+To run the production server, run:
+
+\`\`\`sh
+npm start start
+\`\`\`
+
+## Learn More
+
+To learn more about [@lazarv/react-server](https://react-server.dev), take a look at the documentation or search the documentation using the development server.
+
+You can check out framework on [GitHub](https://github.com/lazarv/react-server) - your feedback and contributions are welcome!
+",
+  "eslint.config.mjs": "import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import babelParser from "@babel/eslint-parser";
+import { FlatCompat } from "@eslint/eslintrc";
+import js from "@eslint/js";
+import typescriptEslint from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
+import jsxA11Y from "eslint-plugin-jsx-a11y";
+import prettier from "eslint-plugin-prettier";
+import react from "eslint-plugin-react";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
+});
+
+export default [
+  {
+    ignores: [
+      "**/node_modules/",
+      "**/dist/",
+      "**/build/",
+      "**/.react-server/",
+      "**/.react-server*/",
+      "**/.vercel/",
+      "*.mdx",
+      "*.md",
+      "*.json",
+      "*-lock.*",
+    ],
+  },
+  ...compat.extends(
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
+    "plugin:jsx-a11y/recommended",
+    "plugin:prettier/recommended"
+  ),
+  {
+    plugins: {
+      react,
+
+      "simple-import-sort": simpleImportSort,
+      prettier,
+      "jsx-a11y": jsxA11Y,
+    },
+
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        Deno: "readonly",
+      },
+
+      parser: babelParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
+
+      parserOptions: {
+        requireConfigFile: false,
+
+        babelOptions: {
+          presets: ["@babel/preset-react"],
+          plugins: ["@babel/plugin-syntax-import-assertions"],
+        },
+
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+
+    settings: {
+      react: {
+        version: "19.0.0",
+      },
+    },
+
+    rules: {
+      "react/prop-types": "off",
+
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [["^\\\\u0000"], ["^node:"], ["^react"], ["^[^.]"], ["^\\\\."]],
+        },
+      ],
+
+      "no-async-promise-executor": "off",
+
+      "prettier/prettier": [
+        "error",
+        {
+          endOfLine: "auto",
+        },
+      ],
+    },
+  },
+  ...compat
+    .extends("eslint:recommended", "plugin:@typescript-eslint/recommended")
+    .map((config) => ({
+      ...config,
+      files: ["**/*.{ts,tsx}"],
+    })),
+  {
+    files: ["**/*.{ts,tsx}"],
+
+    plugins: {
+      "@typescript-eslint": typescriptEslint,
+    },
+
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+
+      parser: tsParser,
+    },
+
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+        },
+      ],
+
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+    },
+  },
+];
+",
+  "globals.d.ts": "declare module "https://esm.sh/canvas-confetti" {
+  export default function confetti(): void;
+}
+",
+  "package.json": "{
+  "name": "test-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun react-server",
+    "build": "bun --bun react-server build",
+    "start": "bun --bun react-server start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.25.9",
+    "@babel/plugin-syntax-import-assertions": "^7.25.9",
+    "@babel/preset-react": "^7.25.9",
+    "@eslint/eslintrc": "^3.1.0",
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.1",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^15.11.0",
+    "@types/node": "^20.12.12",
+    "@typescript-eslint/eslint-plugin": "^8.11.0",
+    "@typescript-eslint/parser": "^8.11.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "typescript": "^5.6.2",
+    "vite": "^6.2.3",
+    "prettier": "^3.2.5",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "@vitejs/plugin-react-swc": "^4.2.3"
+  }
+}",
+  "postcss.config.mjs": "export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+",
+  "public/github.svg": "<svg width="98" height="96" viewBox="0 0 98 96" fill="none"
+  xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" fill="#24292f"/>
+</svg>",
+  "public/react-server.svg": "<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 33.866666 33.866667"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs1" /><g
+     id="layer1"><g
+       id="g1"
+       transform="matrix(1.4232434,0,0,1.4232434,16.915196,17.10368)"><g
+         stroke="#61dafb"
+         stroke-width="1"
+         fill="none"
+         id="g3"><ellipse
+           rx="11"
+           ry="4.1999998"
+           id="ellipse1"
+           cx="0"
+           cy="0" /><ellipse
+           rx="11"
+           ry="4.1999998"
+           transform="rotate(60)"
+           id="ellipse2"
+           cx="0"
+           cy="0" /><ellipse
+           rx="11"
+           ry="4.1999998"
+           transform="rotate(120)"
+           id="ellipse3"
+           cx="0"
+           cy="0"
+           style="fill:#ffffff;fill-opacity:0" /></g><ellipse
+         fill="#61dafb"
+         id="circle1-46"
+         style="stroke-width:1.01735"
+         ry="4.826261"
+         rx="4.215796"
+         cy="0.15913987"
+         cx="-0.031601399" /></g><path
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.1;stroke-dasharray:none;stroke-opacity:1;stroke-linejoin:round;stroke-linecap:butt"
+       d="m 12.509642,30.690503 -0.05834,-0.05685 -7.23e-4,-0.0561 -7.23e-4,-0.05611 0.768979,-2.092476 0.768982,-2.092473 0.556751,-1.543372 0.556748,-1.543368 0.006,-0.120103 0.006,-0.120088 -1.470798,0.0062 -1.470797,0.0062 -0.06194,-0.0727 -0.06194,-0.0727 0.233074,-0.46889 0.233073,-0.468892 0.856189,-1.667244 0.85619,-1.667245 0.41769,-0.85935 0.417689,-0.859349 -0.02911,-0.04578 -0.02911,-0.04576 -1.464266,0.01887 -1.464263,0.01887 -0.09348,-0.0485 -0.09349,-0.0485 -0.0011,-0.08618 -0.0011,-0.08616 0.11036,-0.213586 0.110359,-0.213582 1.014121,-2.024324 1.014119,-2.024327 0.696804,-1.43016 0.696802,-1.4301581 0.701201,-1.4012125 0.701198,-1.4012124 2.501594,-0.044655 2.501597,-0.044655 0.03154,0.079108 0.03152,0.079108 -0.04589,0.1264481 -0.04587,0.1264636 -0.768293,1.3291372 -0.768291,1.3291355 -0.6677,1.1797846 -0.6677,1.179784 0.02576,0.06464 0.02576,0.06464 1.695367,-0.02185 1.695368,-0.02185 0.07639,0.07444 0.07639,0.07446 7.89e-4,0.06124 7.9e-4,0.06124 -0.249474,0.406592 -0.249474,0.40659 -0.614255,0.968038 -0.614255,0.968039 -1.187109,1.911536 -1.187107,1.91154 -0.06878,0.13724 -0.06879,0.13724 0.02683,0.06732 0.02683,0.06732 1.62427,-0.02093 1.624265,-0.02093 0.09295,0.06616 0.09294,0.06612 -0.04534,0.122827 -0.04534,0.122843 -1.34915,1.664026 -1.349152,1.664023 -0.8062,1.018519 -0.8062,1.018517 -0.670268,0.824742 -0.670264,0.824741 -1.724844,2.146499 -1.724842,2.146498 -0.05964,7.69e-4 -0.05966,7.69e-4 z"
+       id="path1-1" /><path
+       style="fill:#ffd22a;fill-opacity:1;stroke:#ffffff;stroke-width:0.4;stroke-dasharray:none;stroke-opacity:1;stroke-linejoin:round;stroke-linecap:round"
+       d="m 12.509642,30.690503 -0.05834,-0.05685 -7.23e-4,-0.0561 -7.23e-4,-0.05611 0.768979,-2.092476 0.768982,-2.092473 0.556751,-1.543372 0.556748,-1.543368 0.006,-0.120103 0.006,-0.120088 -1.470798,0.0062 -1.470797,0.0062 -0.06194,-0.0727 -0.06194,-0.0727 0.233074,-0.46889 0.233073,-0.468892 0.856189,-1.667244 0.85619,-1.667245 0.41769,-0.85935 0.417689,-0.859349 -0.02911,-0.04578 -0.02911,-0.04576 -1.464266,0.01887 -1.464263,0.01887 -0.09348,-0.0485 -0.09349,-0.0485 -0.0011,-0.08618 -0.0011,-0.08616 0.11036,-0.213586 0.110359,-0.213582 1.014121,-2.024324 1.014119,-2.024327 0.696804,-1.43016 0.696802,-1.4301581 0.701201,-1.4012125 0.701198,-1.4012124 2.501594,-0.044655 2.501597,-0.044655 0.03154,0.079108 0.03152,0.079108 -0.04589,0.1264481 -0.04587,0.1264636 -0.768293,1.3291372 -0.768291,1.3291355 -0.6677,1.1797846 -0.6677,1.179784 0.02576,0.06464 0.02576,0.06464 1.695367,-0.02185 1.695368,-0.02185 0.07639,0.07444 0.07639,0.07446 7.89e-4,0.06124 7.9e-4,0.06124 -0.249474,0.406592 -0.249474,0.40659 -0.614255,0.968038 -0.614255,0.968039 -1.187109,1.911536 -1.187107,1.91154 -0.06878,0.13724 -0.06879,0.13724 0.02683,0.06732 0.02683,0.06732 1.62427,-0.02093 1.624265,-0.02093 0.09295,0.06616 0.09294,0.06612 -0.04534,0.122827 -0.04534,0.122843 -1.34915,1.664026 -1.349152,1.664023 -0.8062,1.018519 -0.8062,1.018517 -0.670268,0.824742 -0.670264,0.824741 -1.724844,2.146499 -1.724842,2.146498 -0.05964,7.69e-4 -0.05966,7.69e-4 z"
+       id="path1" /></g></svg>
+",
+  "react-server.config.json": "{
+  "root": "src/app",
+  "layouts": {
+    "include": ["**/layout.jsx"]
+  },
+  "pages": {
+    "include": ["**/page.jsx"]
+  }
+}
+",
+  "src/app/layout.tsx": "import "~/global.css";
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className="h-screen" suppressHydrationWarning>
+      <head></head>
+      <body
+        className="w-full min-h-full flex flex-col justify-center items-center dark:bg-zinc-900 dark:text-gray-400"
+        suppressHydrationWarning
+      >
+        <a
+          href="https://github.com/lazarv/react-server"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <img
+            src="/github.svg"
+            alt="GitHub page"
+            className="absolute top-2 right-2 w-6 h-6"
+          />
+        </a>
+        {children}
+        <p className="text-sm mt-auto mb-2">
+          Visit{" "}
+          <a
+            href="https://react-server.dev"
+            target="_blank"
+            className="text-indigo-500 dark:text-yellow-500"
+            rel="noreferrer"
+          >
+            react-server.dev
+          </a>{" "}
+          to learn more about <b>@lazarv/react-server</b>.
+        </p>
+      </body>
+    </html>
+  );
+}
+",
+  "src/app/page.tsx": "import Confetti from "~/components/Confetti";
+
+export default function Page() {
+  return (
+    <>
+      <section className="flex flex-col mt-auto">
+        <div className="relative">
+          <img
+            src="/react-server.svg"
+            className="absolute h-[85%] top-1/2 -translate-x-full -translate-y-1/2 -ml-1"
+            alt="@lazarv/react-server logo"
+          />
+          <h2 className="text-xs font-semibold m-0 pt-0 border-none dark:text-yellow-500 mt-4 sm:mt-0">
+            @lazarv
+          </h2>
+          <h1 className="text-5xl font-semibold m-0 -mt-4 whitespace-nowrap sm:text-6xl dark:text-yellow-500">
+            react-server
+          </h1>
+        </div>
+
+        <p className="text-lg">
+          Welcome to your <b>@lazarv/react-server</b> app!
+        </p>
+      </section>
+
+      <Confetti className="mt-4" />
+
+      <p className="text-sm mt-4">
+        Try editing <b>src/app/page.tsx</b> and save to reload.
+      </p>
+    </>
+  );
+}
+",
+  "src/components/Button.tsx": "export type ButtonProps = React.PropsWithChildren<
+  React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>
+>;
+
+export default function Button({ className, children, ...props }: ButtonProps) {
+  return (
+    <button
+      className={\`\${className} rounded-full p-1 inline-flex items-center text-black hover:no-underline from-rose-400 via-fuchsia-500 to-indigo-500 bg-gradient-to-r hover:drop-shadow\`}
+    >
+      <div
+        {...props}
+        className="block rounded-full p-2 px-4 text-sm sm:text-base bg-white dark:bg-gray-900 dark:text-white hover:bg-transparent dark:hover:bg-transparent hover:text-white dark:hover:text-white"
+      >
+        {children}
+      </div>
+    </button>
+  );
+}
+",
+  "src/components/Confetti.tsx": ""use client";
+
+import Button, { type ButtonProps } from "~/components/Button";
+
+export default function Confetti(props: ButtonProps) {
+  return (
+    <Button
+      {...props}
+      onClick={async () => {
+        const { default: confetti } =
+          await import("https://esm.sh/canvas-confetti");
+        confetti();
+      }}
+    >
+      Celebrate!
+    </Button>
+  );
+}
+",
+  "src/global.css": "@tailwind base;
+@tailwind components;
+@tailwind utilities;",
+  "tailwind.config.mjs": "/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["src/**/*.{js,jsx,ts,tsx}"],
+  theme: {},
+  plugins: [],
+};
+",
+  "tsconfig.json": "{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["react/experimental", "react-dom/experimental"],
+    "jsx": "preserve",
+    "baseUrl": "./src",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "paths": {
+      "~/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}
+",
+  "vite.config.ts": "import react from "@vitejs/plugin-react-swc";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: { alias: { "~/": "/src/" } },
+});
+",
+}
+`;
+
+exports[`create-react-server: bun runtime (bun) > preset: router > creates the app 1`] = `
+{
+  ".git/HEAD": "ref: refs/heads/master
+",
+  ".git/config": "[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+",
+  ".git/description": "Unnamed repository; edit this file 'description' to name the repository.
+",
+  ".git/hooks/applypatch-msg.sample": "#!/bin/sh
+#
+# An example hook script to check the commit log message taken by
+# applypatch from an e-mail message.
+#
+# The hook should exit with non-zero status after issuing an
+# appropriate message if it wants to stop the commit.  The hook is
+# allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "applypatch-msg".
+
+. git-sh-setup
+commitmsg="$(git rev-parse --git-path hooks/commit-msg)"
+test -x "$commitmsg" && exec "$commitmsg" \${1+"$@"}
+:
+",
+  ".git/hooks/commit-msg.sample": "#!/bin/sh
+#
+# An example hook script to check the commit log message.
+# Called by "git commit" with one argument, the name of the file
+# that has the commit message.  The hook should exit with non-zero
+# status after issuing an appropriate message if it wants to stop the
+# commit.  The hook is allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "commit-msg".
+
+# Uncomment the below to add a Signed-off-by line to the message.
+# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
+# hook is more suited to it.
+#
+# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')
+# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
+
+# This example catches duplicate Signed-off-by lines.
+
+test "" = "$(grep '^Signed-off-by: ' "$1" |
+	 sort | uniq -c | sed -e '/^[ 	]*1[ 	]/d')" || {
+	echo >&2 Duplicate Signed-off-by lines.
+	exit 1
+}
+",
+  ".git/hooks/fsmonitor-watchman.sample": "#!/usr/bin/perl
+
+use strict;
+use warnings;
+use IPC::Open2;
+
+# An example hook script to integrate Watchman
+# (https://facebook.github.io/watchman/) with git to speed up detecting
+# new and modified files.
+#
+# The hook is passed a version (currently 2) and last update token
+# formatted as a string and outputs to stdout a new update token and
+# all files that have been modified since the update token. Paths must
+# be relative to the root of the working tree and separated by a single NUL.
+#
+# To enable this hook, rename this file to "query-watchman" and set
+# 'git config core.fsmonitor .git/hooks/query-watchman'
+#
+my ($version, $last_update_token) = @ARGV;
+
+# Uncomment for debugging
+# print STDERR "$0 $version $last_update_token\\n";
+
+# Check the hook interface version
+if ($version ne 2) {
+	die "Unsupported query-fsmonitor hook version '$version'.\\n" .
+	    "Falling back to scanning...\\n";
+}
+
+my $git_work_tree = get_working_dir();
+
+my $retry = 1;
+
+my $json_pkg;
+eval {
+	require JSON::XS;
+	$json_pkg = "JSON::XS";
+	1;
+} or do {
+	require JSON::PP;
+	$json_pkg = "JSON::PP";
+};
+
+launch_watchman();
+
+sub launch_watchman {
+	my $o = watchman_query();
+	if (is_work_tree_watched($o)) {
+		output_result($o->{clock}, @{$o->{files}});
+	}
+}
+
+sub output_result {
+	my ($clockid, @files) = @_;
+
+	# Uncomment for debugging watchman output
+	# open (my $fh, ">", ".git/watchman-output.out");
+	# binmode $fh, ":utf8";
+	# print $fh "$clockid\\n@files\\n";
+	# close $fh;
+
+	binmode STDOUT, ":utf8";
+	print $clockid;
+	print "\\0";
+	local $, = "\\0";
+	print @files;
+}
+
+sub watchman_clock {
+	my $response = qx/watchman clock "$git_work_tree"/;
+	die "Failed to get clock id on '$git_work_tree'.\\n" .
+		"Falling back to scanning...\\n" if $? != 0;
+
+	return $json_pkg->new->utf8->decode($response);
+}
+
+sub watchman_query {
+	my $pid = open2(\\*CHLD_OUT, \\*CHLD_IN, 'watchman -j --no-pretty')
+	or die "open2() failed: $!\\n" .
+	"Falling back to scanning...\\n";
+
+	# In the query expression below we're asking for names of files that
+	# changed since $last_update_token but not from the .git folder.
+	#
+	# To accomplish this, we're using the "since" generator to use the
+	# recency index to select candidate nodes and "fields" to limit the
+	# output to file names only. Then we're using the "expression" term to
+	# further constrain the results.
+	my $last_update_line = "";
+	if (substr($last_update_token, 0, 1) eq "c") {
+		$last_update_token = "\\"$last_update_token\\"";
+		$last_update_line = qq[\\n"since": $last_update_token,];
+	}
+	my $query = <<"	END";
+		["query", "$git_work_tree", {$last_update_line
+			"fields": ["name"],
+			"expression": ["not", ["dirname", ".git"]]
+		}]
+	END
+
+	# Uncomment for debugging the watchman query
+	# open (my $fh, ">", ".git/watchman-query.json");
+	# print $fh $query;
+	# close $fh;
+
+	print CHLD_IN $query;
+	close CHLD_IN;
+	my $response = do {local $/; <CHLD_OUT>};
+
+	# Uncomment for debugging the watch response
+	# open ($fh, ">", ".git/watchman-response.json");
+	# print $fh $response;
+	# close $fh;
+
+	die "Watchman: command returned no output.\\n" .
+	"Falling back to scanning...\\n" if $response eq "";
+	die "Watchman: command returned invalid output: $response\\n" .
+	"Falling back to scanning...\\n" unless $response =~ /^\\{/;
+
+	return $json_pkg->new->utf8->decode($response);
+}
+
+sub is_work_tree_watched {
+	my ($output) = @_;
+	my $error = $output->{error};
+	if ($retry > 0 and $error and $error =~ m/unable to resolve root .* directory (.*) is not watched/) {
+		$retry--;
+		my $response = qx/watchman watch "$git_work_tree"/;
+		die "Failed to make watchman watch '$git_work_tree'.\\n" .
+		    "Falling back to scanning...\\n" if $? != 0;
+		$output = $json_pkg->new->utf8->decode($response);
+		$error = $output->{error};
+		die "Watchman: $error.\\n" .
+		"Falling back to scanning...\\n" if $error;
+
+		# Uncomment for debugging watchman output
+		# open (my $fh, ">", ".git/watchman-output.out");
+		# close $fh;
+
+		# Watchman will always return all files on the first query so
+		# return the fast "everything is dirty" flag to git and do the
+		# Watchman query just to get it over with now so we won't pay
+		# the cost in git to look up each individual file.
+		my $o = watchman_clock();
+		$error = $output->{error};
+
+		die "Watchman: $error.\\n" .
+		"Falling back to scanning...\\n" if $error;
+
+		output_result($o->{clock}, ("/"));
+		$last_update_token = $o->{clock};
+
+		eval { launch_watchman() };
+		return 0;
+	}
+
+	die "Watchman: $error.\\n" .
+	"Falling back to scanning...\\n" if $error;
+
+	return 1;
+}
+
+sub get_working_dir {
+	my $working_dir;
+	if ($^O =~ 'msys' || $^O =~ 'cygwin') {
+		$working_dir = Win32::GetCwd();
+		$working_dir =~ tr/\\\\/\\//;
+	} else {
+		require Cwd;
+		$working_dir = Cwd::cwd();
+	}
+
+	return $working_dir;
+}
+",
+  ".git/hooks/post-update.sample": "#!/bin/sh
+#
+# An example hook script to prepare a packed repository for use over
+# dumb transports.
+#
+# To enable this hook, rename this file to "post-update".
+
+exec git update-server-info
+",
+  ".git/hooks/pre-applypatch.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed
+# by applypatch from an e-mail message.
+#
+# The hook should exit with non-zero status after issuing an
+# appropriate message if it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-applypatch".
+
+. git-sh-setup
+precommit="$(git rev-parse --git-path hooks/pre-commit)"
+test -x "$precommit" && exec "$precommit" \${1+"$@"}
+:
+",
+  ".git/hooks/pre-commit.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+	against=HEAD
+else
+	# Initial commit: diff against an empty tree object
+	against=$(git hash-object -t tree /dev/null)
+fi
+
+# If you want to allow non-ASCII filenames set this variable to true.
+allownonascii=$(git config --type=bool hooks.allownonascii)
+
+# Redirect output to stderr.
+exec 1>&2
+
+# Cross platform projects tend to avoid non-ASCII filenames; prevent
+# them from being added to the repository. We exploit the fact that the
+# printable range starts at the space character and ends with tilde.
+if [ "$allownonascii" != "true" ] &&
+	# Note that the use of brackets around a tr range is ok here, (it's
+	# even required, for portability to Solaris 10's /usr/bin/tr), since
+	# the square bracket bytes happen to fall in the designated range.
+	test $(git diff-index --cached --name-only --diff-filter=A -z $against |
+	  LC_ALL=C tr -d '[ -~]\\0' | wc -c) != 0
+then
+	cat <<\\EOF
+Error: Attempt to add a non-ASCII file name.
+
+This can cause problems if you want to work with people on other platforms.
+
+To be portable it is advisable to rename the file.
+
+If you know what you are doing you can disable this check using:
+
+  git config hooks.allownonascii true
+EOF
+	exit 1
+fi
+
+# If there are whitespace errors, print the offending file names and fail.
+exec git diff-index --check --cached $against --
+",
+  ".git/hooks/pre-merge-commit.sample": "#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git merge" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message to
+# stderr if it wants to stop the merge commit.
+#
+# To enable this hook, rename this file to "pre-merge-commit".
+
+. git-sh-setup
+test -x "$GIT_DIR/hooks/pre-commit" &&
+        exec "$GIT_DIR/hooks/pre-commit"
+:
+",
+  ".git/hooks/pre-push.sample": "#!/bin/sh
+
+# An example hook script to verify what is about to be pushed.  Called by "git
+# push" after it has checked the remote status, but before anything has been
+# pushed.  If this script exits with a non-zero status nothing will be pushed.
+#
+# This hook is called with the following parameters:
+#
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+#
+# If pushing without using a named remote those arguments will be equal.
+#
+# Information about the commits which are being pushed is supplied as lines to
+# the standard input in the form:
+#
+#   <local ref> <local oid> <remote ref> <remote oid>
+#
+# This sample shows how to prevent push of commits where the log message starts
+# with "WIP" (work in progress).
+
+remote="$1"
+url="$2"
+
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+
+while read local_ref local_oid remote_ref remote_oid
+do
+	if test "$local_oid" = "$zero"
+	then
+		# Handle delete
+		:
+	else
+		if test "$remote_oid" = "$zero"
+		then
+			# New branch, examine all commits
+			range="$local_oid"
+		else
+			# Update to existing branch, examine new commits
+			range="$remote_oid..$local_oid"
+		fi
+
+		# Check for WIP commit
+		commit=$(git rev-list -n 1 --grep '^WIP' "$range")
+		if test -n "$commit"
+		then
+			echo >&2 "Found WIP commit in $local_ref, not pushing"
+			exit 1
+		fi
+	fi
+done
+
+exit 0
+",
+  ".git/hooks/pre-rebase.sample": "#!/bin/sh
+#
+# Copyright (c) 2006, 2008 Junio C Hamano
+#
+# The "pre-rebase" hook is run just before "git rebase" starts doing
+# its job, and can prevent the command from running by exiting with
+# non-zero status.
+#
+# The hook is called with the following parameters:
+#
+# $1 -- the upstream the series was forked from.
+# $2 -- the branch being rebased (or empty when rebasing the current branch).
+#
+# This sample shows how to prevent topic branches that are already
+# merged to 'next' branch from getting rebased, because allowing it
+# would result in rebasing already published history.
+
+publish=next
+basebranch="$1"
+if test "$#" = 2
+then
+	topic="refs/heads/$2"
+else
+	topic=\`git symbolic-ref HEAD\` ||
+	exit 0 ;# we do not interrupt rebasing detached HEAD
+fi
+
+case "$topic" in
+refs/heads/??/*)
+	;;
+*)
+	exit 0 ;# we do not interrupt others.
+	;;
+esac
+
+# Now we are dealing with a topic branch being rebased
+# on top of master.  Is it OK to rebase it?
+
+# Does the topic really exist?
+git show-ref -q "$topic" || {
+	echo >&2 "No such branch $topic"
+	exit 1
+}
+
+# Is topic fully merged to master?
+not_in_master=\`git rev-list --pretty=oneline ^master "$topic"\`
+if test -z "$not_in_master"
+then
+	echo >&2 "$topic is fully merged to master; better remove it."
+	exit 1 ;# we could allow it, but there is no point.
+fi
+
+# Is topic ever merged to next?  If so you should not be rebasing it.
+only_next_1=\`git rev-list ^master "^$topic" \${publish} | sort\`
+only_next_2=\`git rev-list ^master           \${publish} | sort\`
+if test "$only_next_1" = "$only_next_2"
+then
+	not_in_topic=\`git rev-list "^$topic" master\`
+	if test -z "$not_in_topic"
+	then
+		echo >&2 "$topic is already up to date with master"
+		exit 1 ;# we could allow it, but there is no point.
+	else
+		exit 0
+	fi
+else
+	not_in_next=\`git rev-list --pretty=oneline ^\${publish} "$topic"\`
+	/usr/bin/perl -e '
+		my $topic = $ARGV[0];
+		my $msg = "* $topic has commits already merged to public branch:\\n";
+		my (%not_in_next) = map {
+			/^([0-9a-f]+) /;
+			($1 => 1);
+		} split(/\\n/, $ARGV[1]);
+		for my $elem (map {
+				/^([0-9a-f]+) (.*)$/;
+				[$1 => $2];
+			} split(/\\n/, $ARGV[2])) {
+			if (!exists $not_in_next{$elem->[0]}) {
+				if ($msg) {
+					print STDERR $msg;
+					undef $msg;
+				}
+				print STDERR " $elem->[1]\\n";
+			}
+		}
+	' "$topic" "$not_in_next" "$not_in_master"
+	exit 1
+fi
+
+<<\\DOC_END
+
+This sample hook safeguards topic branches that have been
+published from being rewound.
+
+The workflow assumed here is:
+
+ * Once a topic branch forks from "master", "master" is never
+   merged into it again (either directly or indirectly).
+
+ * Once a topic branch is fully cooked and merged into "master",
+   it is deleted.  If you need to build on top of it to correct
+   earlier mistakes, a new topic branch is created by forking at
+   the tip of the "master".  This is not strictly necessary, but
+   it makes it easier to keep your history simple.
+
+ * Whenever you need to test or publish your changes to topic
+   branches, merge them into "next" branch.
+
+The script, being an example, hardcodes the publish branch name
+to be "next", but it is trivial to make it configurable via
+$GIT_DIR/config mechanism.
+
+With this workflow, you would want to know:
+
+(1) ... if a topic branch has ever been merged to "next".  Young
+    topic branches can have stupid mistakes you would rather
+    clean up before publishing, and things that have not been
+    merged into other branches can be easily rebased without
+    affecting other people.  But once it is published, you would
+    not want to rewind it.
+
+(2) ... if a topic branch has been fully merged to "master".
+    Then you can delete it.  More importantly, you should not
+    build on top of it -- other people may already want to
+    change things related to the topic as patches against your
+    "master", so if you need further changes, it is better to
+    fork the topic (perhaps with the same name) afresh from the
+    tip of "master".
+
+Let's look at this example:
+
+		   o---o---o---o---o---o---o---o---o---o "next"
+		  /       /           /           /
+		 /   a---a---b A     /           /
+		/   /               /           /
+	       /   /   c---c---c---c B         /
+	      /   /   /             \\         /
+	     /   /   /   b---b C     \\       /
+	    /   /   /   /             \\     /
+    ---o---o---o---o---o---o---o---o---o---o---o "master"
+
+
+A, B and C are topic branches.
+
+ * A has one fix since it was merged up to "next".
+
+ * B has finished.  It has been fully merged up to "master" and "next",
+   and is ready to be deleted.
+
+ * C has not merged to "next" at all.
+
+We would want to allow C to be rebased, refuse A, and encourage
+B to be deleted.
+
+To compute (1):
+
+	git rev-list ^master ^topic next
+	git rev-list ^master        next
+
+	if these match, topic has not merged in next at all.
+
+To compute (2):
+
+	git rev-list master..topic
+
+	if this is empty, it is fully merged to "master".
+
+DOC_END
+",
+  ".git/hooks/pre-receive.sample": "#!/bin/sh
+#
+# An example hook script to make use of push options.
+# The example simply echoes all push options that start with 'echoback='
+# and rejects all pushes when the "reject" push option is used.
+#
+# To enable this hook, rename this file to "pre-receive".
+
+if test -n "$GIT_PUSH_OPTION_COUNT"
+then
+	i=0
+	while test "$i" -lt "$GIT_PUSH_OPTION_COUNT"
+	do
+		eval "value=\\$GIT_PUSH_OPTION_$i"
+		case "$value" in
+		echoback=*)
+			echo "echo from the pre-receive-hook: \${value#*=}" >&2
+			;;
+		reject)
+			exit 1
+		esac
+		i=$((i + 1))
+	done
+fi
+",
+  ".git/hooks/prepare-commit-msg.sample": "#!/bin/sh
+#
+# An example hook script to prepare the commit log message.
+# Called by "git commit" with the name of the file that has the
+# commit message, followed by the description of the commit
+# message's source.  The hook's purpose is to edit the commit
+# message file.  If the hook fails with a non-zero status,
+# the commit is aborted.
+#
+# To enable this hook, rename this file to "prepare-commit-msg".
+
+# This hook includes three examples. The first one removes the
+# "# Please enter the commit message..." help message.
+#
+# The second includes the output of "git diff --name-status -r"
+# into the message, just before the "git status" output.  It is
+# commented because it doesn't cope with --amend or with squashed
+# commits.
+#
+# The third example adds a Signed-off-by line to the message, that can
+# still be edited.  This is rarely a good idea.
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+SHA1=$3
+
+/usr/bin/perl -i.bak -ne 'print unless(m/^. Please enter the commit message/..m/^#$/)' "$COMMIT_MSG_FILE"
+
+# case "$COMMIT_SOURCE,$SHA1" in
+#  ,|template,)
+#    /usr/bin/perl -i.bak -pe '
+#       print "\\n" . \`git diff --cached --name-status -r\`
+# 	 if /^#/ && $first++ == 0' "$COMMIT_MSG_FILE" ;;
+#  *) ;;
+# esac
+
+# SOB=$(git var GIT_COMMITTER_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')
+# git interpret-trailers --in-place --trailer "$SOB" "$COMMIT_MSG_FILE"
+# if test -z "$COMMIT_SOURCE"
+# then
+#   /usr/bin/perl -i.bak -pe 'print "\\n" if !$first_line++' "$COMMIT_MSG_FILE"
+# fi
+",
+  ".git/hooks/push-to-checkout.sample": "#!/bin/sh
+
+# An example hook script to update a checked-out tree on a git push.
+#
+# This hook is invoked by git-receive-pack(1) when it reacts to git
+# push and updates reference(s) in its repository, and when the push
+# tries to update the branch that is currently checked out and the
+# receive.denyCurrentBranch configuration variable is set to
+# updateInstead.
+#
+# By default, such a push is refused if the working tree and the index
+# of the remote repository has any difference from the currently
+# checked out commit; when both the working tree and the index match
+# the current commit, they are updated to match the newly pushed tip
+# of the branch. This hook is to be used to override the default
+# behaviour; however the code below reimplements the default behaviour
+# as a starting point for convenient modification.
+#
+# The hook receives the commit with which the tip of the current
+# branch is going to be updated:
+commit=$1
+
+# It can exit with a non-zero status to refuse the push (when it does
+# so, it must not modify the index or the working tree).
+die () {
+	echo >&2 "$*"
+	exit 1
+}
+
+# Or it can make any necessary changes to the working tree and to the
+# index to bring them to the desired state when the tip of the current
+# branch is updated to the new commit, and exit with a zero status.
+#
+# For example, the hook can simply run git read-tree -u -m HEAD "$1"
+# in order to emulate git fetch that is run in the reverse direction
+# with git push, as the two-tree form of git read-tree -u -m is
+# essentially the same as git switch or git checkout that switches
+# branches while keeping the local changes in the working tree that do
+# not interfere with the difference between the branches.
+
+# The below is a more-or-less exact translation to shell of the C code
+# for the default behaviour for git's push-to-checkout hook defined in
+# the push_to_deploy() function in builtin/receive-pack.c.
+#
+# Note that the hook will be executed from the repository directory,
+# not from the working tree, so if you want to perform operations on
+# the working tree, you will have to adapt your code accordingly, e.g.
+# by adding "cd .." or using relative paths.
+
+if ! git update-index -q --ignore-submodules --refresh
+then
+	die "Up-to-date check failed"
+fi
+
+if ! git diff-files --quiet --ignore-submodules --
+then
+	die "Working directory has unstaged changes"
+fi
+
+# This is a rough translation of:
+#
+#   head_has_history() ? "HEAD" : EMPTY_TREE_SHA1_HEX
+if git cat-file -e HEAD 2>/dev/null
+then
+	head=HEAD
+else
+	head=$(git hash-object -t tree --stdin </dev/null)
+fi
+
+if ! git diff-index --quiet --cached --ignore-submodules $head --
+then
+	die "Working directory has staged changes"
+fi
+
+if ! git read-tree -u -m "$commit"
+then
+	die "Could not update working tree to new HEAD"
+fi
+",
+  ".git/hooks/sendemail-validate.sample": "#!/bin/sh
+
+# An example hook script to validate a patch (and/or patch series) before
+# sending it via email.
+#
+# The hook should exit with non-zero status after issuing an appropriate
+# message if it wants to prevent the email(s) from being sent.
+#
+# To enable this hook, rename this file to "sendemail-validate".
+#
+# By default, it will only check that the patch(es) can be applied on top of
+# the default upstream branch without conflicts in a secondary worktree. After
+# validation (successful or not) of the last patch of a series, the worktree
+# will be deleted.
+#
+# The following config variables can be set to change the default remote and
+# remote ref that are used to apply the patches against:
+#
+#   sendemail.validateRemote (default: origin)
+#   sendemail.validateRemoteRef (default: HEAD)
+#
+# Replace the TODO placeholders with appropriate checks according to your
+# needs.
+
+validate_cover_letter () {
+	file="$1"
+	# TODO: Replace with appropriate checks (e.g. spell checking).
+	true
+}
+
+validate_patch () {
+	file="$1"
+	# Ensure that the patch applies without conflicts.
+	git am -3 "$file" || return
+	# TODO: Replace with appropriate checks for this patch
+	# (e.g. checkpatch.pl).
+	true
+}
+
+validate_series () {
+	# TODO: Replace with appropriate checks for the whole series
+	# (e.g. quick build, coding style checks, etc.).
+	true
+}
+
+# main -------------------------------------------------------------------------
+
+if test "$GIT_SENDEMAIL_FILE_COUNTER" = 1
+then
+	remote=$(git config --default origin --get sendemail.validateRemote) &&
+	ref=$(git config --default HEAD --get sendemail.validateRemoteRef) &&
+	worktree=$(mktemp --tmpdir -d sendemail-validate.XXXXXXX) &&
+	git worktree add -fd --checkout "$worktree" "refs/remotes/$remote/$ref" &&
+	git config --replace-all sendemail.validateWorktree "$worktree"
+else
+	worktree=$(git config --get sendemail.validateWorktree)
+fi || {
+	echo "sendemail-validate: error: failed to prepare worktree" >&2
+	exit 1
+}
+
+unset GIT_DIR GIT_WORK_TREE
+cd "$worktree" &&
+
+if grep -q "^diff --git " "$1"
+then
+	validate_patch "$1"
+else
+	validate_cover_letter "$1"
+fi &&
+
+if test "$GIT_SENDEMAIL_FILE_COUNTER" = "$GIT_SENDEMAIL_FILE_TOTAL"
+then
+	git config --unset-all sendemail.validateWorktree &&
+	trap 'git worktree remove -ff "$worktree"' EXIT &&
+	validate_series
+fi
+",
+  ".git/hooks/update.sample": "#!/bin/sh
+#
+# An example hook script to block unannotated tags from entering.
+# Called by "git receive-pack" with arguments: refname sha1-old sha1-new
+#
+# To enable this hook, rename this file to "update".
+#
+# Config
+# ------
+# hooks.allowunannotated
+#   This boolean sets whether unannotated tags will be allowed into the
+#   repository.  By default they won't be.
+# hooks.allowdeletetag
+#   This boolean sets whether deleting tags will be allowed in the
+#   repository.  By default they won't be.
+# hooks.allowmodifytag
+#   This boolean sets whether a tag may be modified after creation. By default
+#   it won't be.
+# hooks.allowdeletebranch
+#   This boolean sets whether deleting branches will be allowed in the
+#   repository.  By default they won't be.
+# hooks.denycreatebranch
+#   This boolean sets whether remotely creating branches will be denied
+#   in the repository.  By default this is allowed.
+#
+
+# --- Command line
+refname="$1"
+oldrev="$2"
+newrev="$3"
+
+# --- Safety check
+if [ -z "$GIT_DIR" ]; then
+	echo "Don't run this script from the command line." >&2
+	echo " (if you want, you could supply GIT_DIR then run" >&2
+	echo "  $0 <ref> <oldrev> <newrev>)" >&2
+	exit 1
+fi
+
+if [ -z "$refname" -o -z "$oldrev" -o -z "$newrev" ]; then
+	echo "usage: $0 <ref> <oldrev> <newrev>" >&2
+	exit 1
+fi
+
+# --- Config
+allowunannotated=$(git config --type=bool hooks.allowunannotated)
+allowdeletebranch=$(git config --type=bool hooks.allowdeletebranch)
+denycreatebranch=$(git config --type=bool hooks.denycreatebranch)
+allowdeletetag=$(git config --type=bool hooks.allowdeletetag)
+allowmodifytag=$(git config --type=bool hooks.allowmodifytag)
+
+# check for no description
+projectdesc=$(sed -e '1q' "$GIT_DIR/description")
+case "$projectdesc" in
+"Unnamed repository"* | "")
+	echo "*** Project description file hasn't been set" >&2
+	exit 1
+	;;
+esac
+
+# --- Check types
+# if $newrev is 0000...0000, it's a commit to delete a ref.
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+if [ "$newrev" = "$zero" ]; then
+	newrev_type=delete
+else
+	newrev_type=$(git cat-file -t $newrev)
+fi
+
+case "$refname","$newrev_type" in
+	refs/tags/*,commit)
+		# un-annotated tag
+		short_refname=\${refname##refs/tags/}
+		if [ "$allowunannotated" != "true" ]; then
+			echo "*** The un-annotated tag, $short_refname, is not allowed in this repository" >&2
+			echo "*** Use 'git tag [ -a | -s ]' for tags you want to propagate." >&2
+			exit 1
+		fi
+		;;
+	refs/tags/*,delete)
+		# delete tag
+		if [ "$allowdeletetag" != "true" ]; then
+			echo "*** Deleting a tag is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/tags/*,tag)
+		# annotated tag
+		if [ "$allowmodifytag" != "true" ] && git rev-parse $refname > /dev/null 2>&1
+		then
+			echo "*** Tag '$refname' already exists." >&2
+			echo "*** Modifying a tag is not allowed in this repository." >&2
+			exit 1
+		fi
+		;;
+	refs/heads/*,commit)
+		# branch
+		if [ "$oldrev" = "$zero" -a "$denycreatebranch" = "true" ]; then
+			echo "*** Creating a branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/heads/*,delete)
+		# delete branch
+		if [ "$allowdeletebranch" != "true" ]; then
+			echo "*** Deleting a branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	refs/remotes/*,commit)
+		# tracking branch
+		;;
+	refs/remotes/*,delete)
+		# delete tracking branch
+		if [ "$allowdeletebranch" != "true" ]; then
+			echo "*** Deleting a tracking branch is not allowed in this repository" >&2
+			exit 1
+		fi
+		;;
+	*)
+		# Anything else (is there anything else?)
+		echo "*** Update hook: unknown type of update to ref $refname of type $newrev_type" >&2
+		exit 1
+		;;
+esac
+
+# --- Finished
+exit 0
+",
+  ".git/info/exclude": "# git ls-files --others --exclude-from=.git/info/exclude
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+# *.[oa]
+# *~
+",
+  ".gitignore": "# Dependencies
+node_modules
+
+# @lazarv/react-server specific
+.react-server
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Cache
+.eslintcache
+
+# Vercel
+.vercel
+
+# Cache
+.eslintcache
+",
+  ".prettierignore": "*.md
+*-lock.*
+*.lock",
+  ".prettierrc": "{
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "quoteProps": "as-needed",
+  "trailingComma": "es5",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+}
+",
+  "README.md": "This is a [@lazarv/react-server](https://react-server.dev) project bootstrapped with [\`create-react-server\`](https://react-server.dev/guide/quick-start).
+
+## Getting Started
+
+First, run the development server:
+
+\`\`\`sh
+npm run dev
+\`\`\`
+
+Use the \`--open\` flag, the development server command menu or navigate to [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying \`\`. The page auto-updates as you edit the file.
+
+## Build
+
+To build the application for production, run:
+
+\`\`\`sh
+npm run build
+\`\`\`
+
+The build output will be in the \`.react-server\` directory.
+
+To run the production server, run:
+
+\`\`\`sh
+npm start start
+\`\`\`
+
+## Learn More
+
+To learn more about [@lazarv/react-server](https://react-server.dev), take a look at the documentation or search the documentation using the development server.
+
+You can check out framework on [GitHub](https://github.com/lazarv/react-server) - your feedback and contributions are welcome!
+",
+  "eslint.config.mjs": "import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import babelParser from "@babel/eslint-parser";
+import { FlatCompat } from "@eslint/eslintrc";
+import js from "@eslint/js";
+import typescriptEslint from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
+import jsxA11Y from "eslint-plugin-jsx-a11y";
+import prettier from "eslint-plugin-prettier";
+import react from "eslint-plugin-react";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
+});
+
+export default [
+  {
+    ignores: [
+      "**/node_modules/",
+      "**/dist/",
+      "**/build/",
+      "**/.react-server/",
+      "**/.react-server*/",
+      "**/.vercel/",
+      "*.mdx",
+      "*.md",
+      "*.json",
+      "*-lock.*",
+    ],
+  },
+  ...compat.extends(
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
+    "plugin:jsx-a11y/recommended",
+    "plugin:prettier/recommended"
+  ),
+  {
+    plugins: {
+      react,
+
+      "simple-import-sort": simpleImportSort,
+      prettier,
+      "jsx-a11y": jsxA11Y,
+    },
+
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        Deno: "readonly",
+      },
+
+      parser: babelParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
+
+      parserOptions: {
+        requireConfigFile: false,
+
+        babelOptions: {
+          presets: ["@babel/preset-react"],
+          plugins: ["@babel/plugin-syntax-import-assertions"],
+        },
+
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+
+    settings: {
+      react: {
+        version: "19.0.0",
+      },
+    },
+
+    rules: {
+      "react/prop-types": "off",
+
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [["^\\\\u0000"], ["^node:"], ["^react"], ["^[^.]"], ["^\\\\."]],
+        },
+      ],
+
+      "no-async-promise-executor": "off",
+
+      "prettier/prettier": [
+        "error",
+        {
+          endOfLine: "auto",
+        },
+      ],
+    },
+  },
+  ...compat
+    .extends("eslint:recommended", "plugin:@typescript-eslint/recommended")
+    .map((config) => ({
+      ...config,
+      files: ["**/*.{ts,tsx}"],
+    })),
+  {
+    files: ["**/*.{ts,tsx}"],
+
+    plugins: {
+      "@typescript-eslint": typescriptEslint,
+    },
+
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+
+      parser: tsParser,
+    },
+
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+        },
+      ],
+
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+    },
+  },
+];
+",
+  "globals.d.ts": "declare module "https://esm.sh/canvas-confetti" {
+  export default function confetti(): void;
+}
+",
+  "package.json": "{
+  "name": "test-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun react-server",
+    "build": "bun --bun react-server build",
+    "start": "bun --bun react-server start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.25.9",
+    "@babel/plugin-syntax-import-assertions": "^7.25.9",
+    "@babel/preset-react": "^7.25.9",
+    "@eslint/eslintrc": "^3.1.0",
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.1",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^15.11.0",
+    "@types/node": "^20.12.12",
+    "@typescript-eslint/eslint-plugin": "^8.11.0",
+    "@typescript-eslint/parser": "^8.11.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "typescript": "^5.6.2",
+    "vite": "^6.2.3",
+    "prettier": "^3.2.5",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3"
+  }
+}",
+  "postcss.config.mjs": "export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+",
+  "public/github.svg": "<svg width="98" height="96" viewBox="0 0 98 96" fill="none"
+  xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" fill="#24292f"/>
+</svg>",
+  "public/react-server.svg": "<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 33.866666 33.866667"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs1" /><g
+     id="layer1"><g
+       id="g1"
+       transform="matrix(1.4232434,0,0,1.4232434,16.915196,17.10368)"><g
+         stroke="#61dafb"
+         stroke-width="1"
+         fill="none"
+         id="g3"><ellipse
+           rx="11"
+           ry="4.1999998"
+           id="ellipse1"
+           cx="0"
+           cy="0" /><ellipse
+           rx="11"
+           ry="4.1999998"
+           transform="rotate(60)"
+           id="ellipse2"
+           cx="0"
+           cy="0" /><ellipse
+           rx="11"
+           ry="4.1999998"
+           transform="rotate(120)"
+           id="ellipse3"
+           cx="0"
+           cy="0"
+           style="fill:#ffffff;fill-opacity:0" /></g><ellipse
+         fill="#61dafb"
+         id="circle1-46"
+         style="stroke-width:1.01735"
+         ry="4.826261"
+         rx="4.215796"
+         cy="0.15913987"
+         cx="-0.031601399" /></g><path
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.1;stroke-dasharray:none;stroke-opacity:1;stroke-linejoin:round;stroke-linecap:butt"
+       d="m 12.509642,30.690503 -0.05834,-0.05685 -7.23e-4,-0.0561 -7.23e-4,-0.05611 0.768979,-2.092476 0.768982,-2.092473 0.556751,-1.543372 0.556748,-1.543368 0.006,-0.120103 0.006,-0.120088 -1.470798,0.0062 -1.470797,0.0062 -0.06194,-0.0727 -0.06194,-0.0727 0.233074,-0.46889 0.233073,-0.468892 0.856189,-1.667244 0.85619,-1.667245 0.41769,-0.85935 0.417689,-0.859349 -0.02911,-0.04578 -0.02911,-0.04576 -1.464266,0.01887 -1.464263,0.01887 -0.09348,-0.0485 -0.09349,-0.0485 -0.0011,-0.08618 -0.0011,-0.08616 0.11036,-0.213586 0.110359,-0.213582 1.014121,-2.024324 1.014119,-2.024327 0.696804,-1.43016 0.696802,-1.4301581 0.701201,-1.4012125 0.701198,-1.4012124 2.501594,-0.044655 2.501597,-0.044655 0.03154,0.079108 0.03152,0.079108 -0.04589,0.1264481 -0.04587,0.1264636 -0.768293,1.3291372 -0.768291,1.3291355 -0.6677,1.1797846 -0.6677,1.179784 0.02576,0.06464 0.02576,0.06464 1.695367,-0.02185 1.695368,-0.02185 0.07639,0.07444 0.07639,0.07446 7.89e-4,0.06124 7.9e-4,0.06124 -0.249474,0.406592 -0.249474,0.40659 -0.614255,0.968038 -0.614255,0.968039 -1.187109,1.911536 -1.187107,1.91154 -0.06878,0.13724 -0.06879,0.13724 0.02683,0.06732 0.02683,0.06732 1.62427,-0.02093 1.624265,-0.02093 0.09295,0.06616 0.09294,0.06612 -0.04534,0.122827 -0.04534,0.122843 -1.34915,1.664026 -1.349152,1.664023 -0.8062,1.018519 -0.8062,1.018517 -0.670268,0.824742 -0.670264,0.824741 -1.724844,2.146499 -1.724842,2.146498 -0.05964,7.69e-4 -0.05966,7.69e-4 z"
+       id="path1-1" /><path
+       style="fill:#ffd22a;fill-opacity:1;stroke:#ffffff;stroke-width:0.4;stroke-dasharray:none;stroke-opacity:1;stroke-linejoin:round;stroke-linecap:round"
+       d="m 12.509642,30.690503 -0.05834,-0.05685 -7.23e-4,-0.0561 -7.23e-4,-0.05611 0.768979,-2.092476 0.768982,-2.092473 0.556751,-1.543372 0.556748,-1.543368 0.006,-0.120103 0.006,-0.120088 -1.470798,0.0062 -1.470797,0.0062 -0.06194,-0.0727 -0.06194,-0.0727 0.233074,-0.46889 0.233073,-0.468892 0.856189,-1.667244 0.85619,-1.667245 0.41769,-0.85935 0.417689,-0.859349 -0.02911,-0.04578 -0.02911,-0.04576 -1.464266,0.01887 -1.464263,0.01887 -0.09348,-0.0485 -0.09349,-0.0485 -0.0011,-0.08618 -0.0011,-0.08616 0.11036,-0.213586 0.110359,-0.213582 1.014121,-2.024324 1.014119,-2.024327 0.696804,-1.43016 0.696802,-1.4301581 0.701201,-1.4012125 0.701198,-1.4012124 2.501594,-0.044655 2.501597,-0.044655 0.03154,0.079108 0.03152,0.079108 -0.04589,0.1264481 -0.04587,0.1264636 -0.768293,1.3291372 -0.768291,1.3291355 -0.6677,1.1797846 -0.6677,1.179784 0.02576,0.06464 0.02576,0.06464 1.695367,-0.02185 1.695368,-0.02185 0.07639,0.07444 0.07639,0.07446 7.89e-4,0.06124 7.9e-4,0.06124 -0.249474,0.406592 -0.249474,0.40659 -0.614255,0.968038 -0.614255,0.968039 -1.187109,1.911536 -1.187107,1.91154 -0.06878,0.13724 -0.06879,0.13724 0.02683,0.06732 0.02683,0.06732 1.62427,-0.02093 1.624265,-0.02093 0.09295,0.06616 0.09294,0.06612 -0.04534,0.122827 -0.04534,0.122843 -1.34915,1.664026 -1.349152,1.664023 -0.8062,1.018519 -0.8062,1.018517 -0.670268,0.824742 -0.670264,0.824741 -1.724844,2.146499 -1.724842,2.146498 -0.05964,7.69e-4 -0.05966,7.69e-4 z"
+       id="path1" /></g></svg>
+",
+  "react-server.config.json": "{
+  "root": "src/app",
+  "prerender": false,
+  "export": [
+    {
+      "path": "/"
+    },
+    {
+      "path": "/",
+      "outlet": "content"
+    },
+    {
+      "path": "/about"
+    },
+    {
+      "path": "/about",
+      "outlet": "content"
+    }
+  ]
+}
+",
+  "src/app/@content/about.tsx": "function Link({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-indigo-500 dark:text-yellow-600"
+    >
+      {children}
+    </a>
+  );
+}
+
+export default function About() {
+  return (
+    <article className="flex flex-col gap-4 max-w-screen-lg m-8 text-lg">
+      <h1 className="text-2xl font-bold mb-0">About This App</h1>
+      <h2 className="text-xl font-semibold m-0">🛠 The framework</h2>
+      <p>
+        <b>@lazarv/react-server</b> is a modern meta-framework designed for
+        building high-performance, server-driven React applications. It
+        leverages React Server Components (RSC) with a unique delegation
+        approach, enabling seamless micro-frontend architectures and efficient
+        server-side rendering. With native ES module support and Vite-powered
+        optimizations, it ensures a fast and scalable developer experience.
+      </p>
+      <p>
+        Built for flexibility, <b>@lazarv/react-server</b> provides fine-grained
+        caching, robust runtime integrations, and a streamlined development
+        workflow. Whether you{"'"}re crafting a single app or orchestrating
+        multiple micro-frontends, it offers the tools to enhance performance,
+        maintainability, and scalability.
+      </p>
+      <h2 className="text-xl font-semibold m-0">
+        🚀 Welcome to Your New React Server App!
+      </h2>
+      <p>
+        This project was created using the <b>@lazarv/create-react-server</b>{" "}
+        CLI tool, setting up a fully functional React Server Components (RSC)
+        app with file-system based routing and server functions out of the box.
+      </p>
+      <h2 className="text-xl font-semibold m-0">🗂 File-system based routing</h2>
+      <ul className="list-disc pl-6">
+        <li>
+          Add files to <b>/src/app</b> to{" "}
+          <Link href="https://react-server.dev/router/define-routes">
+            define
+          </Link>{" "}
+          layouts, pages and{" "}
+          <Link href="https://react-server.dev/router/api">API routes</Link>
+        </li>
+        <li>
+          Use{" "}
+          <Link href="https://react-server.dev/router/outlets">outlets</Link> to
+          optimize loading content
+        </li>
+        <li>
+          Add{" "}
+          <Link href="https://react-server.dev/router/loading">loading</Link>{" "}
+          and{" "}
+          <Link href="https://react-server.dev/router/error-handling">
+            error handling
+          </Link>{" "}
+          to your routes
+        </li>
+      </ul>
+      <h2 className="text-xl font-semibold m-0 flex items-center">
+        <img src="/react-server.svg" alt="" className="inline-block h-4 mr-1" />{" "}
+        Use React Server Components & Server Functions
+      </h2>
+      <ul className="list-disc pl-6">
+        <li>
+          React Server Components allow efficient rendering without client-side
+          JavaScript
+        </li>
+        <li>
+          Client Components can be used by adding <b>{\`"use client";\`}</b> at
+          the top of a file
+        </li>
+        <li>
+          Server Functions enable seamless server-side logic execution by using{" "}
+          <b>{\`"use server";\`}</b>
+        </li>
+      </ul>
+      <h2 className="text-xl font-semibold m-0">📌 Need Help?</h2>
+      <p>
+        Check out the official{" "}
+        <Link href="https://react-server.dev">documentation</Link> or join the{" "}
+        <Link href="https://github.com/lazarv/react-server/discussions">
+          discussions
+        </Link>{" "}
+        for support!
+      </p>
+    </article>
+  );
+}
+",
+  "src/app/@content/index.tsx": "import Confetti from "~/components/Confetti";
+
+export default function Home() {
+  return (
+    <>
+      <section className="flex flex-col mt-auto">
+        <div className="relative">
+          <img
+            src="/react-server.svg"
+            className="absolute h-[85%] top-1/2 -translate-x-full -translate-y-1/2 -ml-1"
+            alt="@lazarv/react-server logo"
+          />
+          <h2 className="text-xs font-semibold m-0 pt-0 border-none dark:text-yellow-500 mt-4 sm:mt-0">
+            @lazarv
+          </h2>
+          <h1 className="text-5xl font-semibold m-0 -mt-4 whitespace-nowrap sm:text-6xl dark:text-yellow-500">
+            react-server
+          </h1>
+        </div>
+
+        <p className="text-lg">
+          Welcome to your <b>@lazarv/react-server</b> app!
+        </p>
+      </section>
+
+      <Confetti className="mt-4" />
+
+      <p className="text-sm mt-4">
+        Try editing <b>src/app/@content/index.tsx</b> and save to reload.
+      </p>
+    </>
+  );
+}
+",
+  "src/app/layout.tsx": "import "~/global.css";
+
+import { usePathname } from "@lazarv/react-server";
+import Navigation from "~/components/Navigation";
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  return (
+    <html lang="en" className="h-screen" suppressHydrationWarning>
+      <head></head>
+      <body
+        className="w-full min-h-full flex flex-col justify-center items-center dark:bg-zinc-900 dark:text-gray-400"
+        suppressHydrationWarning
+      >
+        <Navigation pathname={pathname} />
+        <a
+          href="https://github.com/lazarv/react-server"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <img
+            src="/github.svg"
+            alt="GitHub page"
+            className="absolute top-2 right-2 w-6 h-6"
+          />
+        </a>
+        {children}
+        <p className="text-sm mt-auto mb-2">
+          Visit{" "}
+          <a
+            href="https://react-server.dev"
+            target="_blank"
+            className="text-indigo-500 dark:text-yellow-500"
+            rel="noreferrer"
+          >
+            react-server.dev
+          </a>{" "}
+          to learn more about <b>@lazarv/react-server</b>.
+        </p>
+      </body>
+    </html>
+  );
+}
+",
+  "src/app/page.tsx": "import { ReactServerComponent } from "@lazarv/react-server/navigation";
+import { Route } from "@lazarv/react-server/router";
+import Home from "~/app/@content";
+import About from "~/app/@content/about";
+
+export default function Page() {
+  return (
+    <ReactServerComponent outlet="content">
+      <Route path="/" exact>
+        <Home />
+      </Route>
+      <Route path="/about" exact>
+        <About />
+      </Route>
+    </ReactServerComponent>
+  );
+}
+",
+  "src/components/Button.tsx": "export type ButtonProps = React.PropsWithChildren<
+  React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>
+>;
+
+export default function Button({ className, children, ...props }: ButtonProps) {
+  return (
+    <button
+      className={\`\${className} rounded-full p-1 inline-flex items-center text-black hover:no-underline from-rose-400 via-fuchsia-500 to-indigo-500 bg-gradient-to-r hover:drop-shadow\`}
+    >
+      <div
+        {...props}
+        className="block rounded-full p-2 px-4 text-sm sm:text-base bg-white dark:bg-gray-900 dark:text-white hover:bg-transparent dark:hover:bg-transparent hover:text-white dark:hover:text-white"
+      >
+        {children}
+      </div>
+    </button>
+  );
+}
+",
+  "src/components/Confetti.tsx": ""use client";
+
+import Button, { type ButtonProps } from "~/components/Button";
+
+export default function Confetti(props: ButtonProps) {
+  return (
+    <Button
+      {...props}
+      onClick={async () => {
+        const { default: confetti } =
+          await import("https://esm.sh/canvas-confetti");
+        confetti();
+      }}
+    >
+      Celebrate!
+    </Button>
+  );
+}
+",
+  "src/components/Navigation.tsx": ""use client";
+
+import { Link, usePathname } from "@lazarv/react-server/navigation";
+
+export default function Navigation() {
+  const pathname = usePathname("content");
+
+  return (
+    <nav
+      className="sticky top-0 flex gap-4 bg-slate-200 p-4 dark:bg-zinc-800"
+      data-pathname={pathname}
+    >
+      <Link
+        to="/"
+        target="content"
+        push
+        className="text-2xl uppercase font-bold px-4 [[data-pathname='/']_&]:text-indigo-500 dark:[[data-pathname='/']_&]:text-yellow-600"
+      >
+        Home
+      </Link>
+      <Link
+        to="/about"
+        target="content"
+        push
+        className="text-2xl uppercase font-bold px-4 [[data-pathname='/about']_&]:text-indigo-500 dark:[[data-pathname='/about']_&]:text-yellow-600"
+      >
+        About
+      </Link>
+    </nav>
+  );
+}
+",
+  "src/global.css": "@tailwind base;
+@tailwind components;
+@tailwind utilities;",
+  "tailwind.config.mjs": "/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["src/**/*.{js,jsx,ts,tsx}"],
+  theme: {},
+  plugins: [],
+};
+",
+  "tsconfig.json": "{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["react/experimental", "react-dom/experimental"],
+    "jsx": "preserve",
+    "baseUrl": "./src",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "paths": {
+      "~/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".react-server/**/*.ts"],
+  "exclude": ["**/*.js", "**/*.mjs"]
+}
+",
+  "vite.config.ts": "import { defineConfig } from "vite";
+
+export default defineConfig({
+  resolve: { alias: { "~/": "/src/" } },
+});
+",
+}
+`;

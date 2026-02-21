@@ -100,10 +100,7 @@ export function moduleAliases(condition) {
   );
   let vite;
   try {
-    vite = normalizePath(__require.resolve("rolldown-vite")).replace(
-      /index\.cjs$/,
-      "dist/node/index.js"
-    );
+    vite = normalizePath(__require.resolve("vite"));
   } catch {
     // noop
   }

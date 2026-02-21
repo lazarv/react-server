@@ -103,6 +103,7 @@ export default async function ssrHandler(root, options = {}) {
     { default: Component, init$: root_init$ },
     { default: GlobalErrorComponent },
     { default: ErrorBoundary },
+    { clientReferenceMap },
     rscSerializer,
   ] = await Promise.all([
     import("@lazarv/react-server/dist/server/render"),
@@ -115,6 +116,7 @@ export default async function ssrHandler(root, options = {}) {
         return { default: null };
       }
     })(),
+    import("@lazarv/react-server/dist/server/client-reference-map"),
     import("../../cache/rsc.mjs"),
   ]);
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
@@ -122,9 +124,7 @@ export default async function ssrHandler(root, options = {}) {
   const clientModules = getRuntime(COLLECT_CLIENT_MODULES)?.(rootModule) ?? [];
   const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
   const manifest = getRuntime(MANIFEST);
-  const hasClientComponents = Object.values(manifest.client).some(
-    (entry) => entry.isDynamicEntry
-  );
+  const hasClientComponents = Object.keys(clientReferenceMap()).length > 0;
   const mainModule = hasClientComponents
     ? getRuntime(MAIN_MODULE)?.map((mod) =>
         `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")

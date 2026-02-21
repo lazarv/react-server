@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
-import { ModuleRunner } from "rolldown-vite/module-runner";
+import { ModuleRunner } from "vite/module-runner";
 
 import * as sys from "../sys.mjs";
 import { clientAlias } from "../build/resolve.mjs";

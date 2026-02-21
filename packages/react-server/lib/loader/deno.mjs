@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -166,6 +166,10 @@ export async function denoRespawn(options = {}) {
   // Add remaining user args
   denoArgs.push(...originalArgs);
 
+  // Patch Vite's node:util parseEnv import for Deno compatibility
+  // before spawning the child process
+  patchViteForDeno();
+
   const env = Deno.env.toObject();
   env.__REACT_SERVER_DENO_IMPORT_MAP__ = "1";
 
@@ -179,4 +183,76 @@ export async function denoRespawn(options = {}) {
   });
   const { code } = await cmd.output();
   Deno.exit(code);
+}
+
+const PATCH_MARKER = "/* @react-server/deno-parseEnv-polyfill */";
+const PATCH_MARKER_RE = new RegExp(
+  PATCH_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+);
+
+const PARSE_ENV_POLYFILL = `
+${PATCH_MARKER}
+var parseEnv = function parseEnv(content) {
+  var env = Object.create(null);
+  var lines = content.split("\\n");
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line || line[0] === "#") continue;
+    var eqIdx = line.indexOf("=");
+    if (eqIdx === -1) continue;
+    var key = line.slice(0, eqIdx).trim();
+    var value = line.slice(eqIdx + 1).trim();
+    if (value.length >= 2) {
+      var first = value[0], last = value[value.length - 1];
+      if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+        value = value.slice(1, -1);
+      }
+    }
+    env[key] = value;
+  }
+  return env;
+};`;
+
+export function patchViteForDeno() {
+  if (!isDeno) return;
+
+  // Resolve the Vite package location
+  let viteEntry;
+  try {
+    viteEntry = fileURLToPath(import.meta.resolve("vite"));
+  } catch {
+    return;
+  }
+  const nodeChunkPath = join(dirname(viteEntry), "chunks", "node.js");
+
+  let content;
+  try {
+    content = readFileSync(nodeChunkPath, "utf-8");
+  } catch {
+    return;
+  }
+
+  // Already patched — skip
+  if (PATCH_MARKER_RE.test(content)) return;
+
+  // Remove parseEnv from the node:util import
+  content = content.replace(
+    /import\s*\{([^}]*)\}\s*from\s*["']node:util["']/,
+    (_match, imports) => {
+      const cleaned = imports
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s && s !== "parseEnv")
+        .join(", ");
+      return `import { ${cleaned} } from "node:util"`;
+    }
+  );
+
+  // Insert polyfill right after the node:util import line
+  content = content.replace(
+    /(import\s*\{[^}]*\}\s*from\s*["']node:util["'];?)/,
+    `$1\n${PARSE_ENV_POLYFILL}`
+  );
+
+  writeFileSync(nodeChunkPath, content);
 }

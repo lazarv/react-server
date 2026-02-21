@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
 
 import { chromium } from "playwright-chromium";
-import { afterAll, beforeAll, inject } from "vitest";
+import { afterAll, inject, test } from "vitest";
 
 export let browser;
 export let page;
@@ -61,7 +61,8 @@ async function cleanup() {
   }
 }
 
-beforeAll(async ({ name, id }) => {
+test.beforeAll(async (_context, suite) => {
+  const { name, id } = suite;
   const wsEndpoint = inject("wsEndpoint");
   browser = await chromium.connect(wsEndpoint);
   page = await browser.newPage();

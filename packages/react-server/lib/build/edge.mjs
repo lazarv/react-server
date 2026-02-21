@@ -3,7 +3,7 @@ import { isBuiltin } from "node:module";
 import { join } from "node:path";
 
 import replace from "@rollup/plugin-replace";
-import { build as viteBuild } from "rolldown-vite";
+import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 
@@ -126,6 +126,12 @@ export default async function edgeBuild(root, options) {
       rolldownOptions: {
         ...config.build?.rollupOptions,
         ...config.build?.rolldownOptions,
+        checks: {
+          ...config.build?.rollupOptions?.checks,
+          ...config.build?.rolldownOptions?.checks,
+          pluginTimings:
+            typeof sys.getEnv("ROLLDOWN_PLUGIN_TIMINGS") !== "undefined",
+        },
         preserveEntrySignatures: "strict",
         treeshake: {
           moduleSideEffects: true,
@@ -144,7 +150,7 @@ export default async function edgeBuild(root, options) {
         output: {
           dir: options.outDir,
           format: "esm",
-          inlineDynamicImports: true,
+          codeSplitting: false,
           entryFileNames({ name }) {
             if (name === "server/edge") {
               return "[name].mjs";

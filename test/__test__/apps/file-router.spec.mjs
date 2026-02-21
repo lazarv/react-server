@@ -94,10 +94,14 @@ describe("file-router plugin", () => {
     );
     await waitForHydration();
     const linkToExternal = await page.$('a[href="/redirect-external"]');
-    await Promise.all([
-      page.waitForURL("https://react-server.dev/**"),
-      linkToExternal.click(),
-    ]);
+    await linkToExternal.click();
+    const deadline = Date.now() + 30000;
+    while (!page.url().includes("react-server.dev")) {
+      if (Date.now() > deadline) {
+        throw new Error("Timed out waiting for external redirect");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
     expect(page.url()).toBe("https://react-server.dev/");
   });
 
@@ -111,10 +115,14 @@ describe("file-router plugin", () => {
     const linkToExternalWithAPI = await page.$(
       'a[href="/redirect-api-external"]'
     );
-    await Promise.all([
-      page.waitForURL("https://react-server.dev/**"),
-      linkToExternalWithAPI.click(),
-    ]);
+    await linkToExternalWithAPI.click();
+    const deadline = Date.now() + 30000;
+    while (!page.url().includes("react-server.dev")) {
+      if (Date.now() > deadline) {
+        throw new Error("Timed out waiting for external redirect via API");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
     expect(page.url()).toBe("https://react-server.dev/");
   });
 

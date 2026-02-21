@@ -2,7 +2,7 @@ import { createRequire, isBuiltin } from "node:module";
 import { extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { ESModulesEvaluator } from "rolldown-vite/module-runner";
+import { ESModulesEvaluator } from "vite/module-runner";
 
 import { isESMSyntaxAsync, nodeResolve } from "../utils/module.mjs";
 import { moduleAliases } from "../loader/module-alias.mjs";
@@ -82,9 +82,17 @@ export class HybridEvaluator extends ESModulesEvaluator {
       const resolved = filepath.startsWith("file://")
         ? fileURLToPath(filepath)
         : filepath;
-      const ext = extname(resolved);
-      if (ext && !JS_EXTENSIONS.has(ext)) {
-        return this._wrapCjsModule({});
+      // Strip query parameters (e.g. .svg?react) before checking extension.
+      // Modules with query strings are virtual/transformed by Vite plugins
+      // (like vite-plugin-svgr's ?react), so if the path has a query we
+      // should NOT treat it as a non-JS asset — it was already transformed
+      // into JS by the plugin pipeline.
+      const hasQuery = /[?#]/.test(resolved);
+      if (!hasQuery) {
+        const ext = extname(resolved);
+        if (ext && !JS_EXTENSIONS.has(ext)) {
+          return this._wrapCjsModule({});
+        }
       }
     }
 

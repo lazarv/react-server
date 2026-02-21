@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import replace from "@rollup/plugin-replace";
 import glob from "fast-glob";
-import { build as viteBuild } from "rolldown-vite";
+import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 import configPrebuilt from "../plugins/config-prebuilt.mjs";
@@ -551,6 +551,12 @@ export default async function serverBuild(root, options, clientManifestBus) {
       rolldownOptions: {
         ...config.build?.rollupOptions,
         ...config.build?.rolldownOptions,
+        checks: {
+          ...config.build?.rollupOptions?.checks,
+          ...config.build?.rolldownOptions?.checks,
+          pluginTimings:
+            typeof sys.getEnv("ROLLDOWN_PLUGIN_TIMINGS") !== "undefined",
+        },
         preserveEntrySignatures: "strict",
         treeshake: createTreeshake(config),
         onwarn(warn) {
@@ -580,7 +586,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
               : "[name].[hash].mjs";
           },
           chunkFileNames: "server/[name].[hash].mjs",
-          advancedChunks: {
+          codeSplitting: {
             groups: [
               // IMPORTANT: manifest-registry and virtual references MUST be checked FIRST
               // before any other grouping to prevent them from being bundled into other chunks
@@ -667,10 +673,13 @@ export default async function serverBuild(root, options, clientManifestBus) {
                   }
                 },
               },
-              ...(config.build?.rollupOptions?.output?.advancedChunks?.groups ??
+              ...(config.build?.rollupOptions?.output?.codeSplitting?.groups ??
+                config.build?.rollupOptions?.output?.advancedChunks?.groups ??
                 []),
-              ...(config.build?.rolldownOptions?.output?.advancedChunks
-                ?.groups ?? []),
+              ...(config.build?.rolldownOptions?.output?.codeSplitting
+                ?.groups ??
+                config.build?.rolldownOptions?.output?.advancedChunks?.groups ??
+                []),
             ],
           },
           // inlineDynamicImports: true,
@@ -885,7 +894,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
         treeshake: createTreeshake(config),
         output: {
           ...viteConfig.build.rolldownOptions.output,
-          advancedChunks: {
+          codeSplitting: {
             groups: [
               // IMPORTANT: manifest-registry and virtual references MUST be checked FIRST
               // before any other grouping to prevent them from being bundled into other chunks
@@ -959,8 +968,11 @@ export default async function serverBuild(root, options, clientManifestBus) {
                   }
                 },
               },
-              ...(viteConfig.build.rolldownOptions.output?.advancedChunks
-                ?.groups ?? []),
+              ...(viteConfig.build.rolldownOptions.output?.codeSplitting
+                ?.groups ??
+                viteConfig.build.rolldownOptions.output?.advancedChunks
+                  ?.groups ??
+                []),
             ],
           },
         },

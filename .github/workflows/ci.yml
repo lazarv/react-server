@@ -42,6 +42,7 @@ jobs:
         with:
           files: |
             packages/**
+            !packages/create-react-server/**
             test/**
             .github/workflows/ci.yml
 

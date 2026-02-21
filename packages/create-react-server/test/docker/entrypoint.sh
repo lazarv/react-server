@@ -222,10 +222,10 @@ if [ "$MODE" = "build" ] || [ "$MODE" = "build-start" ] || [ "$MODE" = "all" ]; 
 
   # Debug: show build output structure
   echo ">>> Build output:"
-  find .react-server -type f -name "*.mjs" | sort | head -30
+  find .react-server -type f -name "*.mjs" | sort | head -30 || true
   if [ -d ".bun" ]; then
     echo ">>> Bun adapter output:"
-    find .bun -type f | sort | head -30
+    find .bun -type f | sort | head -30 || true
   fi
   timer_end "build" $BUILD_PHASE_START
 fi

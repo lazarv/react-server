@@ -79,11 +79,12 @@ echo "CREATION_OK"
 
 cd "$WORKSPACE/test-app"
 
-# Replace @lazarv/react-server version with local tarball
+# Replace @lazarv/react-server and @lazarv/rsc versions with local tarballs
 node -e "
 const fs = require('fs');
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 pkg.dependencies['@lazarv/react-server'] = 'file:///workspace/react-server.tgz';
+pkg.dependencies['@lazarv/rsc'] = 'file:///workspace/rsc.tgz';
 delete pkg.trustedDependencies;
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 console.log('Updated package.json: deps');

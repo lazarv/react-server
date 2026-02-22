@@ -79,12 +79,20 @@ echo "CREATION_OK"
 
 cd "$WORKSPACE/test-app"
 
-# Replace @lazarv/react-server and @lazarv/rsc versions with local tarballs
+# Replace @lazarv/react-server and @lazarv/rsc versions with local tarballs.
+# Add overrides so that transitive @lazarv/rsc (resolved as 0.0.0 from the
+# packed react-server tarball) is redirected to the local tarball instead of
+# hitting the npm registry.
 node -e "
 const fs = require('fs');
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 pkg.dependencies['@lazarv/react-server'] = 'file:///workspace/react-server.tgz';
 pkg.dependencies['@lazarv/rsc'] = 'file:///workspace/rsc.tgz';
+pkg.overrides = pkg.overrides || {};
+pkg.overrides['@lazarv/rsc'] = 'file:///workspace/rsc.tgz';
+if (!pkg.pnpm) pkg.pnpm = {};
+if (!pkg.pnpm.overrides) pkg.pnpm.overrides = {};
+pkg.pnpm.overrides['@lazarv/rsc'] = 'file:///workspace/rsc.tgz';
 delete pkg.trustedDependencies;
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 console.log('Updated package.json: deps');

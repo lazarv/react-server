@@ -16,7 +16,7 @@ RUN chmod +x entrypoint.sh
 
 # Install create-react-server and react-server in /tool
 RUN mkdir -p /tool && cd /tool && \
-    echo '{"dependencies":{"@lazarv/rsc":"file:///workspace/rsc.tgz","@lazarv/react-server":"file:///workspace/react-server.tgz","@lazarv/create-react-server":"file:///workspace/create-react-server.tgz"}}' > package.json && \
+    echo '{"dependencies":{"@lazarv/rsc":"file:///workspace/rsc.tgz","@lazarv/react-server":"file:///workspace/react-server.tgz","@lazarv/create-react-server":"file:///workspace/create-react-server.tgz"},"overrides":{"@lazarv/rsc":"file:///workspace/rsc.tgz"}}' > package.json && \
     npm install --legacy-peer-deps
 
 ENTRYPOINT ["/workspace/entrypoint.sh"]

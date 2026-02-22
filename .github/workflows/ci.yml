@@ -90,6 +90,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: dev-base-${{ matrix.os }}-node${{ matrix.node_version }}
+
   test-build-start-base:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
@@ -131,6 +139,14 @@ jobs:
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-base-${{ matrix.os }}-node${{ matrix.node_version }}
 
   test-build-start-base-edge:
     needs: changed
@@ -176,6 +192,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-base-edge-${{ matrix.os }}-node${{ matrix.node_version }}
+
   test-build-start-base-edge-entry:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
@@ -220,6 +244,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-base-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
+
   test-dev-apps:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
@@ -262,6 +294,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: dev-apps-${{ matrix.os }}-node${{ matrix.node_version }}
+
   test-build-start-apps:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
@@ -303,6 +343,14 @@ jobs:
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-apps-${{ matrix.os }}-node${{ matrix.node_version }}
 
   test-build-start-apps-edge:
     needs: changed
@@ -348,6 +396,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-apps-edge-${{ matrix.os }}-node${{ matrix.node_version }}
+
   test-build-start-apps-edge-entry:
     needs: changed
     if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
@@ -391,6 +447,14 @@ jobs:
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-apps-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
 
   test-rsc:
     needs: changed
@@ -458,6 +522,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: packages/rsc/test-results/junit.xml
+          flags: rsc-${{ matrix.os }}-node${{ matrix.node_version }}
+
   test-results:
     name: Test Results 📊
     needs:
@@ -473,6 +545,9 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download all test results
         uses: actions/download-artifact@v4
         with:

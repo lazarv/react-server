@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { Suspense, use, useState, useEffect } from "react";
 import { ClientOnly } from "@lazarv/react-server/client";
 
 async function getLocalTime() {
@@ -69,7 +69,9 @@ export default function App() {
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <ClientOnly>
-          <Time />
+          <Suspense>
+            <Time />
+          </Suspense>
         </ClientOnly>
       </body>
     </html>

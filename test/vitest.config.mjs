@@ -24,7 +24,11 @@ export default defineConfig({
     testTimeout: 60000,
     hookTimeout: 60000,
     reporters: process.env.GITHUB_ACTIONS
-      ? ["verbose", "github-actions"]
+      ? [
+          "verbose",
+          "github-actions",
+          ["junit", { outputFile: "test-results/junit.xml" }],
+        ]
       : ["default"],
     pool: "forks",
     fileParallelism: !process.env.CI,

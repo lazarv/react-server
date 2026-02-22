@@ -14,7 +14,11 @@ export default defineConfig({
     testTimeout: 600_000, // 10 minutes per test (Docker operations are slow)
     hookTimeout: 600_000,
     reporters: process.env.GITHUB_ACTIONS
-      ? ["verbose", "github-actions"]
+      ? [
+          "verbose",
+          "github-actions",
+          ["junit", { outputFile: "test-results/junit.xml" }],
+        ]
       : ["verbose"],
     pool: "forks",
     disableConsoleIntercept: true,

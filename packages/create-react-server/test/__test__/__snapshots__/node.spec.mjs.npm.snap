@@ -52,7 +52,15 @@ You can check out framework on [GitHub](https://github.com/lazarv/react-server) 
     "@lazarv/react-server": "file:///workspace/react-server.tgz",
     "@lazarv/rsc": "file:///workspace/rsc.tgz"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "overrides": {
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
+  },
+  "pnpm": {
+    "overrides": {
+      "@lazarv/rsc": "file:///workspace/rsc.tgz"
+    }
+  }
 }",
   "src/App.jsx": "import { version } from "@lazarv/react-server";
 
@@ -121,6 +129,14 @@ You can check out framework on [GitHub](https://github.com/lazarv/react-server) 
     "@types/react-dom": "^19.0.3",
     "typescript": "^5.6.2",
     "vite": "^6.2.3"
+  },
+  "overrides": {
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
+  },
+  "pnpm": {
+    "overrides": {
+      "@lazarv/rsc": "file:///workspace/rsc.tgz"
+    }
   }
 }",
   "src/App.tsx": "import { version } from "@lazarv/react-server";
@@ -1192,6 +1208,14 @@ export default [
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3"
+  },
+  "overrides": {
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
+  },
+  "pnpm": {
+    "overrides": {
+      "@lazarv/rsc": "file:///workspace/rsc.tgz"
+    }
   }
 }",
   "postcss.config.mjs": "export default {
@@ -2446,6 +2470,14 @@ export default [
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3"
+  },
+  "overrides": {
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
+  },
+  "pnpm": {
+    "overrides": {
+      "@lazarv/rsc": "file:///workspace/rsc.tgz"
+    }
   }
 }",
   "postcss.config.mjs": "export default {
@@ -3737,6 +3769,14 @@ export default [
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "@vitejs/plugin-react-swc": "^4.2.3"
+  },
+  "overrides": {
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
+  },
+  "pnpm": {
+    "overrides": {
+      "@lazarv/rsc": "file:///workspace/rsc.tgz"
+    }
   }
 }",
   "postcss.config.mjs": "export default {
@@ -5045,6 +5085,14 @@ export default [
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3"
+  },
+  "overrides": {
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
+  },
+  "pnpm": {
+    "overrides": {
+      "@lazarv/rsc": "file:///workspace/rsc.tgz"
+    }
   }
 }",
   "postcss.config.mjs": "export default {

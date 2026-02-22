@@ -10,6 +10,13 @@ export default defineConfig({
     // This is needed because React only allows one RSC renderer at a time
     pool: "forks",
     isolate: true,
+    reporters: process.env.GITHUB_ACTIONS
+      ? [
+          "verbose",
+          "github-actions",
+          ["junit", { outputFile: "test-results/junit.xml" }],
+        ]
+      : ["default"],
     coverage: {
       provider: "istanbul",
       reporter: ["text", "json", "html"],

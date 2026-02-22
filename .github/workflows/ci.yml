@@ -48,7 +48,7 @@ jobs:
 
   test-dev-base:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -81,7 +81,7 @@ jobs:
 
   test-build-start-base:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -114,7 +114,7 @@ jobs:
 
   test-build-start-base-edge:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -149,7 +149,7 @@ jobs:
 
   test-build-start-base-edge-entry:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -184,7 +184,7 @@ jobs:
 
   test-dev-apps:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -217,7 +217,7 @@ jobs:
 
   test-build-start-apps:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -250,7 +250,7 @@ jobs:
 
   test-build-start-apps-edge:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -285,7 +285,7 @@ jobs:
 
   test-build-start-apps-edge-entry:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -317,6 +317,43 @@ jobs:
         run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs"
         env:
           EDGE_ENTRY: "1"
+
+  test-rsc:
+    needs: changed
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    timeout-minutes: 10
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node_version: [20, 22, 24]
+        include:
+          - os: macos-latest
+            node_version: 24
+          - os: windows-latest
+            node_version: 24
+      fail-fast: false
+
+    name: "Test rsc 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+        with:
+          node_version: ${{ matrix.node_version }}
+
+      - name: Test @lazarv/rsc with coverage
+        working-directory: ./packages/rsc
+        run: pnpm test:coverage
+
+      - name: Upload coverage report
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.node_version == 24
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsc-coverage-report
+          path: packages/rsc/coverage/
+          retention-days: 30
 
   lint:
     timeout-minutes: 10

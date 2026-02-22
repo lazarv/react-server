@@ -1,4 +1,4 @@
-import React from "react";
+import { renderToReadableStream } from "@lazarv/rsc/server";
 
 import { ErrorOverlay } from "/@vite/client";
 
@@ -701,65 +701,30 @@ if (
           return result;
         }
         try {
-          React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
-            {
-              A: null,
-              TaintRegistryPendingRequests: new Set(),
-              TaintRegistryObjects: new Map(),
-              TaintRegistryValues: new Map(),
-              TaintRegistryByteLengths: new Map(),
-            };
-          import("react-server-dom-webpack/server.browser").then(
-            ({ renderToReadableStream }) => {
-              delete React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
-              const cwd =
-                document
-                  .querySelector(`meta[name="react-server:cwd"]`)
-                  ?.getAttribute("content") || null;
-              const normalizedArgs = args.map((arg) => {
-                if (arg instanceof Error) {
-                  const stacklines =
-                    arg.stack
-                      ?.split("\n")
-                      .filter((it) => it.trim().startsWith("at "))
-                      .map((it) =>
-                        it
-                          .trim()
-                          .replace(location.origin, it.includes(cwd) ? "" : cwd)
-                          .replace("/@fs", "")
-                          .replace(/\?v=[a-z0-9]+/, "")
-                      ) ?? [];
-                  arg.stack = stacklines.join("\n");
-                }
-                return arg;
-              });
+          const stream = renderToReadableStream({
+            method,
+            args,
+          });
+          (async () => {
+            let data = "";
 
-              const stream = renderToReadableStream({
-                method,
-                args: normalizedArgs,
-              });
-              (async () => {
-                let data = "";
-
-                const decoder = new TextDecoder("utf-8");
-                for await (const chunk of stream) {
-                  data += decoder.decode(chunk);
-                }
-                try {
-                  if (import.meta.hot && import.meta.hot.isConnected) {
-                    import.meta.hot.send("react-server:console", data);
-                  } else {
-                    const blob = new Blob([data], {
-                      type: "text/x-component",
-                    });
-                    navigator.sendBeacon("/__react_server_console__", blob);
-                  }
-                } catch {
-                  // ignore
-                }
-              })();
+            const decoder = new TextDecoder("utf-8");
+            for await (const chunk of stream) {
+              data += decoder.decode(chunk);
             }
-          );
+            try {
+              if (import.meta.hot && import.meta.hot.isConnected) {
+                import.meta.hot.send("react-server:console", data);
+              } else {
+                const blob = new Blob([data], {
+                  type: "text/x-component",
+                });
+                navigator.sendBeacon("/__react_server_console__", blob);
+              }
+            } catch {
+              // ignore
+            }
+          })();
         } catch {
           // ignore
         }

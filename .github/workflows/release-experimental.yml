@@ -66,9 +66,37 @@ jobs:
           VERSION="0.0.0-experimental-$(git rev-parse --short HEAD)-$(date +'%Y%m%d')-$(openssl rand -hex 4)"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
+      - name: Prepare @lazarv/rsc
+        id: prepare-rsc
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/rsc')
+        working-directory: ./packages/rsc
+        run: |
+          jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
+
+      - name: Publish @lazarv/rsc
+        id: publish-rsc
+        if: steps.prepare-rsc.outcome == 'success'
+        working-directory: ./packages/rsc
+        run: pnpm publish --provenance --access=public --tag=latest
+
+      - name: Update @lazarv/react-server dependency on @lazarv/rsc
+        if: steps.publish-rsc.outcome == 'success'
+        working-directory: ./packages/react-server
+        run: |
+          jq --arg new_version "${{ env.VERSION }}" '.dependencies["@lazarv/rsc"] = $new_version' package.json > tmp.json && mv tmp.json package.json
+
+      - name: Get latest @lazarv/rsc version for @lazarv/react-server
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') && steps.publish-rsc.outcome != 'success'
+        working-directory: ./packages/react-server
+        run: |
+          RSC_VERSION=$(npm view @lazarv/rsc version 2>/dev/null || echo "")
+          if [ -n "$RSC_VERSION" ]; then
+            jq --arg new_version "$RSC_VERSION" '.dependencies["@lazarv/rsc"] = $new_version' package.json > tmp.json && mv tmp.json package.json
+          fi
+
       - name: Prepare @lazarv/react-server
         id: prepare-react-server
-        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server')
+        if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || steps.publish-rsc.outcome == 'success'
         working-directory: ./packages/react-server
         run: |
           jq --arg new_version "${{ env.VERSION }}" '.version = $new_version' package.json > tmp.json && mv tmp.json package.json
@@ -80,7 +108,7 @@ jobs:
         run: pnpm publish --provenance --access=public --tag=latest
 
       - name: Create release
-        if: steps.publish-react-server.outcome == 'success'
+        if: steps.publish-react-server.outcome == 'success' || steps.publish-rsc.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -78,8 +78,18 @@ export default function useServerInline(profiles, providers = {}, type) {
           server: serverProvider,
           static: serverProvider,
           client: "unstorage/drivers/memory",
-          local: "unstorage/drivers/localstorage",
-          session: "unstorage/drivers/session-storage",
+          local: {
+            driver: "unstorage/drivers/localstorage",
+            options: {
+              type: "rsc",
+            },
+          },
+          session: {
+            driver: "unstorage/drivers/session-storage",
+            options: {
+              type: "rsc",
+            },
+          },
           memory: "unstorage/drivers/memory",
           request: "unstorage/drivers/memory",
           null: "unstorage/drivers/null",
@@ -358,7 +368,14 @@ export default function useServerInline(profiles, providers = {}, type) {
               value: "react",
             },
           });
-          if (this.environment?.name === "rsc" || type === "server") {
+          const hasRscProvider = caches.some(
+            (c) => availableProviders[c.provider]?.options?.type === "rsc"
+          );
+          if (
+            hasRscProvider ||
+            this.environment?.name === "rsc" ||
+            type === "server"
+          ) {
             ast.body.unshift({
               type: "ImportDeclaration",
               specifiers: [
@@ -372,8 +389,12 @@ export default function useServerInline(profiles, providers = {}, type) {
               ],
               source: {
                 type: "Literal",
-                value: "@lazarv/react-server/rsc",
-                raw: `"@lazarv/react-server/rsc"`,
+                value: isClient
+                  ? "@lazarv/react-server/rsc/browser"
+                  : "@lazarv/react-server/rsc",
+                raw: isClient
+                  ? `"@lazarv/react-server/rsc/browser"`
+                  : `"@lazarv/react-server/rsc"`,
               },
             });
           }
@@ -574,9 +595,7 @@ export default function useServerInline(profiles, providers = {}, type) {
                                   },
                                 ]
                               : []),
-                            ...((this.environment?.name === "rsc" ||
-                              type === "server") &&
-                            availableProviders[cache.provider]?.options
+                            ...(availableProviders[cache.provider]?.options
                               ?.type === "rsc"
                               ? [
                                   {

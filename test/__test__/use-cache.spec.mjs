@@ -127,6 +127,56 @@ test("use cache browser", async () => {
   expect(lru3).not.toEqual(lru2);
 });
 
+test("use cache browser component", async () => {
+  await server("fixtures/use-cache-browser-component.jsx");
+  await page.goto(hostname);
+  await page.waitForLoadState("networkidle");
+
+  // Verify the cached React component tree rendered correctly
+  const greeting = await page.textContent(".greeting");
+  expect(greeting).toBe("Hello, World!");
+
+  const timestamp = await page.textContent(".timestamp");
+  expect(timestamp).toBeTruthy();
+
+  // Verify the cached list rendered correctly
+  const listItems = await page.locator(".cached-list li").allTextContents();
+  expect(listItems.slice(0, 3)).toEqual(["Item A", "Item B", "Item C"]);
+
+  const listTimestamp = await page.textContent(".list-timestamp");
+  expect(listTimestamp).toBeTruthy();
+
+  // Reload — cached component tree should be served from localStorage
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+
+  expect(await page.textContent(".greeting")).toBe("Hello, World!");
+  expect(await page.textContent(".timestamp")).toBe(timestamp);
+  expect(await page.textContent(".list-timestamp")).toBe(listTimestamp);
+
+  // Wait for local cache TTL (3s) to expire, session cache should still hold
+  const start = Date.now();
+  let currentTimestamp = timestamp;
+  while (currentTimestamp === timestamp) {
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    currentTimestamp = await page.textContent(".timestamp");
+  }
+  expect(Date.now() - start).toBeGreaterThan(2500);
+
+  // Session-cached list should still be the same
+  expect(await page.textContent(".list-timestamp")).toBe(listTimestamp);
+
+  // Wait for session cache TTL (5s) to expire
+  let currentListTimestamp = listTimestamp;
+  while (currentListTimestamp === listTimestamp) {
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    currentListTimestamp = await page.textContent(".list-timestamp");
+  }
+  expect(Date.now() - start).toBeGreaterThan(4500);
+});
+
 test("rsc serialization", async () => {
   await server("fixtures/rsc.jsx");
   await page.goto(hostname);
@@ -136,7 +186,7 @@ test("rsc serialization", async () => {
   expect(await page.textContent("#serialized")).toContain(
     process.env.NODE_ENV === "production"
       ? `1:I["/client/fixtures/counter.`
-      : `4:I["fixtures/counter.jsx",[],"default",1]`
+      : `I["fixtures/counter.jsx",[],"default"`
   );
   expect(await page.getByRole("button").count()).toBe(3);
   expect(

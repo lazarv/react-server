@@ -6,6 +6,50 @@ import { createStorage } from "unstorage";
 
 import { CACHE_MISS } from "../server/symbols.mjs";
 
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+function encodeBytes(bytes, encoding = "base64") {
+  if (typeof Buffer !== "undefined" && typeof Buffer.from === "function") {
+    return Buffer.from(bytes).toString(encoding);
+  }
+  if (encoding === "base64") {
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+  if (encoding === "hex") {
+    return Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  return textDecoder.decode(bytes);
+}
+
+function decodeBytes(str, encoding = "base64") {
+  if (typeof Buffer !== "undefined" && typeof Buffer.from === "function") {
+    return new Uint8Array(Buffer.from(str, encoding));
+  }
+  if (encoding === "base64") {
+    const binary = atob(str);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+  if (encoding === "hex") {
+    const bytes = new Uint8Array(str.length / 2);
+    for (let i = 0; i < str.length; i += 2) {
+      bytes[i / 2] = parseInt(str.substring(i, i + 2), 16);
+    }
+    return bytes;
+  }
+  return textEncoder.encode(str);
+}
+
 export default class StorageCache {
   constructor(storageDriver, options, serializer) {
     this.index = new Map();
@@ -100,9 +144,10 @@ export default class StorageCache {
 
     const timestamp = Date.now();
     const [type, encoding] = this.type?.split(";")?.map((s) => s.trim()) ?? [];
+    const resolvedEncoding = encoding ?? this.encoding ?? "base64";
     const data =
       type === "rsc" && this.serializer
-        ? `data:text/x-component;${encoding ?? this.encoding ?? "base64"},${Buffer.from(await this.serializer.toBuffer(value)).toString(encoding ?? this.encoding ?? "base64")}`
+        ? `data:text/x-component;${resolvedEncoding},${encodeBytes(new Uint8Array(await this.serializer.toBuffer(value)), resolvedEncoding)}`
         : await value;
     const payload = {
       data,
@@ -210,14 +255,12 @@ export default class StorageCache {
 
   async deserializeValue(data) {
     const [type, encoding] = this.type?.split(";")?.map((s) => s.trim()) ?? [];
+    const resolvedEncoding = encoding ?? this.encoding ?? "base64";
     return type === "rsc" && this.serializer
       ? await this.serializer.fromBuffer(
-          Buffer.from(
-            data.replace(
-              `data:text/x-component;${encoding ?? this.encoding ?? "base64"},`,
-              ""
-            ),
-            encoding ?? this.encoding ?? "base64"
+          decodeBytes(
+            data.replace(`data:text/x-component;${resolvedEncoding},`, ""),
+            resolvedEncoding
           )
         )
       : data;

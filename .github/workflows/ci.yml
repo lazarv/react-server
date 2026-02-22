@@ -92,11 +92,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
           flags: dev-base-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-build-start-base:
     needs: changed
@@ -142,11 +143,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
           flags: prod-base-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-build-start-base-edge:
     needs: changed
@@ -194,11 +196,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
           flags: prod-base-edge-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-build-start-base-edge-entry:
     needs: changed
@@ -246,11 +249,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
           flags: prod-base-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-dev-apps:
     needs: changed
@@ -296,11 +300,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
           flags: dev-apps-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-build-start-apps:
     needs: changed
@@ -346,11 +351,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
           flags: prod-apps-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-build-start-apps-edge:
     needs: changed
@@ -398,11 +404,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
           flags: prod-apps-edge-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-build-start-apps-edge-entry:
     needs: changed
@@ -450,11 +457,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
           flags: prod-apps-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-rsc:
     needs: changed
@@ -524,11 +532,12 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: packages/rsc/test-results/junit.xml
           flags: rsc-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
 
   test-results:
     name: Test Results 📊

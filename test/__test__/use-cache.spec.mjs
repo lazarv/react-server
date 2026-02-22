@@ -92,37 +92,51 @@ test("use cache browser", async () => {
   await server("fixtures/use-cache-browser.jsx");
   await page.goto(hostname);
 
+  async function getPreJSON() {
+    const raw = await page.textContent("pre");
+    try {
+      return JSON.parse(raw);
+    } catch {
+      const html = await page.content();
+      throw new Error(
+        `Failed to parse <pre> content as JSON.\n` +
+          `<pre> text: ${raw}\n` +
+          `Full page HTML:\n${html}`
+      );
+    }
+  }
+
   let start = Date.now();
-  const { lru: lru1, ...state } = JSON.parse(await page.textContent("pre"));
+  const { lru: lru1, ...state } = await getPreJSON();
 
   await page.reload();
-  const { lru: lru2, ...state2 } = JSON.parse(await page.textContent("pre"));
+  const { lru: lru2, ...state2 } = await getPreJSON();
   expect(state).toEqual(state2);
   expect(lru2).not.toEqual(lru1);
 
   let nextState = { ...state2 };
   while (nextState.local === state.local) {
     await page.reload();
-    nextState = JSON.parse(await page.textContent("pre"));
+    nextState = await getPreJSON();
   }
   expect(Date.now() - start).toBeGreaterThan(1000);
   expect(nextState.session).toEqual(state.session);
 
   while (nextState.session === state.session) {
     await page.reload();
-    nextState = JSON.parse(await page.textContent("pre"));
+    nextState = await getPreJSON();
   }
   expect(Date.now() - start).toBeGreaterThan(2000);
   expect(nextState.indexedb).toEqual(state.indexedb);
 
   while (nextState.indexedb === state.indexedb) {
     await page.reload();
-    nextState = JSON.parse(await page.textContent("pre"));
+    nextState = await getPreJSON();
   }
   expect(Date.now() - start).toBeGreaterThan(3000);
 
   await waitForChange(null, () => page.textContent("pre"));
-  const { lru: lru3 } = JSON.parse(await page.textContent("pre"));
+  const { lru: lru3 } = await getPreJSON();
   expect(Date.now() - start).toBeGreaterThan(4000);
   expect(lru3).not.toEqual(lru2);
 });

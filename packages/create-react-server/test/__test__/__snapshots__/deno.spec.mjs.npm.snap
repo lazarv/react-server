@@ -54,7 +54,8 @@ You can check out framework on [GitHub](https://github.com/lazarv/react-server) 
     "start": "deno run -A npm:@lazarv/react-server start"
   },
   "dependencies": {
-    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+    "@lazarv/react-server": "file:///workspace/react-server.tgz",
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
   },
   "devDependencies": {}
 }",
@@ -122,7 +123,8 @@ You can check out framework on [GitHub](https://github.com/lazarv/react-server) 
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+    "@lazarv/react-server": "file:///workspace/react-server.tgz",
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
   },
   "devDependencies": {
     "@types/react": "^19.0.8",
@@ -1185,7 +1187,8 @@ export default [
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+    "@lazarv/react-server": "file:///workspace/react-server.tgz",
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.25.9",
@@ -2436,7 +2439,8 @@ export default [
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+    "@lazarv/react-server": "file:///workspace/react-server.tgz",
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.25.9",
@@ -3730,7 +3734,8 @@ export default [
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+    "@lazarv/react-server": "file:///workspace/react-server.tgz",
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.25.9",
@@ -5043,7 +5048,8 @@ export default [
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@lazarv/react-server": "file:///workspace/react-server.tgz"
+    "@lazarv/react-server": "file:///workspace/react-server.tgz",
+    "@lazarv/rsc": "file:///workspace/rsc.tgz"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.25.9",

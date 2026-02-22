@@ -563,6 +563,15 @@ jobs:
           pattern: test-results-*
           path: test-results
 
+      - name: Remove empty or invalid JUnit XML files
+        run: |
+          find test-results -name 'junit.xml' | while read f; do
+            if [ ! -s "$f" ] || ! grep -q '<testsuites' "$f"; then
+              echo "Removing invalid or empty file: $f"
+              rm "$f"
+            fi
+          done
+
       - name: Publish test results
         uses: dorny/test-reporter@v1
         with:

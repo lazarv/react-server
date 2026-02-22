@@ -1,5 +1,6 @@
 import {
   hostname,
+  logs,
   page,
   server,
   serverLogs,
@@ -101,7 +102,9 @@ test("use cache browser", async () => {
       throw new Error(
         `Failed to parse <pre> content as JSON.\n` +
           `<pre> text: ${raw}\n` +
-          `Full page HTML:\n${html}`
+          `Full page HTML:\n${html}\n` +
+          `Client logs:\n${JSON.stringify(logs, null, 2)}\n` +
+          `Server logs:\n${JSON.stringify(serverLogs, null, 2)}`
       );
     }
   }

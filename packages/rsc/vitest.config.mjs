@@ -19,7 +19,7 @@ export default defineConfig({
       : ["default"],
     coverage: {
       provider: "istanbul",
-      reporter: ["text", "json", "html"],
+      reporter: ["text", "json", "json-summary", "html"],
       include: ["server/**/*.mjs", "client/**/*.mjs"],
       exclude: ["client/browser.mjs", "client/index.mjs", "__tests__/**"],
     },

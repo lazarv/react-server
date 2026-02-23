@@ -262,9 +262,8 @@ export default function optimizeDeps() {
                 specifier,
                 path
               );
-            this.environment.depsOptimizer.metadata.discovered[specifier] = {
-              ...optimizedInfo,
-            };
+            // wait for optimization to finish so the returned dep ID has the final browserHash
+            await optimizedInfo.processing;
             return {
               id: this.environment.depsOptimizer.getOptimizedDepId(
                 optimizedInfo

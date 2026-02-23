@@ -1,5 +1,5 @@
-import { createFromReadableStream } from "react-server-dom-webpack/client.edge";
-import { renderToReadableStream } from "react-server-dom-webpack/server.edge";
+import { createFromReadableStream } from "@lazarv/rsc/client";
+import { renderToReadableStream } from "@lazarv/rsc/server";
 
 import { concat, copyBytesFrom } from "../lib/sys.mjs";
 
@@ -8,8 +8,13 @@ export function toBuffer(model, options = {}) {
     const { clientReferenceMap } =
       await import("@lazarv/react-server/dist/server/client-reference-map");
     const map = clientReferenceMap();
-    const stream = renderToReadableStream(model, map, {
+    const stream = renderToReadableStream(model, {
       ...options,
+      moduleResolver: {
+        resolveClientReference(value) {
+          return map[value.$$id];
+        },
+      },
       onError(error) {
         reject(error);
       },
@@ -28,60 +33,18 @@ export async function toStream(model, options = {}) {
   const { clientReferenceMap } =
     await import("@lazarv/react-server/dist/server/client-reference-map");
   const map = clientReferenceMap();
-  return renderToReadableStream(model, map, options);
-}
-
-function createManifest() {
-  return {
-    serverConsumerManifest: {
-      serverModuleMap: new Proxy(
-        {},
-        {
-          get(target, prop) {
-            if (!target[prop]) {
-              const [id, name] = prop.split("#");
-              target[prop] = {
-                id: `react-server-reference:${id}#${name}`,
-                name,
-                chunks: [],
-              };
-            }
-            return target[prop];
-          },
-        }
-      ),
-      moduleMap: new Proxy(
-        {},
-        {
-          get(target, id) {
-            if (!target[id]) {
-              target[id] = new Proxy(
-                {},
-                {
-                  get(target, name) {
-                    if (!target[name]) {
-                      target[name] = {
-                        id: `react-client-reference:${id}::${name}`,
-                        name,
-                        chunks: [],
-                        async: true,
-                      };
-                    }
-                    return target[name];
-                  },
-                }
-              );
-            }
-            return target[id];
-          },
-        }
-      ),
+  return renderToReadableStream(model, {
+    ...options,
+    moduleResolver: {
+      resolveClientReference(value) {
+        return map[value.$$id];
+      },
     },
-  };
+  });
 }
 
 export function fromBuffer(payload, options = {}) {
-  const Component = createFromReadableStream(
+  return createFromReadableStream(
     new ReadableStream({
       type: "bytes",
       start(controller) {
@@ -89,18 +52,10 @@ export function fromBuffer(payload, options = {}) {
         controller.close();
       },
     }),
-    {
-      ...createManifest(),
-      ...options,
-    }
+    options
   );
-
-  return Component;
 }
 
 export function fromStream(stream, options = {}) {
-  return createFromReadableStream(stream, {
-    ...createManifest(),
-    ...options,
-  });
+  return createFromReadableStream(stream, options);
 }

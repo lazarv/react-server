@@ -12,7 +12,9 @@ env:
 
 # Remove default permissions of GITHUB_TOKEN for security
 # https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
-permissions: {}
+permissions:
+  checks: write
+  contents: read
 
 on:
   pull_request:
@@ -48,7 +50,7 @@ jobs:
 
   test-dev-base:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -79,9 +81,27 @@ jobs:
         working-directory: ./test
         run: pnpm test-dev --exclude "**/__test__/apps"
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-dev-base-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: test/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: dev-base-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
   test-build-start-base:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -112,9 +132,27 @@ jobs:
         working-directory: ./test
         run: pnpm test-build-start --exclude "**/__test__/apps"
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-prod-base-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: test/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-base-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
   test-build-start-base-edge:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -147,9 +185,27 @@ jobs:
         env:
           EDGE: "1"
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-prod-base-edge-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: test/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-base-edge-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
   test-build-start-base-edge-entry:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -182,9 +238,27 @@ jobs:
         env:
           EDGE_ENTRY: "1"
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-prod-base-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: test/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-base-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
   test-dev-apps:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -215,9 +289,27 @@ jobs:
         working-directory: ./test
         run: pnpm test-dev --exclude "**/__test__/*.spec.mjs"
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-dev-apps-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: test/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: dev-apps-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
   test-build-start-apps:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -248,9 +340,27 @@ jobs:
         working-directory: ./test
         run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs"
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-prod-apps-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: test/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-apps-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
   test-build-start-apps-edge:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -283,9 +393,27 @@ jobs:
         env:
           EDGE: "1"
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-prod-apps-edge-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: test/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-apps-edge-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
   test-build-start-apps-edge-entry:
     needs: changed
-    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/react-server') || contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, 'test/') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -317,6 +445,140 @@ jobs:
         run: pnpm test-build-start --exclude "**/__test__/*.spec.mjs"
         env:
           EDGE_ENTRY: "1"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-prod-apps-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: test/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test/test-results/junit.xml
+          flags: prod-apps-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
+  test-rsc:
+    needs: changed
+    if: contains(needs.changed.outputs.all_changed_files, 'packages/rsc') || contains(needs.changed.outputs.all_changed_files, '.github/workflows/ci.yml')
+    timeout-minutes: 10
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node_version: [20, 22, 24]
+        include:
+          - os: macos-latest
+            node_version: 24
+          - os: windows-latest
+            node_version: 24
+      fail-fast: false
+
+    name: "Test rsc 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+        with:
+          node_version: ${{ matrix.node_version }}
+
+      - name: Test @lazarv/rsc with coverage
+        working-directory: ./packages/rsc
+        run: pnpm test:coverage
+
+      - name: Write coverage to job summary
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.node_version == 24
+        working-directory: ./packages/rsc
+        run: |
+          node << 'EOF' >> "$GITHUB_STEP_SUMMARY"
+          const summary = JSON.parse(require("fs").readFileSync("coverage/coverage-summary.json", "utf8"));
+          const lines = [
+            "### @lazarv/rsc Coverage Report",
+            "",
+            "| File | Statements | Branches | Functions | Lines |",
+            "|------|------------|----------|-----------|-------|",
+          ];
+          for (const [file, data] of Object.entries(summary)) {
+            const name = file === "total" ? "**Total**" : `\`${file.replace(process.cwd() + "/", "")}\``;
+            lines.push(`| ${name} | ${data.statements.pct}% | ${data.branches.pct}% | ${data.functions.pct}% | ${data.lines.pct}% |`);
+          }
+          process.stdout.write(lines.join("\n") + "\n");
+          EOF
+
+      - name: Upload coverage to Codecov
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.node_version == 24
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: packages/rsc/coverage/coverage-final.json
+          flags: rsc
+          fail_ci_if_error: false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-rsc-${{ matrix.os }}-node${{ matrix.node_version }}
+          path: packages/rsc/test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: packages/rsc/test-results/junit.xml
+          flags: rsc-${{ matrix.os }}-node${{ matrix.node_version }}
+          report_type: test_results
+
+  test-results:
+    name: Test Results 📊
+    needs:
+      - test-dev-base
+      - test-build-start-base
+      - test-build-start-base-edge
+      - test-build-start-base-edge-entry
+      - test-dev-apps
+      - test-build-start-apps
+      - test-build-start-apps-edge
+      - test-build-start-apps-edge-entry
+      - test-rsc
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: test-results
+
+      - name: Remove empty or invalid JUnit XML files
+        run: |
+          find test-results -name 'junit.xml' | while read f; do
+            if [ ! -s "$f" ] || ! grep -q '<testsuites' "$f"; then
+              echo "Removing invalid or empty file: $f"
+              rm "$f"
+            fi
+          done
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Report
+          path: "test-results/**/junit.xml"
+          reporter: java-junit
+          fail-on-error: false
 
   lint:
     timeout-minutes: 10

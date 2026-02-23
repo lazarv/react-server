@@ -1,0 +1,57 @@
+{
+  "name": "@lazarv/rsc",
+  "version": "0.0.0",
+  "description": "Bundler-agnostic React Server Components serialization and deserialization",
+  "keywords": [
+    "deserialize",
+    "flight",
+    "react",
+    "rsc",
+    "serialize",
+    "server-components"
+  ],
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
+  "license": "MIT",
+  "author": "lazarv",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lazarv/react-server.git"
+  },
+  "type": "module",
+  "exports": {
+    "./server": {
+      "types": "./server/index.d.ts",
+      "default": "./server/index.mjs"
+    },
+    "./client": {
+      "types": "./client/index.d.ts",
+      "default": "./client/index.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "tag": "latest"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "^4.1.0-beta.4",
+    "@vitest/coverage-v8": "^4.1.0-beta.4",
+    "react": "0.0.0-experimental-ab18f33d-20260220",
+    "react-dom": "0.0.0-experimental-ab18f33d-20260220",
+    "react-server-dom-webpack": "0.0.0-experimental-ab18f33d-20260220",
+    "vitest": "^4.1.0-beta.4"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0 || >=0.0.0-experimental"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  }
+}

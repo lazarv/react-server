@@ -174,8 +174,14 @@ export default function createLogger(level = "info", options) {
         rest = rest.slice(0, -1);
       }
 
-      if (typeof err === "string" && maybeError instanceof Error) {
-        err = format(err, maybeError, ...rest.slice(1));
+      if (typeof err === "string") {
+        const useFormat = formatRegExp.test(strip(err));
+        if (maybeError instanceof Error) {
+          err = format(err, maybeError, ...rest.slice(1));
+        } else if (useFormat && rest.length > 0) {
+          err = format(err, ...rest);
+          rest = [];
+        }
       }
 
       const e = replaceError(err);
@@ -211,15 +217,21 @@ export default function createLogger(level = "info", options) {
         if (options?.error) {
           msg += `\n  ${colors.bold(colors.red("[error]:"))} ${options.error?.stack || options.error}`;
         }
-        msg.split("\n").forEach((line, row) => {
-          logger.error(
-            row === 0 ? colors.bold(colors.red(line)) : colors.red(line),
-            {
-              timestamp: true,
-              ...options,
-            }
-          );
-        });
+        const lines = msg.split("\n");
+        logger.error(
+          colors.bold(colors.red(lines[0])) +
+            (lines.length > 1
+              ? "\n" +
+                lines
+                  .slice(1)
+                  .map((l) => colors.red(l))
+                  .join("\n")
+              : ""),
+          {
+            timestamp: true,
+            ...options,
+          }
+        );
       }
     },
   };

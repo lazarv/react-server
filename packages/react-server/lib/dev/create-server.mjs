@@ -14,6 +14,7 @@ import {
 import { ModuleRunner } from "vite/module-runner";
 import memoryDriver from "unstorage/drivers/memory";
 import inspect from "vite-plugin-inspect";
+import { createFromReadableStream } from "@lazarv/rsc/client";
 
 import StorageCache from "../../cache/storage-cache.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
@@ -335,6 +336,12 @@ export default async function createServer(root, options) {
           ),
         },
         {
+          find: /^@lazarv\/react-server\/rsc\/browser$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "cache/rsc-browser.mjs")
+          ),
+        },
+        {
           find: /^@lazarv\/react-server\/dist\/server\/client-reference-map$/,
           replacement: sys.normalizePath(
             __require.resolve(
@@ -637,13 +644,7 @@ export default async function createServer(root, options) {
   viteDevServer.environments.rsc.config.resolve.preserveSymlinks = true;
 
   const handleClientConsole = async (stream, environment) => {
-    const { createFromReadableStream } =
-      await import("react-server-dom-webpack/client.edge");
-    const { method, args } = await createFromReadableStream(stream, {
-      serverConsumerManifest: {
-        moduleMap: {},
-      },
-    });
+    const { method, args } = await createFromReadableStream(stream);
     const logger = viteDevServer.config.logger;
     try {
       if (logger && typeof logger[method] === "function") {

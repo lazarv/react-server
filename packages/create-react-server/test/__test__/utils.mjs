@@ -95,11 +95,20 @@ export function packPackages() {
   if (
     existsSync(join(BUILD_DIR, "react-server.tgz")) &&
     existsSync(join(BUILD_DIR, "create-react-server.tgz")) &&
+    existsSync(join(BUILD_DIR, "rsc.tgz")) &&
     !process.env.REPACK
   ) {
     console.log("Packages already packed (set REPACK=1 to force re-pack).");
     return;
   }
+
+  console.log("Packing @lazarv/rsc...");
+  const rscDir = join(PACKAGES_DIR, "rsc");
+  const rscOutput = exec("pnpm pack --pack-destination /tmp", {
+    cwd: rscDir,
+  });
+  const rscTarball = rscOutput.split("\n").pop().trim();
+  copyFileSync(rscTarball, join(BUILD_DIR, "rsc.tgz"));
 
   console.log("Packing @lazarv/react-server...");
   const reactServerDir = join(PACKAGES_DIR, "react-server");

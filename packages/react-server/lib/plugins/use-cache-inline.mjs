@@ -5,7 +5,9 @@ import colors from "picocolors";
 import * as sys from "../sys.mjs";
 import { codegen, parse, toAST, walk } from "../utils/ast.mjs";
 
-export default function useServerInline(profiles, providers = {}, type) {
+const NODE_ONLY_DRIVERS = /\/drivers\/fs(-lite)?$/;
+
+export default function useCacheInline(profiles, providers = {}, type) {
   const resolvedProviders = {};
   const resolveProviders = (onError, onAdd) => {
     for (let [key, value] of Object.entries(providers)) {
@@ -39,8 +41,38 @@ export default function useServerInline(profiles, providers = {}, type) {
       throw e;
     },
   };
+  const getDriverModule = (value) =>
+    typeof value === "string" ? value : value?.driver;
+
   return {
     name: "react-server:use-cache-inline",
+    config() {
+      // Pre-populate optimizeDeps.include with all known cache provider driver
+      // modules so Vite discovers them upfront instead of triggering late
+      // re-optimization that causes 504 errors when HMR is disabled.
+      resolveProviders();
+      const defaultDrivers = [
+        "unstorage/drivers/memory",
+        "unstorage/drivers/localstorage",
+        "unstorage/drivers/session-storage",
+        "unstorage/drivers/null",
+      ];
+      const userDrivers = Object.values(resolvedProviders)
+        .map(getDriverModule)
+        .filter(Boolean);
+      const allDrivers = [
+        ...new Set([...defaultDrivers, ...userDrivers]),
+      ].filter((d) => !NODE_ONLY_DRIVERS.test(d));
+      return {
+        environments: {
+          client: {
+            optimizeDeps: {
+              include: ["unstorage", ...allDrivers],
+            },
+          },
+        },
+      };
+    },
     configResolved(config) {
       logger = config.logger;
       resolveProviders((e) => logger.error(e), logger.info);
@@ -78,8 +110,18 @@ export default function useServerInline(profiles, providers = {}, type) {
           server: serverProvider,
           static: serverProvider,
           client: "unstorage/drivers/memory",
-          local: "unstorage/drivers/localstorage",
-          session: "unstorage/drivers/session-storage",
+          local: {
+            driver: "unstorage/drivers/localstorage",
+            options: {
+              type: "rsc",
+            },
+          },
+          session: {
+            driver: "unstorage/drivers/session-storage",
+            options: {
+              type: "rsc",
+            },
+          },
           memory: "unstorage/drivers/memory",
           request: "unstorage/drivers/memory",
           null: "unstorage/drivers/null",
@@ -358,7 +400,14 @@ export default function useServerInline(profiles, providers = {}, type) {
               value: "react",
             },
           });
-          if (this.environment?.name === "rsc" || type === "server") {
+          const hasRscProvider = caches.some(
+            (c) => availableProviders[c.provider]?.options?.type === "rsc"
+          );
+          if (
+            hasRscProvider ||
+            this.environment?.name === "rsc" ||
+            type === "server"
+          ) {
             ast.body.unshift({
               type: "ImportDeclaration",
               specifiers: [
@@ -372,8 +421,12 @@ export default function useServerInline(profiles, providers = {}, type) {
               ],
               source: {
                 type: "Literal",
-                value: "@lazarv/react-server/rsc",
-                raw: `"@lazarv/react-server/rsc"`,
+                value: isClient
+                  ? "@lazarv/react-server/rsc/browser"
+                  : "@lazarv/react-server/rsc",
+                raw: isClient
+                  ? `"@lazarv/react-server/rsc/browser"`
+                  : `"@lazarv/react-server/rsc"`,
               },
             });
           }
@@ -574,9 +627,7 @@ export default function useServerInline(profiles, providers = {}, type) {
                                   },
                                 ]
                               : []),
-                            ...((this.environment?.name === "rsc" ||
-                              type === "server") &&
-                            availableProviders[cache.provider]?.options
+                            ...(availableProviders[cache.provider]?.options
                               ?.type === "rsc"
                               ? [
                                   {

@@ -24,7 +24,7 @@ export async function useCache(
     cacheDrivers.set(provider.name, provider.driver);
     cacheInstances.set(
       provider.name,
-      new StorageCache(provider.driver, provider.options)
+      new StorageCache(provider.driver, provider.options, provider.serializer)
     );
   }
   const cache = cacheInstances.get(provider.name);

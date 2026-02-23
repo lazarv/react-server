@@ -65,6 +65,10 @@
       "types": "./cache/rsc.d.ts",
       "default": "./cache/rsc.mjs"
     },
+    "./rsc/browser": {
+      "types": "./cache/rsc.d.ts",
+      "default": "./cache/rsc-browser.mjs"
+    },
     "./navigation": {
       "types": "./client/navigation.d.ts",
       "default": "./client/navigation.jsx"
@@ -151,6 +155,7 @@
     "@inquirer/prompts": "^7.0.0",
     "@inquirer/search": "^3.0.0",
     "@jridgewell/trace-mapping": "^0.3.29",
+    "@lazarv/rsc": "workspace:*",
     "@mdx-js/rollup": "^3.0.1",
     "@modelcontextprotocol/sdk": "^1.13.0",
     "@rollup/plugin-replace": "^5.0.2",

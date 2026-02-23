@@ -10,14 +10,14 @@ RUN npm install -g pnpm
 
 WORKDIR /workspace
 
-COPY react-server.tgz create-react-server.tgz ./
+COPY react-server.tgz create-react-server.tgz rsc.tgz ./
 COPY entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
 # Install create-react-server and react-server in /tool using npm
 # (bun will be used at runtime to run the create script and the generated app)
 RUN mkdir -p /tool && cd /tool && \
-    echo '{"dependencies":{"@lazarv/react-server":"file:///workspace/react-server.tgz","@lazarv/create-react-server":"file:///workspace/create-react-server.tgz"},"trustedDependencies":["@lazarv/react-server"]}' > package.json && \
+    echo '{"dependencies":{"@lazarv/rsc":"file:///workspace/rsc.tgz","@lazarv/react-server":"file:///workspace/react-server.tgz","@lazarv/create-react-server":"file:///workspace/create-react-server.tgz"},"trustedDependencies":["@lazarv/react-server"],"overrides":{"@lazarv/rsc":"file:///workspace/rsc.tgz"}}' > package.json && \
     npm install --legacy-peer-deps
 
 ENTRYPOINT ["/workspace/entrypoint.sh"]

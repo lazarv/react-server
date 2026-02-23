@@ -257,6 +257,12 @@ export default async function clientBuild(
             join(sys.rootDir, "cache/crypto-browser.mjs")
           ),
         },
+        {
+          find: /^@lazarv\/react-server\/rsc\/browser$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "cache/rsc-browser.mjs")
+          ),
+        },
         ...clientAlias(options.dev),
         ...makeResolveAlias(config.resolve?.alias ?? []),
       ],

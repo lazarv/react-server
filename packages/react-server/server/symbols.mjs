@@ -1,6 +1,8 @@
 export const LOGGER_CONTEXT = Symbol.for("LOGGER_CONTEXT");
 export const MAIN_MODULE = Symbol.for("MAIN_MODULE");
 export const SERVER_CONTEXT = Symbol.for("SERVER_CONTEXT");
+export const DEV_SERVER_CONTEXT = Symbol.for("DEV_SERVER_CONTEXT");
+export const RSC_MODULE_RUNNER = Symbol.for("RSC_MODULE_RUNNER");
 export const CLIENT_MODULES_CONTEXT = Symbol.for("CLIENT_MODULES_CONTEXT");
 export const COLLECT_CLIENT_MODULES = Symbol.for("COLLECT_CLIENT_MODULES");
 export const COLLECT_STYLESHEETS = Symbol.for("COLLECT_STYLESHEETS");
@@ -54,3 +56,7 @@ export const SERVER_FUNCTION_NOT_FOUND = Symbol.for(
 );
 export const SOURCEMAP_SUPPORT = Symbol.for("SOURCEMAP_SUPPORT");
 export const LIVE_IO = Symbol.for("LIVE_IO");
+export const CONSOLE_PROXY = Symbol.for("CONSOLE_PROXY");
+export const EXEC_OPTIONS = Symbol.for("EXEC_OPTIONS");
+export const ABORT_SIGNAL = Symbol.for("ABORT_SIGNAL");
+export const AFTER_CONTEXT = Symbol.for("AFTER_CONTEXT");

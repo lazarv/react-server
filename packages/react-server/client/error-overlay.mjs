@@ -692,11 +692,16 @@ if (
       const originalMethod = console[method].bind(console);
       console[method] = (...args) => {
         const result = originalMethod(...args);
+
+        if (args[0]?.startsWith?.("[vite]")) {
+          return result;
+        }
+
         const [maybeFormat, maybeStyle, maybeEnv] = args;
         if (
-          maybeFormat.startsWith("%c") &&
-          maybeStyle.startsWith("background:") &&
-          maybeEnv?.toLowerCase()?.trim() === "server"
+          maybeFormat?.startsWith?.("%c") &&
+          maybeStyle?.startsWith?.("background:") &&
+          maybeEnv?.toLowerCase?.()?.trim() === "server"
         ) {
           return result;
         }
@@ -713,7 +718,7 @@ if (
               data += decoder.decode(chunk);
             }
             try {
-              if (import.meta.hot && import.meta.hot.isConnected) {
+              if (import.meta.hot) {
                 import.meta.hot.send("react-server:console", data);
               } else {
                 const blob = new Blob([data], {

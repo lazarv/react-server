@@ -1,5 +1,6 @@
 import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
 import {
+  ABORT_SIGNAL,
   HTTP_CONTEXT,
   HTTP_OUTLET,
   HTTP_RESPONSE,
@@ -8,6 +9,10 @@ import {
 
 import { dynamicHookError, dynamicHookWarning } from "../lib/utils/error.mjs";
 import { usePostpone } from "./postpone.mjs";
+
+export function useSignal() {
+  return getContext(ABORT_SIGNAL) ?? null;
+}
 
 export function useHttpContext() {
   usePostpone(dynamicHookWarning("useHttpContext"));

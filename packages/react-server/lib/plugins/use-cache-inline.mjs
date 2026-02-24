@@ -55,7 +55,6 @@ export default function useCacheInline(profiles, providers = {}, type) {
         "unstorage/drivers/memory",
         "unstorage/drivers/localstorage",
         "unstorage/drivers/session-storage",
-        "unstorage/drivers/null",
       ];
       const userDrivers = Object.values(resolvedProviders)
         .map(getDriverModule)

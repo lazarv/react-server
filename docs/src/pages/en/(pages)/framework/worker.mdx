@@ -1,0 +1,527 @@
+---
+title: Workers
+category: Framework
+order: 14
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Workers
+
+The `"use worker"` directive in the `@lazarv/react-server` framework lets you offload heavy computations or blocking tasks to separate threads. On the server, functions marked with `"use worker"` run in a **Node.js Worker Thread** (`node:worker_threads`). On the client, the same directive runs your code in a **Web Worker** (browser `Worker` API). In both cases, you import and call worker functions as if they were ordinary async functions — the framework handles thread creation, message passing, and serialization transparently.
+
+All data flowing between the main thread and the worker is serialized using the **React Server Components (RSC) Flight protocol**. This means worker functions can return not only plain values but also **React elements**, **Suspense boundaries**, **Promises** (for deferred rendering with the `use()` hook), and **ReadableStreams**.
+
+<Link name="why-use-workers">
+## Why Use Workers?
+</Link>
+
+- **Non-blocking rendering:** CPU-intensive work (prime sieves, sorting, matrix math, image processing) runs off the main thread so it doesn't block server request handling or the browser UI.
+- **Concurrency:** Multiple worker calls can execute in parallel, improving throughput.
+- **Unified API:** The same `"use worker"` directive works in both server and client code. You write one module and the framework picks the right threading primitive for the environment.
+- **RSC-native serialization:** Because data is serialized via the Flight protocol, you can seamlessly pass and return React elements, Suspense boundaries, ReadableStreams, and deferred Promises between threads.
+
+<Link name="how-it-works">
+## How It Works
+</Link>
+
+When the framework encounters a file with `"use worker"` at the top, it replaces all exports with thin proxy functions at build time. The original module code is moved into a virtual module that runs inside the worker thread. When you call an exported function, the proxy:
+
+1. Serializes the arguments using the RSC Flight protocol.
+2. Posts a message to the worker thread (or Web Worker) with the function name and serialized arguments.
+3. The worker deserializes the arguments, executes the function, and serializes the return value back.
+4. The proxy deserializes the result and resolves the returned Promise.
+
+`ReadableStream` values are **transferred** (zero-copy) between threads via the `postMessage` transfer list, making streaming results efficient.
+
+<Link name="server-workers">
+## Server Workers
+</Link>
+
+On the server, `"use worker"` modules run in a **Node.js Worker Thread**. The worker is spawned lazily on the first call and reused for subsequent calls. If the worker crashes, it is automatically restarted.
+
+### Basic usage
+
+Create a file with the `"use worker"` directive at the top and export async functions:
+
+```jsx
+"use worker";
+
+export async function computeFactorial(n) {
+  if (n <= 1) return 1;
+  return n * computeFactorial(n - 1);
+}
+```
+
+Import and call it from any server component:
+
+```jsx
+import { computeFactorial } from "./computeFactorial";
+
+export default async function FactorialPage({ number }) {
+  const result = await computeFactorial(42);
+  return <div>Factorial of 42 is {result}</div>;
+}
+```
+
+The `computeFactorial` function runs in a dedicated Worker Thread, keeping the main server thread free to handle other requests.
+
+### CPU-intensive computation
+
+Workers are ideal for CPU-heavy tasks that would otherwise block server-side rendering:
+
+```jsx
+"use worker";
+
+export async function findPrimes(limit) {
+  const start = Date.now();
+  const sieve = new Uint8Array(limit + 1);
+  const primes = [];
+  for (let i = 2; i <= limit; i++) {
+    if (!sieve[i]) {
+      primes.push(i);
+      for (let j = i * i; j <= limit; j += i) sieve[j] = 1;
+    }
+  }
+  return {
+    count: primes.length,
+    largest: primes.at(-1),
+    duration: Date.now() - start,
+  };
+}
+```
+
+```jsx
+import { findPrimes } from "./worker";
+
+export default async function PrimesPage() {
+  const result = await findPrimes(100_000);
+  return <div>Found {result.count} primes in {result.duration}ms</div>;
+}
+```
+
+### Accessing Node.js APIs
+
+Because server workers run in Node.js, you have full access to Node.js built-in modules:
+
+```jsx
+"use worker";
+
+import { workerData } from "node:worker_threads";
+import { setTimeout } from "node:timers/promises";
+
+export async function getSystemInfo() {
+  await setTimeout(100);
+  const mem = process.memoryUsage();
+  return {
+    heapUsed: (mem.heapUsed / 1024 / 1024).toFixed(1) + " MB",
+    uptime: process.uptime().toFixed(1) + "s",
+    workerData: JSON.stringify(workerData),
+  };
+}
+```
+
+### Importing other modules
+
+Worker files can import from other modules. Only the file with the `"use worker"` directive becomes the worker entry — imported modules are bundled into the worker normally:
+
+```js
+// WorkerModule.mjs — a regular module, no directive needed
+export function getSystemInfo() {
+  return {
+    platform: process.platform,
+    nodeVersion: process.version,
+  };
+}
+```
+
+```js
+"use worker";
+
+import { getSystemInfo } from "./WorkerModule.mjs";
+
+export async function getWorkerSystemInfo() {
+  return getSystemInfo();
+}
+```
+
+<Link name="returning-react-elements">
+## Returning React Elements
+</Link>
+
+Because communication uses the RSC Flight protocol, worker functions can return **React elements**, including components with **Suspense boundaries**. The framework serializes the entire component tree and reconstructs it on the calling side.
+
+```jsx
+"use worker";
+
+import { Suspense } from "react";
+
+async function ExpensiveChart() {
+  // Simulate expensive data processing
+  const data = await computeChartData();
+  return (
+    <div className="chart">
+      <h3>Results</h3>
+      <ul>
+        {data.map((d) => <li key={d.id}>{d.label}: {d.value}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+export async function getChart() {
+  return (
+    <Suspense fallback={<p>Loading chart...</p>}>
+      <ExpensiveChart />
+    </Suspense>
+  );
+}
+```
+
+```jsx
+import { getChart } from "./chartWorker";
+
+export default async function Dashboard() {
+  const chart = await getChart();
+  return <main>{chart}</main>;
+}
+```
+
+The `<Suspense>` boundary works as expected — the fallback is shown while `ExpensiveChart` resolves in the worker thread.
+
+<Link name="streaming-with-workers">
+## Streaming with Workers
+</Link>
+
+Worker functions can return a `ReadableStream`. The stream is **transferred** (zero-copy) between the worker and the main thread, making it efficient for large or incremental data. You typically pass the stream to a Client Component that reads it progressively.
+
+```jsx
+"use worker";
+
+export async function streamActivity() {
+  const steps = [
+    { phase: "init", msg: "Initializing" },
+    { phase: "process", msg: "Processing data" },
+    { phase: "compute", msg: "Running computation" },
+    { phase: "done", msg: "Complete" },
+  ];
+
+  return new ReadableStream({
+    async start(controller) {
+      for (const step of steps) {
+        controller.enqueue(
+          JSON.stringify({ ...step, time: new Date().toISOString() }) + "\n"
+        );
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      controller.close();
+    },
+  });
+}
+```
+
+Consume the stream in a Client Component:
+
+```jsx
+import { streamActivity } from "./worker";
+import { StreamViewer } from "./StreamViewer";
+
+export default async function ActivityPage() {
+  const stream = await streamActivity();
+  return <StreamViewer data={stream} />;
+}
+```
+
+```jsx
+"use client";
+
+import { useState, useEffect } from "react";
+
+export function StreamViewer({ data }) {
+  const [entries, setEntries] = useState([]);
+
+  useEffect(() => {
+    const reader = data.getReader();
+    const decoder = new TextDecoder();
+
+    async function read() {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = typeof value === "string" ? value : decoder.decode(value);
+        const lines = text.trim().split("\n").filter(Boolean);
+        for (const line of lines) {
+          setEntries((prev) => [...prev, JSON.parse(line)]);
+        }
+      }
+    }
+    read();
+  }, [data]);
+
+  return (
+    <ul>
+      {entries.map((e, i) => (
+        <li key={i}>[{e.phase}] {e.msg}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+<Link name="abort-signals">
+## Abort Signals with `useSignal`
+</Link>
+
+On the server, you can use `useSignal()` from `@lazarv/react-server` inside a worker function to get the current request's `AbortSignal`. This allows you to cancel long-running operations when the client disconnects or the request is aborted.
+
+```jsx
+"use worker";
+
+import { useSignal } from "@lazarv/react-server";
+
+export async function streamActivity() {
+  const signal = useSignal();
+
+  return new ReadableStream({
+    async start(controller) {
+      for (let i = 0; i < 100; i++) {
+        if (signal?.aborted) break;
+        controller.enqueue(`Step ${i}\n`);
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      controller.close();
+    },
+  });
+}
+```
+
+When the request is aborted (e.g., the client navigates away), `signal.aborted` becomes `true` and the worker stops producing data.
+
+> **Note:** `useSignal()` is only available in server workers. It is not supported in client-side Web Workers.
+
+<Link name="client-workers">
+## Client-Side Web Workers
+</Link>
+
+The same `"use worker"` directive works in client-side code. When a `"use client"` component imports from a `"use worker"` module, the framework automatically creates a **Web Worker** in the browser. The function arguments and return values are serialized using the RSC Flight protocol and transferred between the main thread and the Web Worker.
+
+This keeps the browser's main thread responsive while heavy computation runs in the background — no UI jank, no frozen interactions.
+
+### Basic usage
+
+Create a worker module (no `"use client"` needed — just `"use worker"`):
+
+```jsx
+"use worker";
+
+export async function fibonacci(n) {
+  const start = performance.now();
+  let a = 0n, b = 1n;
+  for (let i = 0; i < n; i++) {
+    [a, b] = [b, a + b];
+  }
+  return {
+    n,
+    digits: a.toString().length,
+    duration: (performance.now() - start).toFixed(2),
+  };
+}
+
+export async function sortBenchmark(size) {
+  const start = performance.now();
+  const arr = Float64Array.from({ length: size }, () => Math.random());
+  arr.sort();
+  return {
+    size: size.toLocaleString(),
+    duration: (performance.now() - start).toFixed(2),
+    median: arr[Math.floor(arr.length / 2)].toFixed(8),
+  };
+}
+```
+
+Use it from a Client Component:
+
+```jsx
+"use client";
+
+import { useState, useCallback } from "react";
+import { fibonacci, sortBenchmark } from "./WebWorker.jsx";
+
+export function ComputePanel() {
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const runFibonacci = useCallback(async () => {
+    setLoading(true);
+    const res = await fibonacci(1000);
+    setResult(res);
+    setLoading(false);
+  }, []);
+
+  return (
+    <div>
+      <button onClick={runFibonacci} disabled={loading}>
+        {loading ? "Computing..." : "Compute Fibonacci(1000)"}
+      </button>
+      {result && (
+        <p>{result.digits} digits, computed in {result.duration}ms</p>
+      )}
+    </div>
+  );
+}
+```
+
+The `fibonacci` call runs entirely in a Web Worker. The browser UI stays responsive even during heavy BigInt computation.
+
+### Returning deferred Promises
+
+Client-side worker functions can return objects containing `Promise` values. You can consume these with React's `use()` hook for deferred rendering:
+
+```jsx
+"use worker";
+
+export async function analyzeDataset() {
+  return {
+    status: "processing",
+    data: new Promise((resolve) => {
+      setTimeout(() => {
+        const values = Array.from({ length: 10000 }, () => Math.random() * 100);
+        const mean = values.reduce((a, b) => a + b) / values.length;
+        resolve({
+          samples: values.length,
+          mean: mean.toFixed(2),
+        });
+      }, 2000);
+    }),
+  };
+}
+```
+
+```jsx
+"use client";
+
+import { Suspense, use, useState, useCallback } from "react";
+import { analyzeDataset } from "./WebWorker.jsx";
+
+function AnalysisResult({ dataPromise }) {
+  const data = use(dataPromise);
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+
+export function AnalysisPanel() {
+  const [result, setResult] = useState(null);
+
+  const run = useCallback(async () => {
+    const res = await analyzeDataset();
+    setResult(res);
+  }, []);
+
+  return (
+    <div>
+      <button onClick={run}>Analyze</button>
+      {result && (
+        <Suspense fallback={<p>Analyzing...</p>}>
+          <AnalysisResult dataPromise={result.data} />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+```
+
+### Streaming from Web Workers
+
+Client-side workers can also return `ReadableStream` values. The stream is **transferred** (zero-copy) from the Web Worker to the main thread:
+
+```jsx
+"use worker";
+
+export async function streamComputations() {
+  const operations = [
+    "Generating matrix",
+    "Computing dot product",
+    "Normalizing vectors",
+    "Finalizing results",
+  ];
+
+  return new ReadableStream({
+    async start(controller) {
+      for (let i = 0; i < operations.length; i++) {
+        const result = Array.from({ length: 50000 }, () => Math.random())
+          .reduce((a, b) => a + b, 0);
+        controller.enqueue(
+          JSON.stringify({
+            step: i + 1,
+            total: operations.length,
+            operation: operations[i],
+            result: result.toFixed(2),
+          }) + "\n"
+        );
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      controller.close();
+    },
+  });
+}
+```
+
+<Link name="edge-runtime">
+## Edge Runtime Behavior
+</Link>
+
+On **edge and serverless runtimes** (Cloudflare Workers, Vercel Edge, Netlify Edge, Deno Deploy), `node:worker_threads` is not available. In these environments, the framework automatically falls back to **in-process execution** — your worker functions are called directly without any threading or serialization overhead.
+
+This means `"use worker"` modules remain fully portable: the same code works in Node.js (with real worker threads) and on the edge (with direct execution). You don't need to change your code or add conditional logic.
+
+> **Note:** On edge runtimes, worker functions do **not** run in a separate thread. They execute in the same process as the rest of your server code. This means they won't provide the concurrency benefits of true worker threads, but your code remains compatible across all deployment targets.
+
+<Link name="constraints">
+## Constraints and Limitations
+</Link>
+
+Keep the following constraints in mind when using `"use worker"`:
+
+### Serialization
+
+- All function arguments and return values must be serializable via the **RSC Flight protocol**. This includes plain objects, arrays, strings, numbers, booleans, `null`, `undefined`, React elements, `Promise` values, and `ReadableStream` instances.
+- You **cannot** pass non-serializable values such as functions, class instances (unless they are React components), `WeakMap`, `WeakSet`, `Symbol`, or closures as arguments or return values.
+- Both arguments and return values are serialized using the RSC Flight protocol on **all environments** (server and client). This ensures consistent serialization behavior regardless of where the worker runs.
+
+### Module-level directive
+
+- The `"use worker"` directive must be the **first statement** in the file (after any comments). It applies to the **entire module** — all exports from that file become worker functions.
+- You cannot selectively mark individual functions as workers within a module. If you need some functions to run in a worker and others on the main thread, put them in separate files.
+
+### Async functions only
+
+- All exported functions from a `"use worker"` module must be **async** (or return a Promise). This is because communication between threads is inherently asynchronous.
+
+### No shared state
+
+- Workers run in a **separate thread** with their own memory space. They do **not** share state with the main thread. Global variables, module-level state, or in-memory caches in the worker are isolated from the main thread and from other requests.
+- Server workers are **singletons per module** — the same Worker Thread instance is reused across all requests. Be mindful of module-level mutable state, as it persists across requests.
+
+### Server-specific APIs
+
+- `useSignal()` is only available in **server workers**. Client-side Web Workers do not have abort signal integration.
+- `workerData` from `node:worker_threads` is accessible in server workers but not in client-side Web Workers.
+
+### Client-side constraints
+
+- Client-side Web Workers are created **per proxy creation** (per import). Each import of a `"use worker"` module creates a new Web Worker instance.
+- Web Workers do not have access to the DOM. They can only return data to the main thread — they cannot directly manipulate the page.
+
+### Edge/serverless constraints
+
+- On edge runtimes, `"use worker"` functions execute **in-process** (no separate thread). This means CPU-intensive work will still block the main execution context.
+- The in-process fallback means no serialization overhead but also no true parallelism.
+
+### Development mode
+
+- In development, the framework uses Vite's `ModuleRunner` inside the worker thread, providing full **Hot Module Replacement (HMR)** support. Changes to worker files are picked up automatically without restarting the dev server.
+
+<Link name="full-example">
+## Full Example
+</Link>
+
+For a complete working example demonstrating all worker capabilities — server-side computation, React element rendering in workers, streaming, client-side Web Workers with Fibonacci, sort benchmarks, deferred promises, and streaming — see the [use-worker example](https://github.com/lazarv/react-server/tree/main/examples/use-worker) in the official repository.

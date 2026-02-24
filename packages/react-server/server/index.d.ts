@@ -85,6 +85,16 @@ export function useHttpContext(): HttpContext;
 export function useRequest(): Request;
 
 /**
+ * This hook returns the current abort signal. The signal is aborted when the
+ * HTTP request is cancelled by the client. Available in both server components
+ * and workers. Pass this signal to fetch calls or any other API that accepts
+ * an AbortSignal to propagate cancellation.
+ *
+ * @returns The current AbortSignal, or null if not available
+ */
+export function useSignal(): AbortSignal | null;
+
+/**
  * This hook returns the current response object.
  *
  * @returns The current response object
@@ -364,6 +374,27 @@ export function getRuntime<R = Record<string, unknown>>(): R;
  * @returns The runtime context store entry.
  */
 export function getRuntime<R = unknown, K = string>(key?: K): R;
+
+/**
+ * A logger proxy that resolves to the framework's logger at runtime.
+ * In development, this uses Vite's logger. In production, it falls back to `console`.
+ *
+ * @example
+ *
+ * ```tsx
+ * import { logger } from '@lazarv/react-server';
+ *
+ * export default function App() {
+ *   logger.info('Rendering App');
+ *   return <div>Hello</div>;
+ * }
+ * ```
+ */
+export const logger: {
+  info(msg: string, ...args: unknown[]): void;
+  warn(msg: string, ...args: unknown[]): void;
+  error(msg: string | Error, ...args: unknown[]): void;
+};
 
 /**
  * The current version of `@lazarv/react-server`.

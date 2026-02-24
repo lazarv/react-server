@@ -19,6 +19,7 @@ export {
   useRequest,
   useResponse,
   useSearchParams,
+  useSignal,
   useUrl,
 } from "./request.mjs";
 export { revalidate } from "./revalidate.mjs";
@@ -26,4 +27,6 @@ export { invalidate, useCache } from "@lazarv/react-server/memory-cache";
 export { reload } from "./reload.mjs";
 export { useRender, RenderType } from "./render.mjs";
 export { getRuntime } from "./runtime.mjs";
+export { after } from "./after.mjs";
+export { logger } from "./logger.mjs";
 export { version } from "./version.mjs";

@@ -365,3 +365,101 @@ export default function MyComponent() {
   return <p>Render lock</p>;
 }
 ```
+
+<Link name="logger">
+## Logger
+</Link>
+
+With `logger` you can log messages using the framework's built-in logger. The `logger` object provides `info`, `warn`, `error`, and `debug` methods that integrate with the framework's logging system, providing consistent and formatted output.
+
+```jsx
+import { logger } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  logger.info("Rendering MyComponent");
+
+  return <p>Hello World</p>;
+}
+```
+
+The `logger` automatically uses the framework's Vite-integrated logger in development mode for nicely formatted output, and falls back to `console` in production. It is context-aware — when called inside an `after()` callback, the log output is annotated with an `(after)` label so you can distinguish post-response logs from rendering logs.
+
+```jsx
+import { after, logger } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  logger.info("Rendering component");
+
+  after(() => {
+    logger.info("Response sent"); // logged with (after) label in dev
+  });
+
+  return <p>Hello World</p>;
+}
+```
+
+The available methods are:
+
+| Method | Description |
+|---|---|
+| `logger.info(msg, ...args)` | Log an informational message |
+| `logger.warn(msg, ...args)` | Log a warning message |
+| `logger.error(msg, ...args)` | Log an error message or `Error` object |
+| `logger.debug(msg, ...args)` | Log a debug message |
+
+> **Note:** The `logger` can be used anywhere on the server — in components, server functions, middleware, route handlers, workers, and `after()` callbacks. It does not require a request context, but when one is available, it uses the context-specific logger instance.
+
+<Link name="after">
+## After
+</Link>
+
+With `after()` you can register a callback function that runs **after the response has been sent** to the client. This is useful for performing cleanup tasks, logging, analytics, or any side effects that should not delay the response.
+
+```jsx
+import { after, logger } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  after(() => {
+    logger.info("Response sent to client.");
+  });
+
+  return <p>Hello World</p>;
+}
+```
+
+The `after()` hook can be called multiple times to register multiple callbacks. All registered callbacks run concurrently via `Promise.allSettled` after the response stream completes, so one failing callback does not prevent the others from running.
+
+```jsx
+import { after } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  after(async () => {
+    await saveAnalytics({ page: "/home", timestamp: Date.now() });
+  });
+
+  after(async () => {
+    await cleanupTempFiles();
+  });
+
+  return <p>Home</p>;
+}
+```
+
+You can also use `after()` in server functions, middleware, route handlers, or any server-side code that runs within a request context:
+
+```jsx
+import { after } from "@lazarv/react-server";
+
+export async function submitForm(formData) {
+  "use server";
+
+  const data = Object.fromEntries(formData.entries());
+  await saveToDatabase(data);
+
+  after(async () => {
+    await sendNotificationEmail(data.email);
+  });
+}
+```
+
+> **Note:** The `after()` hook can only be called during a request. Calling it outside of a request context (e.g., at module scope or in a standalone script) will throw an error.

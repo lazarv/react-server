@@ -155,6 +155,12 @@ class FlightResponse {
         reject = rej;
       });
 
+      // Streaming chunks are consumed via wrapper status polling, not via
+      // promise awaiting.  Suppress unhandled-rejection warnings so that
+      // rejecting a streaming chunk (e.g. on transport error) doesn't crash
+      // the process in Node.js v24+ where unhandled rejections throw.
+      promise.catch(() => {});
+
       chunk = {
         id,
         status: PENDING,
@@ -204,6 +210,17 @@ class FlightResponse {
       chunk.error = error;
     } else {
       chunk.value = error;
+    }
+    // If the chunk has a ReadableStream controller, error it so that
+    // any reader (e.g. an outer renderToReadableStream re-serializing
+    // this stream) is unblocked and receives the error.
+    if (chunk._controller && !chunk._controllerClosed) {
+      try {
+        chunk._controller.error(error);
+      } catch {
+        // Controller may already be closed
+      }
+      chunk._controllerClosed = true;
     }
     chunk.promise.status = "rejected";
     chunk.promise.value = error;
@@ -1105,7 +1122,23 @@ class FlightResponse {
         // Store controller reference for streaming data push
         chunk._controller = controller;
 
-        // If chunk is already complete (shouldn't happen normally), close
+        // Flush any already-accumulated values that arrived before the
+        // controller was set up (text/binary rows received before $r deserialization)
+        if (Array.isArray(chunk.value) && chunk.value.length > 0) {
+          for (const item of chunk.value) {
+            try {
+              if (chunk.type === "text" || typeof item === "string") {
+                controller.enqueue(new TextEncoder().encode(item));
+              } else {
+                controller.enqueue(item);
+              }
+            } catch {
+              // Controller may be closed
+            }
+          }
+        }
+
+        // If chunk is already complete, close
         if (chunk.status === RESOLVED) {
           controller.close();
         } else if (chunk.status === REJECTED) {
@@ -1113,8 +1146,17 @@ class FlightResponse {
         }
       },
       cancel() {
-        // Handle cancellation - mark as closed
+        // Handle cancellation — mark as closed and reject the chunk
+        // so that any other consumers (e.g. async iterable wrapper) also stop.
         chunk._controllerClosed = true;
+        if (chunk.status === PENDING) {
+          chunk.status = REJECTED;
+          chunk.error = new DOMException(
+            "The stream was cancelled",
+            "AbortError"
+          );
+          chunk.reject(chunk.error);
+        }
       },
     });
   }
@@ -1547,22 +1589,45 @@ class FlightResponse {
   }
 
   /**
-   * Resolve all deferred chunks after all data has been parsed.
-   * This fills in object properties and array elements now that all chunks exist.
+   * Resolve all deferred chunks whose dependencies are available.
+   * This fills in object properties and array elements now that their referenced chunks exist.
    * Uses two passes: first fills properties (may create path ref sentinels),
    * then resolves path ref sentinels after all properties are filled.
+   *
+   * Safe to call multiple times — only processes deferred chunks whose
+   * referenced chunks have been resolved. Unresolvable entries stay in the
+   * queue for the next call.
    */
   resolveDeferredChunks() {
-    // First pass: fill properties, collecting path ref sentinels
-    this._resolvingDeferred = true;
-    const pathRefLocations = []; // { target, key }
+    // Separate deferred chunks into ready (all deps resolved) and not-ready.
+    const ready = [];
+    const notReady = [];
 
     for (const deferred of this.deferredChunks) {
+      if (this._areDepsResolved(deferred.json)) {
+        ready.push(deferred);
+      } else {
+        notReady.push(deferred);
+      }
+    }
+
+    // Nothing to do if no deferred chunks are ready
+    if (ready.length === 0) {
+      return;
+    }
+
+    // Keep not-ready entries for the next call
+    this.deferredChunks = notReady;
+
+    // First pass: fill properties, collecting path ref sentinels
+    this._resolvingDeferred = true;
+    const pathRefLocations = [];
+
+    for (const deferred of ready) {
       if (deferred.type === "object") {
         for (const key of Object.keys(deferred.json)) {
           const value = this.deserializeValue(deferred.json[key]);
           deferred.value[key] = value;
-          // Recursively collect path ref sentinels from this value
           this.collectPathRefSentinels(
             deferred.value,
             key,
@@ -1574,7 +1639,6 @@ class FlightResponse {
         for (let i = 0; i < deferred.json.length; i++) {
           const value = this.deserializeValue(deferred.json[i]);
           deferred.value[i] = value;
-          // Recursively collect path ref sentinels from this value
           this.collectPathRefSentinels(
             deferred.value,
             i,
@@ -1592,8 +1656,46 @@ class FlightResponse {
       target[key] = this.resolvePath(chunk.value, sentinel.path);
     }
 
-    // Clear the deferred list
-    this.deferredChunks = [];
+    // Resolving the ready batch may have made previously not-ready entries
+    // resolvable. Recurse until no more progress is made.
+    if (
+      this.deferredChunks.length > 0 &&
+      this.deferredChunks.length < notReady.length + ready.length
+    ) {
+      this.resolveDeferredChunks();
+    }
+  }
+
+  /**
+   * Check whether all chunk references in a JSON value are resolved.
+   * Returns false if any $N reference points to a still-pending chunk.
+   */
+  _areDepsResolved(json) {
+    if (typeof json === "string") {
+      // Check $N (chunk ref) and $N:path (path ref)
+      if (/^\$\d+/.test(json)) {
+        const colonIndex = json.indexOf(":");
+        const idStr =
+          colonIndex === -1 ? json.slice(1) : json.slice(1, colonIndex);
+        const id = parseInt(idStr, 10);
+        const chunk = this.chunks.get(id);
+        if (!chunk || chunk.status === PENDING) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (Array.isArray(json)) {
+      // For React element tuples ["$", ...], don't block on those
+      if (json[0] === "$" && json.length >= 3) {
+        return true;
+      }
+      return json.every((item) => this._areDepsResolved(item));
+    }
+    if (json && typeof json === "object") {
+      return Object.values(json).every((v) => this._areDepsResolved(v));
+    }
+    return true;
   }
 
   /**
@@ -1649,8 +1751,11 @@ class FlightResponse {
 export function createFromReadableStream(stream, options = {}) {
   const response = new FlightResponse(options);
 
-  // Create the result promise and annotate it as a thenable with status
-  const resultPromise = (async () => {
+  // Start consuming the stream in the background.
+  // The root value will be resolved as soon as the root chunk is available,
+  // while streaming chunks (ReadableStream, AsyncIterable) continue to receive
+  // data in the background until the stream ends.
+  const consumePromise = (async () => {
     const reader = stream.getReader();
 
     try {
@@ -1658,6 +1763,11 @@ export function createFromReadableStream(stream, options = {}) {
         const { done, value } = await reader.read();
         if (done) break;
         response.processData(value);
+        // Eagerly resolve deferred chunks so that the root value and any
+        // streaming wrappers (ReadableStream / AsyncIterable) are created
+        // as soon as their model rows arrive, rather than waiting for the
+        // entire RSC payload to finish.
+        response.resolveDeferredChunks();
       }
 
       // Process any remaining binary buffer
@@ -1669,11 +1779,34 @@ export function createFromReadableStream(stream, options = {}) {
       reader.releaseLock();
     }
 
-    // Resolve all deferred object/array properties now that all chunks are parsed
+    // Final pass to resolve any remaining deferred chunks
     response.resolveDeferredChunks();
-
-    return response.getRootValue();
   })();
+
+  // Attach background consumption error handling: if the stream fails
+  // before or after the root resolves, reject pending chunks including root.
+  consumePromise.catch((error) => {
+    // If the root chunk is still pending, reject it so callers don't hang.
+    if (response.rootChunk.status === PENDING) {
+      response.rejectChunk(0, error);
+    }
+    // Reject any other pending streaming chunks.
+    for (const [id, chunk] of response.chunks) {
+      if (chunk.status === PENDING) {
+        response.rejectChunk(id, error);
+      }
+    }
+  });
+
+  // The root value promise resolves as soon as the root chunk (id 0) resolves,
+  // which typically happens after the first batch of data is processed —
+  // NOT after the entire stream is consumed.
+  // We race with consumePromise to ensure transport-level errors are
+  // propagated even if the root chunk was never created.
+  const resultPromise = Promise.race([
+    response.getRootValue(),
+    consumePromise.then(() => response.getRootValue()),
+  ]);
 
   // Annotate with status/value for sync unwrapping (React's use() protocol)
   resultPromise.status = "pending";

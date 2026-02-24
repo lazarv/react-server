@@ -15,16 +15,20 @@ export let serverLogs;
 
 export const testCwd = process.cwd();
 
+const verbose = typeof process.env.REACT_SERVER_VERBOSE !== "undefined";
+
+const consoleLog = console.log;
 console.log = (...args) => {
   logs?.push(args.join(" "));
   serverLogs?.push(args.join(" "));
+  if (verbose) consoleLog(...args);
 };
 
 const consoleError = console.error;
 console.error = (...args) => {
   logs?.push(args.join(" "));
   serverLogs?.push(args.join(" "));
-  consoleError(...args);
+  if (verbose) consoleError(...args);
 };
 
 const BASE_PORT = 3000;

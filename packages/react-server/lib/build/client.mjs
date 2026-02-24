@@ -13,6 +13,7 @@ import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import rolldownUseClient from "../plugins/use-client.mjs";
 import rolldownUseServer from "../plugins/use-server.mjs";
 import rolldownUseCacheInline from "../plugins/use-cache-inline.mjs";
+import rollupUseWorker from "../plugins/use-worker.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
@@ -192,6 +193,9 @@ export default async function clientBuild(
               : []),
           ]
         : undefined,
+    worker: {
+      format: "es",
+    },
     assetsInclude: config.assetsInclude,
     resolve: {
       ...config.resolve,
@@ -362,6 +366,7 @@ export default async function clientBuild(
             config.cache?.providers,
             "client"
           ),
+          rollupUseWorker("client"),
           ...(config.build?.rollupOptions?.plugins ?? []),
           ...(config.build?.rolldownOptions?.plugins ?? []),
         ],

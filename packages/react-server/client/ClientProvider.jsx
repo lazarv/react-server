@@ -728,6 +728,15 @@ function getFlightResponse(url, options = {}) {
               let chunks = 0;
               let redirectTo = null;
               const reader = body.getReader();
+
+              abortController?.signal?.addEventListener(
+                "abort",
+                () => {
+                  reader.cancel();
+                },
+                { once: true }
+              );
+
               const decoder = new TextDecoder();
               while (true) {
                 const { done, value } = await reader.read();
@@ -745,6 +754,10 @@ function getFlightResponse(url, options = {}) {
                 if (done) {
                   break;
                 }
+              }
+
+              if (abortController?.signal.aborted) {
+                return;
               }
 
               if (chunks === 0) {

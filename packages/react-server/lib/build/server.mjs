@@ -22,6 +22,7 @@ import rolldownUseServerInline from "../plugins/use-server-inline.mjs";
 import rolldownUseServer from "../plugins/use-server.mjs";
 import rolldownUseCacheInline from "../plugins/use-cache-inline.mjs";
 import rolldownUseDynamic from "../plugins/use-dynamic.mjs";
+import rolldownUseWorker from "../plugins/use-worker.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import { preloadManifestVirtual } from "../plugins/preload-manifest.mjs";
 import { serverReferenceMapVirtual } from "../plugins/server-reference-map.mjs";
@@ -738,6 +739,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
             "server"
           ),
           rolldownUseDynamic(),
+          rolldownUseWorker("rsc", { edge: options.edge }),
           rootModule(root),
           configPrebuilt(),
           {
@@ -1020,6 +1022,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
             "ssr"
           ),
           rolldownUseDynamic(),
+          rolldownUseWorker("ssr", { edge: options.edge }),
           ...(config.build?.rollupOptions?.plugins ?? []),
           ...(config.build?.rolldownOptions?.plugins ?? []),
         ],

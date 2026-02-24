@@ -60,6 +60,7 @@ export async function render(Component, props = {}, options = {}) {
   try {
     const streaming = new Promise(async (resolve, reject) => {
       const context = getContext(HTTP_CONTEXT);
+      const signal = context?.signal;
       try {
         revalidate$();
 
@@ -513,6 +514,7 @@ export async function render(Component, props = {}, options = {}) {
                   origin,
                 }),
                 {
+                  signal,
                   temporaryReferences,
                   onError(e) {
                     hasError = true;
@@ -654,6 +656,7 @@ export async function render(Component, props = {}, options = {}) {
             app,
             clientReferenceMap({ remote: remote || remoteRSC, origin }),
             {
+              signal,
               temporaryReferences,
               onError(e) {
                 hasError = true;

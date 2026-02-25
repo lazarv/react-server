@@ -1,7 +1,7 @@
 "use worker";
 
 import { setTimeout } from "node:timers/promises";
-import { workerData } from "node:worker_threads";
+import { isMainThread, workerData } from "node:worker_threads";
 import { Suspense } from "react";
 
 import { useSignal } from "@lazarv/react-server";
@@ -105,5 +105,10 @@ export async function streamActivity() {
 // ---------- Worker Lifecycle ----------
 
 export async function terminate() {
-  process.exit(0);
+  // In Edge builds, "use worker" functions run in-process (no separate
+  // worker thread), so process.exit() would kill the entire server.
+  // Only terminate when actually running inside a worker thread.
+  if (!isMainThread) {
+    process.exit(0);
+  }
 }

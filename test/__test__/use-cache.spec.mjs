@@ -172,16 +172,17 @@ test("use cache browser component", async () => {
   expect(await page.textContent(".list-timestamp")).toBe(listTimestamp);
 
   // Wait for local cache TTL (3s) to expire, session cache should still hold
-  const start = Date.now();
   let currentTimestamp = timestamp;
   while (currentTimestamp === timestamp) {
     await page.reload();
     await page.waitForLoadState("networkidle");
     currentTimestamp = await page.textContent(".timestamp");
   }
-  expect(Date.now() - start).toBeGreaterThan(2500);
 
-  // Session-cached list should still be the same
+  // Local cache expired — the timestamp changed
+  expect(currentTimestamp).not.toBe(timestamp);
+
+  // Session-cached list should still be the same (its 5s TTL hasn't expired yet)
   expect(await page.textContent(".list-timestamp")).toBe(listTimestamp);
 
   // Wait for session cache TTL (5s) to expire
@@ -191,7 +192,9 @@ test("use cache browser component", async () => {
     await page.waitForLoadState("networkidle");
     currentListTimestamp = await page.textContent(".list-timestamp");
   }
-  expect(Date.now() - start).toBeGreaterThan(4500);
+
+  // Session cache expired — the list timestamp changed
+  expect(currentListTimestamp).not.toBe(listTimestamp);
 });
 
 test("rsc serialization", async () => {

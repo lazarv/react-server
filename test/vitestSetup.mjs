@@ -13,8 +13,6 @@ export let hostname;
 export let logs;
 export let serverLogs;
 
-let currentWorker;
-
 export const testCwd = process.cwd();
 
 const verbose = typeof process.env.REACT_SERVER_VERBOSE !== "undefined";
@@ -78,15 +76,6 @@ test.beforeAll(async (_context, suite) => {
   server = (root, initialConfig, base) =>
     new Promise(async (resolve, reject) => {
       try {
-        // Terminate the previous server worker if one is still running
-        if (currentWorker) {
-          try {
-            await currentWorker.terminate();
-          } catch {
-            // ignore — worker may have already exited
-          }
-          currentWorker = null;
-        }
         logs = [];
         serverLogs = [];
         const hashValue = createHash("sha256")
@@ -159,9 +148,6 @@ test.beforeAll(async (_context, suite) => {
             },
           }
         );
-        let terminating = false;
-        // Store worker reference for cleanup in afterAll
-        currentWorker = worker;
         // Don't let the worker thread prevent the fork process from exiting
         worker.unref();
         worker.on("message", (msg) => {
@@ -196,16 +182,6 @@ test.beforeAll(async (_context, suite) => {
 });
 
 afterAll(async () => {
-  // Terminate the server worker thread to clean up any inner worker threads
-  // (e.g. "use worker" threads) that would otherwise keep the process alive.
-  if (currentWorker) {
-    try {
-      await currentWorker.terminate();
-    } catch {
-      // ignore — worker may have already exited
-    }
-    currentWorker = null;
-  }
   await page?.close();
   await browser?.close();
   await cleanup();

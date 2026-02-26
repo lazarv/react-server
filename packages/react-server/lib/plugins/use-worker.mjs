@@ -5,8 +5,69 @@ import { parse } from "../utils/ast.mjs";
 
 const cwd = sys.cwd();
 
+// Module-level Map shared across all plugin instances so that the sub-build
+// plugin (useWorkerSubBuildPlugin) can access code stored by the main plugin.
+const workerCode = new Map();
+
+/**
+ * Minimal plugin added to top-level Vite `plugins` so that Vite's worker
+ * sub-builds (spawned by vite:worker-import-meta-url) can resolve and load
+ * virtual:react-server:worker/webworker modules.
+ *
+ * The main use-worker plugin uses Rolldown filter-based hooks which are NOT
+ * evaluated in the separate Rolldown instance that powers worker sub-builds.
+ * This plugin uses plain hooks (no `filter` property) so they always fire.
+ */
+export function useWorkerSubBuildPlugin() {
+  return {
+    name: "react-server:use-worker-sub-build",
+    resolveId(id) {
+      if (
+        id.startsWith("virtual:react-server:worker::") ||
+        id.includes("virtual:react-server:webworker::")
+      ) {
+        return id;
+      }
+    },
+    load(id) {
+      if (id.startsWith("virtual:react-server:worker::")) {
+        const filename = id
+          .replace("virtual:react-server:worker::", "")
+          .replace(/\?.*$/, "");
+        if (!workerCode.has(filename)) {
+          throw new Error(`Worker module not found: ${id}`);
+        }
+        return workerCode.get(filename);
+      } else if (/virtual:react-server:webworker::/.test(id)) {
+        const filename = id.replace(/.*virtual:react-server:webworker::/, "");
+        return `globalThis.__react_server_is_worker__ = true;
+import * as mod from "virtual:react-server:worker::${relative(cwd, filename)}";
+import { toStream, fromStream } from "@lazarv/react-server/rsc/browser";
+self.addEventListener("message", async ({ data: { type, id, fn, args: argsStream } }) => {
+  if (type !== "react-server:worker:invoke") return;
+
+  try {
+    const args = await fromStream(argsStream);
+    let result = mod[fn](...args);
+    if (result instanceof Promise) {
+      result = await result;
+    }
+    if (result !== undefined) {
+      const resultStream = await toStream(result);
+      self.postMessage({ type: "react-server:worker:response", id, result: resultStream }, [resultStream]);
+    } else {
+      self.postMessage({ type: "react-server:worker:response", id, result: null });
+    }
+  } catch (e) {
+    self.postMessage({ type: "react-server:worker:response", id, error: e.message });
+  }
+});`;
+      }
+    },
+  };
+}
+
 export default function useServer(env, options = {}) {
-  const workerCode = new Map();
   return {
     name: "react-server:use-worker",
     resolveId: {

@@ -13,6 +13,7 @@ import { getPrerender } from "../../server/prerender-storage.mjs";
 import { createRenderContext } from "../../server/render-context.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
+  ABORT_SIGNAL,
   CLIENT_MODULES_CONTEXT,
   COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
@@ -240,6 +241,7 @@ export default async function ssrHandler(root, options = {}) {
               [SERVER_CONTEXT]: getRuntime(SERVER_CONTEXT),
               [CONFIG_CONTEXT]: config,
               [HTTP_CONTEXT]: httpContext,
+              [ABORT_SIGNAL]: httpContext.signal,
               [ERROR_CONTEXT]: errorHandler,
               [LOGGER_CONTEXT]: logger,
               [MAIN_MODULE]: mainModule,

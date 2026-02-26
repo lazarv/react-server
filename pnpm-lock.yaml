@@ -842,6 +842,22 @@ importers:
         specifier: ^3.4.3
         version: 3.4.4(ts-node@10.9.2(@swc/core@1.11.21)(@types/node@24.9.2)(typescript@5.9.3))
 
+  examples/use-worker:
+    dependencies:
+      '@lazarv/react-server':
+        specifier: workspace:^
+        version: link:../../packages/react-server
+    devDependencies:
+      autoprefixer:
+        specifier: ^10.4.19
+        version: 10.4.19(postcss@8.5.6)
+      postcss:
+        specifier: ^8.4.38
+        version: 8.5.6
+      tailwindcss:
+        specifier: ^3.4.3
+        version: 3.4.4(ts-node@10.9.2(@swc/core@1.11.21)(@types/node@24.9.2)(typescript@5.9.3))
+
   packages/create-react-server:
     dependencies:
       '@inquirer/checkbox':

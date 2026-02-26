@@ -10,6 +10,7 @@ import {
 } from "../../server/render-context.mjs";
 import { getRuntime } from "../../server/runtime.mjs";
 import {
+  ABORT_SIGNAL,
   ACTION_CONTEXT,
   CLIENT_MODULES_CONTEXT,
   COLLECT_CLIENT_MODULES,
@@ -61,6 +62,7 @@ export default async function ssrHandler(root) {
           {
             [SERVER_CONTEXT]: viteDevServer,
             [HTTP_CONTEXT]: httpContext,
+            [ABORT_SIGNAL]: httpContext.signal,
             [CONFIG_CONTEXT]: config,
             [ERROR_CONTEXT]: errorHandler,
             [MODULE_LOADER]: ssrLoadModule,

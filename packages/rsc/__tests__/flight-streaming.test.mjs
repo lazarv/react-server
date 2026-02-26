@@ -596,3 +596,624 @@ describe("Flight Streaming - Sync Thenable Return", () => {
     expect(result.meta.count).toBe(2);
   });
 });
+
+describe("Flight Streaming - Incremental ReadableStream Delivery", () => {
+  it("should deliver ReadableStream chunks incrementally, not all at once", async () => {
+    // Create a ReadableStream that emits chunks with delays
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < 5; i++) {
+          controller.enqueue(`chunk-${i}`);
+          await delay(30);
+        }
+        controller.close();
+      },
+    });
+
+    const rscStream = renderToReadableStream(sourceStream);
+    const result = await createFromReadableStream(rscStream);
+
+    // result should be a ReadableStream that we can read from
+    expect(result).toBeInstanceOf(ReadableStream);
+
+    const reader = result.getReader();
+    const decoder = new TextDecoder();
+    const arrivals = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      arrivals.push({ time: Date.now(), text: decoder.decode(value) });
+    }
+
+    // All 5 chunks should have been received
+    const allText = arrivals.map((a) => a.text).join("");
+    for (let i = 0; i < 5; i++) {
+      expect(allText).toContain(`chunk-${i}`);
+    }
+
+    // Key assertion: chunks should NOT all arrive at the same time.
+    // With 30ms delays between chunks, the time span should be > 50ms
+    // (if they all arrived at once, span would be ~0ms).
+    if (arrivals.length > 1) {
+      const timeSpan = arrivals[arrivals.length - 1].time - arrivals[0].time;
+      expect(timeSpan).toBeGreaterThan(50);
+    }
+  });
+
+  it("should deliver ReadableStream binary chunks incrementally", async () => {
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < 4; i++) {
+          controller.enqueue(new Uint8Array([i, i + 10, i + 20]));
+          await delay(30);
+        }
+        controller.close();
+      },
+    });
+
+    const rscStream = renderToReadableStream(sourceStream);
+    const result = await createFromReadableStream(rscStream);
+
+    expect(result).toBeInstanceOf(ReadableStream);
+
+    const reader = result.getReader();
+    const arrivals = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      arrivals.push({ time: Date.now(), bytes: Array.from(value) });
+    }
+
+    // All bytes should be present
+    const allBytes = arrivals.flatMap((a) => a.bytes);
+    expect(allBytes).toContain(0);
+    expect(allBytes).toContain(3);
+
+    // Chunks should arrive over time, not all at once
+    if (arrivals.length > 1) {
+      const timeSpan = arrivals[arrivals.length - 1].time - arrivals[0].time;
+      expect(timeSpan).toBeGreaterThan(50);
+    }
+  });
+
+  it("should resolve root value before ReadableStream completes", async () => {
+    let streamClosed = false;
+
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        controller.enqueue("first");
+        await delay(200);
+        controller.enqueue("second");
+        await delay(200);
+        controller.enqueue("third");
+        controller.close();
+        streamClosed = true;
+      },
+    });
+
+    // Wrap in an object so we can test root resolution timing
+    const rscStream = renderToReadableStream({ data: sourceStream });
+    const rootResolved = Date.now();
+    const result = await createFromReadableStream(rscStream);
+    const resolveTime = Date.now();
+
+    // The root value should resolve quickly (before the 400ms stream completes)
+    expect(resolveTime - rootResolved).toBeLessThan(200);
+    expect(streamClosed).toBe(false);
+
+    // The stream property should be a ReadableStream
+    expect(result.data).toBeInstanceOf(ReadableStream);
+
+    // Reading the stream should deliver chunks over time
+    const reader = result.data.getReader();
+    const decoder = new TextDecoder();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(decoder.decode(value));
+    }
+
+    const allText = chunks.join("");
+    expect(allText).toContain("first");
+    expect(allText).toContain("second");
+    expect(allText).toContain("third");
+  });
+});
+
+describe("Flight Streaming - Incremental AsyncIterable Delivery", () => {
+  it("should deliver async iterable values incrementally", async () => {
+    async function* slowGen() {
+      for (let i = 0; i < 5; i++) {
+        yield `item-${i}`;
+        await delay(30);
+      }
+    }
+
+    const rscStream = renderToReadableStream(slowGen());
+    const result = await createFromReadableStream(rscStream);
+
+    const arrivals = [];
+    for await (const value of result) {
+      arrivals.push({ time: Date.now(), value });
+    }
+
+    expect(arrivals.map((a) => a.value)).toEqual([
+      "item-0",
+      "item-1",
+      "item-2",
+      "item-3",
+      "item-4",
+    ]);
+
+    // Values should arrive over time, not all at once
+    if (arrivals.length > 1) {
+      const timeSpan = arrivals[arrivals.length - 1].time - arrivals[0].time;
+      expect(timeSpan).toBeGreaterThan(50);
+    }
+  });
+
+  it("should resolve root value before async iterable completes", async () => {
+    let genDone = false;
+
+    async function* slowGen() {
+      yield "a";
+      await delay(200);
+      yield "b";
+      await delay(200);
+      yield "c";
+      genDone = true;
+    }
+
+    const rscStream = renderToReadableStream({ items: slowGen() });
+    const startTime = Date.now();
+    const result = await createFromReadableStream(rscStream);
+    const resolveTime = Date.now();
+
+    // Root should resolve quickly, before the generator finishes (400ms)
+    expect(resolveTime - startTime).toBeLessThan(200);
+    expect(genDone).toBe(false);
+
+    // Consume the async iterable
+    const values = [];
+    for await (const value of result.items) {
+      values.push(value);
+    }
+
+    expect(values).toEqual(["a", "b", "c"]);
+    expect(genDone).toBe(true);
+  });
+});
+
+describe("Flight Streaming - Double Serialization (Worker-like Pipeline)", () => {
+  // This replicates the actual framework pipeline:
+  //   Worker:       ReadableStream  → renderToReadableStream (inner RSC payload)
+  //   Worker-proxy: createFromReadableStream → reconstructed ReadableStream (fromStream)
+  //   Framework:    renderToReadableStream({ data: stream }) (outer RSC payload)
+  //   Browser:      createFromReadableStream → { data: ReadableStream } (client reads)
+
+  it("should pass a ReadableStream through double RSC serialization", async () => {
+    // Step 1: Create a source ReadableStream (like the worker's stream() function)
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < 5; i++) {
+          controller.enqueue(`Chunk ${i} at ${Date.now()}\n`);
+          await delay(30);
+        }
+        controller.close();
+      },
+    });
+
+    // Step 2: Inner RSC serialization (worker side: toStream)
+    const innerRscPayload = renderToReadableStream(sourceStream);
+
+    // Step 3: Inner RSC deserialization (main thread: fromStream)
+    const reconstructed = await createFromReadableStream(innerRscPayload);
+    expect(reconstructed).toBeInstanceOf(ReadableStream);
+
+    // Step 4: Outer RSC serialization (framework renders the component tree)
+    const outerRscPayload = renderToReadableStream({ data: reconstructed });
+
+    // Step 5: Outer RSC deserialization (browser side)
+    const browserResult = await createFromReadableStream(outerRscPayload);
+    expect(browserResult.data).toBeInstanceOf(ReadableStream);
+
+    // Step 6: Client component reads the stream (like Stream.jsx)
+    const reader = browserResult.data.getReader();
+    const decoder = new TextDecoder();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(decoder.decode(value));
+    }
+
+    // All 5 chunks should have been delivered
+    const allText = chunks.join("");
+    for (let i = 0; i < 5; i++) {
+      expect(allText).toContain(`Chunk ${i}`);
+    }
+  });
+
+  it("should stream chunks incrementally through double serialization", async () => {
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < 4; i++) {
+          controller.enqueue(`item-${i}`);
+          await delay(50);
+        }
+        controller.close();
+      },
+    });
+
+    // Inner: worker serialize → deserialize
+    const innerPayload = renderToReadableStream(sourceStream);
+    const reconstructed = await createFromReadableStream(innerPayload);
+
+    // Outer: framework serialize → browser deserialize
+    const outerPayload = renderToReadableStream({ stream: reconstructed });
+    const browserResult = await createFromReadableStream(outerPayload);
+
+    // Read chunks and track arrival times
+    const reader = browserResult.stream.getReader();
+    const decoder = new TextDecoder();
+    const arrivals = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      arrivals.push({ time: Date.now(), text: decoder.decode(value) });
+    }
+
+    const allText = arrivals.map((a) => a.text).join("");
+    for (let i = 0; i < 4; i++) {
+      expect(allText).toContain(`item-${i}`);
+    }
+
+    // Key: chunks should arrive incrementally, not all at once
+    if (arrivals.length > 1) {
+      const timeSpan = arrivals[arrivals.length - 1].time - arrivals[0].time;
+      expect(timeSpan).toBeGreaterThan(50);
+    }
+  });
+
+  it("should resolve outer root before inner stream completes", async () => {
+    let streamClosed = false;
+
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        controller.enqueue("first");
+        await delay(200);
+        controller.enqueue("second");
+        await delay(200);
+        controller.close();
+        streamClosed = true;
+      },
+    });
+
+    // Inner: worker round-trip
+    const innerPayload = renderToReadableStream(sourceStream);
+    const reconstructed = await createFromReadableStream(innerPayload);
+
+    // Outer: framework round-trip
+    const outerPayload = renderToReadableStream({
+      data: reconstructed,
+      label: "test",
+    });
+    const startTime = Date.now();
+    const browserResult = await createFromReadableStream(outerPayload);
+    const resolveTime = Date.now();
+
+    // Root should resolve quickly — before the 400ms stream finishes
+    expect(resolveTime - startTime).toBeLessThan(200);
+    expect(streamClosed).toBe(false);
+    expect(browserResult.label).toBe("test");
+    expect(browserResult.data).toBeInstanceOf(ReadableStream);
+
+    // Now consume the stream to completion
+    const reader = browserResult.data.getReader();
+    const decoder = new TextDecoder();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(decoder.decode(value));
+    }
+
+    const allText = chunks.join("");
+    expect(allText).toContain("first");
+    expect(allText).toContain("second");
+    expect(streamClosed).toBe(true);
+  });
+
+  it("should handle binary ReadableStream through double serialization", async () => {
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < 3; i++) {
+          controller.enqueue(new Uint8Array([i * 10, i * 10 + 1, i * 10 + 2]));
+          await delay(30);
+        }
+        controller.close();
+      },
+    });
+
+    // Inner round-trip
+    const innerPayload = renderToReadableStream(sourceStream);
+    const reconstructed = await createFromReadableStream(innerPayload);
+
+    // Outer round-trip
+    const outerPayload = renderToReadableStream({ bytes: reconstructed });
+    const browserResult = await createFromReadableStream(outerPayload);
+
+    expect(browserResult.bytes).toBeInstanceOf(ReadableStream);
+
+    const reader = browserResult.bytes.getReader();
+    const allBytes = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      allBytes.push(...Array.from(value));
+    }
+
+    // Should contain the bytes from all 3 chunks
+    expect(allBytes).toContain(0);
+    expect(allBytes).toContain(10);
+    expect(allBytes).toContain(20);
+  });
+
+  it("should abort the inner stream when the outer RSC payload is aborted", async () => {
+    let chunksProduced = 0;
+
+    // Slow source stream that produces chunks over a long time
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < 20; i++) {
+          controller.enqueue(`chunk-${i}`);
+          chunksProduced++;
+          await delay(50);
+        }
+        controller.close();
+      },
+    });
+
+    // Inner round-trip (worker pipeline)
+    const innerPayload = renderToReadableStream(sourceStream);
+    const reconstructed = await createFromReadableStream(innerPayload);
+
+    // Outer serialization with abort signal
+    const ac = new AbortController();
+    const outerPayload = renderToReadableStream(
+      { data: reconstructed },
+      { signal: ac.signal }
+    );
+
+    // Start consuming the outer payload
+    const browserResult = await createFromReadableStream(outerPayload);
+    expect(browserResult.data).toBeInstanceOf(ReadableStream);
+
+    // Read a couple of chunks from the browser-side stream
+    const reader = browserResult.data.getReader();
+    const decoder = new TextDecoder();
+    const received = [];
+    const { value: first } = await reader.read();
+    received.push(decoder.decode(first));
+
+    // Abort the outer request (simulates browser refresh / navigation)
+    ac.abort();
+
+    // The reader should eventually error or end
+    try {
+      // Keep reading — should get an error from abort propagation
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received.push(decoder.decode(value));
+      }
+    } catch {
+      // Expected: abort propagation causes a read error
+    }
+
+    // The abort should have propagated — we shouldn't have gotten all 20 chunks
+    expect(received.length).toBeLessThan(20);
+
+    // Wait for source stream to settle
+    await delay(200);
+
+    // Source stream should have stopped producing (not all 20 chunks)
+    expect(chunksProduced).toBeLessThan(20);
+  });
+
+  it("should abort the reconstructed stream when its reader cancels", async () => {
+    let chunksProduced = 0;
+
+    const sourceStream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < 20; i++) {
+          controller.enqueue(`chunk-${i}`);
+          chunksProduced++;
+          await delay(50);
+        }
+        controller.close();
+      },
+    });
+
+    // Inner round-trip
+    const innerPayload = renderToReadableStream(sourceStream);
+    const reconstructed = await createFromReadableStream(innerPayload);
+
+    // Read one chunk then cancel (simulates a component unmounting)
+    const reader = reconstructed.getReader();
+    const { value: firstChunk } = await reader.read();
+    expect(new TextDecoder().decode(firstChunk)).toContain("chunk-");
+
+    // Cancel the reader
+    await reader.cancel();
+
+    // Wait for propagation
+    await delay(300);
+
+    // Source should have stopped (or at least not produced all 20)
+    expect(chunksProduced).toBeLessThan(20);
+  });
+});
+
+// Try to import react-server-dom-webpack for cross-compat double-serialization tests
+let ReactDomServer;
+let ReactDomClientBrowser;
+let skipReactTests = false;
+
+try {
+  ReactDomServer = await import("react-server-dom-webpack/server");
+  ReactDomClientBrowser =
+    await import("react-server-dom-webpack/client.browser");
+} catch {
+  skipReactTests = true;
+}
+
+const describeReact = skipReactTests ? describe.skip : describe;
+
+describeReact(
+  "Flight Streaming - Double Serialization with React (Worker → React Pipeline)",
+  () => {
+    // This replicates the full framework pipeline where:
+    //   Inner layer: @lazarv/rsc serialize/deserialize (worker proxy)
+    //   Outer layer: React's renderToReadableStream/createFromReadableStream (browser)
+
+    it("should pass ReadableStream from @lazarv/rsc to React and back", async () => {
+      // Step 1: Source stream with delayed chunks
+      const sourceStream = new ReadableStream({
+        async start(controller) {
+          for (let i = 0; i < 5; i++) {
+            controller.enqueue(`Chunk ${i}\n`);
+            await delay(30);
+          }
+          controller.close();
+        },
+      });
+
+      // Step 2-3: Inner @lazarv/rsc round-trip (worker pipeline)
+      const innerPayload = renderToReadableStream(sourceStream);
+      const reconstructed = await createFromReadableStream(innerPayload);
+      expect(reconstructed).toBeInstanceOf(ReadableStream);
+
+      // Step 4: Outer React serialization (framework renders component tree)
+      const outerPayload = ReactDomServer.renderToReadableStream({
+        data: reconstructed,
+      });
+
+      // Step 5: Outer React deserialization (browser side)
+      const browserResult =
+        await ReactDomClientBrowser.createFromReadableStream(outerPayload);
+      expect(browserResult.data).toBeInstanceOf(ReadableStream);
+
+      // Step 6: Client reads the stream
+      const reader = browserResult.data.getReader();
+      const decoder = new TextDecoder();
+      const chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(decoder.decode(value));
+      }
+
+      const allText = chunks.join("");
+      for (let i = 0; i < 5; i++) {
+        expect(allText).toContain(`Chunk ${i}`);
+      }
+    });
+
+    it("should stream chunks incrementally through @lazarv/rsc → React pipeline", async () => {
+      const sourceStream = new ReadableStream({
+        async start(controller) {
+          for (let i = 0; i < 4; i++) {
+            controller.enqueue(`item-${i}`);
+            await delay(50);
+          }
+          controller.close();
+        },
+      });
+
+      // Inner @lazarv/rsc round-trip
+      const innerPayload = renderToReadableStream(sourceStream);
+      const reconstructed = await createFromReadableStream(innerPayload);
+
+      // Outer React round-trip
+      const outerPayload = ReactDomServer.renderToReadableStream({
+        stream: reconstructed,
+      });
+      const browserResult =
+        await ReactDomClientBrowser.createFromReadableStream(outerPayload);
+
+      const reader = browserResult.stream.getReader();
+      const decoder = new TextDecoder();
+      const arrivals = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        arrivals.push({ time: Date.now(), text: decoder.decode(value) });
+      }
+
+      const allText = arrivals.map((a) => a.text).join("");
+      for (let i = 0; i < 4; i++) {
+        expect(allText).toContain(`item-${i}`);
+      }
+
+      // Chunks should arrive incrementally
+      if (arrivals.length > 1) {
+        const timeSpan = arrivals[arrivals.length - 1].time - arrivals[0].time;
+        expect(timeSpan).toBeGreaterThan(50);
+      }
+    });
+
+    it("should resolve outer React root before inner stream completes", async () => {
+      let streamClosed = false;
+
+      const sourceStream = new ReadableStream({
+        async start(controller) {
+          controller.enqueue("first");
+          await delay(200);
+          controller.enqueue("second");
+          await delay(200);
+          controller.close();
+          streamClosed = true;
+        },
+      });
+
+      // Inner @lazarv/rsc round-trip
+      const innerPayload = renderToReadableStream(sourceStream);
+      const reconstructed = await createFromReadableStream(innerPayload);
+
+      // Outer React round-trip
+      const outerPayload = ReactDomServer.renderToReadableStream({
+        data: reconstructed,
+        label: "react-test",
+      });
+      const startTime = Date.now();
+      const browserResult =
+        await ReactDomClientBrowser.createFromReadableStream(outerPayload);
+      const resolveTime = Date.now();
+
+      // Root should resolve quickly
+      expect(resolveTime - startTime).toBeLessThan(200);
+      expect(streamClosed).toBe(false);
+      expect(browserResult.label).toBe("react-test");
+      expect(browserResult.data).toBeInstanceOf(ReadableStream);
+
+      // Consume the stream
+      const reader = browserResult.data.getReader();
+      const decoder = new TextDecoder();
+      const chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(decoder.decode(value));
+      }
+
+      const allText = chunks.join("");
+      expect(allText).toContain("first");
+      expect(allText).toContain("second");
+      expect(streamClosed).toBe(true);
+    });
+  }
+);

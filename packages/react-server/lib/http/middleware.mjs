@@ -4,10 +4,13 @@ import { parse as __cookieParse, serialize as __cookieSerialize } from "cookie";
 
 import { isDeno } from "../sys.mjs";
 import { compose } from "./middlewares/compose.mjs";
+import { ContextStorage } from "../../server/context.mjs";
+import { getRuntime } from "../../server/runtime.mjs";
+import { AFTER_CONTEXT, LOGGER_CONTEXT } from "../../server/symbols.mjs";
 
 export function createContext(
   request,
-  { origin, runtime, platformExtras } = {}
+  { origin, runtime, signal, platformExtras } = {}
 ) {
   const url = new URL(request.url);
   const cookie = __cookieParse(request.headers.get("cookie") || "");
@@ -30,6 +33,8 @@ export function createContext(
     deleteCookie(name, opts = {}) {
       this.setCookie(name, "", { ...opts, expires: new Date(0) });
     },
+    signal,
+    afterHooks: new Set(),
   };
 }
 
@@ -87,9 +92,12 @@ export function createMiddleware(handler, options = {}) {
         }
       }
       const request = new Request(fullUrl, requestInit);
+      const abortController = new AbortController();
+      const { signal } = abortController;
       const ctx = createContext(request, {
         origin,
         runtime: "node",
+        signal,
         platformExtras: {
           version: process.version,
           request: req,
@@ -127,8 +135,6 @@ export function createMiddleware(handler, options = {}) {
       // Convert the Web ReadableStream to a Node Readable and pipe into ServerResponse.
       // Use AbortController to coordinate cleanup when client disconnects or stream completes.
       const nodeReadable = Readable.fromWeb(response.body);
-      const abortController = new AbortController();
-      const { signal } = abortController;
 
       // Destroy stream when aborted (client disconnect or error)
       signal.addEventListener(
@@ -168,6 +174,24 @@ export function createMiddleware(handler, options = {}) {
         // Remove disconnect listeners
         res.off("close", onDisconnect);
         req.off("aborted", onDisconnect);
+      }
+
+      try {
+        const { afterHooks } = ctx;
+        if (afterHooks) {
+          const logger = getRuntime(LOGGER_CONTEXT);
+          await ContextStorage.run(
+            {
+              [AFTER_CONTEXT]: true,
+              [LOGGER_CONTEXT]: logger,
+            },
+            () =>
+              Promise.allSettled(Array.from(afterHooks).map((hook) => hook()))
+          );
+        }
+      } catch (e) {
+        const logger = getRuntime(LOGGER_CONTEXT);
+        logger.error(e);
       }
     } catch (e) {
       if (e.name !== "AbortError" && e.message !== "aborted") {

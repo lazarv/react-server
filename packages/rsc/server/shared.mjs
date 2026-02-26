@@ -676,7 +676,7 @@ function serializeReadableStream(request, stream) {
       const reader = stream.getReader();
       let done = false;
 
-      while (!done) {
+      while (!done && !request.aborted) {
         const { value, done: readerDone } = await reader.read();
         done = readerDone;
 

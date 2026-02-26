@@ -13,18 +13,25 @@ export let hostname;
 export let logs;
 export let serverLogs;
 
+let currentWorker;
+let terminating;
+
 export const testCwd = process.cwd();
 
+const verbose = typeof process.env.REACT_SERVER_VERBOSE !== "undefined";
+
+const consoleLog = console.log;
 console.log = (...args) => {
   logs?.push(args.join(" "));
   serverLogs?.push(args.join(" "));
+  if (verbose) consoleLog(...args);
 };
 
 const consoleError = console.error;
 console.error = (...args) => {
   logs?.push(args.join(" "));
   serverLogs?.push(args.join(" "));
-  consoleError(...args);
+  if (verbose) consoleError(...args);
 };
 
 const BASE_PORT = 3000;
@@ -74,6 +81,7 @@ test.beforeAll(async (_context, suite) => {
       try {
         logs = [];
         serverLogs = [];
+        terminating = false;
         const hashValue = createHash("sha256")
           .update(
             `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(process.cwd(), root) : root || process.cwd()}`
@@ -144,9 +152,9 @@ test.beforeAll(async (_context, suite) => {
             },
           }
         );
-        let terminating = false;
         // Don't let the worker thread prevent the fork process from exiting
         worker.unref();
+        currentWorker = worker;
         worker.on("message", (msg) => {
           if (msg.port) {
             hostname = `http://localhost:${msg.port}`;
@@ -181,5 +189,24 @@ test.beforeAll(async (_context, suite) => {
 afterAll(async () => {
   await page?.close();
   await browser?.close();
+  if (currentWorker && process.env.NODE_ENV === "production") {
+    terminating = true;
+    await new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        try {
+          currentWorker?.terminate();
+        } catch {
+          // ignore
+        }
+        resolve();
+      }, 5000);
+      currentWorker.once("exit", () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+      currentWorker.postMessage({ type: "shutdown" });
+    });
+  }
+  currentWorker = null;
   await cleanup();
 });

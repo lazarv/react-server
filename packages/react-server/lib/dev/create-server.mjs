@@ -19,6 +19,9 @@ import { createFromReadableStream } from "@lazarv/rsc/client";
 import StorageCache from "../../cache/storage-cache.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
+  CONSOLE_PROXY,
+  DEV_SERVER_CONTEXT,
+  RSC_MODULE_RUNNER,
   COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
@@ -50,6 +53,7 @@ import useClient from "../plugins/use-client.mjs";
 import useDynamic from "../plugins/use-dynamic.mjs";
 import useServer from "../plugins/use-server.mjs";
 import useServerInline from "../plugins/use-server-inline.mjs";
+import useWorker from "../plugins/use-worker.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import { replaceError } from "../utils/error.mjs";
@@ -86,6 +90,11 @@ export default async function createServer(root, options) {
     worker = new Worker(new URL("./render-stream.mjs", import.meta.url));
   }
   runtime$(WORKER_THREAD, worker);
+
+  worker.on("error", (error) => {
+    const logger = getRuntime(LOGGER_CONTEXT);
+    logger.error("Worker error:", error);
+  });
 
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
@@ -234,6 +243,7 @@ export default async function createServer(root, options) {
       useServerInline(),
       useCacheInline(config.cache?.profiles, config.cache?.providers),
       useDynamic(),
+      useWorker(),
       ...filterOutVitePluginReact(config.plugins),
       asset(),
       optimizeDeps(),
@@ -750,8 +760,29 @@ export default async function createServer(root, options) {
     }
   });
   const initialRuntime = {
+    [DEV_SERVER_CONTEXT]: viteDevServer,
     [SERVER_CONTEXT]: viteDevServer,
     [LOGGER_CONTEXT]: viteDevServer.config.logger,
+    [CONSOLE_PROXY]: async (data, source) => {
+      const stream = new ReadableStream({
+        type: "bytes",
+        start(controller) {
+          const encoder = new TextEncoder();
+          try {
+            controller.enqueue(encoder.encode(data));
+            controller.close();
+          } catch (e) {
+            controller.error(e);
+          }
+        },
+      });
+      try {
+        await handleClientConsole(stream, colors.magentaBright(`(${source})`));
+      } catch (e) {
+        console.error("Failed to process worker console", e);
+      }
+    },
+    [RSC_MODULE_RUNNER]: moduleRunner,
     [MODULE_LOADER]: ($$id) => {
       const [id] = $$id
         .replace(/^(server(-action)?|client):\/\//, "")
@@ -928,8 +959,18 @@ export default async function createServer(root, options) {
     ...(config.handlers?.post ?? []),
     notFoundHandler(),
   ]);
+
   if (corsEnabled) {
     initialHandlers.unshift(cors(serverCors));
+  }
+
+  if (config.base) {
+    initialHandlers.unshift(async (context) => {
+      if (context.url.pathname.startsWith(config.base)) {
+        context.url.pathname =
+          context.url.pathname.slice(config.base.length) || "/";
+      }
+    });
   }
 
   const composedHandlers = compose(

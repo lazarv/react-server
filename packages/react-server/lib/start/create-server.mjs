@@ -16,6 +16,7 @@ import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
+  EXEC_OPTIONS,
   HTTP_CONTEXT,
   LIVE_IO,
   MEMORY_CACHE_CONTEXT,
@@ -32,6 +33,8 @@ import ssrHandler from "./ssr-handler.mjs";
 const cwd = sys.cwd();
 
 export default async function createServer(root, options) {
+  runtime$(EXEC_OPTIONS, options);
+
   if (!options.outDir) {
     options.outDir = ".react-server";
   }
@@ -86,6 +89,14 @@ export default async function createServer(root, options) {
     ...(config.handlers?.post ?? []),
     notFoundHandler(),
   ]);
+  if (config.base) {
+    initialHandlers.unshift(async (context) => {
+      if (context.url.pathname.startsWith(config.base)) {
+        context.url.pathname =
+          context.url.pathname.slice(config.base.length) || "/";
+      }
+    });
+  }
   if (options.cors || config.server?.cors || config.cors) {
     initialHandlers.unshift(cors(getServerCors(config)));
   }

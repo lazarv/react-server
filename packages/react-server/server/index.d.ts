@@ -85,6 +85,16 @@ export function useHttpContext(): HttpContext;
 export function useRequest(): Request;
 
 /**
+ * This hook returns the current abort signal. The signal is aborted when the
+ * HTTP request is cancelled by the client. Available in both server components
+ * and workers. Pass this signal to fetch calls or any other API that accepts
+ * an AbortSignal to propagate cancellation.
+ *
+ * @returns The current AbortSignal, or null if not available
+ */
+export function useSignal(): AbortSignal | null;
+
+/**
  * This hook returns the current response object.
  *
  * @returns The current response object
@@ -366,6 +376,60 @@ export function getRuntime<R = Record<string, unknown>>(): R;
 export function getRuntime<R = unknown, K = string>(key?: K): R;
 
 /**
+ * A logger proxy that resolves to the framework's logger at runtime.
+ * In development, this uses Vite's logger. In production, it falls back to `console`.
+ *
+ * @example
+ *
+ * ```tsx
+ * import { logger } from '@lazarv/react-server';
+ *
+ * export default function App() {
+ *   logger.info('Rendering App');
+ *   return <div>Hello</div>;
+ * }
+ * ```
+ */
+export const logger: {
+  info(msg: string, ...args: unknown[]): void;
+  warn(msg: string, ...args: unknown[]): void;
+  error(msg: string | Error, ...args: unknown[]): void;
+};
+
+/**
  * The current version of `@lazarv/react-server`.
  */
 export let version: string;
+
+/**
+ * Returns `true` when the calling code is executing inside a worker spawned
+ * by a `"use worker"` module.
+ *
+ * - **Server** — checks whether the current Node.js thread is a
+ *   framework-managed Worker Thread.  Returns `false` in Edge builds where
+ *   `"use worker"` functions run in-process.
+ * - **Client** — checks whether the current context is a Web Worker.
+ *
+ * Works identically in both server-side and client-side `"use worker"` modules.
+ *
+ * @returns `true` if inside a `"use worker"` worker, `false` otherwise.
+ *
+ * Prefer importing from `@lazarv/react-server/worker` inside `"use worker"`
+ * modules — that sub-path has no server-only dependencies and works in
+ * both server Worker Threads and client Web Workers.
+ *
+ * @example
+ *
+ * ```jsx
+ * "use worker";
+ *
+ * import { isWorker } from "@lazarv/react-server/worker";
+ *
+ * export async function terminate() {
+ *   if (isWorker()) {
+ *     process.exit(0);
+ *   }
+ * }
+ * ```
+ */
+export function isWorker(): boolean;

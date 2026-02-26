@@ -1,0 +1,3 @@
+[[routes]]
+pattern = "react-server.dev/*"
+zone_name = "react-server.dev"

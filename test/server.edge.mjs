@@ -164,6 +164,14 @@ try {
   httpServer.on("error", (e) => {
     parentPort.postMessage({ error: e.message, stack: e.stack });
   });
+  parentPort.on("message", (msg) => {
+    if (msg?.type === "shutdown") {
+      httpServer.closeAllConnections();
+      httpServer.close(() => {
+        parentPort.close();
+      });
+    }
+  });
   httpServer.listen(workerData.port);
 } catch (e) {
   parentPort.postMessage({ error: e.message, stack: e.stack });

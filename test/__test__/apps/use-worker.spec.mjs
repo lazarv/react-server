@@ -22,10 +22,7 @@ describe("use worker", () => {
   });
 
   test("renders worker stats via Suspense", async () => {
-    await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
-    await waitForHydration();
-
+    // Reuse the page from the previous navigation to avoid redundant loads
     const bodyText = await page.textContent("body");
     expect(bodyText).toContain("Heap Used");
     expect(bodyText).toContain("Heap Total");
@@ -34,10 +31,6 @@ describe("use worker", () => {
   });
 
   test("computes prime numbers in worker", async () => {
-    await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
-    await waitForHydration();
-
     const bodyText = await page.textContent("body");
     expect(bodyText).toContain("Primes Found");
     expect(bodyText).toContain("Largest");
@@ -45,10 +38,6 @@ describe("use worker", () => {
   });
 
   test("displays worker module import info", async () => {
-    await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
-    await waitForHydration();
-
     const bodyText = await page.textContent("body");
     expect(bodyText).toContain("Module Import");
     // WorkerImport.mjs delegates to WorkerModule.mjs which returns platform info
@@ -56,10 +45,6 @@ describe("use worker", () => {
   });
 
   test("streams activity data from worker", async () => {
-    await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
-    await waitForHydration();
-
     // Stream entries are rendered by a client component reading a ReadableStream.
     // They may already be fully rendered by the time hydration completes, so
     // instead of waiting for a body change, poll for the expected text directly.

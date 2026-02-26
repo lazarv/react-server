@@ -30,3 +30,4 @@ export { getRuntime } from "./runtime.mjs";
 export { after } from "./after.mjs";
 export { logger } from "./logger.mjs";
 export { version } from "./version.mjs";
+export { isWorker } from "./is-worker.mjs";

@@ -3,6 +3,7 @@
 import { useState, useCallback, Suspense, use } from "react";
 
 import {
+  checkIsWorker,
   fibonacci,
   sortBenchmark,
   analyzeDataset,
@@ -23,6 +24,13 @@ export function Client() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const [streamData, setStreamData] = useState(null);
+
+  const [workerStatus, setWorkerStatus] = useState(null);
+
+  const runCheckIsWorker = useCallback(async () => {
+    const result = await checkIsWorker();
+    setWorkerStatus(result);
+  }, []);
 
   const runFibonacci = useCallback(async () => {
     setFibLoading(true);
@@ -81,6 +89,47 @@ export function Client() {
         directive works in the browser, offloading computation to a Web Worker.
         The main thread stays responsive while heavy work runs in parallel.
       </p>
+
+      {/* ---------- Worker Detection ---------- */}
+
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-emerald-400 text-sm font-medium">
+            Worker Detection
+          </span>
+          <span className="text-[10px] text-slate-600 font-mono bg-slate-800/50 px-1.5 py-0.5 rounded">
+            isWorker()
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 mb-3">
+          Check if this code is running inside a Web Worker using the{" "}
+          <code className="text-emerald-300 bg-emerald-950/40 px-1 rounded">
+            isWorker()
+          </code>{" "}
+          helper from{" "}
+          <code className="text-emerald-300 bg-emerald-950/40 px-1 rounded">
+            @lazarv/react-server/worker
+          </code>
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={runCheckIsWorker}
+            className="px-3 py-1.5 text-sm bg-emerald-900/50 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg transition-colors cursor-pointer"
+          >
+            Check
+          </button>
+          {workerStatus !== null && (
+            <span
+              className={`text-sm font-mono ${
+                workerStatus ? "text-emerald-400" : "text-red-400"
+              }`}
+            >
+              isWorker() = {String(workerStatus)}
+            </span>
+          )}
+        </div>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         {/* ---------- Fibonacci ---------- */}

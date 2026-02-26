@@ -9,6 +9,7 @@ import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
 import { createLoggerProxy } from "./logger-proxy.mjs";
 
+globalThis.__react_server_is_worker__ = true;
 sys.experimentalWarningSilence();
 alias("react-server");
 register("../loader/node-loader.react-server.mjs", import.meta.url);

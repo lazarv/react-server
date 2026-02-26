@@ -475,6 +475,50 @@ This means `"use worker"` modules remain fully portable: the same code works in 
 
 > **Note:** On edge runtimes, worker functions do **not** run in a separate thread. They execute in the same process as the rest of your server code. This means they won't provide the concurrency benefits of true worker threads, but your code remains compatible across all deployment targets.
 
+<Link name="worker-detection">
+## Worker Detection
+</Link>
+
+The framework provides an `isWorker()` helper function that lets you detect at runtime whether your code is executing inside a worker thread. This is useful when you need to conditionally run logic that should only happen inside a real worker — for example, calling `process.exit()` to terminate the worker without accidentally killing the main server process.
+
+Import `isWorker` from `@lazarv/react-server/worker`. This import path works in both server workers (Node.js Worker Threads) and client workers (Web Workers):
+
+```jsx
+import { isWorker } from "@lazarv/react-server/worker";
+```
+
+### Server worker example
+
+A common use case is safely terminating a worker thread. On edge runtimes, worker functions run in-process, so calling `process.exit()` would kill the entire server. Use `isWorker()` to guard against this:
+
+```jsx
+"use worker";
+
+import { isWorker } from "@lazarv/react-server/worker";
+
+export async function terminate() {
+  if (isWorker()) {
+    process.exit(0); // only exits the worker thread, not the server
+  }
+}
+```
+
+### Client worker example
+
+In a client-side Web Worker, `isWorker()` also returns `true`, letting you detect the worker environment:
+
+```jsx
+"use worker";
+
+import { isWorker } from "@lazarv/react-server/worker";
+
+export async function checkIsWorker() {
+  return isWorker(); // true when running in a Web Worker
+}
+```
+
+> **Note:** On Edge runtimes where `"use worker"` functions execute in-process, `isWorker()` returns `false` because the code is not actually running in a separate worker thread.
+
 <Link name="constraints">
 ## Constraints and Limitations
 </Link>

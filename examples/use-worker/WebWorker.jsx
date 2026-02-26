@@ -1,5 +1,13 @@
 "use worker";
 
+import { isWorker } from "@lazarv/react-server/worker";
+
+// ---------- Worker Detection ----------
+
+export async function checkIsWorker() {
+  return isWorker();
+}
+
 // ---------- CPU-intensive Fibonacci (BigInt for precision) ----------
 
 export async function fibonacci(n) {

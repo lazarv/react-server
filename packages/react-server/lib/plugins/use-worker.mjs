@@ -47,7 +47,8 @@ export default function useServer(env, options = {}) {
           return workerCode.get(filename);
         } else if (/virtual:react-server:webworker::/.test(id)) {
           const filename = id.replace(/.*virtual:react-server:webworker::/, "");
-          return `import * as mod from "virtual:react-server:worker::${relative(cwd, filename)}";
+          return `globalThis.__react_server_is_worker__ = true;
+import * as mod from "virtual:react-server:worker::${relative(cwd, filename)}";
 import { toStream, fromStream } from "@lazarv/react-server/rsc/browser";
 self.addEventListener("message", async ({ data: { type, id, fn, args: argsStream } }) => {
   if (type !== "react-server:worker:invoke") return;

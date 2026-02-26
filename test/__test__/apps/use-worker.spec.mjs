@@ -75,33 +75,39 @@ describe("use worker", () => {
     expect(bodyText).toContain("Stream complete");
   });
 
-  test("terminate worker and page recovers", async () => {
-    await page.goto(`${hostname}/`);
-    await page.waitForLoadState("networkidle");
-    await waitForHydration();
+  // In Edge builds "use worker" functions run in-process; there is no
+  // separate worker thread to terminate, so this test only applies to the
+  // Node.js worker-threads path.
+  test.skipIf(!!process.env.EDGE || !!process.env.EDGE_ENTRY)(
+    "terminate worker and page recovers",
+    async () => {
+      await page.goto(`${hostname}/`);
+      await page.waitForLoadState("networkidle");
+      await waitForHydration();
 
-    const terminateButton = await page.$(
-      'button[type="submit"]:has-text("Terminate Worker")'
-    );
-    expect(terminateButton).not.toBeNull();
+      const terminateButton = await page.$(
+        'button[type="submit"]:has-text("Terminate Worker")'
+      );
+      expect(terminateButton).not.toBeNull();
 
-    // The server action calls terminate() then reload("/"), which triggers a
-    // full page navigation.  Wait for that navigation to complete.
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "networkidle" }),
-      terminateButton.click(),
-    ]);
-    await waitForHydration();
+      // The server action calls terminate() then reload("/"), which triggers a
+      // full page navigation.  Wait for that navigation to complete.
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "networkidle" }),
+        terminateButton.click(),
+      ]);
+      await waitForHydration();
 
-    // Worker stats are rendered via Suspense; after termination a new worker
-    // is spawned and the stats take a moment to resolve.
-    await page.waitForFunction(
-      () => document.body.textContent.includes("Heap Used"),
-      { timeout: 30000 }
-    );
+      // Worker stats are rendered via Suspense; after termination a new worker
+      // is spawned and the stats take a moment to resolve.
+      await page.waitForFunction(
+        () => document.body.textContent.includes("Heap Used"),
+        { timeout: 30000 }
+      );
 
-    const bodyText = await page.textContent("body");
-    expect(bodyText).toContain("Server Worker Thread");
-    expect(bodyText).toContain("Heap Used");
-  });
+      const bodyText = await page.textContent("body");
+      expect(bodyText).toContain("Server Worker Thread");
+      expect(bodyText).toContain("Heap Used");
+    }
+  );
 });

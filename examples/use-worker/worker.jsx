@@ -1,10 +1,11 @@
 "use worker";
 
 import { setTimeout } from "node:timers/promises";
-import { isMainThread, workerData } from "node:worker_threads";
+import { workerData } from "node:worker_threads";
 import { Suspense } from "react";
 
 import { useSignal } from "@lazarv/react-server";
+import { isWorker } from "@lazarv/react-server/worker";
 
 // ---------- React Components Rendered in a Worker Thread ----------
 
@@ -105,10 +106,10 @@ export async function streamActivity() {
 // ---------- Worker Lifecycle ----------
 
 export async function terminate() {
-  // In Edge builds, "use worker" functions run in-process (no separate
-  // worker thread), so process.exit() would kill the entire server.
-  // Only terminate when actually running inside a worker thread.
-  if (!isMainThread) {
+  // In Edge builds "use worker" functions run in-process — calling
+  // process.exit() would kill the entire server.  isWorker() returns true
+  // only inside a real framework-managed Worker Thread.
+  if (isWorker()) {
     process.exit(0);
   }
 }

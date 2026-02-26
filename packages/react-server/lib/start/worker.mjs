@@ -8,6 +8,7 @@ import { alias } from "../loader/module-alias.mjs";
 import * as sys from "../sys.mjs";
 import { init$ as manifest_init$ } from "./manifest.mjs";
 
+globalThis.__react_server_is_worker__ = true;
 sys.setEnv("NODE_ENV", "production");
 sys.experimentalWarningSilence();
 alias("react-server");

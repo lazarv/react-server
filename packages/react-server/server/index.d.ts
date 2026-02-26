@@ -400,3 +400,36 @@ export const logger: {
  * The current version of `@lazarv/react-server`.
  */
 export let version: string;
+
+/**
+ * Returns `true` when the calling code is executing inside a worker spawned
+ * by a `"use worker"` module.
+ *
+ * - **Server** — checks whether the current Node.js thread is a
+ *   framework-managed Worker Thread.  Returns `false` in Edge builds where
+ *   `"use worker"` functions run in-process.
+ * - **Client** — checks whether the current context is a Web Worker.
+ *
+ * Works identically in both server-side and client-side `"use worker"` modules.
+ *
+ * @returns `true` if inside a `"use worker"` worker, `false` otherwise.
+ *
+ * Prefer importing from `@lazarv/react-server/worker` inside `"use worker"`
+ * modules — that sub-path has no server-only dependencies and works in
+ * both server Worker Threads and client Web Workers.
+ *
+ * @example
+ *
+ * ```jsx
+ * "use worker";
+ *
+ * import { isWorker } from "@lazarv/react-server/worker";
+ *
+ * export async function terminate() {
+ *   if (isWorker()) {
+ *     process.exit(0);
+ *   }
+ * }
+ * ```
+ */
+export function isWorker(): boolean;

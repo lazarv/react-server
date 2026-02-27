@@ -6,7 +6,7 @@ export default {
   root: "src/pages",
   public: "public",
   adapter: [
-    "vercel",
+    "cloudflare",
     {
       serverlessFunctions: false,
     },

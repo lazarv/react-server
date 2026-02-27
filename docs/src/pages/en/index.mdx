@@ -1,9 +1,12 @@
-import Card from "../../components/Card";
 import Pill from "../../components/Pill";
-import Link from "../../components/Link";
-import GitHub from "../../../public/github.svg?react";
+import ReactViteScene from "../../components/ReactViteScene";
+import Terminal from "../../components/Terminal";
 
 <div className="background-effect"></div>
+
+{/* ══════════════════════════════════════════════════════════════
+    HERO
+    ══════════════════════════════════════════════════════════════ */}
 
 <div className="relative sm:pl-16 mb-4">
   <img src="/react-server.svg" className="w-10 h-10 left-[17.5rem] top-1 sm:top-0 sm:w-14 sm:h-14 absolute sm:left-0 sm:right-auto" alt="@lazarv/react-server logo" />
@@ -15,98 +18,967 @@ import GitHub from "../../../public/github.svg?react";
 
 <div className="whitespace-nowrap w-full flex flex-wrap gap-2">
   <Pill href="/guide/quick-start">Quick Start</Pill>
-  <Pill href="/guide/why">Why @lazarv/react-server?</Pill>
   <Pill href="https://github.com/lazarv/react-server" target="_blank">
     View on GitHub
   </Pill>
 </div>
 
-<div className="w-full my-8 sm:my-16 flex flex-col items-center text-2xl sm:text-5xl font-bold">
+<div className="w-full mt-12 sm:mt-20 mb-8 flex flex-col items-center">
 
-<div className="inline-flex flex-col items-center text-center">
-The easiest way to build  
-React apps with server-side rendering
-<div className="flex flex-col text-sm my-2 sm:my-4 [&>h2]:text-lg [&>h2]:sm:text-2xl [&>h2]:m-0 text-gray-700 dark:text-gray-400">
-## Supercharge React with Vite
-Instant reloads, lightning-fast builds, and a developer experience on steroids.
-</div>
-</div>
+<h2 className="text-3xl sm:text-6xl font-bold text-center m-0 border-none leading-tight">
+Run React anywhere
+</h2>
 
-<div className="flex flex-row items-center gap-1 sm:gap-4 my-2 text-xl sm:text-6xl text-gray-800 dark:text-gray-300"><img src="/react.svg" alt="React" className="w-8 sm:w-32" /> + <img src="/vite.svg" alt="Vite" className="w-8 sm:w-32" /> = <img src="/react-server.svg" alt="@lazarv/react-server" className="w-8 sm:w-32" /></div>
-
-<div className="italic max-w-xl p-4 mt-12 mb-4 text-lg text-center font-normal bg-gray-50 dark:bg-gray-800 border rounded-xl border-gray-500 shadow-lg dark:shadow-[rgba(255,255,255,0.1)]">
-**@lazarv/react-server** is all about innovation, rapid iteration, and simplicity. It gives you the flexibility to build, the speed to iterate, and the scalability to grow — without getting in your way.
+<div className="max-w-3xl text-center text-base sm:text-xl text-gray-600 dark:text-gray-400 mt-6 mb-2 leading-relaxed px-4">
+Execute React components across server, client, workers, and edge environments using a single runtime — with React Server Components, streaming, and deployment built in.
 </div>
 
-<iframe className="mb-16" src="https://ghbtns.com/github-btn.html?user=lazarv&repo=react-server&type=star&count=true&size=large" frameBorder="0" scrolling="0" width="135" height="30" title="GitHub"></iframe>
+<ReactViteScene />
+
 </div>
 
-# Features
+{/* ══════════════════════════════════════════════════════════════
+    THE IDEA
+    ══════════════════════════════════════════════════════════════ */}
 
-<div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-  <Card>
-  <img src="/react.svg" alt="React Server Components" />
+<section className="feature-section py-12 sm:py-20">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
 
-#### React Server Components
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">The Idea</p>
 
-##### Enhanced Component Rendering
+### React as a Runtime
 
-With React Server Components, render React components on the server, providing faster initial page loads. Easily create interactive components while enjoying the benefits of server-side rendering.
+React runs outside the browser. Components are executable units — they run on the server, in workers, and at the edge. The runtime decides where and how each component executes.
 
-  </Card>
+There is no framework boundary. You write React, and the same model works everywhere. A component can fetch data on the server, stream HTML to the client, or process images in a worker thread — all with the same syntax.
 
-  <Card>
-  <img src="/server.svg" alt="Server Functions" />
+A single directive — `"use client"`, `"use worker"`, or `"use live"` — is all it takes to change where a component runs. No build-step magic, no separate APIs to learn. The runtime handles serialization, streaming, and hydration automatically.
 
-#### Server Functions
+This means your application is one unified React tree, not a patchwork of server code, client code, and glue in between. Scale from a single file to a distributed system without switching paradigms.
 
-##### Seamless Server Interaction
+React components are no longer just UI — they are executable units of an application runtime.
 
-Server Functions enable easy communication between the client and server. Trigger server-side functions directly from your components, making server operations more straightforward and efficient.
+</div>
 
-  </Card>
+<div>
 
-  <Card>
-  <img src="/vite.svg" alt="Vite Integration" />
+<p className="code-label">Server component — runs on the server. Access databases and APIs directly, no client bundle cost.</p>
 
-#### Vite Integration
+```jsx
+export default async function Page() {
+  const data = await db.query("SELECT ...");
+  return <Feed items={data} />;
+}
+```
 
-##### Lightning-Fast Development
+<p className="code-label">Client component — hydrates in the browser. Same React you already know.</p>
 
-Integrated Vite for super-fast development and building. Benefit from blazing-fast hot module replacement (HMR) and an optimized development workflow that boosts your productivity.
+```jsx
+"use client";
 
-  </Card>
+export default function Counter() {
+  const [n, setN] = useState(0);
+  return <button onClick={() => setN(n + 1)}>{n}</button>;
+}
+```
 
-  <Card>
-  <img src="/js.svg" alt="ES Modules" />
+<p className="code-label">Worker — runs in a background thread. Offload heavy work without blocking the server or the UI.</p>
 
-#### ES Modules
+```jsx
+"use worker";
 
-##### Modern JavaScript Modules
+export async function resize(buf) {
+  return sharp(buf).resize(800).toBuffer();
+}
+```
 
-Embrace ES modules for a clean and organized codebase. Use import/export syntax to manage your project's dependencies and facilitate code splitting for efficient loading.
+<p className="code-label">Live component — streams updates over WebSocket. Each yield pushes a new React tree to the client.</p>
 
-  </Card>
+```jsx
+"use live";
 
-  <Card>
-  <img src="/skeleton.webp" alt="Streaming Output" />
+export default async function* Price({ symbol }) {
+  while (true) {
+    yield <span>{await getPrice(symbol)}</span>;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+```
 
-#### Streaming Output
+</div>
 
-##### Asynchronous Rendering
+</div>
+</section>
 
-Achieve real-time HTML streaming output in your application. Render and send HTML content to the client as soon as it's available, providing a faster initial page load and a smoother, more responsive user experience.
+{/* ══════════════════════════════════════════════════════════════
+    RUNTIME
+    ══════════════════════════════════════════════════════════════ */}
 
-  </Card>
+<section className="full-bleed py-12 sm:py-20 bg-indigo-50 dark:bg-indigo-950/30 border-y border-indigo-100 dark:border-indigo-900/40">
+  <div className="flex flex-col items-center gap-6">
+    <Terminal command="npx @lazarv/react-server ./App.jsx" />
+    <div className="text-center text-base sm:text-lg text-indigo-900 dark:text-gray-300 m-0 max-w-3xl leading-relaxed px-4">
+      <strong className="text-indigo-950 dark:text-white">@lazarv/react-server</strong> is a runtime for executing React components across server, client, workers, and edge environments.
+    </div>
+  </div>
+</section>
 
-  <Card>
-  <img src="/mdx.svg" alt="MDX Integration" />
+{/* ══════════════════════════════════════════════════════════════
+    WHY
+    ══════════════════════════════════════════════════════════════ */}
 
-#### MDX Integration
+<section className="feature-section full-bleed py-12 sm:py-20 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
 
-##### Seamless Markdown Component Embedding
+<div className="order-2 lg:order-1">
 
-Easily embed Markdown content within your React components using MDX integration. Combine the power of React and Markdown to create dynamic and interactive documentation, blog posts, and more.
+<p className="code-label">Create a single file — that's your entire app. No config, no boilerplate. Run it with <code>npx @lazarv/react-server ./App.jsx</code> and you're live.</p>
 
-  </Card>
+```jsx
+export default function App() {
+  return <h1>Hello World!</h1>;
+}
+```
+
+<p className="code-label">When you're ready to scale, add a page to <code>app/page.jsx</code> and drop the entrypoint. The file-system router takes over automatically.</p>
+
+```jsx
+export default async function Home() {
+  const posts = await db.posts.findMany();
+
+  return (
+    <main>
+      <h1>Blog</h1>
+      {posts.map((post) => (
+        <article key={post.id}>
+          <h2>{post.title}</h2>
+          <p>{post.excerpt}</p>
+        </article>
+      ))}
+    </main>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Philosophy</p>
+
+### Why @lazarv/react-server?
+
+Most React frameworks require significant setup before you write your first component. **@lazarv/react-server** takes a different approach — it's as simple as running a script with `node`, but for React.
+
+Start with a single file and scale to a full-featured application with file-system routing, caching, static generation, and multi-runtime deployment as your needs grow.
+
+Built on Vite for instant HMR. Ships with its own React, so your project stays lean. Supports Node.js, Bun, and Deno. Deploys to Vercel, Netlify, Cloudflare, and more with built-in adapters.
+
+</div>
+
+</div>
+</section>
+
+{/* ══════════════════════════════════════════════════════════════
+    GET STARTED
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">Start in Seconds</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">One dependency. One file. One command.</p>
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Quick Start</p>
+
+### Install & Run
+
+Add a single dependency, create a `.jsx` file that exports a React component, and start the dev server. That's it — full SSR with hot module replacement, no boilerplate.
+
+You don't even need to install React. It's bundled with the framework and always kept up to date.
+
+</div>
+
+<div>
+
+<p className="code-label">Add the framework to your project with a single dependency — React is included, no separate install needed.</p>
+
+```sh
+pnpm add @lazarv/react-server
+```
+
+<p className="code-label">Write a default-exported React component. This file is your entire application entry point.</p>
+
+```jsx
+export default function App() {
+  return <h1>Hello World!</h1>;
+}
+```
+
+<p className="code-label">Start the development server with instant hot module replacement powered by Vite.</p>
+
+```sh
+pnpm react-server ./App.jsx
+```
+
+</div>
+
+</div>
+</section>
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+<p className="code-label">Skip installation entirely — run any React file directly with npx. Perfect for quick experiments and prototyping.</p>
+
+```sh
+npx @lazarv/react-server ./App.jsx
+```
+
+<p className="code-label">Bootstrap a runtime application with file-system routing, layouts, and production-ready config using the create package.</p>
+
+```sh
+npx @lazarv/create-react-server
+```
+
+<p className="code-label">Start the development server with instant HMR powered by Vite.</p>
+
+```sh
+react-server
+```
+
+<p className="code-label">Create an optimized production build, then serve it with built-in compression and cluster mode.</p>
+
+```sh
+react-server build
+react-server start
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Alternatives</p>
+
+### More Ways to Start
+
+Skip installation entirely with `npx` to run any React file on the fly — ideal for prototyping and quick demos. Or use the create package to scaffold a full project with file-system routing, layouts, and production config already wired up.
+
+The scaffolded project gives you a complete development workflow: a dev server with instant HMR, an optimized production build step, and a production server with compression, caching, and cluster mode — all through the `react-server` CLI with zero additional configuration.
+
+</div>
+
+</div>
+</section>
+
+
+{/* ══════════════════════════════════════════════════════════════
+    CORE EXECUTION MODEL
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">Core Execution Model</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">Server components, client interactivity, server functions, and streaming — the rendering foundation.</p>
+
+{/* ── 1. React Server Components ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Default Rendering</p>
+
+### React Server Components
+
+Server components execute on the server, support `async`/`await`, and their code never reaches the client. Access databases, file systems, and internal APIs directly — no separate backend needed.
+
+There is no hydration cost for server-only components. Faster page loads, smaller bundles, simpler architecture.
+
+</div>
+
+<div>
+
+```jsx
+export default async function Dashboard() {
+  const stats = await fetch(
+    "https://api.example.com/stats",
+    { headers: { Authorization: `Bearer ${API_KEY}` } }
+  ).then((r) => r.json());
+
+  return (
+    <section>
+      <h1>Dashboard</h1>
+      <p>Total users: {stats.users}</p>
+      <p>Revenue: ${stats.revenue}</p>
+    </section>
+  );
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 2. Client Components ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+"use client";
+
+import { useState } from "react";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Current count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>
+        Increment
+      </button>
+      <button onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Interactivity</p>
+
+### Client Components
+
+Add `"use client"` to enable interactivity. Components are server-rendered first for fast initial paint, then hydrated on the client with full hook and event handler support.
+
+You only pay the hydration cost where you actually need interactivity. Everything else stays server-only.
+
+</div>
+
+</div>
+</section>
+
+{/* ── 3. Server Functions ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Data Mutations</p>
+
+### Server Functions
+
+`"use server"` turns any async function into a server-side RPC endpoint. Use them as form actions with progressive enhancement — forms work even without JavaScript.
+
+No API routes to define, no fetch wrappers. The framework handles serialization, error boundaries, and revalidation.
+
+</div>
+
+<div>
+
+```jsx
+async function createPost(formData) {
+  "use server";
+
+  const title = formData.get("title");
+  const body = formData.get("body");
+
+  await db.posts.create({ title, body });
+  revalidate("/posts");
+}
+
+export default function NewPost() {
+  return (
+    <form action={createPost}>
+      <input name="title" placeholder="Title" />
+      <textarea name="body" placeholder="Content" />
+      <button type="submit">Publish</button>
+    </form>
+  );
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 4. Streaming SSR ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+import { Suspense } from "react";
+
+async function SlowData() {
+  const data = await fetchFromSlowAPI();
+  return <div>{data.result}</div>;
+}
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Instant header</h1>
+      <p>This content appears immediately.</p>
+
+      <Suspense fallback={<p>Loading data...</p>}>
+        <SlowData />
+      </Suspense>
+    </main>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Performance</p>
+
+### Streaming SSR
+
+HTML streams to the client as soon as it's available. Combined with `<Suspense>`, parts of the page render progressively — users see content immediately while slower sections load in the background.
+
+Fast time-to-first-byte from streaming. Complete interactive experience once hydration finishes. No configuration required.
+
+</div>
+
+</div>
+</section>
+
+
+{/* ══════════════════════════════════════════════════════════════
+    DISTRIBUTED REACT
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">Distributed React</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">Push components beyond a single process — live streaming, worker threads, and micro-frontends.</p>
+
+{/* ── 5. Live Components ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Real-Time</p>
+
+### Live Components
+
+Server-to-client streaming with async generators over WebSocket. Each component instance gets its own persistent server-side execution context.
+
+Add `"use live"` and export an async generator. Each `yield` sends a new React tree to the client. Ideal for dashboards, feeds, and monitoring.
+
+</div>
+
+<div>
+
+```jsx
+"use live";
+
+export default async function* StockPrice({ symbol }) {
+  while (true) {
+    const price = await getPrice(symbol);
+    const trend = await getTrend(symbol);
+
+    yield (
+      <div>
+        <span className="text-2xl">${price}</span>
+        <span className={trend > 0 ? "green" : "red"}>
+          {trend > 0 ? "▲" : "▼"} {Math.abs(trend)}%
+        </span>
+      </div>
+    );
+
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 6. Workers ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+"use worker";
+
+export async function processImage(buffer, options) {
+  // Runs in a Worker Thread — won't block
+  // the main server or the UI thread
+  const result = await sharp(buffer)
+    .resize(options.width, options.height)
+    .webp({ quality: options.quality })
+    .toBuffer();
+
+  return result;
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Concurrency</p>
+
+### Workers
+
+Offload heavy computation to background threads with `"use worker"`. Worker Threads on the server, Web Workers in the browser.
+
+Arguments and return values serialize via the RSC Flight protocol — return React elements directly. Full HMR support.
+
+</div>
+
+</div>
+</section>
+
+{/* ── 7. Micro-Frontends ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Composition</p>
+
+### Micro-Frontends
+
+Compose independently deployed RSC applications. Each remote app streams into the host page. `isolate` enables shadow DOM encapsulation so styles never leak.
+
+Share dependencies via import maps. Render with `defer` for non-blocking loading. Export as static builds for edge distribution.
+
+</div>
+
+<div>
+
+```jsx
+import { RemoteComponent }
+  from "@lazarv/react-server/remote";
+
+export default function App() {
+  return (
+    <main>
+      <h1>Host Application</h1>
+
+      <RemoteComponent
+        src="https://team-a.example.com/header"
+      />
+
+      <RemoteComponent
+        src="https://team-b.example.com/widget"
+        isolate
+        defer
+      />
+    </main>
+  );
+}
+```
+
+</div>
+
+</div>
+</section>
+
+
+{/* ══════════════════════════════════════════════════════════════
+    PLATFORM FEATURES
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">Platform Features</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">Application capabilities built on top of the runtime — routing, navigation, caching, and content composition.</p>
+
+{/* ── 8. File-System Router ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Routing</p>
+
+### File-System Router
+
+Omit the entrypoint and the framework routes based on your file structure. Pages, layouts, parallel outlets, API routes, middlewares, error boundaries, loading states — all convention-driven.
+
+Dynamic segments, catch-all routes, route groups, and typed route generation are built in.
+
+</div>
+
+<div>
+
+```
+app/
+├── layout.jsx              # Root layout
+├── page.jsx                # /
+├── about.jsx               # /about
+├── posts/
+│   ├── page.jsx            # /posts
+│   ├── [id].jsx            # /posts/:id
+│   └── [...slug].jsx       # /posts/*
+├── (auth)/
+│   └── login.jsx           # /login (grouped)
+├── @sidebar/
+│   └── page.jsx            # Parallel outlet
+├── loading.jsx             # Suspense fallback
+├── error.jsx               # Error boundary
+├── (i18n).middleware.mjs   # Middleware
+└── GET.api.server.mjs      # GET /api endpoint
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 9. Client Navigation ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Nav() {
+  return (
+    <nav>
+      <Link to="/" prefetch>Home</Link>
+      <Link to="/about" prefetch>About</Link>
+      <Link to="/posts" prefetch="viewport">
+        Posts
+      </Link>
+    </nav>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Navigation</p>
+
+### Client-Side Navigation
+
+SPA-like transitions with `Link`, `Form`, `Refresh`, and `ReactServerComponent`. Prefetch on hover or viewport entry, roll back on error, scope updates to specific outlets.
+
+Programmatic navigation via `useClient()` integrates with the streaming architecture — no blank-screen transitions.
+
+</div>
+
+</div>
+</section>
+
+{/* ── 10. Caching ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Caching</p>
+
+### Caching & Revalidation
+
+Multi-layered caching at every level — response, data, and component. Built on [Unstorage](https://unstorage.unjs.io) with pluggable drivers.
+
+Invalidate on demand with `revalidate()` and `invalidate()`. Use the `"use cache"` directive for declarative TTL and tag-based invalidation.
+
+</div>
+
+<div>
+
+```jsx
+import { useResponseCache, useCache } from "@lazarv/react-server";
+```
+
+<p className="code-label">Cache the full rendered response for 30 seconds — subsequent requests skip rendering entirely.</p>
+
+```jsx
+useResponseCache(30000);
+```
+
+<p className="code-label">Cache individual data fetches with compound keys. Each entry has its own TTL and can be invalidated independently.</p>
+
+```jsx
+const post = await useCache(
+  ["posts", id],
+  () => fetchPost(id),
+  60000
+);
+```
+
+<p className="code-label">Or use the <code>"use cache"</code> directive at the top of a file for declarative TTL and tag-based invalidation.</p>
+
+```jsx
+"use cache; ttl=60; tags=posts"
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 11. Partial Pre-Rendering ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+<p className="code-label">The page shell and static components are pre-rendered at build time and served instantly from the edge.</p>
+
+```jsx
+export default function ProductPage({ params }) {
+  return (
+    <main>
+      <StaticHeader />
+      <ProductInfo id={params.id} />
+      <DynamicReviews id={params.id} />
+    </main>
+  );
+}
+```
+
+<p className="code-label">Dynamic components marked with <code>"use dynamic"</code> stream in at request time while the static shell is already visible.</p>
+
+```jsx
+"use dynamic";
+
+export default async function DynamicReviews({ id }) {
+  const reviews = await fetchReviews(id);
+  return (
+    <section>
+      {reviews.map((r) => <Review key={r.id} {...r} />)}
+    </section>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Hybrid Rendering</p>
+
+### Partial Pre-Rendering
+
+Mix static and dynamic content at the component level. Static shells pre-render at build time; dynamic parts stream in at request time.
+
+Mark components with `"use dynamic"` or `"use static"`. Static portions serve instantly from the edge while dynamic data loads.
+
+</div>
+
+</div>
+</section>
+
+{/* ── 12. Markdown & MDX ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Content</p>
+
+### Markdown & MDX
+
+Use `.md` and `.mdx` files directly as pages with full remark/rehype plugin support and custom component overrides.
+
+Embed React components inside Markdown. Define custom components once and apply them globally for full rendering control.
+
+</div>
+
+<div>
+
+<p className="code-label">Define custom component overrides once in <code>mdx-components.jsx</code> — they apply globally to all your MDX content.</p>
+
+```jsx
+export function useMDXComponents() {
+  return {
+    h1: (props) => (
+      <h1 className="text-4xl font-bold" {...props} />
+    ),
+    code: ({ children, className }) => (
+      <SyntaxHighlighter language={className}>
+        {children}
+      </SyntaxHighlighter>
+    ),
+    a: (props) => (
+      <Link className="text-blue-600" {...props} />
+    ),
+  };
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 13. MCP Server ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+import { createServer, createTool }
+  from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+const search = createTool(
+  "search",
+  "Search the knowledge base",
+  {
+    query: z.string(),
+    limit: z.number().default(10),
+  },
+  async ({ query, limit }) => {
+    const results = await db.search(query, limit);
+    return results.map((r) => r.title).join("\n");
+  }
+);
+
+export default createServer({ tools: [search] });
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">AI Integration</p>
+
+### MCP Server
+
+Build [Model Context Protocol](https://modelcontextprotocol.io) servers with tools, resources, and prompts as streaming HTTP endpoints.
+
+Define tools with Zod schemas. AI agents discover and invoke them through a standardized protocol. Each tool becomes an HTTP endpoint compatible with any MCP client.
+
+</div>
+
+</div>
+</section>
+
+
+{/* ══════════════════════════════════════════════════════════════
+    INFRA
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">Deploy Anywhere</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">One command to build for production. Built-in adapters for every major platform — or bring your own.</p>
+
+{/* ── 14. Platform Adapters ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Adapters</p>
+
+### Platform Adapters
+
+Deploy to Vercel, Netlify, or Cloudflare with a single config option. Each adapter handles platform-specific output — edge functions, serverless functions, Workers — automatically.
+
+Need something custom? Build your own adapter with `createAdapter` from the adapter core package. The adapter API gives you full control over the build output.
+
+</div>
+
+<div>
+
+<p className="code-label">A single command builds your app and generates platform-specific deployment output.</p>
+
+```sh
+react-server build --deploy
+```
+
+<p className="code-label">Set the adapter in your config file — the build outputs edge functions, serverless functions, or Workers automatically.</p>
+
+```json
+{ "adapter": "vercel" }
+```
+
+<p className="code-label">Or pass the adapter directly as a CLI argument — no config file needed.</p>
+
+```sh
+react-server build --adapter vercel --deploy
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 15. Multi-Runtime ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+<p className="code-label">Use middleware mode to embed the framework into any existing Express, NestJS, or connect-compatible server.</p>
+
+```js
+import { reactServer } from
+  "@lazarv/react-server/node";
+
+const { middlewares } = await reactServer();
+app.use(middlewares);
+```
+
+<p className="code-label">Scale horizontally across all available CPU cores with cluster mode for maximum throughput.</p>
+
+```sh
+REACT_SERVER_CLUSTER=8 react-server start
+```
+
+<p className="code-label">Or configure the cluster size in your config file for consistent production deployments.</p>
+
+```json
+{ "cluster": 8 }
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">Runtime</p>
+
+### Multi-Runtime & Production
+
+Run on **Node.js** ≥ 20.10, **Bun** ≥ 1.2.9, or **Deno** ≥ 2.0 — the framework auto-detects your runtime. Embed into any existing server with middleware mode.
+
+Scale across all CPU cores with cluster mode. Static export generates fully static sites with dynamic route params, compression, and cache headers. HTTPS, source maps, and gzip/brotli compression are built in.
+
+</div>
+
+</div>
+</section>
+
+{/* ══════════════════════════════════════════════════════════════
+    CLOSING CTA
+    ══════════════════════════════════════════════════════════════ */}
+
+<div className="my-16 sm:my-24 flex flex-col items-center text-center">
+
+<h2 className="text-3xl sm:text-5xl font-bold m-0 mb-4 border-none leading-tight">Ready to Build?</h2>
+
+<div className="max-w-2xl text-lg text-gray-600 dark:text-gray-400 m-0 mb-8 leading-relaxed">
+Join a growing community of developers building modern React applications with server-side rendering, streaming, and edge deployment. Open source, MIT licensed, and actively maintained.
+</div>
+
+<div className="flex flex-wrap justify-center gap-3 mb-8">
+  <Pill href="/guide/quick-start">Quick Start</Pill>
+  <Pill href="https://github.com/lazarv/react-server" target="_blank">View on GitHub</Pill>
+</div>
+
+<iframe src="https://ghbtns.com/github-btn.html?user=lazarv&repo=react-server&type=star&count=true&size=large" frameBorder="0" scrolling="0" width="135" height="30" title="GitHub"></iframe>
+
 </div>

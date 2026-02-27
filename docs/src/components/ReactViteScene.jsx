@@ -11,6 +11,19 @@ function isDarkMode() {
   return document.documentElement.classList.contains("dark");
 }
 
+function hasWebGLSupport() {
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      canvas.getContext("webgl2") ||
+      canvas.getContext("webgl") ||
+      canvas.getContext("experimental-webgl")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function ReactViteScene() {
   const placeholderRef = useRef(null);
   const canvasRef = useRef(null);
@@ -19,6 +32,7 @@ export default function ReactViteScene() {
     const placeholder = placeholderRef.current;
     const canvasContainer = canvasRef.current;
     if (!placeholder || !canvasContainer) return;
+    if (!hasWebGLSupport()) return;
 
     let dark = isDarkMode();
 
@@ -26,11 +40,16 @@ export default function ReactViteScene() {
     const height = window.innerHeight;
 
     // --- Renderer (full viewport size) ---
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-    });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance",
+      });
+    } catch {
+      return;
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;

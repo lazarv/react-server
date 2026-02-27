@@ -155,6 +155,7 @@ nav {
 body[data-path="/en"] {
   article {
     view-transition-name: index;
+    overflow: visible;
 
     @media (prefers-reduced-motion) {
       view-transition-name: none;
@@ -168,6 +169,7 @@ article {
   overflow: auto;
   view-transition-name: content;
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
 
@@ -373,12 +375,14 @@ footer {
 }
 
 ::view-transition-old(index) {
+  transform-origin: top center;
   animation:
     0.5s both fade-out,
     0.5s both index-out;
 }
 
 ::view-transition-new(index) {
+  transform-origin: top center;
   animation:
     0.5s both fade-in,
     0.5s both index-in;
@@ -446,6 +450,37 @@ footer {
     background-image: none;
     background-color: rgba(0, 0, 0, 0.02);
     z-index: 0;
+  }
+}
+
+/* ── Feature sections on landing page ── */
+
+.full-bleed {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  padding-left: max(1rem, calc((100vw - 80rem) / 2 + 1rem));
+  padding-right: max(1rem, calc((100vw - 80rem) / 2 + 1rem));
+}
+
+.feature-section {
+  h3 {
+    @apply text-2xl sm:text-3xl font-bold m-0 mb-1;
+  }
+
+  p {
+    @apply text-base leading-7 text-gray-600 dark:text-gray-400 m-0 mb-3;
+  }
+
+  pre code {
+    @apply my-0 shadow-md dark:shadow-sm;
+  }
+
+  .code-label {
+    @apply text-sm font-normal leading-relaxed text-gray-600 dark:text-gray-400 m-0 mt-4 mb-2;
   }
 }
 

@@ -1,0 +1,720 @@
+---
+title: Architecture Tradeoffs
+order: 5
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Architecture Tradeoffs
+
+This document describes the key architectural decisions, the constraints that shaped them, and the tradeoffs that were accepted. It assumes familiarity with the runtime model and [React Server Components](/guide/server-components).
+
+<Link name="architectural-layers">
+## Architectural Layers
+</Link>
+
+`@lazarv/react-server` is structured as a layered runtime:
+
+[Execution Foundation](/guide/design-decisions#execution-foundation)  
+    ↓ defines execution environment and rendering pipeline
+
+[Execution Extensions](/guide/design-decisions#execution-extensions)  
+    ↓ introduce additional execution contexts
+
+[Application Model](/guide/design-decisions#application-model)  
+    ↓ shapes how applications are structured
+
+[Operational Model](/guide/design-decisions#operational-model)  
+    ↓ governs deployment and production behavior
+
+Each higher layer depends on the guarantees of the layers below it.
+
+<Link name="execution-foundation">
+## Execution Foundation
+</Link>
+
+These decisions define the lowest layer of the runtime: which React version runs, which JavaScript runtimes are supported, how modules are resolved, what build tooling is used, and how the core rendering and hydration pipeline works. Everything above depends on these choices.
+
+<Link name="pinned-react-version">
+### Pinned React Version
+</Link>
+
+**Problem:**
+React Server Components depend on an unstable wire format between `react-server-dom-webpack` and the React reconciler. The serialization protocol, flight format, and directive semantics ([`"use client"`](/guide/client-components), [`"use server"`](/guide/server-functions)) are not yet covered by React's public semver contract. A mismatch between the React version the runtime uses and the version the application installs causes silent serialization failures or runtime crashes.
+
+**Constraint:**
+The RSC wire format must be version-locked across the server renderer, the client hydrator, and the flight encoder/decoder. Allowing user-installed React creates a combinatorial compatibility surface that cannot be tested reliably since React publishes experimental builds frequently with breaking internal changes.
+
+**Decision:**
+Bundle a specific React experimental build as a direct dependency. At startup, hijack module resolution so all imports of `react`, `react-dom`, `react/jsx-runtime`, and `react-server-dom-webpack` resolve to the framework's bundled copies. On Node.js this uses `module.register()` with a custom loader; on Bun it uses `module.mock()`/`module.alias()`; on Deno it writes an import map to disk and respawns the process with `--import-map`.
+
+**Tradeoffs:**
+- Users cannot upgrade React independently. Adoption of new React features is gated by a framework release.
+- The module aliasing mechanism is runtime-specific and fragile — each JavaScript runtime (Node, Bun, Deno) requires a distinct interception strategy. A bug in any one path silently breaks the entire RSC pipeline.
+- The Deno path requires a filesystem write and process respawn, adding startup latency and preventing use in read-only filesystem environments.
+
+**Consequences:**
+The wire format is guaranteed consistent across all render paths. Users do not need to install React — reducing dependency conflicts and version drift. But the framework's release cadence becomes the bottleneck for React upgrades, and the three-way aliasing layer is a maintenance surface that must be verified against each runtime's release cycle.
+
+<Link name="multi-runtime-execution">
+### Multi-Runtime Execution
+</Link>
+
+**Problem:**
+The JavaScript server ecosystem is fragmented across Node.js, Bun, and Deno. Each runtime has different module resolution semantics, different APIs for worker threads, filesystem access, and process management. Targeting only Node.js excludes a growing segment of deployments.
+
+**Constraint:**
+The runtime abstraction must cover module aliasing (see Pinned React Version), process-level APIs (`cwd`, `argv`, `exit`, environment variables), and concurrency primitives (`setImmediate` vs `setTimeout`, `Buffer` vs `Uint8Array`). Edge environments ([Cloudflare Workers](/deploy/cloudflare), [Netlify Edge](/deploy/netlify), [Deno Deploy](/deploy/deno)) lack `node:` built-in modules entirely.
+
+**Decision:**
+Abstract all runtime-sensitive APIs behind a system layer (`sys.mjs`) with conditional implementations based on global detection (`typeof Deno`, `typeof Bun`, `typeof EdgeRuntime`). Each runtime gets its own module-aliasing strategy. Edge environments are detected separately and treated as a restricted subset with no filesystem, no worker threads, and no cluster mode.
+
+**Tradeoffs:**
+- Every runtime-sensitive code path must be tested on three runtimes plus multiple edge targets. The testing matrix scales multiplicatively with platform features.
+- The abstraction layer introduces indirection. Debugging a module resolution failure requires understanding which aliasing path was taken for the current runtime.
+- Edge runtime detection relies on global sniffing (`navigator.userAgent === "Cloudflare-Workers"`, `typeof Lagon`, etc.), which is brittle and must be updated as new edge platforms emerge.
+- Bun and Deno compat layers lag behind Node.js in stability. Features that work on Node may fail silently on other runtimes.
+
+**Consequences:**
+The same application code runs on Node.js, Bun, and Deno without code changes. Edge deployments use a restricted execution mode. But the multi-runtime surface area means regressions can be runtime-specific and hard to reproduce across environments.
+
+<Link name="module-system">
+### Module System
+</Link>
+
+**Problem:**
+The Node.js ecosystem historically relied on CommonJS. CJS modules are synchronous, cannot be statically analyzed for tree-shaking, and create friction with browser-native module loading. Dual CJS/ESM support in tooling adds complexity and edge cases.
+
+**Constraint:**
+[Vite](/integrations/vite) operates natively on ESM. React Server Components' module resolution for [`"use client"`](/guide/client-components) and [`"use server"`](/guide/server-functions) directives depends on static import analysis. Supporting CJS would require a compatibility layer that undermines both goals.
+
+**Decision:**
+Target ESM exclusively across the entire stack — server, client, and build tooling.
+
+**Tradeoffs:**
+- CJS-only packages require transpilation or cannot be used directly. This shrinks the set of immediately compatible npm packages.
+- Some Node.js APIs and older libraries assume CJS semantics (e.g., `__dirname`, `require.resolve`), requiring polyfills or alternatives.
+- Library authors who publish only CJS must be shimmed at the Vite level.
+
+**Consequences:**
+Static analysis is reliable, enabling accurate tree-shaking and directive detection. The module graph is consistent between development and production. Browser-native `import()` works without a module format translation layer.
+
+<Link name="tooling-foundation">
+### Tooling Foundation
+</Link>
+
+**Problem:**
+Building a custom bundler and dev server from scratch is a massive engineering effort. Webpack-based solutions carry significant configuration overhead and slower rebuild times. The tooling layer must handle both server and client module graphs with HMR support.
+
+**Constraint:**
+The chosen tool must support ESM natively, provide a plugin API extensible enough to implement RSC module resolution, and handle SSR out of the box. It must also have an active ecosystem and community.
+
+**Decision:**
+Use [Vite](/integrations/vite) as the build and development foundation. Vite's Rollup-based production builds and esbuild/Rolldown-powered dev server provide the necessary ESM-first architecture.
+
+**Tradeoffs:**
+- The runtime is coupled to [Vite's](/integrations/vite) internal APIs, plugin lifecycle, and module resolution behavior. Breaking changes in Vite require coordinated updates.
+- Vite's SSR support, while functional, was originally designed for simpler use cases. RSC streaming and flight-format serialization required non-trivial integration work on top of Vite's SSR pipeline.
+- Vite's dev server transforms modules on the fly, which can behave differently from the Rollup production bundle in edge cases.
+
+**Consequences:**
+HMR latency is bounded by Vite's transform pipeline rather than a full rebundle, but actual speed depends on module graph size and plugin count. The Vite plugin interface is used directly — no adapter or wrapper is needed to compose Vite or Rollup plugins into the build. This couples the runtime's release cadence to Vite's, and any regression in Vite's SSR layer is inherited. See also the [Vite documentation on why Vite](https://vitejs.dev/guide/why.html).
+
+<Link name="rendering-model">
+### Rendering Model
+</Link>
+
+**Problem:**
+Traditional SSR approaches send fully rendered HTML and then re-execute the entire component tree on the client during hydration. This duplicates work, ships unnecessary JavaScript, and gives developers limited control over which parts of the UI are static versus interactive.
+
+**Constraint:**
+The rendering boundary between server and client must be explicit at the component level. React's Server Components protocol requires the runtime to orchestrate serialization of the server component tree and selective delivery of client component code.
+
+**Decision:**
+Adopt [React Server Components](/guide/server-components) as the primary rendering model. Components are server-rendered by default. [Client components](/guide/client-components) are opt-in via `"use client"` directives, and only their code is sent to the browser.
+
+```jsx
+"use client";
+
+import { useState } from "react";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <button onClick={() => setCount(count + 1)}>Count: {count}</button>
+  );
+}
+```
+
+**Tradeoffs:**
+- Data fetching patterns differ from conventional React. Co-locating async data access in server components requires a different mental model than hooks-based fetching.
+- The server/client split is infectious: once a component is marked as a client component, all its children run on the client unless they are passed as `children` or props from a server component.
+- Debugging serialization boundaries can be non-obvious when props fail to cross the server-client wire.
+
+**Consequences:**
+Zero client-side JavaScript is achievable for fully static pages. Interactive islands are explicitly scoped. The runtime controls the serialization format, which means a pinned React version is required (see below).
+
+<Link name="streaming-architecture">
+### Streaming Architecture
+</Link>
+
+**Problem:**
+Traditional SSR buffers the full HTML response before sending it to the client. Pages with slow data sources block the entire response, increasing time-to-first-byte and perceived latency.
+
+**Constraint:**
+The server must send HTML as it becomes available. [`Suspense` boundaries](/router/loading) on the server define the chunking points — content inside a `Suspense` fallback streams in when the async work completes. The browser must be able to progressively render the incoming chunks.
+
+**Decision:**
+Use streaming SSR by default. The response begins flushing as soon as the shell and the first resolved `Suspense` boundaries are ready. Subsequent chunks are delivered as their data resolves.
+
+```jsx
+import { Suspense } from "react";
+
+async function AsyncData() {
+  const data = await getData();
+  return <div>{data}</div>;
+}
+
+export default function App() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AsyncData />
+    </Suspense>
+  );
+}
+```
+
+**Tradeoffs:**
+- [HTTP status codes and headers](/framework/http) must be determined before the stream begins. Errors or redirects that occur mid-stream cannot change the status code retroactively.
+- Proxy servers, CDNs, or middleware that buffer the full response negate the streaming benefit.
+- Debugging streaming responses is harder than inspecting a single HTML payload.
+
+**Consequences:**
+Time-to-first-byte is determined by the fastest part of the page, not the slowest. Slow data sources do not block the initial paint. `Suspense` boundaries serve as explicit loading-state declarations in the component tree.
+
+<Link name="hydration-strategy">
+### Hydration Strategy
+</Link>
+
+**Problem:**
+Full-page hydration re-executes the entire client-side component tree after SSR, even for parts of the page that are not yet visible or interactive. This wastes CPU time and delays interactivity.
+
+**Constraint:**
+Hydration must align with the streaming model — as chunks arrive and client components are rendered into the DOM, they must become interactive without waiting for the entire page. The React runtime's selective hydration mechanism handles this, but the server must emit the component boundaries in the correct order.
+
+**Decision:**
+Rely on React's built-in selective hydration. Client components hydrate independently as their HTML and JavaScript arrive. No custom hydration scheduler is added on top.
+
+**Tradeoffs:**
+- Hydration order is controlled by React's heuristics (e.g., user interaction priority), which may not match the developer's intended priority.
+- There is no explicit API to force hydration order or defer hydration of specific subtrees beyond what `Suspense` and `lazy()` provide.
+- Selective hydration depends on the JavaScript for each [client component](/guide/client-components) being available — large bundles still delay interactivity.
+
+**Consequences:**
+Components become interactive as soon as their code arrives, without waiting for siblings or parents. Combined with streaming, the page is progressively both rendered and hydrated. Bundle size per component directly impacts its time-to-interactive.
+
+<Link name="execution-extensions">
+## Execution Extensions
+</Link>
+
+These decisions extend the base rendering model into additional execution contexts. Each introduces a new directive or primitive that changes where or how components execute — real-time push, background threads, cross-origin composition, hybrid rendering boundaries, and the server/client mutation interface.
+
+<Link name="live-component-architecture">
+### Live Component Architecture
+</Link>
+
+**Problem:**
+Conventional RSC renders are request-response: the server renders once and sends the result. There is no built-in mechanism for a server component to push updates to the client over time — real-time dashboards, feeds, and monitoring UIs require separate WebSocket infrastructure outside the component model.
+
+**Constraint:**
+Updates must be React trees, not raw data — the client must receive renderable RSC payloads, not JSON that requires a client-side component to interpret. Each component instance needs its own server-side execution context with independent lifecycle management. The transport must survive page-level navigation in SPAs.
+
+**Decision:**
+Introduce a [`"use live"` directive](/framework/live-components). Async generator functions marked with this directive are compiled into live components. The initial `yield` is rendered as part of the normal SSR response.
+
+```jsx
+"use live";
+
+export default async function* Clock() {
+  while (true) {
+    yield <div>Current time: {new Date().toLocaleTimeString()}</div>;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+```
+
+After initial render, subsequent yields are serialized as RSC flight payloads and pushed to the client over a Socket.IO connection. Each component instance gets its own Socket.IO namespace and `AbortController`.
+
+**Tradeoffs:**
+- Requires a persistent server process with long-lived connections — incompatible with serverless and edge deployments.
+- One Socket.IO namespace per component instance consumes memory and file descriptors proportionally to the number of active live components across all connected clients. This does not scale horizontally without sticky sessions or a pub/sub backplane.
+- The async generator pattern means server-side state lives in the generator's closure. If the server process restarts, all generator state is lost and clients must reconnect from scratch.
+- Socket.IO adds a non-trivial dependency and its own connection management complexity (heartbeats, reconnection, multiplexing).
+
+**Consequences:**
+Real-time UI updates are expressed as React components with `yield` rather than as imperative WebSocket message handlers. The component model is preserved end-to-end. But live components are restricted to long-running server environments and their per-instance resource cost limits the maximum number of concurrent live component instances.
+
+<Link name="worker-thread-offloading">
+### Worker Thread Offloading
+</Link>
+
+**Problem:**
+CPU-intensive operations (image processing, data transformation, compression) on the server block the main event loop, degrading request throughput for all concurrent users. Moving this work to a separate process or service adds deployment and orchestration complexity.
+
+**Constraint:**
+The offloading mechanism must integrate with the RSC serialization protocol — arguments and return values (including React elements) must cross the worker boundary via the flight format. On the server this means `node:worker_threads`; in the browser this means Web Workers. Edge runtimes have neither.
+
+**Decision:**
+Introduce a [`"use worker"` directive](/framework/worker). The Vite plugin rewrites the module into a proxy: on Node.js/Bun, each call spawns or reuses a `Worker` thread with arguments serialized via the RSC flight protocol and transferred via `postMessage`.
+
+```jsx
+"use worker";
+
+export async function computeFactorial(n) {
+  if (n <= 1) return 1;
+  return n * computeFactorial(n - 1);
+}
+```
+
+In the browser, the same directive generates a Web Worker import. On edge runtimes, the proxy falls back to a synchronous in-process call — no actual parallelism.
+
+**Tradeoffs:**
+- Edge deployments get no concurrency benefit — `"use worker"` becomes a no-op wrapper. This is silent and may mislead developers who expect offloading.
+- RSC serialization overhead applies to every function call across the worker boundary, including arguments and return values. For small payloads this overhead may exceed the compute savings.
+- Workers are cached in a process-global `Map` rather than in `AsyncLocalStorage`, which means worker lifecycle is not request-scoped. A leaked or crashed worker affects subsequent requests.
+- Each `"use worker"` module is emitted as a separate build chunk, increasing build output and complicating chunk analysis.
+
+**Consequences:**
+Heavy computation runs off the main event loop on Node.js and Bun. React elements can be returned from workers directly. But the benefit is environment-dependent, the serialization cost is per-call, and the worker cache is a global mutable resource.
+
+<Link name="remote-component-composition">
+### Remote Component Composition
+</Link>
+
+**Problem:**
+Large organizations deploy frontend applications across multiple teams and repositories. Composing independently deployed UIs at the component level — rather than at the page level via iframes or client-side module federation — requires a shared rendering protocol and dependency deduplication.
+
+**Constraint:**
+Remote components must produce RSC flight payloads consumable by the host application. Client-side JavaScript from remote applications must not duplicate shared dependencies (React, react-dom) in the browser. The composition must work with the streaming and hydration pipeline without special client-side glue code.
+
+**Decision:**
+Provide a [`<RemoteComponent src="..." />`](/framework/micro-frontends) primitive that fetches RSC flight data from a remote react-server instance at render time.
+
+```jsx
+import RemoteComponent from "@lazarv/react-server/remote";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Host application</h1>
+      <RemoteComponent src="http://localhost:3001" />
+    </div>
+  );
+}
+```
+
+The host fetches the remote's browser manifest, cross-references it with its own manifest, and emits an inline `<script type="importmap">` that remaps the remote's client module URLs to the host's copies for shared dependencies. Each remote subtree gets its own outlet ID for independent hydration and refresh.
+
+**Tradeoffs:**
+- Both host and remote must be `@lazarv/react-server` instances. The composition relies on a framework-specific endpoint (`.remote.x-component`) and the browser manifest JSON structure. This is not an open federation protocol.
+- Import map merging occurs at render time, adding latency to the initial response proportional to the number of remote components.
+- Shared dependency resolution depends on version compatibility between host and remote manifests. A React version mismatch between host and remote will cause hydration failures.
+- The `isolate` prop (shadow DOM encapsulation) prevents style leaking but also prevents shared CSS design systems from applying to the remote subtree.
+
+**Consequences:**
+Independently deployed React applications compose at the component level with shared dependency deduplication. But the system is closed to non-react-server remotes, version coupling between host and remote is implicit, and import map generation adds per-render overhead.
+
+<Link name="partial-pre-rendering-model">
+### Partial Pre-Rendering Model
+</Link>
+
+**Problem:**
+Full static generation produces fast initial loads but cannot serve personalized or time-sensitive content. Full server rendering handles dynamic content but has higher time-to-first-byte. Choosing between the two at the page level is too coarse — many pages have a static shell with small dynamic regions.
+
+**Constraint:**
+The component tree must be splittable into static and dynamic portions at the component level without requiring the developer to restructure the page into separate endpoints. The static shell must be pre-renderable at build time and servable from a CDN. Dynamic portions must stream in at request time using the same rendering pipeline.
+
+**Decision:**
+Introduce [`"use dynamic"` and `"use static"` directives](/framework/ppr). `"use dynamic"` injects a postpone signal that React's streaming renderer interprets as a boundary — the static shell renders around it and the dynamic content streams in at request time.
+
+```jsx
+import { Suspense } from "react";
+
+async function UserGreeting() {
+  "use dynamic";
+  const user = await getUser();
+  return <p>Welcome, {user.name}</p>;
+}
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<p>Loading...</p>}>
+        <UserGreeting />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+`"use static"` is an alias for `"use cache: static"` with a prerender-aware memory cache driver. At build time, the framework emits `.postponed.json` files alongside pre-rendered HTML for pages containing postponed boundaries. [Adapters](/deploy/adapters) use these files to route requests to the streaming renderer for the dynamic portions.
+
+**Tradeoffs:**
+- `"use dynamic"` only works within server components in the RSC environment. Using it in a client component is silently ignored.
+- The postpone mechanism is a framework convention built on React's internal `Postpone` error type, not a stable React API. Future React changes to Suspense or streaming semantics could break it.
+- [Adapters](/deploy/adapters) must be PPR-aware: static files with `.postponed.json` companions must be excluded from the static file server and handled by the streaming runtime instead. This adds adapter complexity and restricts which hosting platforms can support PPR.
+- `"use static"` routes through the [cache layer](/framework/caching), so its behavior depends on the cache driver configuration and TTL settings, not purely on build-time pre-rendering.
+
+**Consequences:**
+Pages can serve a static shell instantly from a CDN while dynamic regions stream in at request time. But the feature depends on adapter support, uses an unstable React internal, and the two directives have asymmetric implementation paths (postpone vs. cache) despite their symmetric naming.
+
+<Link name="rpc-boundary">
+### RPC Boundary
+</Link>
+
+**Problem:**
+Traditional web applications require a separate API layer (REST, GraphQL, tRPC) to handle mutations from the client. This introduces route registration, serialization contracts, and a context switch between "UI code" and "API code."
+
+**Constraint:**
+React's `"use server"` directive defines a serialization boundary at the function level. The runtime must intercept these annotated functions, expose them as HTTP endpoints, and handle argument/return serialization transparently. The mechanism must also work without client-side JavaScript for progressive enhancement.
+
+**Decision:**
+Support [server functions](/guide/server-functions) as the primary mutation interface. Annotated functions are callable from [client components](/guide/client-components) and from plain HTML forms. No separate [API route](/router/api) layer is required.
+
+```jsx
+export default function App() {
+  async function addItem(formData) {
+    "use server";
+    await db.insert({ name: formData.get("name") });
+  }
+  return (
+    <form action={addItem}>
+      <input name="name" />
+      <button type="submit">Add</button>
+    </form>
+  );
+}
+```
+
+**Tradeoffs:**
+- Server functions are tightly coupled to the React serialization protocol. They are not general-purpose API endpoints — calling them from non-React clients is not straightforward.
+- TypeScript types flow across the boundary, but runtime validation of incoming arguments is the developer's responsibility. There is no schema layer by default.
+- Progressive enhancement via `<form action={fn}>` constrains the interaction model to what HTML forms can express natively.
+
+**Consequences:**
+Mutation logic is co-located with rendering code, eliminating a separate [API route](/router/api) layer but increasing coupling between UI and server logic. Form-based submissions work without client-side JavaScript, at the cost of richer interaction patterns. TypeScript types cross the serialization boundary, providing static type checking but no runtime validation — malformed payloads are not rejected unless developers add explicit checks.
+
+<Link name="application-model">
+## Application Model
+</Link>
+
+These decisions shape how developers structure and compose applications on top of the execution layer: how the core is extended, how routes are defined, how content is authored, what output modes are available, and how caching and progressive enhancement integrate with the rendering pipeline.
+
+<Link name="extensibility-strategy">
+### Extensibility Strategy
+</Link>
+
+**Problem:**
+A monolithic runtime that bundles every feature (routing, MDX, static export, etc.) into the core creates bloat for simple use cases and limits how developers can customize behavior.
+
+**Constraint:**
+The plugin boundary must be narrow enough to reason about, but expressive enough to implement first-party features (e.g., file-system routing) as plugins rather than core logic. Compatibility with Vite's plugin interface is required to avoid a proprietary extension model.
+
+**Decision:**
+Keep the core minimal. Implement higher-level features — including the [file-system router](/router/file-router) — as plugins. Expose [configuration](/framework/configuration) and lifecycle hooks that align with Vite's plugin contract.
+
+**Tradeoffs:**
+- Plugin composition can produce ordering-dependent behavior that is hard to debug.
+- A thin core means more integration responsibility falls on plugin authors and configuration.
+- First-party plugins must be maintained in lockstep with core changes, creating a coordination cost.
+
+**Consequences:**
+Applications that do not use [routing](/router/file-router) or [MDX](/router/markdown) pay no code or configuration cost for those features. New capabilities are addable as plugins without modifying the core, but this shifts integration complexity to plugin authors. Because the plugin interface is Vite-native, no adapter layer is needed — but plugin behavior is subject to Vite's plugin ordering and lifecycle semantics.
+
+<Link name="routing-strategy">
+### Routing Strategy
+</Link>
+
+**Problem:**
+Programmatic route configuration becomes a maintenance burden as applications grow. Route definitions drift from the actual file structure, and refactoring paths requires updating both files and configuration.
+
+**Constraint:**
+Routing must be optional — applications using a custom entrypoint should not be forced into a convention. When routing is used, it must integrate with the RSC rendering pipeline, supporting layouts, nested routes, and async data loading at the route level.
+
+**Decision:**
+Implement [file-system based routing](/router/file-router) as an opt-in plugin. Directory and file naming conventions map to [route segments](/router/define-routes). Custom routing solutions remain supported via direct entrypoint usage.
+
+```
+pages/
+  index.tsx              →  /
+  about.tsx              →  /about
+  (root).layout.tsx      →  layout wrapper
+  auth/
+    login.tsx            →  /auth/login
+  posts/
+    [id].tsx             →  /posts/:id
+```
+
+**Tradeoffs:**
+- File-system conventions impose naming constraints that may conflict with project preferences.
+- Dynamic route patterns (catch-all, optional segments) rely on filename conventions that are less explicit than programmatic definitions.
+- [Nested layouts](/router/file-router) are implicit based on directory structure, which can be surprising when the nesting does not match the intended UI hierarchy.
+
+**Consequences:**
+Route structure is determined by directory layout, removing the need for a separate [route configuration](/router/configuration) file but embedding routing semantics in the filesystem. Route changes are file renames or moves, which simplifies refactoring but means the filesystem must conform to routing conventions. The custom entrypoint path remains available as a fallback, though migrating from file-system routing to programmatic routing requires restructuring the project.
+
+<Link name="content-authoring">
+### Content Authoring
+</Link>
+
+**Problem:**
+Documentation sites and content-heavy pages are tedious to author as JSX components. A lighter authoring format is needed, but it must still allow embedding interactive React components.
+
+**Constraint:**
+Content pages must be server components to participate in the RSC rendering pipeline. The Markdown/MDX processing must happen at build time or on the server, not on the client. Remark and Rehype plugin compatibility is expected.
+
+**Decision:**
+Support [Markdown and MDX](/router/markdown) as page sources. MDX files compile to [server components](/guide/server-components), allowing embedded [client components](/guide/client-components) via standard import/export syntax. Remark and Rehype plugin chains are configurable.
+
+```mdx
+import Counter from "./Counter";
+
+# My Page
+
+Here is an interactive counter embedded in MDX:
+
+<Counter />
+```
+
+**Tradeoffs:**
+- MDX compilation adds build-time overhead proportional to content volume.
+- MDX's JSX-in-Markdown syntax has edge cases (indentation sensitivity, expression escaping) that surprise authors unfamiliar with the format.
+- The MDX compiler version is pinned to maintain compatibility with the RSC pipeline.
+
+**Consequences:**
+Content authoring uses Markdown syntax rather than JSX, lowering the barrier for non-component content but introducing MDX-specific edge cases in mixed content. Remark and Rehype plugins are composable into the build pipeline without an adapter, though plugin compatibility depends on the pinned MDX compiler version.
+
+<Link name="output-mode">
+### Output Mode
+</Link>
+
+**Problem:**
+Not all pages require a running server. Marketing pages, documentation, and other static content benefit from being pre-rendered to HTML at build time. However, a purely static system cannot handle dynamic pages.
+
+**Constraint:**
+Static export must produce both HTML (for initial load) and the RSC flight payload (for client-side navigation). The same component tree must be renderable in both static and server modes without code changes.
+
+**Decision:**
+Support [static generation](/router/static) as an export step. Pages can be individually marked for static export. The output includes both HTML and RSC payloads. The exported files can be served by any static file server or by the runtime itself.
+
+```ts
+// about.static.ts — marks /about for static generation
+export default true;
+
+// posts/[id].static.ts — enumerates params for dynamic routes
+export default [{ id: "1" }, { id: "2" }, { id: "3" }];
+```
+
+**Tradeoffs:**
+- Static pages are stale until the next build. There is no built-in incremental static regeneration at the CDN edge.
+- Exporting pages with dynamic data requires enumerating all possible parameter combinations at build time.
+- Mixing static and server-rendered pages in one deployment requires a server runtime for the dynamic subset, complicating hosting.
+
+**Consequences:**
+Static pages are served without invoking the runtime, eliminating server compute for those routes but requiring a rebuild to update content. Client-side navigation between static pages uses pre-rendered flight payloads, which increases build output size proportionally to the number of exported pages. Hybrid deployments (some static, some dynamic) require both a static file host and a running server process, adding deployment topology complexity.
+
+<Link name="progressive-enhancement">
+### Progressive Enhancement
+</Link>
+
+**Problem:**
+JavaScript-dependent applications are inaccessible to users with JavaScript disabled, on constrained networks, or using assistive technologies that interact primarily with the initial HTML.
+
+**Constraint:**
+Server functions must accept form submissions via standard HTTP POST without client-side JavaScript. Navigation must work via `<a>` tags. The architecture must degrade gracefully while still supporting rich interactivity when JavaScript is available.
+
+**Decision:**
+Forms submit directly to [server function](/guide/server-functions) endpoints. Links trigger full-page server renders. Client-side JavaScript, when loaded, progressively enhances forms and navigation with [client-side transitions](/router/client-navigation) and streaming updates.
+
+**Tradeoffs:**
+- Without JavaScript, there is no client-side navigation — every interaction is a full page load.
+- Form-based interactions without JavaScript are limited to what HTML forms can express (no optimistic updates, no inline validation).
+- Developers must test two code paths: the no-JS baseline and the enhanced JS experience.
+
+**Consequences:**
+The no-JavaScript path produces a functional but degraded experience — navigation triggers full page loads and form interactions lack client-side feedback. When JavaScript is available, client components hydrate and enhance the baseline, but this creates two distinct behavior paths that must be tested independently. Lazy-loaded client components via ESM split the JavaScript payload per component boundary, but each additional client component adds a network request unless bundled.
+
+<Link name="declarative-cache-directives">
+### Declarative Cache Directives
+</Link>
+
+**Problem:**
+Imperative cache APIs (`useCache()`, `useResponseCache()`) require developers to wrap each cacheable function or route handler manually. This scatters caching logic across the codebase and makes it difficult to audit which functions are cached, with what TTL, and under which tags.
+
+**Constraint:**
+The caching directive must be declarative and co-located with the function it applies to. Cache keys must be stable across builds — a code change should invalidate the cache implicitly. The cache backend must be pluggable (memory, localStorage, sessionStorage, external stores via Unstorage drivers). Both server and client components need caching support, but with different storage backends.
+
+**Decision:**
+Support a [`"use cache"` directive](/framework/caching) with inline configuration syntax: `"use cache: <provider>; ttl=<ms>; tags=<tag1>,<tag2>; profile=<name>"`.
+
+```jsx
+async function getTodos() {
+  "use cache; ttl=200; tags=todos";
+  const res = await fetch("https://jsonplaceholder.typicode.com/todos");
+  return res.json();
+}
+```
+
+The Vite plugin rewrites the function body at compile time to wrap it with `useCache()`, using an MD5 hash of the file path, source content, and AST position as the cache key. A lock map prevents thundering-herd on concurrent cache misses. Built-in providers include memory, server (prerender-aware), client (browser memory), localStorage, sessionStorage, and null. Custom providers are configurable.
+
+**Tradeoffs:**
+- The directive syntax (`"use cache: memory; ttl=60000; tags=posts"`) is a string DSL parsed at compile time. It is not standard JavaScript and not validated by TypeScript — typos in provider names or tag strings are silent until runtime.
+- MD5-based cache keys include the source content, so any code edit to a cached function invalidates its cache. This is correct for consistency but means deploying a no-op code change (e.g., adding a comment) flushes the cache.
+- The compile-time rewrite wraps the function with React's `cache()` for request-level deduplication on top of the storage-level cache. These two cache layers interact — a request-level cache hit skips the storage check, but invalidation of one layer does not propagate to the other.
+- Client-side caching uses simple in-memory maps without `AsyncLocalStorage` context, so cache isolation between concurrent operations depends on the browser's single-threaded execution model.
+
+**Consequences:**
+Caching is declared at the function level with provider, TTL, and tags in a single line. Cache keys are automatically stable and invalidation-safe. But the string DSL is opaque to static analysis tools, dual-layer caching creates non-obvious interaction effects, and the pluggable provider system requires configuration knowledge beyond the directive itself.
+
+<Link name="caching-layer">
+### Caching Layer
+</Link>
+
+**Problem:**
+Re-rendering identical RSC output for every request wastes server resources. Common pages (landing pages, product listings) are often identical across users and can be served from cache.
+
+**Constraint:**
+Caching must be opt-in and controllable per-response. The cache key, TTL, and revalidation strategy must be developer-defined. The caching layer must not assume a specific infrastructure (Redis, CDN, etc.).
+
+**Decision:**
+Provide an in-memory response cache with explicit [cache-control APIs](/framework/caching). Developers set caching directives per route or per response. The cache implementation is replaceable.
+
+**Tradeoffs:**
+- In-memory caching does not survive process restarts and is not shared across cluster workers or multiple servers by default.
+- Cache invalidation is manual. There is no built-in integration with database change events or webhook-triggered purging.
+- The abstraction is minimal — production deployments typically need a custom cache adapter for distributed scenarios.
+
+**Consequences:**
+Cached pages are served without re-rendering. Revalidation enables eventual consistency for dynamic data. The pluggable cache interface allows integration with Redis, Memcached, or CDN-level caching without framework changes.
+
+<Link name="operational-model">
+## Operational Model
+</Link>
+
+These decisions govern how the system behaves in production, during development, and across deployment targets: platform-specific build adapters, multi-process scaling, the development feedback loop, and protocol integrations that extend the server’s capabilities beyond HTTP request/response.
+
+<Link name="platform-adapter-system">
+### Platform Adapter System
+</Link>
+
+**Problem:**
+Deployment platforms ([Vercel](/deploy/vercel), [Netlify](/deploy/netlify), [Cloudflare](/deploy/cloudflare), [Bun](/deploy/bun), [Deno](/deploy/deno)) each require different output structures, entry point formats, and runtime APIs. A build that produces a Node.js server bundle is not deployable to Cloudflare Workers without significant restructuring.
+
+**Constraint:**
+The adapter must transform the framework's internal build output (`.react-server/` directory with server, client, static, and RSC files) into the platform's expected output without modifying application code. Adapters must handle PPR-aware routing (excluding `.postponed.json` files from static serving), dependency tracing (for Node.js serverless bundles), and edge vs. Node.js entry point selection.
+
+**Decision:**
+Provide a [`createAdapter()` factory](/deploy/adapters) that standardizes the pipeline: clear output → copy/classify files → call adapter-specific handler → optionally deploy. Each adapter specifies its output directory structure, entry point (edge: `@lazarv/react-server/edge`; Node: `@lazarv/react-server/node`), and platform-specific configuration generation ([Vercel](/deploy/vercel) Build Output API, [`wrangler.toml`](/deploy/cloudflare), [Netlify](/deploy/netlify) `_redirects`). Node.js adapters use `@vercel/nft` for dependency tracing; edge adapters bundle everything into a single chunk.
+
+**Tradeoffs:**
+- Each adapter is tightly coupled to its platform's output API (Vercel Build Output v3, Cloudflare Workers format, etc.). Platform API changes require adapter updates.
+- `@vercel/nft` dependency tracing for Node.js adapters is the performance bottleneck — it must trace the full `node_modules` graph through multiple export condition passes (`react-server`, `node/import`, `node/require`).
+- Edge adapters lose features that require Node.js APIs: worker threads (`"use worker"` becomes a no-op), cluster mode, and filesystem-based caching.
+- The adapter system assumes the `.react-server/` build output structure. Custom build pipelines or non-standard output layouts are not supported without writing a custom adapter.
+
+**Consequences:**
+A single [`--adapter <name>` flag](/framework/cli) produces platform-specific deployment output. Application code is unchanged across targets. But edge deployments are a restricted subset of the full runtime, dependency tracing adds build time for Node.js targets, and each platform's idiosyncratic output format requires dedicated adapter maintenance.
+
+<Link name="production-concurrency-model">
+### Production Concurrency Model
+</Link>
+
+**Problem:**
+A single Node.js process uses one CPU core. Production deployments on multi-core machines underutilize hardware, and a single blocked event loop degrades throughput for all concurrent requests.
+
+**Constraint:**
+Node.js clustering is process-based, not thread-based. Each worker is an independent process with its own memory space. Shared state (in-memory caches, WebSocket connections) does not automatically propagate across workers.
+
+**Decision:**
+Support Node.js [cluster mode](/framework/cluster) for production builds. The runtime spawns one worker per CPU core by default. Each worker handles requests independently.
+
+```sh
+# Start with all available CPU cores
+REACT_SERVER_CLUSTER=on pnpm react-server start
+
+# Or specify worker count
+REACT_SERVER_CLUSTER=8 pnpm react-server start
+```
+
+**Tradeoffs:**
+- In-memory caches are per-worker and not shared, which can lead to redundant rendering across workers or inconsistent cache state.
+- Memory usage scales linearly with worker count. Each worker loads the full application and its dependencies.
+- Cluster mode is only available in Node.js environments — serverless, edge, and Deno deployments use different concurrency models.
+
+**Consequences:**
+Throughput scales with available CPU cores. A blocked or crashed worker does not take down the entire process. The concurrency model is transparent to application code — no code changes are required to run in cluster mode.
+
+> **Note:** Cluster mode is only available in Node.js production builds.
+
+<Link name="development-feedback-loop">
+### Development Feedback Loop
+</Link>
+
+**Problem:**
+Full-page reloads on code changes disrupt development flow and discard client-side state. RSC adds complexity because server components must re-render on the server and deliver updated flight payloads.
+
+**Constraint:**
+HMR must cover both client and server components. Vite's HMR protocol handles client modules natively, but server component changes require re-executing the server render and diffing the RSC output.
+
+**Decision:**
+Leverage [Vite's](/integrations/vite) HMR infrastructure for [client components](/guide/client-components). Extend it for [server components](/guide/server-components) by triggering a server-side re-render on file changes and streaming the updated RSC payload to the client.
+
+**Tradeoffs:**
+- Server component HMR is not true "hot replacement" — it re-renders the component tree on the server and reconciles on the client, which can be slower than client-only HMR for complex trees.
+- HMR boundary detection for server components is less precise than for client components, occasionally causing broader re-renders than necessary.
+- Development behavior may diverge from production behavior when HMR masks issues that would surface on a full page load.
+
+**Consequences:**
+HMR latency for server components is higher than for client-only components because it requires a server-side re-render and flight payload diff rather than an in-place module swap. Client-side state in unaffected subtrees is preserved across server component HMR, but state in components within the re-rendered boundary is reset. The development-time module transform behavior may not reproduce production-only bundling issues.
+
+<Link name="mcp-server-integration">
+### MCP Server Integration
+</Link>
+
+**Problem:**
+AI agents need to discover and invoke server-side tools through a standardized protocol. Building an MCP (Model Context Protocol) server typically requires a separate service with its own HTTP handling, schema validation, and transport management — duplicating infrastructure that the application server already provides.
+
+**Constraint:**
+MCP tools must be definable as server functions within the existing application codebase, using the same module system and deployment pipeline. The MCP transport must be streamable HTTP (not WebSocket-only) for compatibility with stateless edge deployments. Tool input schemas must be validated at runtime.
+
+**Decision:**
+Provide [`createTool()`, `createResource()`, `createPrompt()`, and `createServer()` primitives](/framework/mcp) as a framework export. MCP tools are defined in [`"use server"`](/guide/server-functions) modules with Zod schemas for input validation.
+
+```js
+"use server";
+
+import { createTool } from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+export const echo = createTool({
+  id: "echo",
+  title: "Echo",
+  description: "Echoes the input back",
+  inputSchema: { input: z.string() },
+  async handler({ input }) {
+    return `Echo: ${input}`;
+  },
+});
+```
+
+`createServer()` instantiates a `McpServer` from `@modelcontextprotocol/sdk`, registers all tools, and returns an async HTTP handler that bridges the MCP streaming transport into a Web `Response` with a `ReadableStream` body.
+
+**Tradeoffs:**
+- The MCP server is stateless (`sessionIdGenerator: undefined`) — tool invocations cannot maintain conversational context across requests. Stateful protocols require external session management.
+- Zod is a required dependency for schema definition. Projects not using MCP still pay the dependency cost unless tree-shaken.
+- The transport bridge converts between Node.js-style `writeHead/write/end` and Web `ReadableStream`, adding a compatibility layer that may behave differently across runtimes.
+- MCP tools are coupled to the framework's deployment lifecycle — they cannot be deployed or scaled independently from the application server.
+
+**Consequences:**
+[MCP servers](/framework/mcp) are definable within the application codebase using familiar [server function](/guide/server-functions) patterns. AI agents discover tools via the standardized MCP protocol. But the stateless transport limits conversational workflows, the Zod dependency is non-optional for tool authors, and MCP endpoints share the application server's resource constraints.

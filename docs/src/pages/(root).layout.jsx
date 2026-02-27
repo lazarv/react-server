@@ -3,8 +3,6 @@ import "./global.css";
 
 import { cookie, usePathname } from "@lazarv/react-server";
 import { useMatch } from "@lazarv/react-server/router";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import EditPage from "../components/EditPage.jsx";
 import { useLanguage, m } from "../i18n.mjs";
@@ -125,8 +123,6 @@ export default function Layout({
           {contents}
         </main>
         {footer}
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );

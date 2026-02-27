@@ -1,0 +1,268 @@
+/* ── Terminal window component ── */
+
+.window {
+  width: 100%;
+  max-width: 40rem;
+  border-radius: 0.625rem;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.2),
+    0 4px 16px rgba(0, 0, 0, 0.14);
+}
+
+:global(.dark) .window {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Shared titlebar ── */
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  user-select: none;
+}
+
+.title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  opacity: 0.6;
+}
+
+/* ── macOS ── */
+
+.mac {
+  border-radius: 0.625rem;
+}
+
+.titlebarMac {
+  composes: titlebar;
+  background: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+:global(.dark) .titlebarMac {
+  background: #38383a;
+  border-bottom: 1px solid #2c2c2e;
+}
+
+.macDots {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.macDotsSpacer {
+  width: 3.5rem;
+  flex-shrink: 0;
+}
+
+.titlebarMac .title {
+  flex: 1;
+  text-align: center;
+  color: #4d4d4d;
+}
+
+:global(.dark) .titlebarMac .title {
+  color: #aaa;
+}
+
+.macDot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.macDotClose {
+  composes: macDot;
+  background: #ff5f57;
+}
+
+.macDotMinimize {
+  composes: macDot;
+  background: #fdbc40;
+}
+
+.macDotMaximize {
+  composes: macDot;
+  background: #33c748;
+}
+
+/* ── Windows ── */
+
+.windows {
+  border-radius: 0.5rem;
+}
+
+.titlebarWindows {
+  composes: titlebar;
+  background: #f3f3f3;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0 0 0 0.75rem;
+  justify-content: space-between;
+}
+
+:global(.dark) .titlebarWindows {
+  background: #2d2d2d;
+  border-bottom: 1px solid #404040;
+}
+
+.winLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.winIcon {
+  color: #666;
+}
+
+:global(.dark) .winIcon {
+  color: #aaa;
+}
+
+.titlebarWindows .title {
+  color: #333;
+}
+
+:global(.dark) .titlebarWindows .title {
+  color: #ccc;
+}
+
+.winButtons {
+  display: flex;
+  height: 100%;
+}
+
+.winBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.875rem;
+  height: 100%;
+  color: #666;
+  transition: background 0.1s;
+}
+
+:global(.dark) .winBtn {
+  color: #aaa;
+}
+
+.winBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+:global(.dark) .winBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.winBtnClose {
+  composes: winBtn;
+}
+
+.winBtnClose:hover {
+  background: #e81123;
+  color: white;
+}
+
+/* ── Linux / Ubuntu ── */
+
+.linux {
+  border-radius: 0.5rem;
+}
+
+.titlebarLinux {
+  composes: titlebar;
+  background: #2c2c2c;
+  border-bottom: 1px solid #222;
+  padding: 0 0.75rem;
+}
+
+:global(.dark) .titlebarLinux {
+  background: #303030;
+  border-bottom: 1px solid #252525;
+}
+
+.linuxButtons {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.linuxButtonsSpacer {
+  width: 4.5rem;
+  flex-shrink: 0;
+}
+
+.titlebarLinux .title {
+  flex: 1;
+  text-align: center;
+  color: #ccc;
+}
+
+.linuxBtn {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.linuxBtnClose {
+  composes: linuxBtn;
+  background: #e95420;
+}
+
+.linuxBtnMinimize {
+  composes: linuxBtn;
+  background: #7a7a7a;
+}
+
+.linuxBtnMaximize {
+  composes: linuxBtn;
+  background: #7a7a7a;
+}
+
+/* ── Terminal body ── */
+
+.body {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 1rem 1.25rem;
+  font-family: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", "Menlo", "Consolas", monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.prompt {
+  color: #a6e3a1;
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.command {
+  color: #cdd6f4;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.15em;
+  background: #cdd6f4;
+  margin-left: 0.15em;
+  vertical-align: text-bottom;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

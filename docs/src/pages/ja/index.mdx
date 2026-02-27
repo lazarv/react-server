@@ -1,9 +1,12 @@
-import Card from "../../components/Card";
 import Pill from "../../components/Pill";
-import Link from "../../components/Link";
-import GitHub from "../../../public/github.svg?react";
+import ReactViteScene from "../../components/ReactViteScene";
+import Terminal from "../../components/Terminal";
 
 <div className="background-effect"></div>
+
+{/* ══════════════════════════════════════════════════════════════
+    HERO
+    ══════════════════════════════════════════════════════════════ */}
 
 <div className="relative sm:pl-16 mb-4">
   <img src="/react-server.svg" className="w-10 h-10 left-[17.5rem] top-1 sm:top-0 sm:w-14 sm:h-14 absolute sm:left-0 sm:right-auto" alt="@lazarv/react-server logo" />
@@ -15,98 +18,967 @@ import GitHub from "../../../public/github.svg?react";
 
 <div className="whitespace-nowrap w-full flex flex-wrap gap-2">
   <Pill href="/guide/quick-start">クイックスタート</Pill>
-  <Pill href="/guide/why">なぜ @lazarv/react-server なのか？</Pill>
+  <Pill href="https://github.com/lazarv/react-server" target="_blank">
+    GitHubで見る
+  </Pill>
+</div>
+
+<div className="w-full mt-12 sm:mt-20 mb-8 flex flex-col items-center">
+
+<h2 className="text-3xl sm:text-6xl font-bold text-center m-0 border-none leading-tight">
+どこでもReactを実行
+</h2>
+
+<div className="max-w-3xl text-center text-base sm:text-xl text-gray-600 dark:text-gray-400 mt-6 mb-2 leading-relaxed px-4">
+サーバー、クライアント、ワーカー、エッジ環境でReactコンポーネントを実行する単一ランタイム — React Server Components、ストリーミング、デプロイを標準搭載。
+</div>
+
+<ReactViteScene />
+
+</div>
+
+{/* ══════════════════════════════════════════════════════════════
+    THE IDEA
+    ══════════════════════════════════════════════════════════════ */}
+
+<section className="feature-section py-12 sm:py-20">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">コンセプト</p>
+
+### ランタイムとしてのReact
+
+Reactはブラウザの外で動作します。コンポーネントは実行可能なユニットであり、サーバー、ワーカー、エッジで実行されます。ランタイムが各コンポーネントの実行場所と方法を決定します。
+
+フレームワークの境界はありません。Reactを書くだけで、同じモデルがどこでも機能します。コンポーネントはサーバーでデータを取得し、クライアントにHTMLをストリーミングし、ワーカースレッドで画像を処理できます — すべて同じ構文で。
+
+`"use client"`、`"use worker"`、`"use live"` — たった一つのディレクティブでコンポーネントの実行場所を変更できます。ビルドステップの魔法も、別のAPIを覚える必要もありません。ランタイムがシリアライゼーション、ストリーミング、ハイドレーションを自動的に処理します。
+
+つまり、アプリケーションはサーバーコード、クライアントコード、そしてその間のグルーコードのパッチワークではなく、一つの統一されたReactツリーです。パラダイムを切り替えることなく、単一ファイルから分散システムまでスケールできます。
+
+Reactコンポーネントはもはや単なるUIではなく、アプリケーションランタイムの実行可能なユニットです。
+
+</div>
+
+<div>
+
+<p className="code-label">サーバーコンポーネント — サーバー上で実行。データベースやAPIに直接アクセスし、クライアントバンドルのコストはゼロ。</p>
+
+```jsx
+export default async function Page() {
+  const data = await db.query("SELECT ...");
+  return <Feed items={data} />;
+}
+```
+
+<p className="code-label">クライアントコンポーネント — ブラウザでハイドレート。おなじみのReactそのもの。</p>
+
+```jsx
+"use client";
+
+export default function Counter() {
+  const [n, setN] = useState(0);
+  return <button onClick={() => setN(n + 1)}>{n}</button>;
+}
+```
+
+<p className="code-label">ワーカー — バックグラウンドスレッドで実行。サーバーやUIをブロックせずに重い処理をオフロード。</p>
+
+```jsx
+"use worker";
+
+export async function resize(buf) {
+  return sharp(buf).resize(800).toBuffer();
+}
+```
+
+<p className="code-label">ライブコンポーネント — WebSocket経由で更新をストリーミング。各yieldが新しいReactツリーをクライアントに送信。</p>
+
+```jsx
+"use live";
+
+export default async function* Price({ symbol }) {
+  while (true) {
+    yield <span>{await getPrice(symbol)}</span>;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ══════════════════════════════════════════════════════════════
+    RUNTIME
+    ══════════════════════════════════════════════════════════════ */}
+
+<section className="full-bleed py-12 sm:py-20 bg-indigo-50 dark:bg-indigo-950/30 border-y border-indigo-100 dark:border-indigo-900/40">
+  <div className="flex flex-col items-center gap-6">
+    <Terminal command="npx @lazarv/react-server ./App.jsx" />
+    <div className="text-center text-base sm:text-lg text-indigo-900 dark:text-gray-300 m-0 max-w-3xl leading-relaxed px-4">
+      <strong className="text-indigo-950 dark:text-white">@lazarv/react-server</strong> は、サーバー、クライアント、ワーカー、エッジ環境でReactコンポーネントを実行するためのランタイムです。
+    </div>
+  </div>
+</section>
+
+{/* ══════════════════════════════════════════════════════════════
+    WHY
+    ══════════════════════════════════════════════════════════════ */}
+
+<section className="feature-section full-bleed py-12 sm:py-20 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+<p className="code-label">ファイルを1つ作成 — それがアプリ全体です。設定もボイラープレートも不要。<code>npx @lazarv/react-server ./App.jsx</code> で起動。</p>
+
+```jsx
+export default function App() {
+  return <h1>Hello World!</h1>;
+}
+```
+
+<p className="code-label">スケールする準備ができたら、<code>app/page.jsx</code> にページを追加してエントリーポイントを省略。ファイルシステムルーターが自動的に引き継ぎます。</p>
+
+```jsx
+export default async function Home() {
+  const posts = await db.posts.findMany();
+
+  return (
+    <main>
+      <h1>Blog</h1>
+      {posts.map((post) => (
+        <article key={post.id}>
+          <h2>{post.title}</h2>
+          <p>{post.excerpt}</p>
+        </article>
+      ))}
+    </main>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">理念</p>
+
+### なぜ @lazarv/react-server なのか？
+
+ほとんどのReactフレームワークは、最初のコンポーネントを書く前に大量のセットアップが必要です。**@lazarv/react-server** は異なるアプローチを取ります — `node` でスクリプトを実行するように簡単ですが、React向けです。
+
+単一ファイルから始めて、ニーズの成長に合わせてファイルシステムルーティング、キャッシング、静的生成、マルチランタイムデプロイを備えたフル機能アプリケーションにスケールできます。
+
+即座のHMRを実現するVite搭載。Reactを同梱しているのでプロジェクトは軽量。Node.js、Bun、Denoをサポート。ビルトインアダプターでVercel、Netlify、Cloudflareなどにデプロイ可能。
+
+</div>
+
+</div>
+</section>
+
+{/* ══════════════════════════════════════════════════════════════
+    GET STARTED
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">数秒で開始</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">依存関係1つ。ファイル1つ。コマンド1つ。</p>
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">クイックスタート</p>
+
+### インストール＆実行
+
+依存関係を1つ追加し、Reactコンポーネントをエクスポートする `.jsx` ファイルを作成し、開発サーバーを起動します。それだけで完全なSSRとホットモジュールリプレースメントが動作します — ボイラープレートは不要です。
+
+Reactをインストールする必要すらありません。フレームワークにバンドルされており、常に最新の状態に保たれています。
+
+</div>
+
+<div>
+
+<p className="code-label">単一の依存関係でフレームワークをプロジェクトに追加 — Reactは含まれており、別途インストール不要。</p>
+
+```sh
+pnpm add @lazarv/react-server
+```
+
+<p className="code-label">デフォルトエクスポートされたReactコンポーネントを記述。このファイルがアプリケーション全体のエントリーポイント。</p>
+
+```jsx
+export default function App() {
+  return <h1>Hello World!</h1>;
+}
+```
+
+<p className="code-label">Viteによる即座のホットモジュールリプレースメントで開発サーバーを起動。</p>
+
+```sh
+pnpm react-server ./App.jsx
+```
+
+</div>
+
+</div>
+</section>
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+<p className="code-label">インストールを完全にスキップ — npxで任意のReactファイルを直接実行。実験やプロトタイピングに最適。</p>
+
+```sh
+npx @lazarv/react-server ./App.jsx
+```
+
+<p className="code-label">ファイルシステムルーティング、レイアウト、本番用設定を備えたアプリケーションをcreateパッケージで構築。</p>
+
+```sh
+npx @lazarv/create-react-server
+```
+
+<p className="code-label">Viteによる即座のHMRで開発サーバーを起動。</p>
+
+```sh
+react-server
+```
+
+<p className="code-label">最適化された本番ビルドを作成し、ビルトインの圧縮とクラスターモードで配信。</p>
+
+```sh
+react-server build
+react-server start
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">その他の方法</p>
+
+### さまざまな開始方法
+
+`npx` でインストールを完全にスキップして任意のReactファイルをその場で実行できます — プロトタイピングやクイックデモに最適です。または、createパッケージを使用して、ファイルシステムルーティング、レイアウト、本番設定が事前に組み込まれたフルプロジェクトをスキャフォールドできます。
+
+スキャフォールドされたプロジェクトには完全な開発ワークフローが含まれます：即座のHMRを備えた開発サーバー、最適化された本番ビルドステップ、圧縮・キャッシング・クラスターモードを備えた本番サーバー — すべて `react-server` CLIで追加設定なしに利用可能です。
+
+</div>
+
+</div>
+</section>
+
+
+{/* ══════════════════════════════════════════════════════════════
+    CORE EXECUTION MODEL
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">コア実行モデル</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">サーバーコンポーネント、クライアントインタラクティビティ、サーバー関数、ストリーミング — レンダリングの基盤。</p>
+
+{/* ── 1. React Server Components ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">デフォルトレンダリング</p>
+
+### React Server Components
+
+サーバーコンポーネントはサーバー上で実行され、`async`/`await` をサポートし、コードはクライアントに送られません。データベース、ファイルシステム、内部APIに直接アクセスできます — 別のバックエンドは不要です。
+
+サーバー専用コンポーネントにはハイドレーションコストがありません。より高速なページ読み込み、より小さなバンドル、よりシンプルなアーキテクチャ。
+
+</div>
+
+<div>
+
+```jsx
+export default async function Dashboard() {
+  const stats = await fetch(
+    "https://api.example.com/stats",
+    { headers: { Authorization: `Bearer ${API_KEY}` } }
+  ).then((r) => r.json());
+
+  return (
+    <section>
+      <h1>Dashboard</h1>
+      <p>Total users: {stats.users}</p>
+      <p>Revenue: ${stats.revenue}</p>
+    </section>
+  );
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 2. Client Components ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+"use client";
+
+import { useState } from "react";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Current count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>
+        Increment
+      </button>
+      <button onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">インタラクティビティ</p>
+
+### クライアントコンポーネント
+
+`"use client"` を追加してインタラクティビティを有効にします。コンポーネントはまずサーバーでレンダリングされ高速な初期表示を実現し、その後クライアントで完全なフックとイベントハンドラのサポート付きでハイドレートされます。
+
+ハイドレーションコストはインタラクティビティが実際に必要な場所でのみ発生します。それ以外はすべてサーバー専用のままです。
+
+</div>
+
+</div>
+</section>
+
+{/* ── 3. Server Functions ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">データミューテーション</p>
+
+### サーバー関数
+
+`"use server"` で任意のasync関数をサーバーサイドRPCエンドポイントに変換します。プログレッシブエンハンスメント付きのフォームアクションとして使用可能 — JavaScriptなしでもフォームが機能します。
+
+APIルートの定義もfetchラッパーも不要です。フレームワークがシリアライゼーション、エラーバウンダリ、再検証を処理します。
+
+</div>
+
+<div>
+
+```jsx
+async function createPost(formData) {
+  "use server";
+
+  const title = formData.get("title");
+  const body = formData.get("body");
+
+  await db.posts.create({ title, body });
+  revalidate("/posts");
+}
+
+export default function NewPost() {
+  return (
+    <form action={createPost}>
+      <input name="title" placeholder="Title" />
+      <textarea name="body" placeholder="Content" />
+      <button type="submit">Publish</button>
+    </form>
+  );
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 4. Streaming SSR ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+import { Suspense } from "react";
+
+async function SlowData() {
+  const data = await fetchFromSlowAPI();
+  return <div>{data.result}</div>;
+}
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Instant header</h1>
+      <p>This content appears immediately.</p>
+
+      <Suspense fallback={<p>Loading data...</p>}>
+        <SlowData />
+      </Suspense>
+    </main>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">パフォーマンス</p>
+
+### ストリーミングSSR
+
+HTMLは利用可能になるとすぐにクライアントにストリーミングされます。`<Suspense>` と組み合わせることで、ページの一部がプログレッシブにレンダリングされ — ユーザーは遅いセクションがバックグラウンドで読み込まれる間、すぐにコンテンツを確認できます。
+
+ストリーミングによる高速なTime-to-First-Byte。ハイドレーション完了後に完全なインタラクティブ体験。設定は不要です。
+
+</div>
+
+</div>
+</section>
+
+
+{/* ══════════════════════════════════════════════════════════════
+    DISTRIBUTED REACT
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">分散React</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">単一プロセスを超えたコンポーネント — ライブストリーミング、ワーカースレッド、マイクロフロントエンド。</p>
+
+{/* ── 5. Live Components ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">リアルタイム</p>
+
+### ライブコンポーネント
+
+WebSocket経由のasyncジェネレータによるサーバーからクライアントへのストリーミング。各コンポーネントインスタンスが独自の永続的なサーバーサイド実行コンテキストを持ちます。
+
+`"use live"` を追加してasyncジェネレータをエクスポートするだけ。各 `yield` が新しいReactツリーをクライアントに送信します。ダッシュボード、フィード、モニタリングに最適です。
+
+</div>
+
+<div>
+
+```jsx
+"use live";
+
+export default async function* StockPrice({ symbol }) {
+  while (true) {
+    const price = await getPrice(symbol);
+    const trend = await getTrend(symbol);
+
+    yield (
+      <div>
+        <span className="text-2xl">${price}</span>
+        <span className={trend > 0 ? "green" : "red"}>
+          {trend > 0 ? "▲" : "▼"} {Math.abs(trend)}%
+        </span>
+      </div>
+    );
+
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 6. Workers ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+"use worker";
+
+export async function processImage(buffer, options) {
+  // Runs in a Worker Thread — won't block
+  // the main server or the UI thread
+  const result = await sharp(buffer)
+    .resize(options.width, options.height)
+    .webp({ quality: options.quality })
+    .toBuffer();
+
+  return result;
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">並行処理</p>
+
+### ワーカー
+
+`"use worker"` でバックグラウンドスレッドに重い計算をオフロード。サーバーではWorker Threads、ブラウザではWeb Workersとして動作します。
+
+引数と戻り値はRSC Flightプロトコルでシリアライズされ、React要素を直接返すことができます。完全なHMRサポート付き。
+
+</div>
+
+</div>
+</section>
+
+{/* ── 7. Micro-Frontends ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">コンポジション</p>
+
+### マイクロフロントエンド
+
+独立してデプロイされたRSCアプリケーションを合成します。各リモートアプリはホストページにストリーミングされます。`isolate` でShadow DOMカプセル化を有効にし、スタイルのリークを防ぎます。
+
+インポートマップで依存関係を共有。`defer` でノンブロッキングローディングを実現。エッジ配信用に静的ビルドとしてエクスポート可能。
+
+</div>
+
+<div>
+
+```jsx
+import { RemoteComponent }
+  from "@lazarv/react-server/remote";
+
+export default function App() {
+  return (
+    <main>
+      <h1>Host Application</h1>
+
+      <RemoteComponent
+        src="https://team-a.example.com/header"
+      />
+
+      <RemoteComponent
+        src="https://team-b.example.com/widget"
+        isolate
+        defer
+      />
+    </main>
+  );
+}
+```
+
+</div>
+
+</div>
+</section>
+
+
+{/* ══════════════════════════════════════════════════════════════
+    PLATFORM FEATURES
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">プラットフォーム機能</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">ランタイム上に構築されたアプリケーション機能 — ルーティング、ナビゲーション、キャッシング、コンテンツ合成。</p>
+
+{/* ── 8. File-System Router ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">ルーティング</p>
+
+### ファイルシステムルーター
+
+エントリーポイントを省略すると、フレームワークがファイル構造に基づいてルーティングします。ページ、レイアウト、パラレルアウトレット、APIルート、ミドルウェア、エラーバウンダリ、ローディングステート — すべてが規約駆動です。
+
+動的セグメント、キャッチオールルート、ルートグループ、型付きルート生成がビルトインで提供されます。
+
+</div>
+
+<div>
+
+```
+app/
+├── layout.jsx              # ルートレイアウト
+├── page.jsx                # /
+├── about.jsx               # /about
+├── posts/
+│   ├── page.jsx            # /posts
+│   ├── [id].jsx            # /posts/:id
+│   └── [...slug].jsx       # /posts/*
+├── (auth)/
+│   └── login.jsx           # /login (グループ化)
+├── @sidebar/
+│   └── page.jsx            # パラレルアウトレット
+├── loading.jsx             # Suspenseフォールバック
+├── error.jsx               # エラーバウンダリ
+├── (i18n).middleware.mjs   # ミドルウェア
+└── GET.api.server.mjs      # GET /api エンドポイント
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 9. Client Navigation ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+import { Link } from "@lazarv/react-server/navigation";
+
+export default function Nav() {
+  return (
+    <nav>
+      <Link to="/" prefetch>Home</Link>
+      <Link to="/about" prefetch>About</Link>
+      <Link to="/posts" prefetch="viewport">
+        Posts
+      </Link>
+    </nav>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">ナビゲーション</p>
+
+### クライアントサイドナビゲーション
+
+`Link`、`Form`、`Refresh`、`ReactServerComponent` によるSPAライクなトランジション。ホバーまたはビューポート進入時にプリフェッチ、エラー時にロールバック、特定のアウトレットに更新をスコープ。
+
+`useClient()` によるプログラマティックナビゲーションはストリーミングアーキテクチャと統合されており、空白画面のトランジションはありません。
+
+</div>
+
+</div>
+</section>
+
+{/* ── 10. Caching ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">キャッシング</p>
+
+### キャッシングと再検証
+
+レスポンス、データ、コンポーネントの各レベルでの多層キャッシング。プラガブルドライバを備えた[Unstorage](https://unstorage.unjs.io)上に構築。
+
+`revalidate()` と `invalidate()` でオンデマンドに無効化。`"use cache"` ディレクティブで宣言的なTTLとタグベースの無効化を実現。
+
+</div>
+
+<div>
+
+```jsx
+import { useResponseCache, useCache } from "@lazarv/react-server";
+```
+
+<p className="code-label">レンダリング済みレスポンス全体を30秒間キャッシュ — 後続のリクエストはレンダリングを完全にスキップ。</p>
+
+```jsx
+useResponseCache(30000);
+```
+
+<p className="code-label">複合キーで個別のデータフェッチをキャッシュ。各エントリは独自のTTLを持ち、個別に無効化可能。</p>
+
+```jsx
+const post = await useCache(
+  ["posts", id],
+  () => fetchPost(id),
+  60000
+);
+```
+
+<p className="code-label"><code>"use cache"</code> ディレクティブをファイルの先頭に配置して、宣言的なTTLとタグベースの無効化を実現。</p>
+
+```jsx
+"use cache; ttl=60; tags=posts"
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 11. Partial Pre-Rendering ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+<p className="code-label">ページシェルと静的コンポーネントはビルド時にプリレンダリングされ、エッジから即座に配信。</p>
+
+```jsx
+export default function ProductPage({ params }) {
+  return (
+    <main>
+      <StaticHeader />
+      <ProductInfo id={params.id} />
+      <DynamicReviews id={params.id} />
+    </main>
+  );
+}
+```
+
+<p className="code-label"><code>"use dynamic"</code> でマークされた動的コンポーネントは、静的シェルが既に表示されている間にリクエスト時にストリーミングイン。</p>
+
+```jsx
+"use dynamic";
+
+export default async function DynamicReviews({ id }) {
+  const reviews = await fetchReviews(id);
+  return (
+    <section>
+      {reviews.map((r) => <Review key={r.id} {...r} />)}
+    </section>
+  );
+}
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">ハイブリッドレンダリング</p>
+
+### 部分的プリレンダリング
+
+コンポーネントレベルで静的コンテンツと動的コンテンツを混在。静的シェルはビルド時にプリレンダリングされ、動的部分はリクエスト時にストリーミングイン。
+
+`"use dynamic"` または `"use static"` でコンポーネントをマーク。静的部分はエッジから即座に配信され、動的データは読み込まれます。
+
+</div>
+
+</div>
+</section>
+
+{/* ── 12. Markdown & MDX ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">コンテンツ</p>
+
+### Markdown & MDX
+
+`.md` と `.mdx` ファイルを完全なremark/rehypeプラグインサポートとカスタムコンポーネントオーバーライド付きでページとして直接使用。
+
+Markdown内にReactコンポーネントを埋め込み可能。カスタムコンポーネントを一度定義すれば、すべてのレンダリングにグローバルに適用されます。
+
+</div>
+
+<div>
+
+<p className="code-label"><code>mdx-components.jsx</code> でカスタムコンポーネントオーバーライドを一度定義 — すべてのMDXコンテンツにグローバルに適用。</p>
+
+```jsx
+export function useMDXComponents() {
+  return {
+    h1: (props) => (
+      <h1 className="text-4xl font-bold" {...props} />
+    ),
+    code: ({ children, className }) => (
+      <SyntaxHighlighter language={className}>
+        {children}
+      </SyntaxHighlighter>
+    ),
+    a: (props) => (
+      <Link className="text-blue-600" {...props} />
+    ),
+  };
+}
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 13. MCP Server ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+```jsx
+import { createServer, createTool }
+  from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+const search = createTool(
+  "search",
+  "Search the knowledge base",
+  {
+    query: z.string(),
+    limit: z.number().default(10),
+  },
+  async ({ query, limit }) => {
+    const results = await db.search(query, limit);
+    return results.map((r) => r.title).join("\n");
+  }
+);
+
+export default createServer({ tools: [search] });
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">AI統合</p>
+
+### MCPサーバー
+
+ツール、リソース、プロンプトをストリーミングHTTPエンドポイントとして提供する[Model Context Protocol](https://modelcontextprotocol.io)サーバーを構築。
+
+Zodスキーマでツールを定義。AIエージェントが標準化されたプロトコルを通じてそれらを検出し呼び出します。各ツールはMCPクライアント互換のHTTPエンドポイントになります。
+
+</div>
+
+</div>
+</section>
+
+
+{/* ══════════════════════════════════════════════════════════════
+    INFRA
+    ══════════════════════════════════════════════════════════════ */}
+
+<h2 className="text-3xl sm:text-5xl font-bold text-center m-0 mt-16 sm:mt-24 mb-2 border-none leading-tight">どこにでもデプロイ</h2>
+<p className="text-center text-lg sm:text-xl text-gray-500 dark:text-gray-400 m-0 mb-16 max-w-2xl mx-auto">本番ビルドはコマンド1つ。すべての主要プラットフォーム向けのビルトインアダプター — カスタムも可能。</p>
+
+{/* ── 14. Platform Adapters ── */}
+
+<section className="feature-section py-12 sm:py-16">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">アダプター</p>
+
+### プラットフォームアダプター
+
+Vercel、Netlify、Cloudflareに単一の設定オプションでデプロイ。各アダプターがプラットフォーム固有の出力 — エッジ関数、サーバーレス関数、Workers — を自動的に処理します。
+
+カスタムが必要？アダプターコアパッケージの `createAdapter` で独自のアダプターを構築できます。アダプターAPIはビルド出力を完全に制御できます。
+
+</div>
+
+<div>
+
+<p className="code-label">単一のコマンドでアプリをビルドし、プラットフォーム固有のデプロイ出力を生成。</p>
+
+```sh
+react-server build --deploy
+```
+
+<p className="code-label">設定ファイルでアダプターを指定 — ビルドがエッジ関数、サーバーレス関数、Workersを自動的に出力。</p>
+
+```json
+{ "adapter": "vercel" }
+```
+
+<p className="code-label">またはCLI引数で直接アダプターを指定 — 設定ファイル不要。</p>
+
+```sh
+react-server build --adapter vercel --deploy
+```
+
+</div>
+
+</div>
+</section>
+
+{/* ── 15. Multi-Runtime ── */}
+
+<section className="feature-section full-bleed py-12 sm:py-16 bg-gray-50/50 dark:bg-white/[0.02]">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-start">
+
+<div className="order-2 lg:order-1">
+
+<p className="code-label">ミドルウェアモードで既存のExpress、NestJS、またはconnect互換サーバーにフレームワークを組み込み。</p>
+
+```js
+import { reactServer } from
+  "@lazarv/react-server/node";
+
+const { middlewares } = await reactServer();
+app.use(middlewares);
+```
+
+<p className="code-label">クラスターモードですべてのCPUコアに水平スケーリングし、最大スループットを実現。</p>
+
+```sh
+REACT_SERVER_CLUSTER=8 react-server start
+```
+
+<p className="code-label">一貫した本番デプロイのために設定ファイルでクラスターサイズを構成。</p>
+
+```json
+{ "cluster": 8 }
+```
+
+</div>
+
+<div className="order-1 lg:order-2 lg:pt-2">
+<p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-yellow-500 mb-3">ランタイム</p>
+
+### マルチランタイム＆本番環境
+
+**Node.js** ≥ 20.10、**Bun** ≥ 1.2.9、または**Deno** ≥ 2.0 で動作 — フレームワークがランタイムを自動検出。ミドルウェアモードで既存のサーバーに組み込み可能。
+
+クラスターモードですべてのCPUコアにスケール。静的エクスポートは動的ルートパラメータ、圧縮、キャッシュヘッダーを含む完全な静的サイトを生成。HTTPS、ソースマップ、gzip/brotli圧縮をビルトインで搭載。
+
+</div>
+
+</div>
+</section>
+
+{/* ══════════════════════════════════════════════════════════════
+    CLOSING CTA
+    ══════════════════════════════════════════════════════════════ */}
+
+<div className="my-16 sm:my-24 flex flex-col items-center text-center">
+
+<h2 className="text-3xl sm:text-5xl font-bold m-0 mb-4 border-none leading-tight">構築を始めましょう</h2>
+
+<div className="max-w-2xl text-lg text-gray-600 dark:text-gray-400 m-0 mb-8 leading-relaxed">
+サーバーサイドレンダリング、ストリーミング、エッジデプロイで最新のReactアプリケーションを構築する開発者コミュニティに参加しましょう。オープンソース、MITライセンス、積極的にメンテナンスされています。
+</div>
+
+<div className="flex flex-wrap justify-center gap-3 mb-8">
+  <Pill href="/guide/quick-start">クイックスタート</Pill>
   <Pill href="https://github.com/lazarv/react-server" target="_blank">GitHubで見る</Pill>
 </div>
 
-<div className="w-full my-8 sm:my-16 flex flex-col items-center text-2xl sm:text-5xl font-bold">
+<iframe src="https://ghbtns.com/github-btn.html?user=lazarv&repo=react-server&type=star&count=true&size=large" frameBorder="0" scrolling="0" width="135" height="30" title="GitHub"></iframe>
 
-<div className="inline-flex flex-col items-center text-center">
-サーバーサイドレンダリング対応の   
-React アプリを  
-最も簡単に構築する方法
-<div className="flex flex-col text-sm my-2 sm:my-4 [&>h2]:text-lg [&>h2]:sm:text-2xl [&>h2]:m-0 text-gray-700 dark:text-gray-400">
-## Vite で React を強化しよう
-瞬時のリロード、超高速ビルド、そして最強の開発体験。
-</div>
-</div>
-
-<div className="flex flex-row items-center gap-1 sm:gap-4 my-2 text-xl sm:text-6xl text-gray-800 dark:text-gray-300"><img src="/react.svg" alt="React" className="w-8 sm:w-32" /> + <img src="/vite.svg" alt="Vite" className="w-8 sm:w-32" /> = <img src="/react-server.svg" alt="@lazarv/react-server" className="w-8 sm:w-32" /></div>
-
-<div className="italic max-w-xl p-4 mt-12 mb-4 text-lg text-center font-normal bg-gray-50 dark:bg-gray-800 border rounded-xl border-gray-500 shadow-lg dark:shadow-[rgba(255,255,255,0.1)]">
-**@lazarv/react-server** は、革新性、迅速なイテレーション、そしてシンプルさを追求しています。
-柔軟な開発、高速な反復、そしてスケーラブルな成長を実現しながら、一切の邪魔をしません。
-</div>
-
-<iframe className="mb-16" src="https://ghbtns.com/github-btn.html?user=lazarv&repo=react-server&type=star&count=true&size=large" frameBorder="0" scrolling="0" width="135" height="30" title="GitHub"></iframe>
-</div>
-
-# Features
-
-<div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-  <Card>
-  <img src="/react.svg" alt="React Server Components" />
-
-#### React Server Components
-
-##### Enhanced Component Rendering
-
-With React Server Components, render React components on the server, providing faster initial page loads. Easily create interactive components while enjoying the benefits of server-side rendering.
-
-  </Card>
-
-  <Card>
-  <img src="/server.svg" alt="Server Functions" />
-
-#### Server Functions
-
-##### Seamless Server Interaction
-
-Server Functions enable easy communication between the client and server. Trigger server-side functions directly from your components, making server operations more straightforward and efficient.
-
-  </Card>
-
-  <Card>
-  <img src="/vite.svg" alt="Vite Integration" />
-
-#### Vite Integration
-
-##### Lightning-Fast Development
-
-Integrated Vite for super-fast development and building. Benefit from blazing-fast hot module replacement (HMR) and an optimized development workflow that boosts your productivity.
-
-  </Card>
-
-  <Card>
-  <img src="/js.svg" alt="ES Modules" />
-
-#### ES Modules
-
-##### Modern JavaScript Modules
-
-Embrace ES modules for a clean and organized codebase. Use import/export syntax to manage your project's dependencies and facilitate code splitting for efficient loading.
-
-  </Card>
-
-  <Card>
-  <img src="/skeleton.webp" alt="Streaming Output" />
-
-#### Streaming Output
-
-##### Asynchronous Rendering
-
-Achieve real-time HTML streaming output in your application. Render and send HTML content to the client as soon as it's available, providing a faster initial page load and a smoother, more responsive user experience.
-
-  </Card>
-
-  <Card>
-  <img src="/mdx.svg" alt="MDX Integration" />
-
-#### MDX Integration
-
-##### Seamless Markdown Component Embedding
-
-Easily embed Markdown content within your React components using MDX integration. Combine the power of React and Markdown to create dynamic and interactive documentation, blog posts, and more.
-
-  </Card>
 </div>

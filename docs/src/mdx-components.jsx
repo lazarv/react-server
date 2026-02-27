@@ -7,14 +7,16 @@ export default function useMDXComponents() {
     pre: (props) => {
       const { filename, className, children } = props;
       return (
-        <pre {...props} className={`${className ?? ""} relative`}>
+        <pre {...props} className={className ?? ""}>
           {filename && (
-            <div className="text-sm text-gray-500 dark:text-gray-400 [&+code]:mt-0">
+            <div className="text-sm text-gray-500 dark:text-gray-400 [&+div_code]:mt-0">
               {filename}
             </div>
           )}
-          {children}
-          <CopyToClipboard filename={filename} />
+          <div className="relative">
+            {children}
+            <CopyToClipboard filename={filename} />
+          </div>
         </pre>
       );
     },

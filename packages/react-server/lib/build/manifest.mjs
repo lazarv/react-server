@@ -189,16 +189,18 @@ export default async function manifest(
   const preloadEntries = Object.values({
     ...serverManifest,
     ...clientManifest,
+    ...browserManifest,
   }).filter((entry) => entry.src);
   const preload = {};
 
   for (let i = 0; i < preloadEntries.length; i++) {
     const entry = preloadEntries[i];
     if (entry.src in preload) continue;
-    preload[entry.src] = {
+    preload[entry.src ?? entry.file] = {
       stylesheets: [
         ...collectStylesheets(entry.src, serverManifest),
         ...collectStylesheets(entry.src, clientManifest),
+        ...collectStylesheets(entry.src, browserManifest),
       ],
       clientModules: collectClientModules(entry.src, {
         server: serverManifest,

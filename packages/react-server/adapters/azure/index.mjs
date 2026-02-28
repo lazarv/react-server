@@ -1,13 +1,15 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { cp } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { mkdir, writeFile } from "node:fs/promises";
 
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import {
   banner,
   createAdapter,
   message,
+  spawnCommand,
   success,
   writeJSON,
 } from "@lazarv/react-server/adapters/core";
@@ -15,10 +17,232 @@ import {
 const cwd = sys.cwd();
 const outDir = join(cwd, ".azure");
 const outStaticDir = join(outDir, "static");
+const outServerDir = join(outDir, "server");
 const adapterDir = dirname(fileURLToPath(import.meta.url));
 
+function resolveAppName(adapterOptions) {
+  if (adapterOptions?.appName) return adapterOptions.appName;
+  const packageJsonPath = join(cwd, "package.json");
+  if (existsSync(packageJsonPath)) {
+    try {
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+      return packageJson.name?.replace(/^@[^/]+\//, "");
+    } catch {
+      // Ignore parsing errors
+    }
+  }
+  return null;
+}
+
+function az(args) {
+  try {
+    const result = execSync(`az ${args}`, {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return result.trim();
+  } catch (e) {
+    // Capture stderr for better error messages
+    if (e.stderr) {
+      e.azError = e.stderr.toString().trim();
+    }
+    throw e;
+  }
+}
+
+function azSafe(args) {
+  try {
+    return az(args);
+  } catch {
+    return null;
+  }
+}
+
+function azJSON(args) {
+  const result = azSafe(`${args} -o json`);
+  if (!result) return null;
+  try {
+    return JSON.parse(result);
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeStorageName(name) {
+  // Storage account names: 3-24 chars, lowercase alphanumeric only
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 24);
+}
+
+const BICEP_TEMPLATE = `@description('Name of the Function App')
+param appName string
+
+@description('Name of the Storage Account')
+param storageName string
+
+@description('Azure region for all resources')
+param location string = resourceGroup().location
+
+@description('Node.js runtime version')
+param nodeVersion string = '20'
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: storageName
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    supportsHttpsTrafficOnly: true
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+  }
+}
+
+resource hostingPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
+  name: '\${appName}-plan'
+  location: location
+  sku: {
+    name: 'Y1'
+    tier: 'Dynamic'
+  }
+  kind: 'functionapp,linux'
+  properties: {
+    reserved: true
+  }
+}
+
+resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
+  name: appName
+  location: location
+  kind: 'functionapp,linux'
+  properties: {
+    serverFarmId: hostingPlan.id
+    httpsOnly: true
+    siteConfig: {
+      linuxFxVersion: 'Node|\${nodeVersion}'
+      appSettings: [
+        {
+          name: 'AzureWebJobsStorage'
+          value: 'DefaultEndpointsProtocol=https;AccountName=\${storageAccount.name};EndpointSuffix=\${environment().suffixes.storage};AccountKey=\${storageAccount.listKeys().keys[0].value}'
+        }
+        {
+          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
+          value: 'DefaultEndpointsProtocol=https;AccountName=\${storageAccount.name};EndpointSuffix=\${environment().suffixes.storage};AccountKey=\${storageAccount.listKeys().keys[0].value}'
+        }
+        {
+          name: 'WEBSITE_CONTENTSHARE'
+          value: toLower(appName)
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'node'
+        }
+        {
+          name: 'WEBSITE_NODE_DEFAULT_VERSION'
+          value: '~\${nodeVersion}'
+        }
+        {
+          name: 'AzureWebJobsFeatureFlags'
+          value: 'EnableWorkerIndexing'
+        }
+      ]
+    }
+  }
+}
+
+output functionAppName string = functionApp.name
+output functionAppHostName string = functionApp.properties.defaultHostName
+`;
+
+async function provision(appName, adapterOptions) {
+  banner("provisioning Azure resources", { emoji: "☁️" });
+
+  // Check az CLI is available and logged in
+  const account = azJSON("account show");
+  if (!account) {
+    throw new Error(
+      "Azure CLI is not installed or you are not logged in.\\n" +
+        "  Install: https://aka.ms/install-azure-cli\\n" +
+        "  Login:   az login"
+    );
+  }
+  message("authenticated", account.name);
+
+  const location = adapterOptions?.location ?? "eastus";
+  const storageName =
+    adapterOptions?.storageName ?? sanitizeStorageName(`${appName}store`);
+
+  // Check if function app already exists (in specified or any resource group)
+  let resourceGroup = adapterOptions?.resourceGroup;
+
+  if (resourceGroup) {
+    const existingApp = azJSON(
+      `functionapp show --name ${appName} --resource-group ${resourceGroup}`
+    );
+    if (existingApp) {
+      success(
+        `function app "${appName}" already exists in "${resourceGroup}", skipping provisioning`
+      );
+      return;
+    }
+  } else {
+    // Search all resource groups for this function app
+    const apps = azJSON(`functionapp list --query "[?name=='${appName}']"`);
+    if (apps && apps.length > 0) {
+      const existingRg = apps[0].resourceGroup;
+      success(
+        `function app "${appName}" already exists in "${existingRg}", skipping provisioning`
+      );
+      return;
+    }
+    resourceGroup = `${appName}-rg`;
+  }
+
+  // Check if resource group exists, create if not
+  const existingRg = azJSON(`group show --name ${resourceGroup}`);
+  if (!existingRg) {
+    message("creating", `resource group "${resourceGroup}" in ${location}`);
+    az(`group create --name ${resourceGroup} --location ${location}`);
+    success(`resource group "${resourceGroup}" created`);
+  } else {
+    message("found", `resource group "${resourceGroup}"`);
+  }
+
+  // Deploy Bicep template
+  message("deploying", "Bicep template (storage + plan + function app)");
+  const bicepPath = join(outDir, "main.bicep");
+  const deployCmd =
+    `deployment group create ` +
+    `--resource-group ${resourceGroup} ` +
+    `--template-file ${bicepPath} ` +
+    `--parameters appName=${appName} storageName=${storageName} location=${location}`;
+
+  try {
+    az(`${deployCmd} -o json`);
+  } catch (e) {
+    const azErr = e.azError || e.message || "";
+    throw new Error(
+      `Bicep deployment failed.\n\n` +
+        `  Azure error: ${azErr}\n\n` +
+        `  Run manually to debug:\n` +
+        `  az ${deployCmd}`,
+      { cause: e }
+    );
+  }
+
+  success(`Azure resources provisioned: ${resourceGroup}/${appName}`);
+}
+
 /**
- * Build options for the Azure adapter.
+ * Build options for the Azure Functions adapter.
  * Uses edge build to bundle the server into a single file.
  */
 export const buildOptions = {
@@ -28,117 +252,152 @@ export const buildOptions = {
 };
 
 export const adapter = createAdapter({
-  name: "Azure",
+  name: "Azure Functions",
   outDir,
   outStaticDir,
-  handler: async function ({ adapterOptions, copy, options }) {
-    banner("building Azure Functions", { emoji: "⚡" });
+  outServerDir,
+  handler: async function ({ adapterOptions, files, options }) {
+    // Collect all static file paths for the route map
+    banner("generating static file manifest", { emoji: "🗺️" });
+    const [staticFiles, assetFiles, clientFiles, publicFiles] =
+      await Promise.all([
+        files.static(),
+        files.assets(),
+        files.client(),
+        files.public(),
+      ]);
 
-    const outServerDir = join(outDir, "functions/server");
-
-    // Copy server files (includes the bundled edge.mjs, manifests, etc.)
-    await copy.server(outServerDir);
-
-    message("creating", "server function module");
-
-    // Generate the Azure Functions wrapper that bridges Azure's (context, req)
-    // model to the standard fetch handler in the bundled edge.mjs.
-    // Azure Functions v3 doesn't provide a standard Web Request, so we
-    // construct one from the Azure request object and convert the Response back.
-    const entryFile = join(outServerDir, "index.mjs");
-    writeFileSync(
-      entryFile,
-      `import handler from "./.react-server/server/edge.mjs";
-
-export default async function (context, req) {
-  try {
-    // Use the original URL when SWA rewrites via navigationFallback
-    const originalUrl = req.headers["x-ms-original-url"] || req.url;
-    const proto = req.headers["x-forwarded-proto"] || "https";
-    const host =
-      req.headers["x-forwarded-host"] || req.headers.host || "localhost";
-
-    let url;
-    try {
-      url = new URL(originalUrl);
-    } catch {
-      url = new URL(originalUrl, proto + "://" + host);
-    }
-
-    const init = {
-      method: req.method,
-      headers: req.headers,
+    // Build the static file entries as a map from URL path to file path
+    const staticMap = {};
+    const addFile = (urlPath, filePath) => {
+      staticMap[urlPath] = filePath;
     };
-    if (
-      req.method !== "GET" &&
-      req.method !== "HEAD" &&
-      (req.rawBody || req.body)
-    ) {
-      init.body =
-        req.rawBody ??
-        (typeof req.body === "string" ? req.body : JSON.stringify(req.body));
-    }
 
-    const request = new Request(url.href, init);
-    const response = await handler(request);
-
-    const headers = {};
-    response.headers.forEach((value, key) => {
-      if (key in headers) {
-        headers[key] = Array.isArray(headers[key])
-          ? [...headers[key], value]
-          : [headers[key], value];
-      } else {
-        headers[key] = value;
+    for (const f of staticFiles) {
+      addFile(`/${f}`, f);
+      if (f.endsWith("/index.html")) {
+        const dirPath = "/" + f.slice(0, -"/index.html".length);
+        addFile(dirPath || "/", f);
+      } else if (f === "index.html") {
+        addFile("/", f);
       }
-    });
+    }
+    for (const f of assetFiles) addFile(`/${f}`, f);
+    for (const f of clientFiles) addFile(`/${f}`, f);
+    for (const f of publicFiles) addFile(`/${f}`, f);
 
-    const body = Buffer.from(await response.arrayBuffer());
+    success(`${Object.keys(staticMap).length} static files mapped`);
 
-    context.res = {
-      status: response.status,
-      headers,
-      body,
-      isRaw: true,
-    };
-  } catch (e) {
-    console.error(e);
-    context.res = {
-      status: 500,
-      headers: { "Content-Type": "text/plain" },
-      body: e.message || "Internal Server Error",
-    };
-  }
-}
-`
-    );
+    // Generate the Azure Functions v4 wrapper
+    // @azure/functions MUST be external (not bundled) — the Azure Functions
+    // runtime provides its own instance and monitors app.http() registrations.
+    // The bundled edge.mjs is the react-server handler; this thin wrapper
+    // bridges between Azure Functions and the edge handler.
+    banner("creating Azure Functions v4 entry", { emoji: "⚡" });
 
-    // Create function.json for Azure Functions v3 HTTP trigger
-    await writeJSON(join(outServerDir, "function.json"), {
-      bindings: [
-        {
-          authLevel: "anonymous",
-          type: "httpTrigger",
-          direction: "in",
-          name: "req",
-          methods: ["get", "post", "put", "delete", "patch", "head", "options"],
-          route: "{*path}",
-        },
-        {
-          type: "http",
-          direction: "out",
-          name: "res",
-        },
-      ],
-    });
+    const staticMapJson = JSON.stringify(staticMap, null, 2);
 
-    // Create package.json at the functions root for ESM support
-    writeFileSync(
-      join(outDir, "functions/package.json"),
-      JSON.stringify({ type: "module" }, null, 2)
-    );
+    const functionEntry = `import { app } from "@azure/functions";
+import { readFileSync } from "node:fs";
+import { dirname, join, extname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-    success("server function initialized");
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const staticDir = join(__dirname, "../../static");
+const serverDir = join(__dirname, "../../server/.react-server");
+
+const MIME_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".webp": "image/webp",
+  ".avif": "image/avif",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
+  ".eot": "application/vnd.ms-fontobject",
+  ".xml": "application/xml",
+  ".txt": "text/plain; charset=utf-8",
+  ".map": "application/json",
+  ".webmanifest": "application/manifest+json",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".pdf": "application/pdf",
+  ".wasm": "application/wasm",
+};
+
+const STATIC_FILES = ${staticMapJson};
+
+const CACHE_IMMUTABLE = "public, max-age=31536000, immutable";
+
+process.chdir(serverDir);
+const edgeHandler = (await import("../../server/.react-server/server/edge.mjs")).default;
+
+app.http("server", {
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+  authLevel: "anonymous",
+  route: "{*path}",
+  handler: async (request, context) => {
+    try {
+      const url = new URL(request.url);
+      const pathname = decodeURIComponent(url.pathname);
+
+      // Try to serve static files first
+      const staticFile = STATIC_FILES[pathname];
+      if (staticFile) {
+        const filePath = join(staticDir, staticFile);
+        const ext = extname(staticFile);
+        const contentType = MIME_TYPES[ext] || "application/octet-stream";
+        const body = readFileSync(filePath);
+
+        const headers = {
+          "Content-Type": contentType,
+          "Content-Length": body.length.toString(),
+        };
+
+        if (pathname.startsWith("/assets/") || pathname.startsWith("/client/")) {
+          headers["Cache-Control"] = CACHE_IMMUTABLE;
+        }
+
+        return { status: 200, headers, body };
+      }
+
+      // Delegate to the react-server edge handler (supports streaming)
+      const response = await edgeHandler(request, context);
+
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: response.body,
+      };
+    } catch (e) {
+      context.error("Request handler error:", e);
+      return {
+        status: 500,
+        headers: { "Content-Type": "text/plain" },
+        body: e.message || "Internal Server Error",
+      };
+    }
+  },
+});
+`;
+
+    const srcFunctionsDir = join(outDir, "src/functions");
+    await mkdir(srcFunctionsDir, { recursive: true });
+    message("creating", "src/functions/server.mjs");
+    await writeFile(join(srcFunctionsDir, "server.mjs"), functionEntry);
+    success("Azure Functions v4 entry created");
 
     banner("creating Azure configuration", { emoji: "⚙️" });
 
@@ -146,107 +405,94 @@ export default async function (context, req) {
     message("creating", "host.json");
     const hostJson = {
       version: "2.0",
+      extensions: {
+        http: {
+          routePrefix: "",
+        },
+      },
       extensionBundle: {
         id: "Microsoft.Azure.Functions.ExtensionBundle",
         version: "[4.*, 5.0.0)",
       },
       ...adapterOptions?.host,
     };
-    await writeJSON(join(outDir, "functions/host.json"), hostJson);
+    await writeJSON(join(outDir, "host.json"), hostJson);
     success("host.json created");
 
-    // Generate staticwebapp.config.json for Azure Static Web Apps routing
-    message("creating", "staticwebapp.config.json");
-    const swaConfig = {
-      routes: [
-        {
-          route: "/",
-          rewrite: "/api/server",
-        },
-        {
-          route: "/assets/*",
-          headers: {
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        },
-        {
-          route: "/client/*",
-          headers: {
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        },
-        ...(adapterOptions?.routes ?? []),
-      ],
-      navigationFallback: {
-        rewrite: "/api/server",
-        exclude: ["/assets/*", "/client/*"],
+    // Generate package.json for the function app
+    const appName = resolveAppName(adapterOptions);
+
+    message("creating", "package.json");
+    await writeJSON(join(outDir, "package.json"), {
+      name: appName ?? "react-server-app",
+      private: true,
+      type: "module",
+      main: "src/functions/server.mjs",
+      scripts: {
+        start: "func start",
       },
-      platform: {
-        apiRuntime: "node:20",
-        ...adapterOptions?.platform,
+      dependencies: {
+        "@azure/functions": "^4.0.0",
       },
-      ...adapterOptions?.staticwebapp,
-    };
+    });
+    success("package.json created");
 
-    // Merge with user's react-server.azure.json config if it exists
-    const userConfigPath = join(cwd, "react-server.azure.json");
-    if (existsSync(userConfigPath)) {
-      try {
-        const userConfig = JSON.parse(readFileSync(userConfigPath, "utf-8"));
-        Object.assign(swaConfig, userConfig);
-        message(
-          "merging",
-          "existing react-server.azure.json with adapter config"
-        );
-      } catch {
-        // Ignore parsing errors
-      }
-    }
+    // Install @azure/functions — this package CANNOT be bundled because the
+    // Azure Functions runtime provides its own instance and discovers
+    // registered functions through it.
+    message("installing", "@azure/functions");
+    await spawnCommand("npm", ["install", "--prefix", outDir]);
+    success("dependencies installed");
 
-    await writeJSON(join(outDir, "staticwebapp.config.json"), swaConfig);
-    success("staticwebapp.config.json created");
-
-    // Copy staticwebapp.config.json to the static dir so SWA picks it up
-    await cp(
-      join(outDir, "staticwebapp.config.json"),
-      join(outStaticDir, "staticwebapp.config.json")
-    );
-
-    // Azure SWA deployment tool requires an index.html in the static directory.
-    // Create a minimal placeholder if one doesn't already exist from pre-rendering.
-    // The route rule for "/" rewrites to the API function, so this file is not
-    // actually served for the root path.
-    const indexHtmlPath = join(outStaticDir, "index.html");
-    if (!existsSync(indexHtmlPath)) {
-      message("creating", "fallback index.html");
-      writeFileSync(indexHtmlPath, "<!doctype html>");
-    }
-
-    // Generate local.settings.json for local development with Azure Functions
+    // Generate local.settings.json for local development
     message("creating", "local.settings.json");
-    await writeJSON(join(outDir, "functions/local.settings.json"), {
+    await writeJSON(join(outDir, "local.settings.json"), {
       IsEncrypted: false,
       Values: {
         AzureWebJobsStorage: "",
         FUNCTIONS_WORKER_RUNTIME: "node",
+        AzureWebJobsFeatureFlags: "EnableWorkerIndexing",
         ...(options.sourcemap ? { NODE_OPTIONS: "--enable-source-maps" } : {}),
         ...adapterOptions?.env,
       },
     });
     success("local.settings.json created");
+
+    // Generate Bicep template for Azure provisioning
+    message("creating", "main.bicep");
+    await writeFile(join(outDir, "main.bicep"), BICEP_TEMPLATE);
+    success("main.bicep created");
   },
-  deploy: {
-    command: "swa",
-    args: [
-      "deploy",
-      ".azure/static",
-      "--api-location",
-      ".azure/functions",
-      "--api-language",
-      "node",
-      "--api-version",
-      "20",
-    ],
+  deploy: async ({ adapterOptions, options }) => {
+    const appName = resolveAppName(adapterOptions);
+
+    if (!appName) {
+      return {
+        command: "func",
+        args: ["azure", "functionapp", "publish", "<app-name>", "--javascript"],
+        cwd: outDir,
+        message:
+          "  Replace <app-name> with your Azure Functions app name,\n" +
+          '  or set it via adapter options: adapter: ["azure", { appName: "my-app" }]\n' +
+          '  or add a "name" field to your package.json.\n' +
+          "  Install Azure Functions Core Tools: npm i -g azure-functions-core-tools@4",
+      };
+    }
+
+    // Auto-provision Azure resources if deploying
+    if (options.deploy) {
+      await provision(appName, adapterOptions);
+    }
+
+    return {
+      command: "func",
+      args: ["azure", "functionapp", "publish", appName, "--javascript"],
+      cwd: outDir,
+      afterDeploy: () => {
+        const url = `https://${appName}.azurewebsites.net`;
+        banner(`deployed to ${url}`, { emoji: "🌐" });
+      },
+    };
   },
 });
 

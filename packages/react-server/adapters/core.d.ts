@@ -6,7 +6,9 @@ declare module "@lazarv/react-server/adapters/core" {
   export type DeployCommandDescriptor = {
     command: string;
     args: string[];
+    cwd?: string;
     message?: string;
+    afterDeploy?: () => void | Promise<void>;
   };
 
   export function createAdapter<T = any, R = void>(options: {
@@ -97,7 +99,11 @@ declare module "@lazarv/react-server/adapters/core" {
     adapterFiles: string[],
     reactServerDir: string
   ): Promise<{ src: string; dest: string }[]>;
-  export function spawnCommand(command: string, args: string[]): Promise<void>;
+  export function spawnCommand(
+    command: string,
+    args: string[],
+    options?: { cwd?: string }
+  ): Promise<void>;
   export function deepMerge<T extends Record<string, any>>(
     source: T,
     target: Partial<T>

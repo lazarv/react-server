@@ -325,13 +325,31 @@ The edge runtime does **not** serve static files. Your entry must handle this:
 
 ### Azure (`adapters/azure/`)
 
-- **Runtime**: Node.js serverless (no edge build)
-- **Entry**: `functions/index.mjs` — uses `@lazarv/react-server/node` (Node middleware mode)
-- **Output**: `.azure/static/` + `.azure/functions/server/`
+- **Runtime**: Edge (Azure Functions v4 programming model with streaming)
+- **Entry**: `functions/entry.mjs` — edge entry using `@lazarv/react-server/edge` with `createContext`
+- **Output**: `.azure/static/` + `.azure/server/.react-server/` + `.azure/src/functions/server.mjs`
+- **Config**: Generates `host.json`, `package.json` (with `@azure/functions` dependency), `local.settings.json`, and `main.bicep` (IaC template)
+- **Static files**: Build-time route map in generated `src/functions/server.mjs` — serves static files from disk via `readFileSync()`
+- **Deploy**: `func azure functionapp publish <app-name> --javascript`
+- **Provisioning**: When deploying with `--deploy`, automatically provisions Azure resources (resource group, storage account, consumption plan, function app) using a Bicep template via `az deployment group create`. Skips provisioning if the function app already exists.
+- **Adapter options**:
+  - `appName` — Function App name (falls back to `package.json` name)
+  - `resourceGroup` — Azure resource group name (default: `<appName>-rg`)
+  - `location` — Azure region (default: `"eastus"`)
+  - `storageName` — Storage account name (default: derived from appName, lowercase alphanumeric, max 24 chars)
+  - `host` — Extra properties to merge into `host.json`
+  - `env` — Extra environment variables for `local.settings.json`
+- **Notes**: Uses edge build for single-file bundling. The v4 programming model's `app.http()` supports returning `ReadableStream` bodies, enabling response streaming. Static files are served by the function itself (no separate CDN). Requires Azure Functions Core Tools v4 (`npm i -g azure-functions-core-tools@4`) and Azure CLI (`az`) for auto-provisioning.
+
+### Azure SWA (`adapters/azure-swa/`)
+
+- **Runtime**: Edge (bundled into single file, served via Azure SWA managed functions)
+- **Entry**: `functions/entry.mjs` — edge entry using `@lazarv/react-server/edge` with `createContext`
+- **Output**: `.azure-swa/static/` + `.azure-swa/functions/server/`
 - **Config**: Generates `staticwebapp.config.json`, `host.json`, and `local.settings.json`; merges with `react-server.azure.json`
 - **Static files**: Handled by Azure Static Web Apps CDN via `navigationFallback` routing
-- **Deploy**: `swa deploy .azure/static --api-location .azure/functions`
-- **Notes**: Uses Node mode + `copy.dependencies()` (not edge build). Targets Azure Static Web Apps with a managed API backend. The `staticwebapp.config.json` routes all non-static requests to the serverless function.
+- **Deploy**: `swa deploy .azure-swa/static --api-location .azure-swa/functions --api-language node --api-version 20`
+- **Notes**: Uses edge build. Targets Azure Static Web Apps with managed functions. Does **not** support response streaming (SWA buffers responses). Good for simpler/static-heavy apps.
 
 ## Step-by-Step: Creating a New Adapter
 

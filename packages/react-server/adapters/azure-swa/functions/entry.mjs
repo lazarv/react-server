@@ -5,22 +5,24 @@ let serverPromise = null;
 
 export default async (request, context) => {
   try {
-    const url = new URL(request.url);
-
     if (!serverPromise) {
       serverPromise = reactServer({
-        origin: process.env.ORIGIN || `${url.protocol}//${url.host}`,
+        origin:
+          process.env.ORIGIN ||
+          `${new URL(request.url).protocol}//${new URL(request.url).host}`,
         outDir: "../",
       });
     }
 
     const { handler } = await serverPromise;
 
-    const origin = process.env.ORIGIN || `${url.protocol}//${url.host}`;
+    const origin =
+      process.env.ORIGIN ||
+      `${new URL(request.url).protocol}//${new URL(request.url).host}`;
     const httpContext = createContext(request, {
       origin,
       runtime: "azure",
-      platformExtras: { invocationContext: context },
+      platformExtras: context ?? {},
     });
 
     const response = await handler(httpContext);
@@ -44,7 +46,7 @@ export default async (request, context) => {
 
     return response;
   } catch (e) {
-    console.error("Request handler error:", e);
+    console.error(e);
     return new Response(e.message || "Internal Server Error", {
       status: 500,
       headers: { "Content-Type": "text/plain" },

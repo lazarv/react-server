@@ -10,15 +10,16 @@ import { usePostpone } from "./postpone.mjs";
 import { RENDER_TYPE } from "./render-context.mjs";
 
 export class RedirectError extends Error {
-  constructor(url, status) {
+  constructor(url, status, kind = "navigate") {
     super("Redirect");
     this.url = url;
     this.status = status;
+    this.kind = kind;
     this.digest = `${status} ${url}`;
   }
 }
 
-export function redirect(url, status = 302) {
+export function redirect(url, status = 302, kind = "navigate") {
   usePostpone(dynamicHookError("redirect"));
 
   const store = getContext(REDIRECT_CONTEXT);
@@ -29,7 +30,7 @@ export function redirect(url, status = 302) {
     const renderContext = getContext(RENDER_CONTEXT);
     if (renderContext?.type === RENDER_TYPE.RSC) {
       store.response = new Response(
-        `0:["$L1"]\n1:E{"digest":"Location=${url}","message":"REDIRECT","env":"server","stack":[],"owner":null}\n`,
+        `0:["$L1"]\n1:E{"digest":"Location=${url};kind=${kind}","message":"REDIRECT","env":"server","stack":[],"owner":null}\n`,
         {
           status: 200,
           headers: {
@@ -60,5 +61,5 @@ export function redirect(url, status = 302) {
     }
   }
 
-  throw new RedirectError(url, status);
+  throw new RedirectError(url, status, kind);
 }

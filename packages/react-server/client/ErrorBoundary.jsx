@@ -128,7 +128,18 @@ export class ErrorBoundary extends Component {
     const { didCatch, error } = this.state;
 
     if (error?.digest.startsWith("Location=")) {
-      error.redirectTo = error.digest.slice(9);
+      const digestValue = error.digest.slice(9);
+      const semicolonIndex = digestValue.indexOf(";");
+      if (semicolonIndex !== -1) {
+        error.redirectTo = digestValue.slice(0, semicolonIndex);
+        const kindMatch = digestValue
+          .slice(semicolonIndex)
+          .match(/kind=([^;]+)/);
+        error.redirectKind = kindMatch?.[1] || "navigate";
+      } else {
+        error.redirectTo = digestValue;
+        error.redirectKind = "navigate";
+      }
     }
 
     let childToRender = children;
@@ -189,24 +200,32 @@ function FallbackRenderComponent({
   const client = useClient();
   const { navigate } = client;
   const { error } = props;
-  const { redirectTo } = error;
+  const { redirectTo, redirectKind } = error;
 
   useEffect(() => {
     if (redirectTo) {
+      if (redirectKind === "error") {
+        // Don't auto-redirect; let the error boundary display the error
+        return;
+      }
+      if (redirectKind === "location") {
+        location.href = redirectTo;
+        return;
+      }
       const url = new URL(redirectTo, location.origin);
       if (url.origin === location.origin) {
         navigate(redirectTo, {
           outlet,
           external: outlet !== PAGE_ROOT,
-          push: false,
+          push: redirectKind === "push",
         });
       } else {
         location.replace(redirectTo);
       }
     }
-  }, [redirectTo, navigate, outlet]);
+  }, [redirectTo, redirectKind, navigate, outlet]);
 
-  if (redirectTo) {
+  if (redirectTo && redirectKind !== "error") {
     return null;
   }
 

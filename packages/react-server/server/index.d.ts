@@ -49,10 +49,21 @@ export function withCache<T extends React.FC>(
 export function useResponseCache(ttl?: number): void;
 
 /**
+ * The kind of redirect to perform on the client.
+ *
+ * - `navigate` - RSC client-side navigation using replaceState (default)
+ * - `push` - RSC client-side navigation using pushState
+ * - `location` - Full browser navigation via window.location
+ * - `error` - Throw an error on the client instead of redirecting, allowing custom handling via try/catch
+ */
+export type RedirectKind = "navigate" | "push" | "location" | "error";
+
+/**
  * Redirects the request to the specified URL.
  *
  * @param url - The URL to redirect to
  * @param status - The status code to use for the redirect
+ * @param kind - The kind of redirect to perform on the client
  *
  * @example
  *
@@ -64,11 +75,18 @@ export function useResponseCache(ttl?: number): void;
  *   redirect('/login');
  *  }
  *
+ *  // OAuth flow - force full browser navigation
+ *  redirect('/api/oauth/authorize', 302, 'location');
+ *
  *  // ...
  * }
  * ```
  */
-export function redirect(url: string, status?: number): void;
+export function redirect(
+  url: string,
+  status?: number,
+  kind?: RedirectKind
+): void;
 
 /**
  * This hook returns the current request context, including the request, response, URL and method.

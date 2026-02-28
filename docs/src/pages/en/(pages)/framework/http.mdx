@@ -280,6 +280,51 @@ export default function MyComponent() {
 };
 ```
 
+The `redirect()` function accepts an optional third argument `kind` that controls how the redirect is performed on the client. The available kinds are:
+
+| Kind | Description |
+| --- | --- |
+| `"navigate"` | **(default)** Performs an RSC navigation using `replaceState`. The browser URL changes without adding a history entry. |
+| `"push"` | Performs an RSC navigation using `pushState`. The browser URL changes and a new history entry is added, so the user can navigate back. |
+| `"location"` | Forces a full browser navigation via `location.href`. Useful for redirecting to external URLs or when a full page reload is needed. |
+| `"error"` | Throws the redirect error on the client instead of navigating. This allows custom handling via `try`/`catch` in server action calls. |
+
+```jsx
+import { redirect } from "@lazarv/react-server";
+
+// RSC navigation with pushState (adds history entry)
+redirect("/dashboard", 302, "push");
+
+// Full browser navigation
+redirect("/oauth/authorize", 302, "location");
+
+// Throw on client for custom handling
+redirect("/login", 302, "error");
+```
+
+When using the `"error"` kind in a server action, the client can catch the redirect error and handle it:
+
+```jsx
+"use client";
+
+import { myServerAction } from "./actions";
+
+export function MyComponent() {
+  const handleClick = async () => {
+    try {
+      await myServerAction();
+    } catch (e) {
+      if (e?.digest?.startsWith("Location=")) {
+        const url = e.digest.split("Location=")[1]?.split(";")[0];
+        console.log(`Redirect to: ${url}`);
+      }
+    }
+  };
+
+  return <button onClick={handleClick}>Submit</button>;
+}
+```
+
 <Link name="rewrite">
 ## Rewrite
 </Link>

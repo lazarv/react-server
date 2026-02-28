@@ -83,7 +83,6 @@ export default {
 - `environment`: Lambda関数に追加される環境変数。`NODE_ENV` は常に `"production"` に設定されます。
 - `functionProperties`: 関数リソースにマージされるSAM `AWS::Serverless::Function` プロパティ。
 - `cloudfront`: `false` に設定するとCloudFrontディストリビューションの作成をスキップします。`cloudfront.distributionConfig` で生成されたCloudFront `DistributionConfig` を拡張できます。
-- `s3Bucket`: `false` に設定するとS3バケットの作成をスキップします。`s3Bucket.bucketName` と `s3Bucket.properties` でカスタマイズできます。
 - `resources`: テンプレートにマージされる追加のCloudFormationリソース。
 - `outputs`: テンプレートにマージされる追加のCloudFormation出力。
 - `template`: SAMテンプレートのオーバーライドまたは拡張。オブジェクトを渡してマージするか、関数 `(template) => template` で完全に制御できます。
@@ -117,7 +116,6 @@ pnpm react-server build [root] --adapter aws --deploy
 - **Lambda関数** — Function URL付き（`RESPONSE_STREAM` によるストリーミング有効）
 - **CloudFrontディストリビューション** — Lambda関数前のCDN
 - **CloudFrontキャッシュポリシー** — オリジンの `Cache-Control` ヘッダーを尊重
-- **S3バケット**（オプション）— 静的ファイル同期ターゲット
 
 ### 仕組み
 

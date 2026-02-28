@@ -83,7 +83,6 @@ export default {
 - `environment`: Additional environment variables added to the Lambda function. `NODE_ENV` is always set to `"production"`.
 - `functionProperties`: Additional SAM `AWS::Serverless::Function` properties merged into the function resource.
 - `cloudfront`: Set to `false` to skip CloudFront distribution creation. Use `cloudfront.distributionConfig` to extend the generated CloudFront `DistributionConfig`.
-- `s3Bucket`: Set to `false` to skip S3 bucket creation. Use `s3Bucket.bucketName` and `s3Bucket.properties` to customize.
 - `resources`: Additional CloudFormation resources merged into the template.
 - `outputs`: Additional CloudFormation outputs merged into the template.
 - `template`: Override or extend the SAM template. Pass an object to merge, or a function `(template) => template` for full control.
@@ -117,7 +116,6 @@ The adapter creates the following AWS resources:
 - **Lambda Function** with a Function URL (streaming enabled via `RESPONSE_STREAM`)
 - **CloudFront Distribution** as a CDN in front of the Lambda function
 - **CloudFront Cache Policy** that respects origin `Cache-Control` headers
-- **S3 Bucket** (optional) as a static file sync target
 
 ### How it works
 

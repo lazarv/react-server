@@ -293,23 +293,6 @@ export const adapter = createAdapter({
               },
             }
           : {}),
-        // Optional S3 bucket for static file sync.
-        // Not used by CloudFront — serves as a sync target for
-        // 'aws s3 sync .aws/static/ s3://<bucket>/' or as an
-        // external asset store when needed.
-        ...(adapterOptions?.s3Bucket !== false
-          ? {
-              [`${sanitizedName}StaticBucket`]: {
-                Type: "AWS::S3::Bucket",
-                Properties: {
-                  BucketName:
-                    adapterOptions?.s3Bucket?.bucketName ??
-                    `${stackName}-static`,
-                  ...adapterOptions?.s3Bucket?.properties,
-                },
-              },
-            }
-          : {}),
         ...adapterOptions?.resources,
       },
       Outputs: {
@@ -326,15 +309,6 @@ export const adapter = createAdapter({
                 Value: {
                   "Fn::GetAtt": [`${sanitizedName}Distribution`, "DomainName"],
                 },
-              },
-            }
-          : {}),
-        ...(adapterOptions?.s3Bucket !== false
-          ? {
-              [`${sanitizedName}StaticBucketName`]: {
-                Description:
-                  "S3 bucket for static assets (optional sync target)",
-                Value: { Ref: `${sanitizedName}StaticBucket` },
               },
             }
           : {}),

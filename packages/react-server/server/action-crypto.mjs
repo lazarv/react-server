@@ -7,6 +7,7 @@ import {
 import { readFile } from "node:fs/promises";
 
 let resolvedKey = null;
+let previousKeys = [];
 
 /**
  * Derive a 32-byte AES key from an arbitrary secret.
@@ -55,9 +56,10 @@ async function loadSecretFile(filePath) {
  * @param {object} [config] - The react-server user config object (optional)
  */
 export async function initSecretFromConfig(config) {
-  // NOTE: no early return — env vars and config deliberately override a
-  // key that was already set via initSecret() (e.g. from a build artifact)
-  // so that operators can rotate secrets without rebuilding.
+  // Env vars and config deliberately override a key that was already set
+  // via initSecret() (e.g. from a build artifact) so that operators can
+  // rotate secrets without rebuilding.
+  let secretSet = false;
 
   // 1. Env var — direct secret
   const envSecret =
@@ -67,38 +69,63 @@ export async function initSecretFromConfig(config) {
   if (envSecret) {
     resolvedKey = deriveKey(envSecret);
     globalThis.__react_server_action_key__ = resolvedKey;
-    return;
+    secretSet = true;
   }
 
   // 2. Env var — secret file
-  const envFile =
-    typeof process !== "undefined"
-      ? process.env?.REACT_SERVER_ACTIONS_SECRET_FILE
-      : undefined;
-  if (envFile) {
-    resolvedKey = await loadSecretFile(envFile);
-    globalThis.__react_server_action_key__ = resolvedKey;
-    return;
+  if (!secretSet) {
+    const envFile =
+      typeof process !== "undefined"
+        ? process.env?.REACT_SERVER_ACTIONS_SECRET_FILE
+        : undefined;
+    if (envFile) {
+      resolvedKey = await loadSecretFile(envFile);
+      globalThis.__react_server_action_key__ = resolvedKey;
+      secretSet = true;
+    }
   }
 
   // 3. Config — direct secret
-  const configSecret = config?.serverActions?.secret;
-  if (configSecret) {
-    resolvedKey = deriveKey(configSecret);
-    globalThis.__react_server_action_key__ = resolvedKey;
-    return;
+  if (!secretSet) {
+    const configSecret = config?.serverActions?.secret;
+    if (configSecret) {
+      resolvedKey = deriveKey(configSecret);
+      globalThis.__react_server_action_key__ = resolvedKey;
+      secretSet = true;
+    }
   }
 
   // 4. Config — secret file
-  const configFile = config?.serverActions?.secretFile;
-  if (configFile) {
-    resolvedKey = await loadSecretFile(configFile);
-    globalThis.__react_server_action_key__ = resolvedKey;
-    return;
+  if (!secretSet) {
+    const configFile = config?.serverActions?.secretFile;
+    if (configFile) {
+      resolvedKey = await loadSecretFile(configFile);
+      globalThis.__react_server_action_key__ = resolvedKey;
+      secretSet = true;
+    }
   }
 
   // No user-provided secret found — leave resolvedKey as-is.
   // In dev mode getKey() will lazily generate an ephemeral key.
+
+  // --- Previous keys for rotation ---
+  const prevSecrets = config?.serverActions?.previousSecrets;
+  const prevFiles = config?.serverActions?.previousSecretFiles;
+  const prev = [];
+  if (Array.isArray(prevSecrets)) {
+    for (const s of prevSecrets) {
+      if (s) prev.push(deriveKey(s));
+    }
+  }
+  if (Array.isArray(prevFiles)) {
+    for (const f of prevFiles) {
+      if (f) prev.push(await loadSecretFile(f));
+    }
+  }
+  if (prev.length > 0) {
+    previousKeys = prev;
+    globalThis.__react_server_action_previous_keys__ = previousKeys;
+  }
 }
 
 /**
@@ -147,7 +174,22 @@ function getKey() {
     resolvedKey = randomBytes(32);
     globalThis.__react_server_action_key__ = resolvedKey;
   }
+  // Sync previous keys from globalThis (cross-instance).
+  if (
+    previousKeys.length === 0 &&
+    globalThis.__react_server_action_previous_keys__?.length > 0
+  ) {
+    previousKeys = globalThis.__react_server_action_previous_keys__;
+  }
   return resolvedKey;
+}
+
+/**
+ * Return the list of previous keys for rotation.
+ */
+function getPreviousKeys() {
+  getKey(); // ensure synced from globalThis
+  return previousKeys;
 }
 
 /**
@@ -175,16 +217,14 @@ export function encryptActionId(actionId) {
 }
 
 /**
- * Decrypt an encrypted action token back to the original action ID.
+ * Try to decrypt a token with a specific key.
  *
  * @param {string} token - base64url-encoded encrypted token
- * @returns {string | null} The original action ID, or null if decryption fails
+ * @param {Buffer} key - 32-byte AES key
+ * @returns {string | null} The decrypted plaintext, or null on failure
  */
-export function decryptActionId(token) {
+function tryDecryptWithKey(token, key) {
   try {
-    if (!token || typeof token !== "string") return null;
-
-    const key = getKey();
     const data = Buffer.from(token, "base64url");
 
     // Minimum size: iv(12) + authTag(16) + at least 1 byte ciphertext
@@ -205,6 +245,29 @@ export function decryptActionId(token) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Decrypt an encrypted action token back to the original action ID.
+ *
+ * Tries the primary key first, then falls back to previous keys (rotation).
+ *
+ * @param {string} token - base64url-encoded encrypted token
+ * @returns {string | null} The original action ID, or null if decryption fails
+ */
+export function decryptActionId(token) {
+  if (!token || typeof token !== "string") return null;
+
+  const key = getKey();
+
+  // Try primary key, then previous keys for rotation.
+  const keysToTry = [key, ...getPreviousKeys()];
+  for (const k of keysToTry) {
+    const result = tryDecryptWithKey(token, k);
+    if (result !== null) return result;
+  }
+
+  return null;
 }
 
 /**

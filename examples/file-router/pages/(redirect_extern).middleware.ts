@@ -16,4 +16,17 @@ export default function RedirectMiddleware() {
   if (pathname === "/redirect-about") {
     redirect("/about");
   }
+  // Redirect kind examples
+  if (pathname === "/redirect-push") {
+    redirect("/about", 302, "push");
+  }
+  if (pathname === "/redirect-location") {
+    redirect("/about", 302, "location");
+  }
+  if (pathname === "/redirect-location-external") {
+    redirect("https://react-server.dev", 302, "location");
+  }
+  if (pathname === "/redirect-error") {
+    redirect("/about", 302, "error");
+  }
 }

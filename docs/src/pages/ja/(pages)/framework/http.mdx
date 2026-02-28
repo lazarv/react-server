@@ -279,6 +279,51 @@ export default function MyComponent() {
 };
 ```
 
+`redirect()` 関数は、クライアントでのリダイレクトの動作を制御するオプションの第3引数 `kind` を受け付けます。利用可能な種類は以下の通りです：
+
+| 種類 | 説明 |
+| --- | --- |
+| `"navigate"` | **（デフォルト）** `replaceState` を使用したRSCナビゲーションを実行します。ブラウザのURLは変更されますが、履歴エントリは追加されません。 |
+| `"push"` | `pushState` を使用したRSCナビゲーションを実行します。ブラウザのURLが変更され、新しい履歴エントリが追加されるため、ユーザーは戻るボタンで戻ることができます。 |
+| `"location"` | `location.href` を使用した完全なブラウザナビゲーションを強制します。外部URLへのリダイレクトやページの完全なリロードが必要な場合に便利です。 |
+| `"error"` | ナビゲーションの代わりにクライアントでリダイレクトエラーをスローします。サーバーアクション呼び出しで `try`/`catch` によるカスタム処理が可能になります。 |
+
+```jsx
+import { redirect } from "@lazarv/react-server";
+
+// pushStateを使用したRSCナビゲーション（履歴エントリを追加）
+redirect("/dashboard", 302, "push");
+
+// 完全なブラウザナビゲーション
+redirect("/oauth/authorize", 302, "location");
+
+// カスタム処理のためにクライアントでスロー
+redirect("/login", 302, "error");
+```
+
+サーバーアクションで `"error"` 種類を使用する場合、クライアントでリダイレクトエラーをキャッチして処理できます：
+
+```jsx
+"use client";
+
+import { myServerAction } from "./actions";
+
+export function MyComponent() {
+  const handleClick = async () => {
+    try {
+      await myServerAction();
+    } catch (e) {
+      if (e?.digest?.startsWith("Location=")) {
+        const url = e.digest.split("Location=")[1]?.split(";")[0];
+        console.log(`リダイレクト先: ${url}`);
+      }
+    }
+  };
+
+  return <button onClick={handleClick}>送信</button>;
+}
+```
+
 <Link name="rewrite">
 ## リライト
 </Link>

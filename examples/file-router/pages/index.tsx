@@ -22,6 +22,18 @@ export default function IndexPage() {
       <Link to="/redirect-api-external">External with API</Link>
       <br />
       <Link to="/redirect-about">Internal redirect to existing about page</Link>
+      <h2>Redirect Kind:</h2>
+      <Link to="/redirect-kind">Redirect Kind (server actions)</Link>
+      <br />
+      <Link to="/redirect-push">Push (middleware)</Link>
+      <br />
+      <Link to="/redirect-location">Location (middleware)</Link>
+      <br />
+      <Link to="/redirect-location-external">
+        Location External (middleware)
+      </Link>
+      <br />
+      <Link to="/redirect-error">Error (middleware)</Link>
       <h2>Error:</h2>
       <Link to="/middleware-error">Throw error in middleware</Link>
     </div>

@@ -192,6 +192,19 @@ export default function App() {
 }
 ```
 
+`kind` パラメータを指定して、クライアントでのリダイレクトの動作を制御することもできます：
+
+```tsx
+import { redirect } from "@lazarv/react-server";
+
+export default function ProtectedPage() {
+  // pushStateを使用してリダイレクト（ユーザーが戻れるように）
+  redirect("/login", 302, "push");
+}
+```
+
+利用可能なリダイレクト種類：`"navigate"`（デフォルト、replaceState）、`"push"`（pushState）、`"location"`（完全なブラウザナビゲーション）、`"error"`（カスタム処理のためにクライアントでスロー）。詳細は[HTTPリダイレクトのドキュメント](/framework/http#redirect)を参照してください。
+
 <Link name="rewrites">
 ## リライト
 </Link>

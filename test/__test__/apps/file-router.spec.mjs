@@ -193,4 +193,152 @@ describe("file-router plugin", () => {
       );
     }
   });
+
+  test("redirect kind: navigate (server action)", async () => {
+    await page.goto(`${hostname}/redirect-kind`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain("Redirect Kind");
+    await waitForHydration();
+    const btn = await page.$('[data-testid="redirect-navigate"]');
+    await waitForBodyUpdate(async () => {
+      await btn.click();
+    });
+    expect(page.url()).toBe(`${hostname}/about`);
+    expect(await page.textContent("body")).toContain("About");
+  });
+
+  test("redirect kind: push (server action)", async () => {
+    await page.goto(`${hostname}/redirect-kind`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain("Redirect Kind");
+    await waitForHydration();
+    const btn = await page.$('[data-testid="redirect-push"]');
+    await waitForBodyUpdate(async () => {
+      await btn.click();
+    });
+    expect(page.url()).toBe(`${hostname}/about`);
+    expect(await page.textContent("body")).toContain("About");
+    // push kind adds a history entry, going back should return to redirect-kind page
+    const prevUrl = page.url();
+    await page.goBack();
+    await waitForChange(null, () => page.url(), prevUrl);
+    expect(page.url()).toBe(`${hostname}/redirect-kind`);
+    await waitForBodyUpdate();
+    expect(await page.textContent("body")).toContain("Redirect Kind");
+  });
+
+  test("redirect kind: location (server action, same-origin)", async () => {
+    await page.goto(`${hostname}/redirect-kind`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain("Redirect Kind");
+    await waitForHydration();
+    const btn = await page.$('[data-testid="redirect-location"]');
+    await btn.click();
+    // location kind forces a full browser navigation via location.href
+    await page.waitForURL(`${hostname}/about`);
+    await page.waitForLoadState("load");
+    expect(page.url()).toBe(`${hostname}/about`);
+    expect(await page.textContent("body")).toContain("About");
+  });
+
+  test("redirect kind: location (server action, external)", async () => {
+    await page.goto(`${hostname}/redirect-kind`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain("Redirect Kind");
+    await waitForHydration();
+    const btn = await page.$('[data-testid="redirect-location-external"]');
+    await btn.click();
+    const deadline = Date.now() + 30000;
+    while (!page.url().includes("react-server.dev")) {
+      if (Date.now() > deadline) {
+        throw new Error(
+          "Timed out waiting for external redirect via location kind"
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    expect(page.url()).toBe("https://react-server.dev/");
+  });
+
+  test("redirect kind: error (server action, try/catch)", async () => {
+    await page.goto(`${hostname}/redirect-kind`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain("Redirect Kind");
+    await waitForHydration();
+    const btn = await page.$('[data-testid="redirect-error"]');
+    await waitForBodyUpdate(async () => {
+      await btn.click();
+    });
+    // error kind should NOT navigate away — client catches the error
+    expect(page.url()).toBe(`${hostname}/redirect-kind`);
+    const resultEl = await page.$('[data-testid="redirect-error-result"]');
+    expect(resultEl).not.toBeNull();
+    const resultText = await resultEl.textContent();
+    expect(resultText).toContain("Caught redirect to: /about");
+  });
+
+  test("redirect kind: push (middleware)", async () => {
+    await page.goto(`${hostname}/`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain(
+      "Welcome to the File Router Example"
+    );
+    await waitForHydration();
+    const linkToPush = await page.$('a[href="/redirect-push"]');
+    await waitForBodyUpdate(async () => {
+      await linkToPush.click();
+    });
+    await page.waitForLoadState("load");
+    expect(page.url()).toBe(`${hostname}/about`);
+    expect(await page.textContent("body")).toContain("About");
+  });
+
+  test("redirect kind: location (middleware, same-origin)", async () => {
+    await page.goto(`${hostname}/`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain(
+      "Welcome to the File Router Example"
+    );
+    await waitForHydration();
+    const linkToLocation = await page.$('a[href="/redirect-location"]');
+    await linkToLocation.click();
+    // location kind forces a full browser navigation via location.href
+    await page.waitForURL(`${hostname}/about`);
+    await page.waitForLoadState("load");
+    expect(page.url()).toBe(`${hostname}/about`);
+    expect(await page.textContent("body")).toContain("About");
+  });
+
+  test("redirect kind: location (middleware, external)", async () => {
+    await page.goto(`${hostname}/`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain(
+      "Welcome to the File Router Example"
+    );
+    await waitForHydration();
+    const linkToLocationExternal = await page.$(
+      'a[href="/redirect-location-external"]'
+    );
+    await linkToLocationExternal.click();
+    const deadline = Date.now() + 30000;
+    while (!page.url().includes("react-server.dev")) {
+      if (Date.now() > deadline) {
+        throw new Error(
+          "Timed out waiting for external redirect via location kind"
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    expect(page.url()).toBe("https://react-server.dev/");
+  });
+
+  test("redirect kind: error (middleware)", async () => {
+    // For middleware redirects, the "error" kind behaves the same as "navigate"
+    // because the redirect is handled at the server level before reaching the client.
+    // The "error" kind is only meaningful for server actions (try/catch on client).
+    await page.goto(`${hostname}/redirect-error`);
+    await page.waitForLoadState("load");
+    expect(page.url()).toBe(`${hostname}/about`);
+    expect(await page.textContent("body")).toContain("About");
+  });
 });

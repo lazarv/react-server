@@ -1,0 +1,250 @@
+---
+title: AWS Lambda
+category: Deploy
+order: 4
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# AWS Lambda
+
+AWSにデプロイするには、ビルトインの `aws` アダプタを使用します。このアダプタは、AWS SAM（Serverless Application Model）を使用して、AWS Lambda関数とCloudFront CDNディストリビューションとしてアプリケーションをデプロイします。
+
+<Link name="prerequisites">
+## 前提条件
+</Link>
+
+以下のツールがインストールされている必要があります：
+
+- **AWS CLI** — AWS認証情報の管理用
+- **AWS SAM CLI** — SAMテンプレートのビルドとデプロイ用
+
+```sh
+brew install awscli aws-sam-cli
+```
+
+次にAWS認証情報を設定します：
+
+```sh
+aws configure
+```
+
+AWSアクセスキーIDとシークレットアクセスキーが必要です。[AWS IAMコンソール](https://console.aws.amazon.com/iam/)の **ユーザー → セキュリティ認証情報 → アクセスキー** で作成できます。
+
+<Link name="installation">
+## インストール
+</Link>
+
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+`react-server.config.mjs` ファイルにアダプタを追加します：
+
+```mjs
+export default {
+  adapter: "aws",
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+オプションを渡してアダプタをカスタマイズできます：
+
+```mjs
+export default {
+  adapter: [
+    "aws",
+    {
+      name: "my-app",             // アプリケーション名（リソース名に使用）
+      stackName: "my-app-stack",  // CloudFormationスタック名
+      runtime: "nodejs20.x",     // Lambdaランタイム（デフォルト: "nodejs20.x"）
+      memorySize: 1024,          // Lambdaメモリ（MB）（デフォルト: 1024）
+      timeout: 30,               // Lambdaタイムアウト（秒）（デフォルト: 30）
+      architecture: "arm64",     // Lambdaアーキテクチャ（デフォルト: "arm64"）
+      authType: "NONE",          // Function URL認証タイプ（デフォルト: "NONE"）
+      environment: {             // 追加の環境変数
+        MY_API_KEY: "value",
+      },
+    },
+  ],
+};
+```
+
+### 設定オプション
+
+- `name`: AWSリソース名に使用されるアプリケーション名。`package.json` の名前（スコープなし）または `"react-server-app"` にフォールバックします。
+- `stackName`: デプロイ時に使用されるCloudFormationスタック名。デフォルトは `name` です。
+- `runtime`: Lambdaランタイム識別子（デフォルト: `"nodejs20.x"`）。
+- `memorySize`: Lambda関数のメモリ（MB）（デフォルト: `1024`）。
+- `timeout`: Lambda関数のタイムアウト（秒）（デフォルト: `30`）。
+- `architecture`: Lambda CPUアーキテクチャ、`"arm64"` または `"x86_64"`（デフォルト: `"arm64"`）。Arm64（Graviton2）はコストパフォーマンスが優れています。
+- `authType`: Function URL認証タイプ（デフォルト: `"NONE"`）。IAM認証を要求するには `"AWS_IAM"` に設定します。
+- `environment`: Lambda関数に追加される環境変数。`NODE_ENV` は常に `"production"` に設定されます。
+- `functionProperties`: 関数リソースにマージされるSAM `AWS::Serverless::Function` プロパティ。
+- `cloudfront`: `false` に設定するとCloudFrontディストリビューションの作成をスキップします。`cloudfront.distributionConfig` で生成されたCloudFront `DistributionConfig` を拡張できます。
+- `s3Bucket`: `false` に設定するとS3バケットの作成をスキップします。`s3Bucket.bucketName` と `s3Bucket.properties` でカスタマイズできます。
+- `resources`: テンプレートにマージされる追加のCloudFormationリソース。
+- `outputs`: テンプレートにマージされる追加のCloudFormation出力。
+- `template`: SAMテンプレートのオーバーライドまたは拡張。オブジェクトを渡してマージするか、関数 `(template) => template` で完全に制御できます。
+- `deployArgs`: `sam deploy` に渡される追加引数。
+
+<Link name="deploy">
+## デプロイ
+</Link>
+
+アプリケーションをビルドしてデプロイします：
+
+```sh
+pnpm react-server build [root] --adapter aws
+sam deploy --guided --stack-name my-app --capabilities CAPABILITY_IAM
+```
+
+または `--deploy` フラグを使用してビルドとデプロイを一度に実行します：
+
+```sh
+pnpm react-server build [root] --adapter aws --deploy
+```
+
+初回デプロイでは `--guided` モードが使用され、設定を求められ `samconfig.toml` に保存されます。以降のデプロイでは保存された設定が自動的に使用されます。
+
+<Link name="architecture">
+## アーキテクチャ
+</Link>
+
+アダプタは以下のAWSリソースを作成します：
+
+- **Lambda関数** — Function URL付き（`RESPONSE_STREAM` によるストリーミング有効）
+- **CloudFrontディストリビューション** — Lambda関数前のCDN
+- **CloudFrontキャッシュポリシー** — オリジンの `Cache-Control` ヘッダーを尊重
+- **S3バケット**（オプション）— 静的ファイル同期ターゲット
+
+### 仕組み
+
+すべてのリクエストは単一のLambdaオリジンを通過します：
+
+```
+ビューア → CloudFront → Lambda
+                         ├─ 静的ファイル? → ディスクから配信 + Cache-Control
+                         └─ 動的?       → react-serverによるSSR
+```
+
+Lambdaハンドラはデプロイパッケージ内にすべての静的ファイルを含み、ファイルシステムから直接配信します。各レスポンスには適切な `Cache-Control` ヘッダーが含まれます：
+
+- **ビルドアセット**（`/assets/*`、`/client/*`）：`public, max-age=31536000, immutable` — エッジで1年間キャッシュ（ファイル名はコンテンツハッシュ）
+- **プリレンダリングされたHTML / x-component**: `must-revalidate` — CloudFrontは常にLambdaで再検証
+- **パブリックファイル**: `public, max-age=600` — 10分間キャッシュ
+
+最初のリクエスト後、CloudFrontはLambdaを呼び出さずにエッジから直接キャッシュされた静的ファイルを配信します。
+
+<Link name="cloudfront-configuration">
+## CloudFront設定
+</Link>
+
+### カスタムドメイン
+
+CloudFrontディストリビューションでカスタムドメインを使用するには、ディストリビューション設定を拡張します：
+
+```mjs
+export default {
+  adapter: [
+    "aws",
+    {
+      cloudfront: {
+        distributionConfig: {
+          Aliases: ["www.example.com"],
+          ViewerCertificate: {
+            AcmCertificateArn: "arn:aws:acm:us-east-1:123456789:certificate/abc-123",
+            SslSupportMethod: "sni-only",
+            MinimumProtocolVersion: "TLSv1.2_2021",
+          },
+        },
+      },
+    },
+  ],
+};
+```
+
+> **Note:** CloudFront用のACM証明書は `us-east-1` リージョンに作成する必要があります。
+
+### CloudFrontなし
+
+CloudFrontなしでデプロイする場合（Lambda Function URLのみ）：
+
+```mjs
+export default {
+  adapter: [
+    "aws",
+    {
+      cloudfront: false,
+    },
+  ],
+};
+```
+
+<Link name="troubleshooting">
+## トラブルシューティング
+</Link>
+
+### `zsh: command not found: sam`
+
+AWS SAM CLIをインストールしてください：
+
+```sh
+brew install aws-sam-cli
+```
+
+### `zsh: command not found: aws`
+
+AWS CLIをインストールしてください：
+
+```sh
+brew install awscli
+```
+
+### `Error: Unable to locate credentials`
+
+AWS認証情報を設定してください：
+
+```sh
+aws configure
+```
+
+アクセスキーID、シークレットアクセスキー、デフォルトリージョン、出力形式が必要です。[AWS IAMコンソール](https://console.aws.amazon.com/iam/)でアクセスキーを作成できます。
+
+AWS SSOを使用している場合：
+
+```sh
+aws sso login --profile your-profile
+```
+
+### `Failed to create/update the stack ... ROLLBACK_COMPLETE`
+
+以前のデプロイが失敗し、CloudFormationがスタックした状態です。失敗したスタックを削除してから再試行してください：
+
+```sh
+sam delete --stack-name your-stack-name
+sam deploy --guided --stack-name your-stack-name --capabilities CAPABILITY_IAM
+```
+
+### Lambdaコールドスタート
+
+Lambda関数ではコールドスタートが発生します。影響を最小限にするには：
+
+- `arm64` アーキテクチャを使用（デフォルト）— Graviton2プロセッサはコールドスタートが高速
+- `memorySize` を増やす — LambdaはメモリにCPUを比例配分
+- 本番ワークロードには [Lambdaプロビジョンド同時実行](https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html) を検討
+
+### CloudFrontキャッシュの無効化
+
+再デプロイ後、CloudFrontが古いキャッシュコンテンツを配信する場合があります。無効化を作成してください：
+
+```sh
+aws cloudfront create-invalidation \
+  --distribution-id YOUR_DISTRIBUTION_ID \
+  --paths "/*"
+```
+
+コンテンツハッシュ付きファイル名のビルドアセット（`/assets/*`、`/client/*`）は無効化不要です — 新しいデプロイで自動的に新しいファイル名が生成されます。
+
+> **Note:** VPC設定、IAMポリシー、Lambdaレイヤーなどの追加のAWS固有機能については、`functionProperties`、`resources`、`template` オプションを使用してください。完全なテンプレート仕様については [AWS SAMドキュメント](https://docs.aws.amazon.com/serverless-application-model/) を参照してください。

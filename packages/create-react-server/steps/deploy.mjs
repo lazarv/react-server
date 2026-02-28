@@ -54,6 +54,11 @@ export default async (context) => {
                   description: "Deploy to Deno runtime",
                 },
                 {
+                  name: "Azure Static Web Apps",
+                  value: "azure",
+                  description: "Deploy to Azure Static Web Apps",
+                },
+                {
                   name: "AWS",
                   value: "aws",
                   description: "Deploy to AWS Lambda",
@@ -73,6 +78,7 @@ export default async (context) => {
     vercel: "Vercel",
     netlify: "Netlify",
     cloudflare: "Cloudflare Workers/Pages",
+    azure: "Azure Static Web Apps",
     bun: "Bun",
     deno: "Deno",
   };
@@ -80,6 +86,7 @@ export default async (context) => {
     vercel: [".vercel", "vercel.json"],
     netlify: ["netlify.toml", "netlify", ".netlify"],
     cloudflare: [".cloudflare", ".wrangler", "wrangler.toml"],
+    azure: [".azure", "staticwebapp.config.json"],
     bun: [".bun"],
     deno: [".deno"],
   };

@@ -323,6 +323,16 @@ The edge runtime does **not** serve static files. Your entry must handle this:
 - **Deploy**: `deno run --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs`
 - **Notes**: Standalone runtime, no cloud config needed. Static routes are hardcoded at build time. Uses `deno.json` with `nodeModulesDir: "none"` — no `node_modules` required.
 
+### Azure (`adapters/azure/`)
+
+- **Runtime**: Node.js serverless (no edge build)
+- **Entry**: `functions/index.mjs` — uses `@lazarv/react-server/node` (Node middleware mode)
+- **Output**: `.azure/static/` + `.azure/functions/server/`
+- **Config**: Generates `staticwebapp.config.json`, `host.json`, and `local.settings.json`; merges with `react-server.azure.json`
+- **Static files**: Handled by Azure Static Web Apps CDN via `navigationFallback` routing
+- **Deploy**: `swa deploy .azure/static --api-location .azure/functions`
+- **Notes**: Uses Node mode + `copy.dependencies()` (not edge build). Targets Azure Static Web Apps with a managed API backend. The `staticwebapp.config.json` routes all non-static requests to the serverless function.
+
 ## Step-by-Step: Creating a New Adapter
 
 1. **Create the directory**: `adapters/<name>/`

@@ -551,7 +551,18 @@ jobs:
       - test-build-start-apps-edge
       - test-build-start-apps-edge-entry
       - test-rsc
-    if: always()
+    if: >-
+      always() && !(
+        needs.test-dev-base.result == 'skipped' &&
+        needs.test-build-start-base.result == 'skipped' &&
+        needs.test-build-start-base-edge.result == 'skipped' &&
+        needs.test-build-start-base-edge-entry.result == 'skipped' &&
+        needs.test-dev-apps.result == 'skipped' &&
+        needs.test-build-start-apps.result == 'skipped' &&
+        needs.test-build-start-apps-edge.result == 'skipped' &&
+        needs.test-build-start-apps-edge-entry.result == 'skipped' &&
+        needs.test-rsc.result == 'skipped'
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

@@ -90,6 +90,12 @@ export default async function dev(root, options) {
 
           runtime$(CONFIG_CONTEXT, config);
 
+          // Resolve the action encryption secret once at startup
+          // (from env vars, config, or .pem file — not per-render).
+          const { initSecretFromConfig } =
+            await import("../../server/action-crypto.mjs");
+          await initSecretFromConfig(configRoot);
+
           const isNonInteractiveEnvironment =
             !process.stdin.isTTY ||
             process.env.CI === "true" ||

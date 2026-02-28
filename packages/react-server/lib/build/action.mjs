@@ -111,6 +111,18 @@ export default async function build(root, options) {
             });
           }
 
+          // Generate the action encryption secret early so the
+          // use-server plugin can encrypt action IDs in client/SSR stubs.
+          const { initSecret, initSecretFromConfig, generateSecret } =
+            await import("../../server/action-crypto.mjs");
+          // Generate a fresh secret and set it as the baseline key.
+          const actionSecret = generateSecret();
+          initSecret(actionSecret);
+          // Let user-provided secret (env var, config, .pem) override
+          // the generated key.  At runtime the same env/config will
+          // override the build artifact, keeping the keys in sync.
+          await initSecretFromConfig(config[CONFIG_ROOT]);
+
           // Create event bus for parallel builds
           // This allows RSC build to emit client component entries
           // that SSR and Client builds consume dynamically
@@ -173,6 +185,14 @@ export default async function build(root, options) {
                     : options.sourcemap
                 : false,
             })};\n`,
+            "utf8"
+          );
+
+          // Persist the action encryption secret as a build artifact so it
+          // survives serverless cold starts and edge restarts.
+          await writeFile(
+            join(cwd, options.outDir, "server/action-secret.mjs"),
+            `export default ${JSON.stringify(actionSecret)};\n`,
             "utf8"
           );
 

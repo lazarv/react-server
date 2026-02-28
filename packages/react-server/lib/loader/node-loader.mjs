@@ -39,6 +39,14 @@ export async function resolve(specifier, context, nextResolve) {
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/build-manifest.mjs")).href
       );
+    case "@lazarv/react-server/dist/server/action-secret":
+      try {
+        return await nextResolve(
+          pathToFileURL(join(cwd, outDir, "server/action-secret.mjs")).href
+        );
+      } catch {
+        return nextResolve("@lazarv/react-server/dist/server/action-secret");
+      }
     case "@lazarv/react-server/dist/server/server-manifest":
     case "@lazarv/react-server/dist/server/client-manifest":
     case "@lazarv/react-server/dist/client/browser-manifest":

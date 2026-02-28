@@ -51,7 +51,10 @@ import {
 import { ServerFunctionNotFoundError } from "./action-state.mjs";
 import { cwd } from "../lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-reference-map";
-import { serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
+import { serverReferenceMap as _serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
+import { decryptActionId, wrapServerReferenceMap } from "./action-crypto.mjs";
+
+const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
 
 export async function render(Component, props = {}, options = {}) {
   const logger = getContext(LOGGER_CONTEXT);
@@ -153,11 +156,37 @@ export async function render(Component, props = {}, options = {}) {
 
           if (!(input instanceof Error)) {
             if (serverActionHeader && serverActionHeader !== "null") {
-              const [, serverReferenceName] = serverActionHeader.split("#");
+              // Decrypt the capability-protected action ID.
+              // If decryption fails, fall back to the raw header value so
+              // that plain-text action IDs still work (e.g. during dev).
+              const decryptedId = decryptActionId(serverActionHeader);
+              const resolvedActionId = decryptedId ?? serverActionHeader;
+              const [, serverReferenceName] = resolvedActionId.split("#");
+
+              // Verify the action exists in the server reference map.
+              // When the ID was encrypted but decryption failed (invalid /
+              // tampered token) AND the raw header is also unknown, return
+              // a 403 Forbidden response immediately.
+              const serverReference = serverReferenceMap[resolvedActionId];
+              if (!serverReference) {
+                return resolve(
+                  new Response(
+                    JSON.stringify({
+                      error: "Server action not found or access denied",
+                    }),
+                    {
+                      status: 403,
+                      statusText: "Forbidden",
+                      headers: { "Content-Type": "application/json" },
+                    }
+                  )
+                );
+              }
+
               action = async () => {
                 try {
                   const mod = await globalThis.__webpack_require__(
-                    serverReferenceMap[serverActionHeader].id.replace(
+                    serverReference.id.replace(
                       /^server-action:\/\//,
                       "server://"
                     )
@@ -170,13 +199,13 @@ export async function render(Component, props = {}, options = {}) {
                   const data = await boundFn();
                   return {
                     data,
-                    actionId: serverActionHeader,
+                    actionId: resolvedActionId,
                     error: null,
                   };
                 } catch (error) {
                   return {
                     data: null,
-                    actionId: serverActionHeader,
+                    actionId: resolvedActionId,
                     error,
                   };
                 }

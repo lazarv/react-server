@@ -15,6 +15,13 @@ export function reactServer(root, options = {}, initialConfig = {}) {
 
       await runtime_init$(async () => {
         runtime$(CONFIG_CONTEXT, config);
+
+        // Resolve the action encryption secret once at startup.
+        const { initSecretFromConfig } =
+          await import("../../server/action-crypto.mjs");
+        const { CONFIG_ROOT } = await import("../../server/symbols.mjs");
+        await initSecretFromConfig(config[CONFIG_ROOT]);
+
         const server = await createServer(root, options);
         if (config.server?.hmr !== false) server.ws.listen();
         resolve(server);

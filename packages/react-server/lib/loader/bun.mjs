@@ -69,6 +69,11 @@ export async function reactServerBunAliasPlugin(options) {
       outDir,
       "server/build-manifest.mjs"
     ),
+    "@lazarv/react-server/dist/server/action-secret": join(
+      cwd,
+      outDir,
+      "server/action-secret.mjs"
+    ),
     "@lazarv/react-server/dist/server/server-manifest": manifestLoaderPath,
     "@lazarv/react-server/dist/server/client-manifest": manifestLoaderPath,
     "@lazarv/react-server/dist/client/browser-manifest": manifestLoaderPath,

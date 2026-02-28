@@ -525,19 +525,40 @@ export const streamOptions = ({
 
                     resolve(typeof value === "undefined" ? args[0] : value);
                   } catch (e) {
-                    const location = e?.digest?.startsWith("Location=")
-                      ? e.digest.slice(9)
-                      : res.headers.get("Location");
-                    if (location) {
+                    let redirectLocation = null;
+                    let redirectKind = "navigate";
+                    if (e?.digest?.startsWith("Location=")) {
+                      const digestValue = e.digest.slice(9);
+                      const semicolonIndex = digestValue.indexOf(";");
+                      if (semicolonIndex !== -1) {
+                        redirectLocation = digestValue.slice(0, semicolonIndex);
+                        const kindMatch = digestValue
+                          .slice(semicolonIndex)
+                          .match(/kind=([^;]+)/);
+                        redirectKind = kindMatch?.[1] || "navigate";
+                      } else {
+                        redirectLocation = digestValue;
+                      }
+                    } else {
+                      redirectLocation = res.headers.get("Location");
+                    }
+                    if (redirectLocation) {
+                      if (redirectKind === "error") {
+                        return reject(e);
+                      }
+                      if (redirectKind === "location") {
+                        location.href = redirectLocation;
+                        return resolve(args[0]);
+                      }
                       const value = rsc.slice(0, -1);
-                      flightCache.set(`${outlet}:${location}`, value);
+                      flightCache.set(`${outlet}:${redirectLocation}`, value);
                       flightCache.set(
-                        `${outlet}:${location}:timestamp`,
+                        `${outlet}:${redirectLocation}:timestamp`,
                         Date.now()
                       );
-                      navigate(location, {
+                      navigate(redirectLocation, {
                         outlet,
-                        replace: true,
+                        push: redirectKind === "push",
                         fromCache: true,
                       });
                       return resolve(args[0]);
@@ -727,6 +748,7 @@ function getFlightResponse(url, options = {}) {
 
               let chunks = 0;
               let redirectTo = null;
+              let redirectKind = "navigate";
               const reader = body.getReader();
 
               abortController?.signal?.addEventListener(
@@ -743,9 +765,13 @@ function getFlightResponse(url, options = {}) {
                 if (value) {
                   if (!redirectTo) {
                     const decodedValue = decoder.decode(value);
-                    redirectTo = decodedValue.match(
-                      /1:E\{"digest":"Location=(?<location>[^"]+)"/
-                    )?.groups.location;
+                    const redirectMatch = decodedValue.match(
+                      /\d+:E\{"digest":"Location=(?<location>[^;]+)(?:;kind=(?<kind>[^"]+))?"/
+                    );
+                    if (redirectMatch?.groups.location) {
+                      redirectTo = redirectMatch.groups.location;
+                      redirectKind = redirectMatch.groups.kind || "navigate";
+                    }
                   }
 
                   controller.enqueue(value);
@@ -768,17 +794,24 @@ function getFlightResponse(url, options = {}) {
 
               controller.close();
 
-              if (redirectTo) {
-                const url = new URL(redirectTo, location.origin);
-
-                if (url.origin === location.origin) {
-                  navigate(redirectTo, {
-                    outlet: options.outlet,
-                    external: options.outlet !== PAGE_ROOT,
-                    push: false,
-                  });
+              if (redirectTo && !options.callServer) {
+                if (redirectKind === "error") {
+                  // Don't auto-redirect; the error will propagate through React's error boundary
+                  // and can be caught via try/catch when calling server actions directly
+                } else if (redirectKind === "location") {
+                  location.href = redirectTo;
                 } else {
-                  location.replace(redirectTo);
+                  const url = new URL(redirectTo, location.origin);
+
+                  if (url.origin === location.origin) {
+                    navigate(redirectTo, {
+                      outlet: options.outlet,
+                      external: options.outlet !== PAGE_ROOT,
+                      push: redirectKind === "push",
+                    });
+                  } else {
+                    location.replace(redirectTo);
+                  }
                 }
               }
 

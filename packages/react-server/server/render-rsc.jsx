@@ -520,7 +520,10 @@ export async function render(Component, props = {}, options = {}) {
                     hasError = true;
                     const redirect = getContext(REDIRECT_CONTEXT);
                     if (redirect?.response) {
-                      return `Location=${redirect.response.headers.get("location")}`;
+                      const location =
+                        redirect.response.headers.get("location");
+                      const kind = e?.kind || "navigate";
+                      return `Location=${location};kind=${kind}`;
                     }
                     if (import.meta.env.PROD) {
                       logger?.error(e);

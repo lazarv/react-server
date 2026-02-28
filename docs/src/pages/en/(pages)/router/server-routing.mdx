@@ -192,6 +192,19 @@ export default function App() {
 }
 ```
 
+You can also specify a `kind` parameter to control how the redirect behaves on the client:
+
+```tsx
+import { redirect } from "@lazarv/react-server";
+
+export default function ProtectedPage() {
+  // Redirect with pushState so the user can navigate back
+  redirect("/login", 302, "push");
+}
+```
+
+Available redirect kinds: `"navigate"` (default, replaceState), `"push"` (pushState), `"location"` (full browser navigation), and `"error"` (throw on client for custom handling). See the [HTTP redirect documentation](/framework/http#redirect) for details.
+
 <Link name="rewrites">
 ## Rewrites
 </Link>

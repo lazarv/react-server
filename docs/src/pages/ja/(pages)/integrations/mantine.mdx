@@ -8,13 +8,13 @@ import Link from "../../../../components/Link.jsx";
 
 # Mantine UI
 
-`@lazarv/react-server` is compatible with [Mantine](https://mantine.dev/), a full-featured React component library. You can use Mantine components in your client components with server-side rendering support, PostCSS configuration for Mantine's styling system, and the `MantineProvider` for theming.
+`@lazarv/react-server`は、フル機能のReactコンポーネントライブラリである[Mantine](https://mantine.dev/)と互換性があります。クライアントコンポーネントでMantineコンポーネントを使用し、サーバーサイドレンダリングのサポート、MantineのスタイリングシステムのためのPostCSS設定、テーマのための`MantineProvider`を利用できます。
 
 <Link name="installation">
-## Installation
+## インストール
 </Link>
 
-Install Mantine and its required PostCSS dependencies:
+Mantineと必要なPostCSS依存関係をインストールします:
 
 ```sh
 pnpm add @mantine/core @mantine/hooks
@@ -22,10 +22,10 @@ pnpm add -D postcss postcss-preset-mantine postcss-simple-vars
 ```
 
 <Link name="postcss-configuration">
-## PostCSS configuration
+## PostCSS設定
 </Link>
 
-Mantine requires a PostCSS configuration with the `postcss-preset-mantine` plugin and breakpoint variables:
+Mantineには`postcss-preset-mantine`プラグインとブレークポイント変数を含むPostCSS設定が必要です:
 
 ```js filename="postcss.config.cjs"
 module.exports = {
@@ -45,10 +45,10 @@ module.exports = {
 ```
 
 <Link name="provider-setup">
-## Provider setup
+## プロバイダーのセットアップ
 </Link>
 
-Import the core Mantine styles and wrap your app with `MantineProvider` in your root layout. Include the `ColorSchemeScript` in the `<head>` to prevent a flash of unstyled content:
+コアMantineスタイルをインポートし、ルートレイアウトで`MantineProvider`でアプリをラップします。スタイルなしコンテンツのフラッシュを防ぐために、`<head>`に`ColorSchemeScript`を含めます:
 
 ```tsx filename="src/pages/layout.tsx"
 import "@mantine/core/styles.css";
@@ -56,7 +56,7 @@ import "@mantine/core/styles.css";
 import { ColorSchemeScript, createTheme, MantineProvider } from "@mantine/core";
 
 const theme = createTheme({
-  /** Put your mantine theme override here */
+  /** Mantineのテーマオーバーライドをここに記述 */
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -76,10 +76,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```
 
 <Link name="using-components">
-## Using components
+## コンポーネントの使用
 </Link>
 
-Mantine components that use React hooks or browser APIs must be used in client components. Create a client component and import the Mantine components you need:
+ReactフックやブラウザAPIを使用するMantineコンポーネントは、クライアントコンポーネントで使用する必要があります。クライアントコンポーネントを作成し、必要なMantineコンポーネントをインポートします:
 
 ```tsx filename="src/components/Counter.tsx"
 "use client";
@@ -100,7 +100,7 @@ export function Counter() {
 }
 ```
 
-Then use the client component from your server component page:
+次に、サーバーコンポーネントページからクライアントコンポーネントを使用します:
 
 ```tsx filename="src/pages/index.tsx"
 import { Counter } from "../components/Counter";
@@ -111,10 +111,10 @@ export default function HomePage() {
 ```
 
 <Link name="navigation">
-## Navigation
+## ナビゲーション
 </Link>
 
-To use Mantine's navigation components like `NavLink` with `@lazarv/react-server`'s client-side navigation, pass the framework's `Link` component via the `component` prop:
+`@lazarv/react-server`のクライアントサイドナビゲーションでMantineの`NavLink`などのナビゲーションコンポーネントを使用するには、`component`プロップを介してフレームワークの`Link`コンポーネントを渡します:
 
 ```tsx filename="src/components/MainNavigation.tsx"
 "use client";
@@ -145,10 +145,10 @@ export function MainNavigation() {
 ```
 
 <Link name="extension-packages">
-## Extension packages
+## 拡張パッケージ
 </Link>
 
-Mantine offers many extension packages for additional functionality. Import their styles in the pages or layouts where they are used:
+Mantineは追加機能のための多くの拡張パッケージを提供しています。使用するページやレイアウトでスタイルをインポートします:
 
 ```tsx filename="src/pages/dates.tsx"
 import "@mantine/dates/styles.css";
@@ -160,9 +160,9 @@ export default function DatesPage() {
 }
 ```
 
-Some commonly used Mantine extensions and their style imports:
+よく使われるMantine拡張パッケージとそのスタイルインポート:
 
-| Package | Style import |
+| パッケージ | スタイルインポート |
 |---------|-------------|
 | `@mantine/dates` | `@mantine/dates/styles.css` |
 | `@mantine/charts` | `@mantine/charts/styles.css` |
@@ -175,10 +175,10 @@ Some commonly used Mantine extensions and their style imports:
 | `@mantine/dropzone` | `@mantine/dropzone/styles.css` |
 
 <Link name="client-only-components">
-## Client-only components
+## クライアント専用コンポーネント
 </Link>
 
-Some components (like charts that depend on browser APIs) cannot be server-side rendered. Use `ClientOnly` from `@lazarv/react-server/client` to render them only on the client:
+一部のコンポーネント（ブラウザAPIに依存するチャートなど）はサーバーサイドレンダリングができません。`@lazarv/react-server/client`の`ClientOnly`を使用して、クライアントでのみレンダリングします:
 
 ```tsx filename="src/pages/charts.tsx"
 import "@mantine/charts/styles.css";
@@ -195,5 +195,4 @@ export default function ChartsPage() {
 }
 ```
 
-> Check out the [Mantine example](https://github.com/lazarv/react-server/tree/main/examples/mantine) to see a complete example of using Mantine UI with `@lazarv/react-server`.
-
+> `@lazarv/react-server`でMantine UIを使用する完全な例については、[Mantine example](https://github.com/lazarv/react-server/tree/main/examples/mantine)を確認してください。

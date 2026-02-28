@@ -8,29 +8,29 @@ import Link from "../../../../components/Link.jsx";
 
 # Material UI
 
-`@lazarv/react-server` is compatible with [Material UI (MUI)](https://mui.com/material-ui/), a popular React component library implementing Google's Material Design. MUI uses Emotion for CSS-in-JS styling, which works out of the box with `@lazarv/react-server`.
+`@lazarv/react-server`は、GoogleのMaterial Designを実装する人気のReactコンポーネントライブラリである[Material UI (MUI)](https://mui.com/material-ui/)と互換性があります。MUIはCSS-in-JSスタイリングにEmotionを使用しており、`@lazarv/react-server`でそのまま動作します。
 
 <Link name="installation">
-## Installation
+## インストール
 </Link>
 
-Install Material UI and its required dependencies:
+Material UIと必要な依存関係をインストールします:
 
 ```sh
 pnpm add @mui/material @emotion/react @emotion/styled
 ```
 
-Optionally, install the Roboto font and Material Icons:
+オプションで、RobotoフォントとMaterial Iconsをインストールします:
 
 ```sh
 pnpm add @fontsource/roboto @mui/icons-material
 ```
 
 <Link name="theme-setup">
-## Theme setup
+## テーマのセットアップ
 </Link>
 
-Create a theme file to configure your Material UI theme:
+Material UIテーマを設定するテーマファイルを作成します:
 
 ```js filename="app/theme.mjs"
 import { createTheme } from "@mui/material/styles";
@@ -48,10 +48,10 @@ export default theme;
 ```
 
 <Link name="provider-setup">
-## Provider setup
+## プロバイダーのセットアップ
 </Link>
 
-Material UI requires a `ThemeProvider` and `CssBaseline` for proper theming and baseline styles. Create a client component that wraps your app:
+Material UIには、適切なテーマとベースラインスタイルのために`ThemeProvider`と`CssBaseline`が必要です。アプリをラップするクライアントコンポーネントを作成します:
 
 ```jsx filename="app/components/Layout.jsx"
 "use client";
@@ -74,7 +74,7 @@ export default function Layout({ children }) {
 }
 ```
 
-Then set up your root layout to import the font and use the `Layout` provider component:
+次に、フォントをインポートし、`Layout`プロバイダーコンポーネントを使用するルートレイアウトを設定します:
 
 ```jsx filename="app/layout.jsx"
 import "@fontsource/roboto/300.css";
@@ -101,10 +101,10 @@ export default function RootLayout({ children }) {
 ```
 
 <Link name="navigation">
-## Navigation
+## ナビゲーション
 </Link>
 
-To use MUI link and button components with `@lazarv/react-server`'s client-side navigation, pass the framework's `Link` component via the `component` prop:
+MUIのリンクやボタンコンポーネントを`@lazarv/react-server`のクライアントサイドナビゲーションで使用するには、`component`プロップを介してフレームワークの`Link`コンポーネントを渡します:
 
 ```jsx filename="app/page.jsx"
 "use client";
@@ -121,7 +121,7 @@ export default function Home() {
 }
 ```
 
-The same pattern works with MUI `Button` for navigation:
+同じパターンでMUIの`Button`をナビゲーションに使用できます:
 
 ```jsx filename="app/about/page.jsx"
 "use client";
@@ -139,10 +139,10 @@ export default function About() {
 ```
 
 <Link name="server-components">
-## Server components
+## サーバーコンポーネント
 </Link>
 
-Some MUI components that don't rely on browser APIs or React hooks can be used directly in server components. Components like `Typography` and `Link` (without navigation) work in server components:
+ブラウザAPIやReactフックに依存しない一部のMUIコンポーネントは、サーバーコンポーネントで直接使用できます。`Typography`や`Link`（ナビゲーションなし）などのコンポーネントはサーバーコンポーネントで動作します:
 
 ```jsx filename="app/components/Copyright.jsx"
 import Typography from "@mui/material/Typography";
@@ -162,14 +162,13 @@ export default function Copyright() {
 ```
 
 <Link name="icons">
-## Icons
+## アイコン
 </Link>
 
-When using `@mui/icons-material`, import icons from the ESM path for proper module resolution:
+`@mui/icons-material`を使用する場合、適切なモジュール解決のためにESMパスからアイコンをインポートします:
 
 ```jsx
 import LightbulbOutlined from "@mui/icons-material/esm/LightbulbOutlined";
 ```
 
-> Check out the [Material UI example](https://github.com/lazarv/react-server/tree/main/examples/mui) to see a complete example of using MUI with `@lazarv/react-server`.
-
+> `@lazarv/react-server`でMUIを使用する完全な例については、[Material UI example](https://github.com/lazarv/react-server/tree/main/examples/mui)を確認してください。

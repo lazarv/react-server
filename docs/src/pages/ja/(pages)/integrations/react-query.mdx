@@ -8,25 +8,25 @@ import Link from "../../../../components/Link.jsx";
 
 # TanStack Query
 
-`@lazarv/react-server` works with [TanStack Query](https://tanstack.com/query) (formerly React Query) to provide powerful data fetching with server-side prefetching and client-side hydration. You can prefetch queries in server components and seamlessly hydrate the data on the client, avoiding unnecessary re-fetches.
+`@lazarv/react-server`は、[TanStack Query](https://tanstack.com/query)（旧React Query）と連携して、サーバーサイドプリフェッチとクライアントサイドハイドレーションによる強力なデータフェッチを提供します。サーバーコンポーネントでクエリをプリフェッチし、クライアントでシームレスにデータをハイドレートすることで、不要な再フェッチを回避できます。
 
 <Link name="installation">
-## Installation
+## インストール
 </Link>
 
-Install TanStack Query in your project:
+TanStack Queryをプロジェクトにインストールします:
 
 ```sh
 pnpm add @tanstack/react-query
 ```
 
 <Link name="setup">
-## Setup
+## セットアップ
 </Link>
 
-To use TanStack Query, you need to create a `QueryClient` and wrap your app in a `QueryClientProvider`. Since `QueryClientProvider` relies on React context, it must be a client component.
+TanStack Queryを使用するには、`QueryClient`を作成し、アプリを`QueryClientProvider`でラップする必要があります。`QueryClientProvider`はReactコンテキストに依存するため、クライアントコンポーネントである必要があります。
 
-Create a query client factory that handles both server and browser environments:
+サーバーとブラウザの両方の環境を処理するクエリクライアントファクトリを作成します:
 
 ```jsx filename="app/get-query-client.jsx"
 import {
@@ -39,12 +39,12 @@ function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // With SSR, set some default staleTime above 0
-        // to avoid refetching immediately on the client
+        // SSRでは、クライアントでの即座の再フェッチを避けるために
+        // デフォルトのstaleTimeを0より大きく設定します
         staleTime: 60 * 1000,
       },
       dehydrate: {
-        // include pending queries in dehydration
+        // 保留中のクエリをデハイドレーションに含める
         shouldDehydrateQuery: (query) =>
           defaultShouldDehydrateQuery(query) ||
           query.state.status === "pending",
@@ -57,17 +57,17 @@ let browserQueryClient = undefined;
 
 export function getQueryClient() {
   if (isServer) {
-    // Server: always make a new query client
+    // サーバー: 常に新しいクエリクライアントを作成
     return makeQueryClient();
   } else {
-    // Browser: make a new query client if we don't already have one
+    // ブラウザ: まだない場合は新しいクエリクライアントを作成
     if (!browserQueryClient) browserQueryClient = makeQueryClient();
     return browserQueryClient;
   }
 }
 ```
 
-Create a client component that provides the `QueryClient` to the rest of your app:
+アプリの残りの部分に`QueryClient`を提供するクライアントコンポーネントを作成します:
 
 ```jsx filename="app/providers.jsx"
 "use client";
@@ -110,7 +110,7 @@ export default function Providers({ children }) {
 }
 ```
 
-Then wrap your app in the `Providers` component from your root layout:
+次に、ルートレイアウトで`Providers`コンポーネントでアプリをラップします:
 
 ```jsx filename="app/layout.jsx"
 import Providers from "./providers";
@@ -128,12 +128,12 @@ export default function RootLayout({ children }) {
 ```
 
 <Link name="server-side-prefetching">
-## Server-side prefetching
+## サーバーサイドプリフェッチ
 </Link>
 
-The key advantage of using TanStack Query with `@lazarv/react-server` is the ability to prefetch data in server components and hydrate it on the client. This means data is available instantly without a loading state.
+`@lazarv/react-server`でTanStack Queryを使用する主な利点は、サーバーコンポーネントでデータをプリフェッチし、クライアントでハイドレートできることです。これにより、ローディング状態なしでデータが即座に利用可能になります。
 
-In a server component, use the query client to prefetch data and wrap your client components in a `HydrationBoundary`:
+サーバーコンポーネントで、クエリクライアントを使用してデータをプリフェッチし、クライアントコンポーネントを`HydrationBoundary`でラップします:
 
 ```jsx filename="app/page.jsx"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
@@ -159,10 +159,10 @@ export default function PostsPage() {
 ```
 
 <Link name="client-components">
-## Client components
+## クライアントコンポーネント
 </Link>
 
-Client components can use `useSuspenseQuery` (or `useQuery`) with the same query keys. When the data was prefetched on the server, it will be immediately available without a loading state:
+クライアントコンポーネントでは、同じクエリキーで`useSuspenseQuery`（または`useQuery`）を使用できます。サーバーでデータがプリフェッチされている場合、ローディング状態なしで即座に利用可能になります:
 
 ```jsx filename="app/posts.jsx"
 "use client";
@@ -187,26 +187,26 @@ export default function Posts() {
 ```
 
 <Link name="isomorphic-data-fetching">
-## Isomorphic data fetching
+## 同型データフェッチ
 </Link>
 
-To share data fetching logic between server and client, you can create isomorphic data fetchers that detect the runtime environment:
+サーバーとクライアント間でデータフェッチロジックを共有するために、ランタイム環境を検出する同型データフェッチャーを作成できます:
 
 ```js filename="app/get-posts.mjs"
 export async function getPosts() {
   if (typeof document === "undefined") {
-    // Server: import data directly
+    // サーバー: データを直接インポート
     const { default: posts } = await import("../data/posts.json");
     return posts;
   } else {
-    // Client: fetch from API route
+    // クライアント: APIルートからフェッチ
     const res = await fetch("/api/posts");
     return res.json();
   }
 }
 ```
 
-You can combine this with API routes using file-system routing:
+ファイルシステムルーティングを使用したAPIルートと組み合わせることができます:
 
 ```jsx filename="app/api/GET.posts.jsx"
 import posts from "../../data/posts.json";
@@ -222,10 +222,10 @@ export default async function GET() {
 ```
 
 <Link name="nested-hydration">
-## Nested hydration boundaries
+## ネストされたハイドレーション境界
 </Link>
 
-You can nest `HydrationBoundary` components in separate server components to prefetch different sets of data. This is useful for composing multiple data dependencies:
+異なるデータセットをプリフェッチするために、別々のサーバーコンポーネントに`HydrationBoundary`コンポーネントをネストできます。これは複数のデータ依存関係を構成するのに便利です:
 
 ```jsx filename="app/comments-server.jsx"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
@@ -250,5 +250,4 @@ export default function CommentsServerComponent() {
 }
 ```
 
-> Check out the [TanStack Query example](https://github.com/lazarv/react-server/tree/main/examples/react-query) to see a complete example of using TanStack Query with `@lazarv/react-server`.
-
+> `@lazarv/react-server`でTanStack Queryを使用する完全な例については、[TanStack Query example](https://github.com/lazarv/react-server/tree/main/examples/react-query)を確認してください。

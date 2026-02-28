@@ -15,6 +15,9 @@ netlify.toml
 deno.lock
 .bun
 .deno
+.aws
+template.json
+samconfig.toml
 *.pem
 *.sqlite
 *.log

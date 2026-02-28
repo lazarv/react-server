@@ -57,7 +57,6 @@ export default async (context) => {
                   name: "AWS",
                   value: "aws",
                   description: "Deploy to AWS Lambda",
-                  disabled: "(coming soon)",
                 },
               ],
               theme,
@@ -75,6 +74,7 @@ export default async (context) => {
     cloudflare: "Cloudflare Workers/Pages",
     bun: "Bun",
     deno: "Deno",
+    aws: "AWS Lambda",
   };
   const adapterIgnore = {
     vercel: [".vercel", "vercel.json"],
@@ -82,6 +82,7 @@ export default async (context) => {
     cloudflare: [".cloudflare", ".wrangler", "wrangler.toml"],
     bun: [".bun"],
     deno: [".deno"],
+    aws: [".aws", "template.json", "samconfig.toml"],
   };
 
   if (adapter in adapterIgnore) {

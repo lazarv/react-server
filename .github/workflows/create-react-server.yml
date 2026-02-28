@@ -95,7 +95,7 @@ jobs:
   test-results:
     name: Test Results 📊
     needs: test-create
-    if: always()
+    if: always() && needs.test-create.result != 'skipped'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

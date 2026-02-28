@@ -1,0 +1,21 @@
+{
+  "name": "@lazarv/react-server-example-react-three",
+  "private": true,
+  "description": "@lazarv/react-server React Three Fiber example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx",
+    "start": "react-server start"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@react-three/fiber": "^9.5.0",
+    "three": "^0.171.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.171.0"
+  }
+}

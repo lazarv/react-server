@@ -9,7 +9,13 @@ export async function setup({ provide }) {
   browserServer = await chromium.launchServer({
     headless: !process.env.REACT_SERVER_DEBUG,
     args: process.env.CI
-      ? ["--no-sandbox", "--disable-setuid-sandbox"]
+      ? [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--enable-webgl",
+          "--use-gl=swiftshader",
+          "--ignore-gpu-blocklist",
+        ]
       : undefined,
   });
   provide("wsEndpoint", browserServer.wsEndpoint());

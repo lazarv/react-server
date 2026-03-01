@@ -61,16 +61,13 @@ jobs:
           VITE_LATEST=$(npm view vite@latest version 2>/dev/null || echo "")
           VITE_BETA=$(npm view vite@beta version 2>/dev/null || echo "")
 
-          # Use node to compare and pick the higher semver
+          # Pick the higher semver (prefer pre-release if it has a higher major/minor/patch)
           VITE=$(node -e "
-            const semver = require('semver') || null;
             const latest = '$VITE_LATEST';
             const beta = '$VITE_BETA';
-            // Simple comparison: if both exist, compare; otherwise use whichever exists
             if (!latest && !beta) { process.exit(1); }
             if (!beta) { console.log(latest); process.exit(0); }
             if (!latest) { console.log(beta); process.exit(0); }
-            // Extract major.minor.patch for comparison
             const lParts = latest.replace(/-.*$/, '').split('.').map(Number);
             const bParts = beta.replace(/-.*$/, '').split('.').map(Number);
             for (let i = 0; i < 3; i++) {
@@ -79,11 +76,10 @@ jobs:
             }
             // Same base version — prefer stable
             console.log(latest);
-          " 2>/dev/null || echo "$VITE_LATEST")
+          ")
 
-          # If both failed, fallback to just latest
           if [ -z "$VITE" ]; then
-            VITE="$VITE_LATEST"
+            VITE="${VITE_BETA:-$VITE_LATEST}"
           fi
 
           # For Rolldown, check latest and rc tags
@@ -103,10 +99,10 @@ jobs:
               if (rParts[i] < lParts[i]) { console.log(latest); process.exit(0); }
             }
             console.log(latest);
-          " 2>/dev/null || echo "$ROLLDOWN_LATEST")
+          ")
 
           if [ -z "$ROLLDOWN" ]; then
-            ROLLDOWN="$ROLLDOWN_LATEST"
+            ROLLDOWN="${ROLLDOWN_RC:-$ROLLDOWN_LATEST}"
           fi
 
           echo "vite=$VITE" >> "$GITHUB_OUTPUT"
@@ -237,6 +233,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          sign-commits: true
           commit-message: "${{ steps.desc.outputs.title }}"
           title: "${{ steps.desc.outputs.title }}"
           body: "${{ steps.desc.outputs.body }}"

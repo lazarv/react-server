@@ -97,7 +97,7 @@ Returns an async function `(adapterOptions, root, options) => void` that:
 
 1. Clears `outDir`
 2. If `outStaticDir` is set, auto-copies: static, assets, client, public files
-3. If `outServerDir` is set, auto-copies: server files to `<outServerDir>/.react-server/`
+3. If `outServerDir` is set, auto-copies: server files to `<outServerDir>/<reactServerOutDir>/`
 4. Calls your `handler` callback
 5. Handles deployment (runs or prints deploy command)
 
@@ -111,8 +111,8 @@ The `handler` receives an object with:
 | `files` | Lazy file getters (see below) |
 | `copy` | File copy helpers (see below) |
 | `config` | Resolved react-server config |
-| `reactServerDir` | Absolute path to `.react-server/` |
-| `reactServerOutDir` | Relative outDir (usually `.react-server`) |
+| `reactServerDir` | Absolute path to the react-server build output directory |
+| `reactServerOutDir` | Relative outDir name (default `".react-server"`, configurable via `outDir` in react-server config) |
 | `root` | Application root |
 | `options` | Build CLI options (includes `sourcemap`, `minify`, `deploy`, etc.) |
 
@@ -146,19 +146,43 @@ Each method copies the corresponding `files.*` set. Accepts optional `out` overr
 | `copy.assets(out?)` | `outStaticDir` | CSS and other Vite assets |
 | `copy.client(out?)` | `outStaticDir` | Client component JS bundles |
 | `copy.public(out?)` | `outStaticDir` | User's public directory files |
-| `copy.server(out?)` | `outServerDir` | Server MJS + manifests → `<dest>/.react-server/` |
+| `copy.server(out?)` | `outServerDir` | Server MJS + manifests → `<dest>/<reactServerOutDir>/` |
 | `copy.dependencies(out, files?)` | — | Traces & copies all Node.js deps via `@vercel/nft` |
 
 **Note:** If you set `outStaticDir` and `outServerDir`, the static/assets/client/public and server files are auto-copied before your handler runs. You only need to call `copy.*()` yourself if you need custom output destinations or if you didn't set those properties.
 
 ### `deploy`
 
-Either a static object or a function. If `-—deploy` CLI flag is passed, the command is executed; otherwise it's printed for manual use.
+Either a static object or an async function. If `--deploy` CLI flag is passed, the command is executed; otherwise it's printed for manual use.
+
+The deploy descriptor supports the following properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `command` | `string` | The CLI command to run (e.g., `"func"`, `"swa"`, `"wrangler"`) |
+| `args` | `string[]` | Arguments for the command |
+| `cwd` | `string?` | Working directory for the command (defaults to project root) |
+| `message` | `string?` | Help text shown when `--deploy` is not used |
+| `afterDeploy` | `() => void \| Promise<void>` | Callback invoked after successful deployment (e.g., to print the deployment URL) |
 
 ```js
+// Static descriptor
 deploy: {
   command: "bun",
   args: [".bun/start.mjs"],
+}
+
+// Async function returning a descriptor
+deploy: async ({ adapterOptions, options, handlerResult }) => {
+  // Optionally provision resources, resolve app name, etc.
+  return {
+    command: "func",
+    args: ["azure", "functionapp", "publish", appName, "--javascript"],
+    cwd: outDir,
+    afterDeploy: () => {
+      banner(`deployed to https://${appName}.azurewebsites.net`, { emoji: "🌐" });
+    },
+  };
 }
 ```
 
@@ -180,7 +204,7 @@ Imported from `@lazarv/react-server/adapters/core`:
 | `clearDirectory(dir)` | `rm -rf` a directory |
 | `getFiles(pattern, srcDir)` | Glob files |
 | `getDependencies(files, dir)` | Trace Node.js dependencies with `@vercel/nft` |
-| `spawnCommand(cmd, args)` | Spawn a child process (for deploy commands) |
+| `spawnCommand(cmd, args, options?)` | Spawn a child process with optional `{ cwd }` (for deploy commands) |
 | `getConfig()` | Get resolved react-server config |
 | `getPublicDir()` | Get absolute path to public directory |
 
@@ -277,11 +301,11 @@ The edge runtime does **not** serve static files. Your entry must handle this:
 
 - **Runtime**: Edge (Cloudflare Workers)
 - **Entry**: `worker/edge.mjs` — uses `env.ASSETS.fetch()` for static files
-- **Output**: `.cloudflare/static/` + `.cloudflare/worker/.react-server/`
+- **Output**: `.cloudflare/static/` + `.cloudflare/worker/<reactServerOutDir>/`
 - **Config**: Generates `wrangler.toml`, merges with `react-server.wrangler.toml`
 - **Static files**: Handled by Cloudflare's `ASSETS` binding
 - **Deploy**: `wrangler deploy`
-- **Notes**: Sets `base_dir` to `.cloudflare/worker/.react-server` so `outDir: "."` works
+- **Notes**: Sets `base_dir` to `.cloudflare/worker/<reactServerOutDir>` so `outDir: "."` works
 
 ### Netlify (`adapters/netlify/`)
 
@@ -307,7 +331,7 @@ The edge runtime does **not** serve static files. Your entry must handle this:
 
 - **Runtime**: Edge (Bun.serve with fetch handler)
 - **Entry**: `server/entry.mjs` — exports `handler`, `createContext`, `port`, `hostname` (minimal; no static file serving)
-- **Output**: `.bun/static/` + `.bun/server/.react-server/`
+- **Output**: `.bun/static/` + `.bun/server/<reactServerOutDir>/`
 - **Config**: Generates `start.mjs` with build-time static route map + `package.json`
 - **Static files**: Build-time route map in generated `start.mjs` using `Bun.serve({ static })` for zero-copy serving
 - **Deploy**: `bun .bun/start.mjs`
@@ -317,11 +341,39 @@ The edge runtime does **not** serve static files. Your entry must handle this:
 
 - **Runtime**: Edge (Deno.serve with fetch handler)
 - **Entry**: `server/entry.mjs` — exports `handler`, `createContext`, `port`, `hostname` (minimal; no static file serving)
-- **Output**: `.deno/static/` + `.deno/server/.react-server/`
+- **Output**: `.deno/static/` + `.deno/server/<reactServerOutDir>/`
 - **Config**: Generates `start.mjs` with build-time static route map + `deno.json`
 - **Static files**: Build-time route map in generated `start.mjs` using `Deno.readFile()` for static serving
 - **Deploy**: `deno run --allow-net --allow-read --allow-env --allow-sys .deno/start.mjs`
 - **Notes**: Standalone runtime, no cloud config needed. Static routes are hardcoded at build time. Uses `deno.json` with `nodeModulesDir: "none"` — no `node_modules` required.
+
+### Azure (`adapters/azure/`)
+
+- **Runtime**: Edge (Azure Functions v4 programming model with streaming)
+- **Entry**: `functions/entry.mjs` — edge entry using `@lazarv/react-server/edge` with `createContext`
+- **Output**: `.azure/static/` + `.azure/server/<reactServerOutDir>/` + `.azure/src/functions/server.mjs`
+- **Config**: Generates `host.json`, `package.json` (with `@azure/functions` dependency), `local.settings.json`, and `main.bicep` (IaC template)
+- **Static files**: Build-time route map in generated `src/functions/server.mjs` — serves static files from disk via `readFileSync()`
+- **Deploy**: `func azure functionapp publish <app-name> --javascript`
+- **Provisioning**: When deploying with `--deploy`, automatically provisions Azure resources (resource group, storage account, consumption plan, function app) using a Bicep template via `az deployment group create`. Skips provisioning if the function app already exists.
+- **Adapter options**:
+  - `appName` — Function App name (falls back to `package.json` name)
+  - `resourceGroup` — Azure resource group name (default: `<appName>-rg`)
+  - `location` — Azure region (default: `"eastus"`)
+  - `storageName` — Storage account name (default: derived from appName, lowercase alphanumeric, max 24 chars)
+  - `host` — Extra properties to merge into `host.json`
+  - `env` — Extra environment variables for `local.settings.json`
+- **Notes**: Uses edge build for single-file bundling. The v4 programming model's `app.http()` supports returning `ReadableStream` bodies, enabling response streaming. Static files are served by the function itself (no separate CDN). Requires Azure Functions Core Tools v4 (`npm i -g azure-functions-core-tools@4`) and Azure CLI (`az`) for auto-provisioning.
+
+### Azure SWA (`adapters/azure-swa/`)
+
+- **Runtime**: Edge (bundled into single file, served via Azure SWA managed functions)
+- **Entry**: `functions/entry.mjs` — edge entry using `@lazarv/react-server/edge` with `createContext`
+- **Output**: `.azure-swa/static/` + `.azure-swa/functions/server/`
+- **Config**: Generates `staticwebapp.config.json`, `host.json`, and `local.settings.json`; merges with `react-server.azure.json`
+- **Static files**: Handled by Azure Static Web Apps CDN via `navigationFallback` routing
+- **Deploy**: `swa deploy .azure-swa/static --api-location .azure-swa/functions --api-language node --api-version 20`
+- **Notes**: Uses edge build. Targets Azure Static Web Apps with managed functions. Does **not** support response streaming (SWA buffers responses). Good for simpler/static-heavy apps.
 
 ## Step-by-Step: Creating a New Adapter
 

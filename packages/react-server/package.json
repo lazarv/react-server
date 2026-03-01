@@ -130,6 +130,14 @@
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/vercel/index.mjs"
     },
+    "./adapters/azure": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/azure/index.mjs"
+    },
+    "./adapters/azure-swa": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/azure-swa/index.mjs"
+    },
     "./worker": {
       "types": "./worker/index.d.ts",
       "default": "./worker/index.mjs"

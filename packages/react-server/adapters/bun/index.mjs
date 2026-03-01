@@ -34,7 +34,7 @@ export const adapter = createAdapter({
   outDir,
   outStaticDir,
   outServerDir,
-  handler: async function ({ adapterOptions, files }) {
+  handler: async function ({ adapterOptions, files, reactServerOutDir }) {
     // Collect all static file paths for the route map
     banner("generating static route map", { emoji: "🗺️" });
     const [staticFiles, assetFiles, clientFiles, publicFiles] =
@@ -96,8 +96,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const staticDir = join(__dirname, "static");
 
-process.chdir(join(__dirname, "server/.react-server"));
-const { handler, createContext, port, hostname } = await import("./server/.react-server/server/edge.mjs");
+process.chdir(join(__dirname, "server/${reactServerOutDir}"));
+const { handler, createContext, port, hostname } = await import("./server/${reactServerOutDir}/server/edge.mjs");
 
 let origin;
 

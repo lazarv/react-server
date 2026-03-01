@@ -289,6 +289,18 @@ article {
     }
   }
 
+  & ol {
+    @apply list-decimal list-inside mb-4;
+
+    & li {
+      @apply pl-0 mb-2;
+
+      &::marker {
+        @apply font-semibold text-indigo-500 dark:text-yellow-600;
+      }
+    }
+  }
+
   & a {
     @apply text-indigo-500 dark:text-yellow-600 hover:underline;
   }
@@ -499,5 +511,23 @@ footer {
   @media (prefers-reduced-motion) {
     background-image: none;
     background-color: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.adapter-card:hover .adapter-card-title::after {
+  position: absolute;
+  display: block;
+  content: "";
+  height: 2px;
+  width: 100%;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  animation: 200ms both indicator;
+
+  @apply from-rose-400 via-fuchsia-500 to-indigo-500 bg-gradient-to-r;
+
+  @media (prefers-reduced-motion) {
+    animation: none;
   }
 }

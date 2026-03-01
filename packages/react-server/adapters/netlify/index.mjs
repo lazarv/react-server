@@ -57,7 +57,14 @@ export const adapter = createAdapter({
   outDir,
   outStaticDir,
   // outServerDir is computed dynamically based on edgeFunctions option or --edge CLI flag
-  handler: async function ({ adapterOptions, copy, files, options }) {
+  handler: async function ({
+    adapterOptions,
+    copy,
+    files,
+    options,
+    reactServerDir,
+    reactServerOutDir,
+  }) {
     // Check the preserved flag (set by buildOptions) or adapter config
     const isEdge = Boolean(
       options?.netlifyEdgeFunctions || adapterOptions?.edgeFunctions
@@ -72,20 +79,20 @@ export const adapter = createAdapter({
 
     // Copy server files to the computed output directory
     if (isEdge) {
-      await mkdir(join(outServerDir, ".react-server/server"), {
+      await mkdir(join(outServerDir, `${reactServerOutDir}/server`), {
         recursive: true,
       });
       await copyFile(
-        join(cwd, ".react-server/server/edge.mjs"),
-        join(outServerDir, ".react-server/server/edge.mjs")
+        join(reactServerDir, "server/edge.mjs"),
+        join(outServerDir, `${reactServerOutDir}/server/edge.mjs`)
       );
       // Copy source map file for edge.mjs if sourcemaps are enabled
       if (options.sourcemap) {
-        const edgeMapPath = join(cwd, ".react-server/server/edge.mjs.map");
+        const edgeMapPath = join(reactServerDir, "server/edge.mjs.map");
         if (existsSync(edgeMapPath)) {
           await copyFile(
             edgeMapPath,
-            join(outServerDir, ".react-server/server/edge.mjs.map")
+            join(outServerDir, `${reactServerOutDir}/server/edge.mjs.map`)
           );
         }
       }
@@ -103,7 +110,7 @@ export const adapter = createAdapter({
       const entryFile = join(outServerDir, "server.mjs");
       writeFileSync(
         entryFile,
-        `export { default } from "./.react-server/server/edge.mjs";
+        `export { default } from "./${reactServerOutDir}/server/edge.mjs";
 
 export const config = {
   path: "/*",
@@ -125,7 +132,7 @@ export const config = {
       const entryFile = join(outServerDir, "index.mjs");
       writeFileSync(
         entryFile,
-        `export { default } from "./.react-server/server/edge.mjs";
+        `export { default } from "./${reactServerOutDir}/server/edge.mjs";
 
 export const config = {
   path: "/*",

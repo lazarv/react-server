@@ -39,7 +39,7 @@ export const adapter = createAdapter({
   outDir,
   outStaticDir,
   outServerDir,
-  handler: async function ({ adapterOptions, options }) {
+  handler: async function ({ adapterOptions, options, reactServerOutDir }) {
     // Create wrangler.toml configuration
     banner("creating Cloudflare Worker configuration", { emoji: "⚙️" });
 
@@ -62,7 +62,7 @@ export const adapter = createAdapter({
 
     const wranglerConfig = {
       name: appName ?? "react-server-app",
-      main: ".cloudflare/worker/.react-server/server/edge.mjs",
+      main: `.cloudflare/worker/${reactServerOutDir}/server/edge.mjs`,
       compatibility_date:
         adapterOptions?.compatibilityDate ??
         new Date().toISOString().split("T")[0],
@@ -71,7 +71,7 @@ export const adapter = createAdapter({
         ...(adapterOptions?.compatibilityFlags ?? []),
       ],
       find_additional_modules: true,
-      base_dir: ".cloudflare/worker/.react-server",
+      base_dir: `.cloudflare/worker/${reactServerOutDir}`,
       rules: [
         {
           type: "ESModule",

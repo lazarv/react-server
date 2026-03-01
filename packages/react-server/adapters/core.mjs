@@ -535,9 +535,9 @@ export async function getDependencies(adapterFiles, reactServerDir) {
   });
 }
 
-export async function spawnCommand(command, args) {
+export async function spawnCommand(command, args, options) {
   const deploy = spawn(command, args, {
-    cwd,
+    cwd: options?.cwd ?? cwd,
     stdio: "inherit",
   });
   await new Promise((resolve, reject) => {
@@ -726,7 +726,7 @@ export function createAdapter({
           "copying server files",
           await files.server(),
           reactServerDir,
-          join(out ?? outServerDir, ".react-server"),
+          join(out ?? outServerDir, reactServerOutDir),
           reactServerOutDir,
           "🖥️"
         ),
@@ -816,7 +816,9 @@ export function createAdapter({
       const {
         command,
         args,
+        cwd: deployCwd,
         message: deployMessage,
+        afterDeploy,
       } = typeof deploy === "function"
         ? await deploy({ adapterOptions, options, handlerResult })
         : deploy;
@@ -824,7 +826,11 @@ export function createAdapter({
         if (options.deploy) {
           banner(`deploying to ${name}`, { emoji: "🚀" });
           clearProgress();
-          await spawnCommand(command, args);
+          await spawnCommand(command, args, { cwd: deployCwd });
+          if (afterDeploy) {
+            await afterDeploy();
+          }
+          clearProgress();
         } else {
           const deployCmd = `${command} ${args.join(" ")}`;
           const deployLabel = `🚀 Deploy to ${name} using:`;

@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="177" failures="0" errors="0" time="6.815669335">
+    <testsuite name="__test__/basic.spec.mjs" timestamp="2026-03-01T22:52:50.698Z" hostname="runnervmnay03" tests="20" failures="0" errors="0" skipped="19" time="6.815669335">
+        <testcase classname="__test__/basic.spec.mjs" name="hello world" time="1.731526986">
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="random" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="counter" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="html and counter" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="bare client-only counter" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="html and client-only counter" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="inline-jsx-prop server action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="inline-server-action-function server action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="inline-server-action-arrow server action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="inline-server-action-top-level server action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="server-action server action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="call-action-prop server action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="call-action-import server action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="server action state" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="useActionState hook using server action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="style assets" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="style assets with base url" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="suspense client" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="resolve builtin module import" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/basic.spec.mjs" name="navigation location" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/error-boundary.spec.mjs" timestamp="2026-03-01T22:52:50.704Z" hostname="runnervmnay03" tests="2" failures="0" errors="0" skipped="2" time="0">
+        <testcase classname="__test__/error-boundary.spec.mjs" name="error boundary" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/error-boundary.spec.mjs" name="throw error" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/http-compose.spec.mjs" timestamp="2026-03-01T22:52:50.705Z" hostname="runnervmnay03" tests="4" failures="0" errors="0" skipped="4" time="0">
+        <testcase classname="__test__/http-compose.spec.mjs" name="@lazarv/react-server/http smoke &gt; responds with hello" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-compose.spec.mjs" name="@lazarv/react-server/http smoke &gt; falls through when middleware returns undefined and next handles the response" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-compose.spec.mjs" name="@lazarv/react-server/http smoke &gt; returns undefined when no middleware returns a response (full fall-through)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-compose.spec.mjs" name="@lazarv/react-server/http smoke &gt; propagates non-Response values unchanged and does not call next" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/http-context.spec.mjs" timestamp="2026-03-01T22:52:50.706Z" hostname="runnervmnay03" tests="15" failures="0" errors="0" skipped="15" time="0">
+        <testcase classname="__test__/http-context.spec.mjs" name="http context" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http url" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http pathname and searchparams" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http status" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http response" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http response headers" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http response headers append" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http response headers set" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http render lock" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http cookies" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http redirect" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http rewrite" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http response cache" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http response cache search params" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-context.spec.mjs" name="http revalidate" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/http-cors.spec.mjs" timestamp="2026-03-01T22:52:50.710Z" hostname="runnervmnay03" tests="6" failures="0" errors="0" skipped="6" time="0">
+        <testcase classname="__test__/http-cors.spec.mjs" name="@lazarv/react-server/http CORS &gt; sets wildcard allow-origin by default on simple request" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-cors.spec.mjs" name="@lazarv/react-server/http CORS &gt; echoes origin and sets credentials when configured (simple request)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-cors.spec.mjs" name="@lazarv/react-server/http CORS &gt; handles preflight OPTIONS with defaults" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-cors.spec.mjs" name="@lazarv/react-server/http CORS &gt; preflight reflects custom headers/methods, maxAge and exposeHeaders" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-cors.spec.mjs" name="@lazarv/react-server/http CORS &gt; adds expose-headers on simple response when configured" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-cors.spec.mjs" name="@lazarv/react-server/http CORS &gt; OPTIONS without preflight header falls through with 404 and CORS headers" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/http-middleware.spec.mjs" timestamp="2026-03-01T22:52:50.712Z" hostname="runnervmnay03" tests="10" failures="0" errors="0" skipped="10" time="0">
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; uses direct connection info when trustProxy is false" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; honors x-forwarded-* headers when trustProxy is true" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; returns 404 Response when defaultNotFound=true and no next is provided" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; writes 404 directly when defaultNotFound=false and no next is provided" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; delegates to next() when middleware returns undefined and next is provided" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; passes errors to next(err) when the handler throws" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; sets cookies via ctx.setCookie" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; omits body on HEAD requests" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; streams response body using Web Streams" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/http-middleware.spec.mjs" name="@lazarv/react-server/http middleware &gt; supports POST body consumption in handler" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/memory-cache.spec.mjs" timestamp="2026-03-01T22:52:50.714Z" hostname="runnervmnay03" tests="2" failures="0" errors="0" skipped="2" time="0">
+        <testcase classname="__test__/memory-cache.spec.mjs" name="memory cache" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/memory-cache.spec.mjs" name="memory cache with force" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/route-match.spec.mjs" timestamp="2026-03-01T22:52:50.715Z" hostname="runnervmnay03" tests="45" failures="0" errors="0" skipped="45" time="0">
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users against /users" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/profile against /users/profile" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/profile against /users" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users against /users (exact)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users against /users/profile (exact)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/[id] against /users/123" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/[id] against /users" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/[[id]] against /users/123" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/[[id]] against /users" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/[id]/posts/[postId] against /users/123/posts/456" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/[id]/posts/[postId] against /users/123/posts" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /docs/[...slug] against /docs/a/b/c" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /docs/[...slug] against /docs" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /docs/[[...slug]] against /docs/a/b/c" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /docs/[[...slug]] against /docs" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/{[id]} against /users/[id]" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/{[id]} against /users/123" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/{...more} against /users/...more" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /users/[id]-[name] against /users/123-john" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /posts/[year]-[month]-[day] against /posts/2023-05-15 (exact)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[subcategory]]/items/[id]-[slug] against /electronics/smartphones/items/123-iphone-12" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[subcategory]]/items/[id]-[slug] against /electronics/items/123-laptop" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[subcategory1]]/[[subcategory2]]/items/[id]-[slug] against /electronics/items/123-laptop" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[subcategory1]]/[[subcategory2]]/items/[id]-[slug] against /electronics/subcategory1/items/123-laptop" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[subcategory1]]/[[subcategory2]]/items/[id]-[slug] against /electronics/subcategory1/subcategory2/items/123-laptop" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[subcategory1]]/[[subcategory2=category]]/items/[id]-[slug] against /electronics/subcategory1/items/123-laptop" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[subcategory1]]/[[subcategory2=category]]/items/[id]-[slug] against /electronics/subcategory1/category/items/123-laptop" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[subcategory1]]/[[subcategory2=category]]/items/[id]-[slug] against /electronics/subcategory1/subcategory2/items/123-laptop" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match / against /" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...all]] against /" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...all]] against /any/path/here" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...slug]]/end against /end" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...slug]]/end against /a/b/end" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...slug]]/end against /a/b/c/end" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...slug]]/end against /a/b/c/d" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[...subcategories]]/items against /electronics/items" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[...subcategories]]/items against /electronics/laptops/gaming/items" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[category]/[[...subcategories]]/items/[id] against /electronics/laptops/gaming/items/123" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...a]]/b/[[...c]] against /b" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...a]]/b/[[...c]] against /x/y/b" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...a]]/b/[[...c]] against /x/y/b/z" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[...a]]/b/[[...c]] against /b/z" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should match /[[lang]]/[category]/[...slug] against /team" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should return an empty object for fallback routes" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/route-match.spec.mjs" name="useMatch &gt; should return null for non-matching routes" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/router.spec.mjs" timestamp="2026-03-01T22:52:50.726Z" hostname="runnervmnay03" tests="3" failures="0" errors="0" skipped="3" time="0">
+        <testcase classname="__test__/router.spec.mjs" name="router" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/router.spec.mjs" name="router action state" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/router.spec.mjs" name="router match" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/server-function-types.spec.mjs" timestamp="2026-03-01T22:52:50.727Z" hostname="runnervmnay03" tests="12" failures="0" errors="0" skipped="12" time="0">
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type form-data-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type array-buffer-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type buffer-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type array-buffer-view-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type blob-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type text-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type json-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type no-content-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type error-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type reload-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type stream-action" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/server-function-types.spec.mjs" name="server function type iterator-action" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/sourcemap.spec.mjs" timestamp="2026-03-01T22:52:50.729Z" hostname="runnervmnay03" tests="3" failures="0" errors="0" skipped="3" time="0">
+        <testcase classname="__test__/sourcemap.spec.mjs" name="sourcemap support &gt; build with sourcemap emits build-manifest.mjs and .map files" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/sourcemap.spec.mjs" name="sourcemap support &gt; build without sourcemap emits build-manifest.mjs with sourcemap: false" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/sourcemap.spec.mjs" name="sourcemap support &gt; build with server-inline embeds source maps in server bundles only" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/use-cache.spec.mjs" timestamp="2026-03-01T22:52:50.730Z" hostname="runnervmnay03" tests="8" failures="0" errors="0" skipped="8" time="0">
+        <testcase classname="__test__/use-cache.spec.mjs" name="use cache primitive" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/use-cache.spec.mjs" name="use cache element" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/use-cache.spec.mjs" name="use cache invalidate" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/use-cache.spec.mjs" name="use cache concurrency" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/use-cache.spec.mjs" name="use cache dynamic" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/use-cache.spec.mjs" name="use cache browser" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/use-cache.spec.mjs" name="use cache browser component" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/use-cache.spec.mjs" name="rsc serialization" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/chakra-ui.spec.mjs" timestamp="2026-03-01T22:52:50.732Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/chakra-ui.spec.mjs" name="chakra-ui load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/docs.spec.mjs" timestamp="2026-03-01T22:52:50.733Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/docs.spec.mjs" name="docs load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/env.spec.mjs" timestamp="2026-03-01T22:52:50.733Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/env.spec.mjs" name="env load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/express.spec.mjs" timestamp="2026-03-01T22:52:50.734Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/express.spec.mjs" name="express load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/file-router.spec.mjs" timestamp="2026-03-01T22:52:50.734Z" hostname="runnervmnay03" tests="18" failures="0" errors="0" skipped="18" time="0">
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; forms" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; forms-simple" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; form submission" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; not found route" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; external redirect" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; external redirect via API" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; internal redirect" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; internal redirect to not found" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; middleware error handling" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: navigate (server action)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: push (server action)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: location (server action, same-origin)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: location (server action, external)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: error (server action, try/catch)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: push (middleware)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: location (middleware, same-origin)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: location (middleware, external)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/file-router.spec.mjs" name="file-router plugin &gt; redirect kind: error (middleware)" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/mantine.spec.mjs" timestamp="2026-03-01T22:52:50.739Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/mantine.spec.mjs" name="mantine and extensions" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/module-resolution.spec.mjs" timestamp="2026-03-01T22:52:50.739Z" hostname="runnervmnay03" tests="5" failures="0" errors="0" skipped="5" time="0">
+        <testcase classname="__test__/apps/module-resolution.spec.mjs" name="module-resolution example &gt; iron-session loads" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/module-resolution.spec.mjs" name="module-resolution example &gt; shiki loads" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/module-resolution.spec.mjs" name="module-resolution example &gt; react-modal loads" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/module-resolution.spec.mjs" name="module-resolution example &gt; interweave loads" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/module-resolution.spec.mjs" name="module-resolution example &gt; react-feather loads" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/mui.spec.mjs" timestamp="2026-03-01T22:52:50.741Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/mui.spec.mjs" name="mui load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/photos.spec.mjs" timestamp="2026-03-01T22:52:50.741Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/photos.spec.mjs" name="photos load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/pokemon.spec.mjs" timestamp="2026-03-01T22:52:50.741Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/pokemon.spec.mjs" name="pokemon load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/react-markdown.spec.mjs" timestamp="2026-03-01T22:52:50.742Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/react-markdown.spec.mjs" name="react-markdown load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/react-modal.spec.mjs" timestamp="2026-03-01T22:52:50.742Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/react-modal.spec.mjs" name="react-modal load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/react-query.spec.mjs" timestamp="2026-03-01T22:52:50.743Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/react-query.spec.mjs" name="react-query load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/react-router.spec.mjs" timestamp="2026-03-01T22:52:50.743Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/react-router.spec.mjs" name="react-router load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/react-syntax-highlighter.spec.mjs" timestamp="2026-03-01T22:52:50.743Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/react-syntax-highlighter.spec.mjs" name="react-syntax-highlighter load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/react-three.spec.mjs" timestamp="2026-03-01T22:52:50.744Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/react-three.spec.mjs" name="react-three load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/session-cookie.spec.mjs" timestamp="2026-03-01T22:52:50.744Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/session-cookie.spec.mjs" name="session cookie" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/spa.spec.mjs" timestamp="2026-03-01T22:52:50.745Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/spa.spec.mjs" name="single-page application load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/tanstack-router.spec.mjs" timestamp="2026-03-01T22:52:50.745Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/tanstack-router.spec.mjs" name="tanstack-router load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/todo.spec.mjs" timestamp="2026-03-01T22:52:50.745Z" hostname="runnervmnay03" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="__test__/apps/todo.spec.mjs" name="todo load" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="__test__/apps/use-worker.spec.mjs" timestamp="2026-03-01T22:52:50.746Z" hostname="runnervmnay03" tests="6" failures="0" errors="0" skipped="6" time="0">
+        <testcase classname="__test__/apps/use-worker.spec.mjs" name="use worker &gt; renders page with header" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/use-worker.spec.mjs" name="use worker &gt; renders worker stats via Suspense" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/use-worker.spec.mjs" name="use worker &gt; computes prime numbers in worker" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/use-worker.spec.mjs" name="use worker &gt; displays worker module import info" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/use-worker.spec.mjs" name="use worker &gt; streams activity data from worker" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="__test__/apps/use-worker.spec.mjs" name="use worker &gt; terminate worker and page recovers" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+</testsuites>

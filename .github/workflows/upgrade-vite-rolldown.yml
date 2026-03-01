@@ -233,7 +233,6 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          sign-commits: true
           commit-message: "${{ steps.desc.outputs.title }}"
           title: "${{ steps.desc.outputs.title }}"
           body: "${{ steps.desc.outputs.body }}"

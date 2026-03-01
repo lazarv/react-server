@@ -128,7 +128,6 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          sign-commits: true
           commit-message: "chore: upgrade React experimental to ${{ steps.latest.outputs.version }}"
           title: "chore: upgrade React experimental to ${{ steps.latest.outputs.version }}"
           body: |

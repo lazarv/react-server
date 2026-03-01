@@ -1,0 +1,150 @@
+name: Upgrade React Experimental ⚛️
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+env:
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upgrade-react-experimental
+  cancel-in-progress: true
+
+jobs:
+  upgrade-react:
+    name: Upgrade React to latest experimental
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for existing open PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN=$(gh pr list --head chore/upgrade-react-experimental --state open --json number --jq 'length')
+          if [ "$OPEN" -gt 0 ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "An open upgrade PR already exists, skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get current React version
+        if: steps.pr.outputs.exists == 'false'
+        id: current
+        run: |
+          CURRENT=$(jq -r '.dependencies.react' packages/react-server/package.json)
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Current React experimental version: $CURRENT"
+
+      - name: Get latest React experimental version
+        if: steps.pr.outputs.exists == 'false'
+        id: latest
+        run: |
+          LATEST=$(npm view react@experimental version)
+          echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "Latest React experimental version: $LATEST"
+
+      - name: Check if upgrade is needed
+        if: steps.pr.outputs.exists == 'false'
+        id: check
+        run: |
+          if [ "${{ steps.current.outputs.version }}" = "${{ steps.latest.outputs.version }}" ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "Already on latest experimental version, skipping."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "Upgrade needed: ${{ steps.current.outputs.version }} → ${{ steps.latest.outputs.version }}"
+          fi
+
+      - name: Install pnpm
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        uses: pnpm/action-setup@v4.0.0
+
+      - name: Setup Node
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Replace React versions in package.json files and docs
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        run: |
+          OLD="${{ steps.current.outputs.version }}"
+          NEW="${{ steps.latest.outputs.version }}"
+          echo "Replacing $OLD → $NEW..."
+
+          # Find all package.json files (exclude node_modules and packages/rsc)
+          find . -name 'package.json' -not -path '*/node_modules/*' -not -path './packages/rsc/*' | while read -r file; do
+            if grep -q "$OLD" "$file"; then
+              echo "  Updating: $file"
+              sed -i "s|$OLD|$NEW|g" "$file"
+            fi
+          done
+
+          # Also update docs (micro-frontends MDX files reference esm.sh URLs with the version)
+          find ./docs -name '*.mdx' | while read -r file; do
+            if grep -q "$OLD" "$file"; then
+              echo "  Updating: $file"
+              sed -i "s|$OLD|$NEW|g" "$file"
+            fi
+          done
+
+          echo "Done replacing React versions."
+
+      - name: Install deps
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        run: pnpm install --no-frozen-lockfile
+
+      - uses: ./.github/workflows/actions/common-playwright
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+
+      - name: Smoke test (dev mode — hello world)
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        working-directory: ./test
+        run: pnpm test-dev -t "hello world"
+
+      - name: Smoke test (build+start mode — hello world)
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        working-directory: ./test
+        run: pnpm test-build-start -t "hello world"
+
+      - name: Clean up test artifacts
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        run: rm -rf test/test-results test/junit.xml
+
+      - name: Create Pull Request
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: upgrade React experimental to ${{ steps.latest.outputs.version }}"
+          title: "chore: upgrade React experimental to ${{ steps.latest.outputs.version }}"
+          body: |
+            Automated daily upgrade of React packages to the latest experimental version.
+
+            **Previous version:** `${{ steps.current.outputs.version }}`
+            **New version:** `${{ steps.latest.outputs.version }}`
+
+            ### Updated locations
+            - `packages/react-server/package.json` — `react`, `react-dom`, `react-is`, `react-server-dom-webpack`
+            - `package.json` — all `pnpm.overrides` for React
+            - `docs/` — micro-frontends MDX (en + ja) esm.sh URLs
+            - `pnpm-lock.yaml`
+
+            ### Smoke test
+            - Dev mode — `hello world` test passed ✅
+            - Build+start mode — `hello world` test passed ✅
+          branch: chore/upgrade-react-experimental
+          delete-branch: true
+          labels: dependencies

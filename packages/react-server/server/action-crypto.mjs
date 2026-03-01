@@ -44,10 +44,10 @@ async function loadSecretFile(filePath) {
  *
  * Must be called **once** at server startup (not per-render). Resolution order:
  *
- * 1. `REACT_SERVER_ACTIONS_SECRET` environment variable
- * 2. `REACT_SERVER_ACTIONS_SECRET_FILE` env var (path to .pem)
- * 3. `serverActions.secret` in react-server config
- * 4. `serverActions.secretFile` in react-server config (path to .pem)
+ * 1. `REACT_SERVER_FUNCTIONS_SECRET` environment variable
+ * 2. `REACT_SERVER_FUNCTIONS_SECRET_FILE` env var (path to .pem)
+ * 3. `serverFunctions.secret` in react-server config
+ * 4. `serverFunctions.secretFile` in react-server config (path to .pem)
  * 5. Fallback: generate a random ephemeral key (dev mode)
  *
  * In production the build artifact is loaded separately via `initSecret()`
@@ -64,7 +64,7 @@ export async function initSecretFromConfig(config) {
   // 1. Env var — direct secret
   const envSecret =
     typeof process !== "undefined"
-      ? process.env?.REACT_SERVER_ACTIONS_SECRET
+      ? process.env?.REACT_SERVER_FUNCTIONS_SECRET
       : undefined;
   if (envSecret) {
     resolvedKey = deriveKey(envSecret);
@@ -76,7 +76,7 @@ export async function initSecretFromConfig(config) {
   if (!secretSet) {
     const envFile =
       typeof process !== "undefined"
-        ? process.env?.REACT_SERVER_ACTIONS_SECRET_FILE
+        ? process.env?.REACT_SERVER_FUNCTIONS_SECRET_FILE
         : undefined;
     if (envFile) {
       resolvedKey = await loadSecretFile(envFile);
@@ -87,7 +87,7 @@ export async function initSecretFromConfig(config) {
 
   // 3. Config — direct secret
   if (!secretSet) {
-    const configSecret = config?.serverActions?.secret;
+    const configSecret = config?.serverFunctions?.secret;
     if (configSecret) {
       resolvedKey = deriveKey(configSecret);
       globalThis.__react_server_action_key__ = resolvedKey;
@@ -97,7 +97,7 @@ export async function initSecretFromConfig(config) {
 
   // 4. Config — secret file
   if (!secretSet) {
-    const configFile = config?.serverActions?.secretFile;
+    const configFile = config?.serverFunctions?.secretFile;
     if (configFile) {
       resolvedKey = await loadSecretFile(configFile);
       globalThis.__react_server_action_key__ = resolvedKey;
@@ -109,8 +109,8 @@ export async function initSecretFromConfig(config) {
   // In dev mode getKey() will lazily generate an ephemeral key.
 
   // --- Previous keys for rotation ---
-  const prevSecrets = config?.serverActions?.previousSecrets;
-  const prevFiles = config?.serverActions?.previousSecretFiles;
+  const prevSecrets = config?.serverFunctions?.previousSecrets;
+  const prevFiles = config?.serverFunctions?.previousSecretFiles;
   const prev = [];
   if (Array.isArray(prevSecrets)) {
     for (const s of prevSecrets) {
@@ -193,7 +193,7 @@ function getPreviousKeys() {
 }
 
 /**
- * Encrypt a server action ID using AES-256-GCM with a random IV.
+ * Encrypt a server function ID using AES-256-GCM with a random IV.
  *
  * Each call produces a unique token because the IV is randomly generated.
  * This means every render produces fresh, unique action tokens.

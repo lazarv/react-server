@@ -88,7 +88,7 @@ export async function init$(options = {}) {
       initSecret(actionSecret);
     }
   } catch {
-    // action-secret may not exist for builds without server actions
+    // action-secret may not exist for builds without server functions
   }
 
   // Resolve the action encryption secret from env vars / config / .pem file.

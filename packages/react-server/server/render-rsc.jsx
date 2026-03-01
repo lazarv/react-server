@@ -165,22 +165,11 @@ export async function render(Component, props = {}, options = {}) {
 
               // Verify the action exists in the server reference map.
               // When the ID was encrypted but decryption failed (invalid /
-              // tampered token) AND the raw header is also unknown, return
-              // a 403 Forbidden response immediately.
+              // tampered token) AND the raw header is also unknown, throw
+              // so RSC can propagate the error to the client.
               const serverReference = serverReferenceMap[resolvedActionId];
               if (!serverReference) {
-                return resolve(
-                  new Response(
-                    JSON.stringify({
-                      error: "Server action not found or access denied",
-                    }),
-                    {
-                      status: 403,
-                      statusText: "Forbidden",
-                      headers: { "Content-Type": "application/json" },
-                    }
-                  )
-                );
+                throw new ServerFunctionNotFoundError();
               }
 
               action = async () => {

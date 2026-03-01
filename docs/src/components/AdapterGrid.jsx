@@ -77,7 +77,10 @@ const adapters = [
   {
     name: "Docker",
     href: "/deploy/docker",
-    description: "Containerized Node.js server",
+    description: {
+      en: "Containerized Node.js server",
+      ja: "コンテナ化された Node.js サーバー",
+    },
   },
 ];
 

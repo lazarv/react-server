@@ -30,3 +30,5 @@ samconfig.toml
 *.log
 .eslintcache
 .npm-cache
+junit.xml
+test-results

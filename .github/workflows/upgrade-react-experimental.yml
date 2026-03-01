@@ -1,10 +1,6 @@
 name: Upgrade React Experimental ⚛️
 
 on:
-  # TODO: remove push trigger before merging
-  push:
-    branches:
-      - chore/auto-upgrade
   schedule:
     # Run daily at 06:00 UTC
     - cron: "0 6 * * *"
@@ -122,6 +118,10 @@ jobs:
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
         working-directory: ./test
         run: pnpm test-build-start -t "hello world"
+
+      - name: Clean up test artifacts
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        run: rm -rf test/test-results test/junit.xml
 
       - name: Create Pull Request
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'

@@ -1,10 +1,6 @@
 name: Upgrade Vite & Rolldown 📦
 
 on:
-  # TODO: remove push trigger before merging
-  push:
-    branches:
-      - chore/auto-upgrade
   schedule:
     # Run daily at 07:00 UTC (staggered from React upgrade)
     - cron: "0 7 * * *"
@@ -48,10 +44,14 @@ jobs:
         run: |
           VITE=$(jq -r '.dependencies.vite' packages/react-server/package.json)
           ROLLDOWN=$(jq -r '.dependencies.rolldown' packages/react-server/package.json)
+          # Strip ^ prefix from vitest version
+          VITEST=$(jq -r '.devDependencies.vitest' test/package.json | sed 's/^\^//')
           echo "vite=$VITE" >> "$GITHUB_OUTPUT"
           echo "rolldown=$ROLLDOWN" >> "$GITHUB_OUTPUT"
+          echo "vitest=$VITEST" >> "$GITHUB_OUTPUT"
           echo "Current Vite: $VITE"
           echo "Current Rolldown: $ROLLDOWN"
+          echo "Current Vitest: $VITEST"
 
       - name: Get latest versions from npm
         if: steps.pr.outputs.exists == 'false'
@@ -105,10 +105,36 @@ jobs:
             ROLLDOWN="${ROLLDOWN_RC:-$ROLLDOWN_LATEST}"
           fi
 
+          # For Vitest, check both latest and beta tags (same as Vite)
+          VITEST_LATEST=$(npm view vitest@latest version 2>/dev/null || echo "")
+          VITEST_BETA=$(npm view vitest@beta version 2>/dev/null || echo "")
+
+          VITEST=$(node -e "
+            const latest = '$VITEST_LATEST';
+            const beta = '$VITEST_BETA';
+            if (!latest && !beta) { process.exit(1); }
+            if (!beta) { console.log(latest); process.exit(0); }
+            if (!latest) { console.log(beta); process.exit(0); }
+            const lParts = latest.replace(/-.*$/, '').split('.').map(Number);
+            const bParts = beta.replace(/-.*$/, '').split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (bParts[i] > lParts[i]) { console.log(beta); process.exit(0); }
+              if (bParts[i] < lParts[i]) { console.log(latest); process.exit(0); }
+            }
+            // Same base version — prefer stable
+            console.log(latest);
+          ")
+
+          if [ -z "$VITEST" ]; then
+            VITEST="${VITEST_BETA:-$VITEST_LATEST}"
+          fi
+
           echo "vite=$VITE" >> "$GITHUB_OUTPUT"
           echo "rolldown=$ROLLDOWN" >> "$GITHUB_OUTPUT"
+          echo "vitest=$VITEST" >> "$GITHUB_OUTPUT"
           echo "Latest Vite: $VITE"
           echo "Latest Rolldown: $ROLLDOWN"
+          echo "Latest Vitest: $VITEST"
 
       - name: Check if upgrade is needed
         if: steps.pr.outputs.exists == 'false'
@@ -116,21 +142,26 @@ jobs:
         run: |
           VITE_CHANGED="false"
           ROLLDOWN_CHANGED="false"
+          VITEST_CHANGED="false"
           if [ "${{ steps.current.outputs.vite }}" != "${{ steps.latest.outputs.vite }}" ]; then
             VITE_CHANGED="true"
           fi
           if [ "${{ steps.current.outputs.rolldown }}" != "${{ steps.latest.outputs.rolldown }}" ]; then
             ROLLDOWN_CHANGED="true"
           fi
+          if [ "${{ steps.current.outputs.vitest }}" != "${{ steps.latest.outputs.vitest }}" ]; then
+            VITEST_CHANGED="true"
+          fi
 
-          if [ "$VITE_CHANGED" = "false" ] && [ "$ROLLDOWN_CHANGED" = "false" ]; then
+          if [ "$VITE_CHANGED" = "false" ] && [ "$ROLLDOWN_CHANGED" = "false" ] && [ "$VITEST_CHANGED" = "false" ]; then
             echo "needed=false" >> "$GITHUB_OUTPUT"
             echo "Already on latest versions, skipping."
           else
             echo "needed=true" >> "$GITHUB_OUTPUT"
             echo "vite_changed=$VITE_CHANGED" >> "$GITHUB_OUTPUT"
             echo "rolldown_changed=$ROLLDOWN_CHANGED" >> "$GITHUB_OUTPUT"
-            echo "Upgrade needed — Vite changed: $VITE_CHANGED, Rolldown changed: $ROLLDOWN_CHANGED"
+            echo "vitest_changed=$VITEST_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "Upgrade needed — Vite changed: $VITE_CHANGED, Rolldown changed: $ROLLDOWN_CHANGED, Vitest changed: $VITEST_CHANGED"
           fi
 
       - name: Install pnpm
@@ -176,6 +207,22 @@ jobs:
 
           echo "Done replacing Rolldown versions."
 
+      - name: Replace Vitest version in all package.json files
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true' && steps.check.outputs.vitest_changed == 'true'
+        run: |
+          OLD="${{ steps.current.outputs.vitest }}"
+          NEW="${{ steps.latest.outputs.vitest }}"
+          echo "Replacing Vitest $OLD → $NEW in all package.json files..."
+
+          find . -name 'package.json' -not -path '*/node_modules/*' | while read -r file; do
+            if grep -q "$OLD" "$file"; then
+              echo "  Updating: $file"
+              sed -i "s|$OLD|$NEW|g" "$file"
+            fi
+          done
+
+          echo "Done replacing Vitest versions."
+
       - name: Install deps
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
         run: pnpm install --no-frozen-lockfile
@@ -192,6 +239,10 @@ jobs:
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
         working-directory: ./test
         run: pnpm test-build-start -t "hello world"
+
+      - name: Clean up test artifacts
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        run: rm -rf test/test-results test/junit.xml
 
       - name: Build PR description
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
@@ -212,10 +263,20 @@ jobs:
             fi
             BODY+="**Rolldown:** \`${{ steps.current.outputs.rolldown }}\` → \`${{ steps.latest.outputs.rolldown }}\`\n"
           fi
+          if [ "${{ steps.check.outputs.vitest_changed }}" = "true" ]; then
+            if [ -n "$TITLE" ]; then
+              TITLE="$TITLE, Vitest ${{ steps.current.outputs.vitest }} → ${{ steps.latest.outputs.vitest }}"
+            else
+              TITLE="Vitest ${{ steps.current.outputs.vitest }} → ${{ steps.latest.outputs.vitest }}"
+            fi
+            BODY+="**Vitest:** \`${{ steps.current.outputs.vitest }}\` → \`${{ steps.latest.outputs.vitest }}\`\n"
+          fi
 
           BODY+="\n### Updated locations\n"
           BODY+="- \`packages/react-server/package.json\` — \`vite\`, \`rolldown\`\n"
-          BODY+="- \`test/package.json\` — \`vite\`, \`rolldown\`\n"
+          BODY+="- \`test/package.json\` — \`vite\`, \`rolldown\`, \`vitest\`, \`@vitest/ui\`\n"
+          BODY+="- \`packages/rsc/package.json\` — \`vitest\`, \`@vitest/*\`\n"
+          BODY+="- \`packages/create-react-server/test/package.json\` — \`vitest\`\n"
           BODY+="- \`package.json\` — all \`pnpm.overrides\` for Vite\n"
           BODY+="- \`pnpm-lock.yaml\`\n"
           BODY+="\n### Smoke test\n- Dev mode — \`hello world\` test passed ✅\n- Build+start mode — \`hello world\` test passed ✅"

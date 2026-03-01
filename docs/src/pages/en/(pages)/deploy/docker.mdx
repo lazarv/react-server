@@ -1,0 +1,185 @@
+---
+title: Docker
+category: Deploy
+order: 8
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Docker
+
+To deploy with Docker, use the built-in `docker` adapter. This adapter creates a production-ready Docker image running your application on Node.js with proper signal handling, static file serving, and a minimal Alpine-based image.
+
+<Link name="prerequisites">
+## Prerequisites
+</Link>
+
+You need [Docker](https://docs.docker.com/get-docker/) installed on your machine.
+
+```sh
+docker --version
+```
+
+<Link name="installation">
+## Installation
+</Link>
+
+No additional packages are needed — the adapter is built into `@lazarv/react-server`.
+
+Add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "docker",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "docker",
+    {
+      name: "my-app",            // Application name (default: from package.json)
+      tag: "my-app:v1.0",       // Docker image tag (default: "<name>:latest")
+      port: 8080,               // Port to expose (default: 3000)
+      nodeVersion: "22-alpine", // Node.js Docker image tag (default: "20-alpine")
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `name`: Application name used for the Docker image. Falls back to `package.json` name (without scope) or `"react-server-app"`.
+- `tag`: Docker image tag used when building. Defaults to `"<name>:latest"`.
+- `port`: Port the server listens on inside the container. Defaults to `3000`.
+- `nodeVersion`: Node.js Docker image tag. Defaults to `"20-alpine"`. Use Alpine variants for smaller images.
+
+<Link name="build-and-deploy">
+## Build and Deploy
+</Link>
+
+Build your application and create the Docker image in one step:
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+This will:
+1. Build your application
+2. Trace and copy all server dependencies using `@vercel/nft`
+3. Generate a `Dockerfile`, `.dockerignore`, and `package.json` in the `.docker/` output directory
+4. Build the Docker image
+
+You can also build and deploy separately:
+
+```sh
+# Build the application
+pnpm react-server build [root]
+
+# Build the Docker image manually
+docker build -t my-app:latest .docker
+```
+
+Then run the container:
+
+```sh
+docker run -p 3000:3000 my-app:latest
+```
+
+<Link name="environment-variables">
+## Environment Variables
+</Link>
+
+The following environment variables are set in the generated Dockerfile:
+
+- `NODE_ENV=production` — ensures React uses production bundles
+- `PORT` — the port the server listens on (default: `3000`)
+
+You can pass additional environment variables at runtime:
+
+```sh
+docker run -p 3000:3000 -e MY_API_KEY=secret my-app:latest
+```
+
+Or override the port:
+
+```sh
+docker run -p 8080:8080 -e PORT=8080 my-app:latest
+```
+
+If you build with `--sourcemap`, the Dockerfile will also set `NODE_OPTIONS="--enable-source-maps"`.
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The adapter:
+
+1. Copies a custom Node.js HTTP server entry that serves static files and delegates to `@lazarv/react-server/node` for SSR
+2. Uses `@vercel/nft` to trace all required `node_modules` dependencies — only the files your app actually needs are copied into the image
+3. Copies static assets (JS, CSS, images) and server build output (RSC payloads, server components)
+4. Generates a single-stage Dockerfile based on `node:<version>-alpine`
+5. Uses [tini](https://github.com/krallin/tini) as the init process for proper signal handling (graceful shutdown on `SIGTERM`/`SIGINT`)
+6. Runs as a non-root `nodejs` user for security
+
+### Output structure
+
+```
+.docker/
+├── Dockerfile
+├── .dockerignore
+├── package.json
+├── server/
+│   ├── index.mjs              # Server entry point
+│   ├── .react-server/         # Build output (RSC, server components)
+│   └── node_modules/          # Traced dependencies only
+└── static/                    # Static assets (JS, CSS, images)
+```
+
+<Link name="docker-compose">
+## Docker Compose
+</Link>
+
+You can use the generated `.docker/` directory with Docker Compose:
+
+```yaml
+services:
+  app:
+    build:
+      context: .docker
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+```
+
+<Link name="troubleshooting">
+## Troubleshooting
+</Link>
+
+### Missing modules at runtime
+
+The adapter uses `@vercel/nft` to trace dependencies. If a module is loaded dynamically (e.g., via `createRequire()`) it may not be detected. Check the container logs for `MODULE_NOT_FOUND` errors and ensure the required packages are listed in your `package.json` dependencies.
+
+### Container doesn't stop with Ctrl+C
+
+The generated Dockerfile uses `tini` as the init process. If you're running `docker run` without `-it`, signals may not be forwarded. Use:
+
+```sh
+docker run -it -p 3000:3000 my-app:latest
+```
+
+### Port conflicts
+
+If port 3000 is already in use, map to a different host port:
+
+```sh
+docker run -p 8080:3000 my-app:latest
+```

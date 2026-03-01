@@ -39,6 +39,11 @@ const adapters = [
     href: "/deploy/azure-swa",
     description: "Managed functions & CDN",
   },
+  {
+    name: "Docker",
+    href: "/deploy/docker",
+    description: "Containerized Node.js server",
+  },
 ];
 
 export default function AdapterGrid() {

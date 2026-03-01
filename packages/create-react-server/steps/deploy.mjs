@@ -68,7 +68,6 @@ export default async (context) => {
                   name: "AWS",
                   value: "aws",
                   description: "Deploy to AWS Lambda",
-                  disabled: "(coming soon)",
                 },
               ],
               theme,
@@ -88,6 +87,7 @@ export default async (context) => {
     "azure-swa": "Azure Static Web Apps",
     bun: "Bun",
     deno: "Deno",
+    aws: "AWS Lambda",
   };
   const adapterIgnore = {
     vercel: [".vercel", "vercel.json"],
@@ -97,6 +97,7 @@ export default async (context) => {
     "azure-swa": [".azure-swa", "staticwebapp.config.json"],
     bun: [".bun"],
     deno: [".deno"],
+    aws: [".aws", "template.json", "samconfig.toml"],
   };
 
   if (adapter in adapterIgnore) {

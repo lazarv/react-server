@@ -130,6 +130,10 @@
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/vercel/index.mjs"
     },
+    "./adapters/aws": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/aws/index.mjs"
+    },
     "./adapters/azure": {
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/azure/index.mjs"

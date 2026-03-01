@@ -17,6 +17,9 @@ deno.lock
 .azure-swa
 .bun
 .deno
+.aws
+template.json
+samconfig.toml
 *.pem
 *.sqlite
 *.log

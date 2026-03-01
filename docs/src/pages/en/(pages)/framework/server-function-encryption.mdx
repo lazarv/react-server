@@ -18,7 +18,7 @@ Without encryption, server function identifiers are plain-text strings that reve
 
 There are two types of server function tokens:
 
-**Per-render tokens** are generated each time a server component renders. Every render produces unique, unpredictable tokens because each encryption uses a random initialization vector. These tokens are embedded in the RSC stream and are used for inline server functions and server functions passed as props to client components.
+**Inline tokens** are generated when a server function reference is first used. The encrypted token is cached on the function instance so that React's internal form state matching (e.g. `useActionState`) works correctly. Inline server functions and server functions passed as props to client components use these tokens, which are embedded in the RSC stream.
 
 **Static tokens** are generated at build time (or Vite transform time in development) for server function modules — files with `"use server"` at the top level. These tokens are embedded in the client JavaScript bundle and are used when client components import server functions directly.
 
@@ -139,7 +139,7 @@ The encryption provides the following security properties:
 
 - **Server function hiding** — clients cannot discover server function file paths or names from the encrypted tokens.
 - **Capability protection** — clients can only invoke server functions that the server explicitly exposed during rendering or bundled into the client code. They cannot forge tokens for arbitrary server functions.
-- **Per-render uniqueness** — inline server function tokens are unique per render due to random initialization vectors, making them unpredictable across different renders of the same component.
+- **Token uniqueness** — each server function reference receives a unique encrypted token (random initialization vector), making tokens unpredictable.
 - **Key rotation** — secrets can be rotated at runtime without downtime or rebuilds by using the `previousSecrets` configuration.
 
 > Encryption protects _which_ server functions are callable. It does not validate the _arguments_ passed to those functions. Always validate and sanitize inputs inside your server functions.

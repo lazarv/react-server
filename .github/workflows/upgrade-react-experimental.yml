@@ -70,6 +70,17 @@ jobs:
             echo "Upgrade needed: ${{ steps.current.outputs.version }} → ${{ steps.latest.outputs.version }}"
           fi
 
+      - name: Install pnpm
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        uses: pnpm/action-setup@v4.0.0
+
+      - name: Setup Node
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
       - name: Replace React versions in package.json files and docs
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
         run: |
@@ -95,8 +106,10 @@ jobs:
 
           echo "Done replacing React versions."
 
-      - uses: ./.github/workflows/actions/common-setup
+      - name: Install deps
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        run: pnpm install --no-frozen-lockfile
+
       - uses: ./.github/workflows/actions/common-playwright
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
 

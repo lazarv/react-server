@@ -25,10 +25,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Check for existing open PR
         id: pr
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           OPEN=$(gh pr list --head chore/upgrade-react-experimental --state open --json number --jq 'length')
           if [ "$OPEN" -gt 0 ]; then
@@ -127,7 +134,7 @@ jobs:
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           commit-message: "chore: upgrade React experimental to ${{ steps.latest.outputs.version }}"
           title: "chore: upgrade React experimental to ${{ steps.latest.outputs.version }}"
           body: |

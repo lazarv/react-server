@@ -19,8 +19,8 @@ export default {
           origin:
             env.ORIGIN ||
             `${new URL(request.url).protocol}//${new URL(request.url).host}`,
-          // Use "." because we're already inside the .react-server directory structure
-          // (base_dir in wrangler.toml points to .cloudflare/worker/.react-server)
+          // Use "." because we're already inside the react-server output directory structure
+          // (base_dir in wrangler.toml points to .cloudflare/worker/<reactServerOutDir>)
           outDir: ".",
         });
       }

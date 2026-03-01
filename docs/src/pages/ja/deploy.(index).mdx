@@ -1,9 +1,13 @@
 # デプロイ
 
+import AdapterGrid from "../../components/AdapterGrid.jsx";
+
 アプリが完成したら、それをウェブ上にデプロイできます。フレームワークには、アプリをさまざまなプラットフォームにデプロイするためのアダプタが用意されています。 また、フレームワークの組み込みサーバを使用すれば、Node.jsを使って自分のサーバにアプリをデプロイすることもできます。
 
 [adapters](/deploy/adapters) を使用して、さまざまなデプロイ環境向けにアプリを構成する方法を学びます。
 
-また、利用可能なビルトインアダプタを使用して、アプリをさまざまなプラットフォームにデプロイする方法を学ぶこともできます。フレームワークでは [Vercel](/deploy/vercel)、[Netlify](/deploy/netlify)、[Cloudflare](/deploy/cloudflare)、[AWS Lambda](/deploy/aws)、[Bun](/deploy/bun)、[Deno](/deploy/deno) のアダプタを提供しています。
+## 利用可能なアダプタ
+
+<AdapterGrid />
 
 デプロイメント アダプタの実装方法については [Adapter API](/deploy/api) セクションを参照してください。

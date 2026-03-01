@@ -13,6 +13,8 @@ netlify
 netlify.toml
 !packages/react-server/adapters/netlify
 deno.lock
+.azure
+.azure-swa
 .bun
 .deno
 .aws

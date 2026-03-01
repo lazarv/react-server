@@ -1,0 +1,229 @@
+---
+title: Azure
+category: Deploy
+order: 6
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Azure Functions
+
+To deploy to Azure Functions, use the built-in `azure` adapter. This adapter uses the Azure Functions v4 programming model with full response streaming support.
+
+<Link name="installation">
+## Installation
+</Link>
+
+You need the following tools installed:
+
+- [Azure CLI](https://aka.ms/install-azure-cli) (`az`)
+- [Azure Functions Core Tools v4](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-tools?tabs=v4) (`func`)
+
+```sh
+# Install Azure Functions Core Tools
+npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
+# Install Azure CLI (macOS)
+brew install azure-cli
+
+# Login to Azure
+az login
+```
+
+No additional packages are needed — the adapter is built into `@lazarv/react-server`.
+
+Add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "azure",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "azure",
+    {
+      appName: "my-app",           // Azure Function App name
+      resourceGroup: "my-rg",      // Azure resource group
+      location: "westus2",         // Azure region
+      storageName: "myappstorage", // Storage account name
+      host: {},                    // Extra host.json properties
+      env: {                       // Extra environment variables
+        MY_API_KEY: "value",
+      },
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `appName`: Azure Function App name. Falls back to `package.json` name (without scope prefix). This must be globally unique across all of Azure.
+- `resourceGroup`: Azure resource group name (default: `<appName>-rg`).
+- `location`: Azure region for new resources (default: `"eastus"`). Only used when provisioning new resources.
+- `storageName`: Azure Storage account name (default: derived from appName, lowercase alphanumeric only, max 24 characters).
+- `host`: Additional properties to merge into the generated `host.json`.
+- `env`: Additional environment variables to include in `local.settings.json`.
+
+<Link name="deploy">
+## Deploy
+</Link>
+
+Build and deploy in one step:
+
+```sh
+pnpm react-server build --deploy
+```
+
+Or build first and deploy manually:
+
+```sh
+# Build
+pnpm react-server build
+
+# Deploy using Azure Functions Core Tools
+func azure functionapp publish <app-name> --javascript
+```
+
+> **Note:** When deploying manually with `func`, you must run the command from the `.azure/` output directory.
+
+<Link name="provisioning">
+## Automatic Provisioning
+</Link>
+
+When you deploy with `--deploy`, the adapter automatically provisions all required Azure resources using a [Bicep](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview) template:
+
+- **Resource Group** — created if it doesn't exist
+- **Storage Account** — Standard_LRS, HTTPS-only
+- **Consumption Plan** — Y1 Dynamic tier (Linux), pay-per-execution
+- **Function App** — Node.js 20, Functions v4 runtime
+
+If the Function App already exists (in any resource group), provisioning is skipped entirely. The adapter searches across all resource groups in your subscription to find existing apps.
+
+The generated `main.bicep` template is written to the `.azure/` directory. You can inspect or customize it before deploying manually with:
+
+```sh
+az deployment group create \
+  --resource-group <resource-group> \
+  --template-file .azure/main.bicep \
+  --parameters appName=<app-name> storageName=<storage-name> location=<region>
+```
+
+<Link name="streaming">
+## Response Streaming
+</Link>
+
+This adapter fully supports response streaming. React Server Components, Suspense boundaries, and progressive HTML delivery all work out of the box. The Azure Functions v4 programming model's `app.http()` handler supports returning `ReadableStream` bodies, enabling true streaming without buffering.
+
+This is a key advantage over Azure Static Web Apps, which buffers all responses.
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The adapter uses an **edge build** mode, bundling your entire server into a single file. At build time, it:
+
+1. Bundles your server into `.azure/server/.react-server/server/edge.mjs`
+2. Copies all static assets into `.azure/static/`
+3. Generates a thin `src/functions/server.mjs` wrapper that:
+   - Imports `@azure/functions` (kept external — required by the Azure runtime)
+   - Registers an HTTP trigger via `app.http()` matching all methods and paths
+   - Serves static files from a build-time route map using `readFileSync()`
+   - Delegates dynamic requests to the bundled edge handler
+4. Generates `host.json`, `package.json`, `local.settings.json`, and `main.bicep`
+5. Runs `npm install` in `.azure/` to install `@azure/functions`
+
+> **Important:** The `@azure/functions` package cannot be bundled into the edge build. The Azure Functions runtime provides its own instance of this module and uses it to discover registered HTTP triggers. Bundling it would cause the runtime to see zero registered functions.
+
+<Link name="local-development">
+## Local Development
+</Link>
+
+After building, you can test locally using Azure Functions Core Tools:
+
+```sh
+cd .azure
+func start
+```
+
+The generated `local.settings.json` configures the local runtime. If you built with `--sourcemap`, Node.js source maps are also enabled via `NODE_OPTIONS`.
+
+<Link name="output-structure">
+## Output Structure
+</Link>
+
+```
+.azure/
+├── host.json                 # Azure Functions host configuration
+├── local.settings.json       # Local development settings
+├── main.bicep                # Bicep IaC template for provisioning
+├── package.json              # Dependencies (@azure/functions)
+├── node_modules/             # Installed dependencies
+├── server/
+│   └── .react-server/        # Bundled server (edge.mjs, manifests)
+├── src/
+│   └── functions/
+│       └── server.mjs        # Azure Functions v4 HTTP trigger wrapper
+└── static/                   # Static assets (HTML, CSS, JS, images)
+```
+
+<Link name="troubleshooting">
+## Troubleshooting
+</Link>
+
+### "SubscriptionIsOverQuotaForSku" error
+
+This means your Azure subscription doesn't have quota for Dynamic (consumption) VMs in the selected region. Try a different region:
+
+```mjs
+export default {
+  adapter: ["azure", { location: "westus2" }],
+};
+```
+
+Or request a quota increase in the [Azure portal](https://portal.azure.com/#blade/Microsoft_Azure_Capacity/QuotaMenuBlade/overview).
+
+### "Unable to find project root" from `func`
+
+The `func` CLI must run from the directory containing `host.json`. When deploying manually, make sure you `cd .azure` first. The `--deploy` flag handles this automatically.
+
+### Empty function list after deployment
+
+If `func publish` succeeds but reports no functions, this usually means `@azure/functions` was bundled instead of kept external. Verify that `.azure/node_modules/@azure/functions/` exists. The adapter handles this automatically, but if you've customized the build, ensure the package remains external.
+
+### Functions respond with 404 at `/api/...`
+
+The adapter sets `routePrefix: ""` in `host.json` to remove the default `/api/` prefix. If you see 404s at paths like `/api/server`, check that your `host.json` wasn't overwritten or that the `host` adapter option isn't re-adding the prefix.
+
+### Bicep deployment fails
+
+The full Azure error is displayed in the build output. Common causes:
+
+- **Region quota**: Your subscription may not have capacity in the default region. Set a different `location`.
+- **Name conflicts**: Function App names must be globally unique. Try a more specific `appName`.
+- **Missing providers**: Register the required resource providers:
+  ```sh
+  az provider register --namespace Microsoft.Web
+  az provider register --namespace Microsoft.Storage
+  ```
+
+### Azure CLI not logged in
+
+If you see "Azure CLI is not installed or you are not logged in", run:
+
+```sh
+az login
+az account show  # Verify you're logged in
+```
+
+### Slow cold starts
+
+Azure Functions on the Consumption plan may have cold starts of a few seconds. For lower latency, consider upgrading to a Premium plan by customizing the Bicep template in `.azure/main.bicep`.

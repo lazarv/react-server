@@ -1,0 +1,236 @@
+---
+title: Azure Static Web Apps
+category: Deploy
+order: 7
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Azure Static Web Apps
+
+To deploy to Azure Static Web Apps (SWA), use the built-in `azure-swa` adapter. This adapter packages your app for SWA's managed functions and CDN-backed static hosting.
+
+> **Note:** Azure Static Web Apps does **not** support response streaming. All responses are buffered before being sent to the client. If you need streaming (React Suspense, progressive HTML), use the [Azure Functions](/deploy/azure) adapter instead.
+
+<Link name="installation">
+## Installation
+</Link>
+
+You need the [Azure Static Web Apps CLI](https://azure.github.io/static-web-apps-cli/) installed:
+
+```sh
+npm install -g @azure/static-web-apps-cli
+```
+
+No additional packages are needed — the adapter is built into `@lazarv/react-server`.
+
+Add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "azure-swa",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "azure-swa",
+    {
+      host: {},            // Extra host.json properties
+      routes: [],          // Additional SWA route rules
+      platform: {          // Platform configuration overrides
+        apiRuntime: "node:20",
+      },
+      staticwebapp: {},    // Extra staticwebapp.config.json properties
+      env: {               // Extra environment variables
+        MY_API_KEY: "value",
+      },
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `host`: Additional properties to merge into the generated `host.json`.
+- `routes`: Additional route rules to add to `staticwebapp.config.json`. These are placed after the default `/`, `/assets/*`, and `/client/*` rules.
+- `platform`: Override the platform configuration in `staticwebapp.config.json` (default: `{ apiRuntime: "node:20" }`).
+- `staticwebapp`: Additional top-level properties to merge into `staticwebapp.config.json`.
+- `env`: Additional environment variables for `local.settings.json`.
+
+<Link name="extending-config">
+## Extending SWA configuration
+</Link>
+
+To extend the generated `staticwebapp.config.json`, create a `react-server.azure.json` file in your project root. The adapter will merge it with the generated config:
+
+```json filename="react-server.azure.json"
+{
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/api/server"
+    }
+  },
+  "globalHeaders": {
+    "X-Frame-Options": "DENY"
+  }
+}
+```
+
+<Link name="deploy">
+## Deploy
+</Link>
+
+Build and deploy in one step:
+
+```sh
+pnpm react-server build --deploy
+```
+
+Or build first and deploy manually:
+
+```sh
+# Build
+pnpm react-server build
+
+# Deploy
+swa deploy .azure-swa/static \
+  --api-location .azure-swa/functions \
+  --api-language node \
+  --api-version 20
+```
+
+Before deploying, make sure you have an Azure Static Web Apps resource created. You can create one in the [Azure portal](https://portal.azure.com) or using the Azure CLI:
+
+```sh
+az staticwebapp create \
+  --name my-app \
+  --resource-group my-rg \
+  --location "eastus2"
+```
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The adapter uses an **edge build** mode, bundling your server into a single file. At build time, it:
+
+1. Bundles your server into `.azure-swa/functions/server/.react-server/server/edge.mjs`
+2. Copies static assets into `.azure-swa/static/`
+3. Generates a `functions/server/index.mjs` wrapper that bridges Azure Functions v3's `(context, req)` model to the standard fetch handler
+4. Generates `function.json` (HTTP trigger), `host.json`, and `staticwebapp.config.json`
+5. Creates a fallback `index.html` in the static directory (required by SWA)
+
+### Static file routing
+
+Static files are served by Azure SWA's built-in CDN. The `staticwebapp.config.json` configures:
+
+- `/assets/*` and `/client/*` routes with immutable cache headers
+- A `navigationFallback` that rewrites all non-static requests to the `/api/server` function
+- The root `/` path rewrites to `/api/server`
+
+This means static assets bypass the serverless function entirely, served directly from SWA's edge CDN.
+
+<Link name="output-structure">
+## Output Structure
+</Link>
+
+```
+.azure-swa/
+├── staticwebapp.config.json  # SWA routing configuration
+├── functions/
+│   ├── host.json             # Azure Functions host config
+│   ├── local.settings.json   # Local dev settings
+│   ├── package.json          # ESM support
+│   └── server/
+│       ├── function.json     # HTTP trigger binding
+│       ├── index.mjs         # Request handler wrapper
+│       └── .react-server/    # Bundled server (edge.mjs, manifests)
+└── static/
+    ├── staticwebapp.config.json
+    ├── index.html            # Fallback (required by SWA)
+    ├── assets/               # Vite-built assets
+    ├── client/               # Client component bundles
+    └── ...                   # Other static files
+```
+
+<Link name="azure-vs-azure-swa">
+## Azure Functions vs. Azure SWA
+</Link>
+
+| Feature | `azure` (Functions v4) | `azure-swa` (Static Web Apps) |
+|---|---|---|
+| **Streaming** | Yes | No (responses are buffered) |
+| **Static files** | Served by the function | Served by CDN |
+| **Auto-provisioning** | Yes (via Bicep) | Manual (portal or CLI) |
+| **Cold starts** | Consumption plan latency | Managed by SWA |
+| **Custom domains** | Via Function App settings | Via SWA settings |
+| **Functions version** | v4 (programming model) | v3 (function.json) |
+
+Choose `azure` if you need streaming or want automatic resource provisioning. Choose `azure-swa` for simpler static-heavy apps where CDN-backed asset serving is more important than streaming.
+
+<Link name="troubleshooting">
+## Troubleshooting
+</Link>
+
+### SWA CLI not found
+
+Install the CLI globally:
+
+```sh
+npm install -g @azure/static-web-apps-cli
+```
+
+### Responses are buffered / no streaming
+
+This is a limitation of Azure Static Web Apps. SWA buffers all function responses before sending them to the client. If you need streaming, switch to the [Azure Functions](/deploy/azure) adapter.
+
+### 404 errors on page navigation
+
+Make sure the `navigationFallback` is configured in `staticwebapp.config.json`. The adapter generates this automatically. If you've customized the config via `react-server.azure.json`, ensure you haven't overwritten the `navigationFallback` section.
+
+### Empty or broken page on root URL
+
+Verify that the `/` route rewrite to `/api/server` is present in `staticwebapp.config.json`. The adapter creates this by default. If the page loads but shows only `<!doctype html>`, the function may not be running — check the function logs in the Azure portal.
+
+### Function not triggering
+
+Check that the function was deployed correctly:
+
+```sh
+swa deploy .azure-swa/static \
+  --api-location .azure-swa/functions \
+  --api-language node \
+  --api-version 20 \
+  --verbose
+```
+
+Ensure that `.azure-swa/functions/server/function.json` exists and defines the HTTP trigger binding.
+
+### "x-ms-original-url" header issues
+
+Azure SWA uses `navigationFallback` to rewrite requests to the API function. The original URL is passed via the `x-ms-original-url` header. The adapter's wrapper handles this automatically. If you see incorrect URLs in your app, check that your SWA configuration's `navigationFallback.exclude` patterns aren't matching routes that should go to the function.
+
+### Local development
+
+You can test locally using the SWA CLI:
+
+```sh
+swa start .azure-swa/static \
+  --api-location .azure-swa/functions \
+  --api-port 7071
+```
+
+Or use Azure Functions Core Tools directly for the API:
+
+```sh
+cd .azure-swa/functions
+func start
+```

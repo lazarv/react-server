@@ -256,7 +256,12 @@ export const adapter = createAdapter({
   outDir,
   outStaticDir,
   outServerDir,
-  handler: async function ({ adapterOptions, files, options }) {
+  handler: async function ({
+    adapterOptions,
+    files,
+    options,
+    reactServerOutDir,
+  }) {
     // Collect all static file paths for the route map
     banner("generating static file manifest", { emoji: "🗺️" });
     const [staticFiles, assetFiles, clientFiles, publicFiles] =
@@ -304,7 +309,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const staticDir = join(__dirname, "../../static");
-const serverDir = join(__dirname, "../../server/.react-server");
+const serverDir = join(__dirname, "../../server/${reactServerOutDir}");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -342,7 +347,7 @@ const STATIC_FILES = ${staticMapJson};
 const CACHE_IMMUTABLE = "public, max-age=31536000, immutable";
 
 process.chdir(serverDir);
-const edgeHandler = (await import("../../server/.react-server/server/edge.mjs")).default;
+const edgeHandler = (await import("../../server/${reactServerOutDir}/server/edge.mjs")).default;
 
 app.http("server", {
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],

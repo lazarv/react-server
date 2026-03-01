@@ -726,7 +726,7 @@ export function createAdapter({
           "copying server files",
           await files.server(),
           reactServerDir,
-          join(out ?? outServerDir, ".react-server"),
+          join(out ?? outServerDir, reactServerOutDir),
           reactServerOutDir,
           "🖥️"
         ),
@@ -830,6 +830,7 @@ export function createAdapter({
           if (afterDeploy) {
             await afterDeploy();
           }
+          clearProgress();
         } else {
           const deployCmd = `${command} ${args.join(" ")}`;
           const deployLabel = `🚀 Deploy to ${name} using:`;

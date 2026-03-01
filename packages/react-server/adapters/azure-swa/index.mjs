@@ -31,7 +31,12 @@ export const adapter = createAdapter({
   name: "Azure Static Web Apps",
   outDir,
   outStaticDir,
-  handler: async function ({ adapterOptions, copy, options }) {
+  handler: async function ({
+    adapterOptions,
+    copy,
+    options,
+    reactServerOutDir,
+  }) {
     banner("building Azure Functions", { emoji: "⚡" });
 
     const outServerDir = join(outDir, "functions/server");
@@ -48,7 +53,7 @@ export const adapter = createAdapter({
     const entryFile = join(outServerDir, "index.mjs");
     writeFileSync(
       entryFile,
-      `import handler from "./.react-server/server/edge.mjs";
+      `import handler from "./${reactServerOutDir}/server/edge.mjs";
 
 export default async function (context, req) {
   try {

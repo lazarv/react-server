@@ -59,6 +59,14 @@ You need to pass adapter properties to the `createAdapter` function to configure
 
 `deploy`: The deployment command and arguments. This is optional. When provided, the adapter will show what command the developer needs to run to deploy the application after it has been built. If the `--deploy` flag is provided during the build, the adapter will run this command. The `deploy` property can also be a function that will be called with the adapter options, CLI options and the handler result. This is useful if you need to customize the deployment command based on the adapter options or the handler result. If you don't provide a result with `command` and `args`, the default deployment handling spawning the command will be skipped. This is useful if you want to implement a custom deployment workflow in the adapter.
 
+The deploy descriptor supports the following properties:
+
+- [ ] `command`: The CLI command to run.
+- [ ] `args`: The command arguments.
+- [ ] `cwd`: The working directory for the command. Defaults to the project root.
+- [ ] `message`: Help text shown to the user when `--deploy` is not used.
+- [ ] `afterDeploy`: A callback invoked after successful deployment (e.g., to print the deployment URL).
+
 ```js
 export const adapter = createAdapter({
   // ...
@@ -73,6 +81,10 @@ export const adapter = createAdapter({
     return {
       command: "vercel",
       args: ["deploy", "--prebuilt"],
+      cwd: outDir,
+      afterDeploy: () => {
+        console.log("Deployment complete!");
+      },
     };
   },
 });
@@ -88,10 +100,12 @@ The adapter handler function will receive the following properties:
 - [ ] `files`: The files object contains the static files, assets, client files, public files, server files and the dependencies.
 - [ ] `copy`: The copy object contains the functions to copy the files to the output directory.
 - [ ] `config`: The configuration object contains the configuration of the application.
-- [ ] `reactServerDir`: The path to the directory where the build output is located.
-- [ ] `reactServerOutDir`: The directory name where the build output is located.
+- [ ] `reactServerDir`: The absolute path to the directory where the build output is located.
+- [ ] `reactServerOutDir`: The relative directory name where the build output is located (default `.react-server`, configurable via `outDir` in config).
 - [ ] `root`: The entry point of the application.
 - [ ] `options`: The options object contains the options passed from the CLI.
+
+> **Important:** When referencing server files in generated code (e.g., import paths), always use `reactServerOutDir` instead of hardcoding `.react-server`. This ensures your adapter works when users customize the build output directory.
 
 The `files` object contains the following functions:
 
@@ -215,10 +229,11 @@ const dependencies = await getDependencies(adapterFiles, reactServerDir);
 
 ### spawnCommand
 
-Spawns a command in the current working directory.
+Spawns a command. Accepts an optional options object with `cwd` to set the working directory.
 
 ```js
 await spawnCommand("vercel", ["deploy", "--prebuilt"]);
+await spawnCommand("func", ["azure", "functionapp", "publish", appName], { cwd: outDir });
 ```
 
 ### deepMerge

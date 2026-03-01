@@ -1,0 +1,304 @@
+---
+title: AWS Lambda
+category: Deploy
+order: 4
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# AWS Lambda
+
+To deploy to AWS, use the built-in `aws` adapter. This adapter deploys your application as an AWS Lambda function with a CloudFront CDN distribution, using AWS SAM (Serverless Application Model) for infrastructure management.
+
+<Link name="prerequisites">
+## Prerequisites
+</Link>
+
+You need the following tools installed:
+
+- **AWS CLI** — for managing AWS credentials
+- **AWS SAM CLI** — for building and deploying the SAM template
+
+```sh
+brew install awscli aws-sam-cli
+```
+
+Then configure your AWS credentials:
+
+```sh
+aws configure
+```
+
+You'll need your AWS Access Key ID and Secret Access Key. You can create these in the [AWS IAM Console](https://console.aws.amazon.com/iam/) under **Users → Security credentials → Access keys**.
+
+<Link name="installation">
+## Installation
+</Link>
+
+No additional packages are needed — the adapter is built into `@lazarv/react-server`.
+
+Add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "aws",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "aws",
+    {
+      name: "my-app",             // Application name (used in resource names)
+      stackName: "my-app-stack",  // CloudFormation stack name
+      runtime: "nodejs20.x",     // Lambda runtime (default: "nodejs20.x")
+      memorySize: 1024,          // Lambda memory in MB (default: 1024)
+      timeout: 30,               // Lambda timeout in seconds (default: 30)
+      architecture: "arm64",     // Lambda architecture (default: "arm64")
+      authType: "NONE",          // Function URL auth type (default: "NONE")
+      environment: {             // Additional environment variables
+        MY_API_KEY: "value",
+      },
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `name`: Application name used for AWS resource names. Falls back to `package.json` name (without scope) or `"react-server-app"`.
+- `stackName`: CloudFormation stack name used during deployment. Defaults to `name`.
+- `runtime`: Lambda runtime identifier (default: `"nodejs20.x"`).
+- `memorySize`: Lambda function memory in MB (default: `1024`).
+- `timeout`: Lambda function timeout in seconds (default: `30`).
+- `architecture`: Lambda CPU architecture, `"arm64"` or `"x86_64"` (default: `"arm64"`). Arm64 (Graviton2) offers better price-performance.
+- `authType`: Function URL authentication type (default: `"NONE"`). Set to `"AWS_IAM"` to require IAM auth.
+- `environment`: Additional environment variables added to the Lambda function. `NODE_ENV` is always set to `"production"`.
+- `functionProperties`: Additional SAM `AWS::Serverless::Function` properties merged into the function resource.
+- `cloudfront`: Set to `false` to skip CloudFront distribution creation. Use `cloudfront.distributionConfig` to extend the generated CloudFront `DistributionConfig`.
+- `resources`: Additional CloudFormation resources merged into the template.
+- `outputs`: Additional CloudFormation outputs merged into the template.
+- `template`: Override or extend the SAM template. Pass an object to merge, or a function `(template) => template` for full control.
+- `deployArgs`: Additional arguments passed to `sam deploy`.
+
+<Link name="deploy">
+## Deploy
+</Link>
+
+Build and deploy your application:
+
+```sh
+pnpm react-server build [root] --adapter aws
+sam deploy --guided --stack-name my-app --capabilities CAPABILITY_IAM
+```
+
+Or use the `--deploy` flag to build and deploy in one step:
+
+```sh
+pnpm react-server build [root] --adapter aws --deploy
+```
+
+The first deployment uses `--guided` mode which prompts for configuration and saves it to `samconfig.toml`. Subsequent deployments use the saved configuration automatically.
+
+<Link name="architecture">
+## Architecture
+</Link>
+
+The adapter creates the following AWS resources:
+
+- **Lambda Function** with a Function URL (streaming enabled via `RESPONSE_STREAM`)
+- **CloudFront Distribution** as a CDN in front of the Lambda function
+- **CloudFront Cache Policy** that respects origin `Cache-Control` headers
+
+### How it works
+
+All requests flow through a single Lambda origin:
+
+```
+Viewer → CloudFront → Lambda
+                       ├─ Static file? → Serve from disk with Cache-Control
+                       └─ Dynamic?     → SSR via react-server
+```
+
+The Lambda handler includes all static files in its deployment package and serves them directly from the filesystem. Each response includes appropriate `Cache-Control` headers:
+
+- **Build assets** (`/assets/*`, `/client/*`): `public, max-age=31536000, immutable` — cached at the edge for 1 year (filenames are content-hashed)
+- **Pre-rendered HTML / x-component**: `must-revalidate` — CloudFront always revalidates with Lambda
+- **Public files**: `public, max-age=600` — cached for 10 minutes
+
+After the first request, CloudFront serves cached static files directly from the edge without invoking Lambda. The custom cache policy (`DefaultTTL: 0`, `MinTTL: 0`, `MaxTTL: 31536000`) defers entirely to the origin's `Cache-Control` headers.
+
+<Link name="cloudfront-configuration">
+## CloudFront Configuration
+</Link>
+
+### Custom domain
+
+To use a custom domain with your CloudFront distribution, extend the distribution config:
+
+```mjs
+export default {
+  adapter: [
+    "aws",
+    {
+      cloudfront: {
+        distributionConfig: {
+          Aliases: ["www.example.com"],
+          ViewerCertificate: {
+            AcmCertificateArn: "arn:aws:acm:us-east-1:123456789:certificate/abc-123",
+            SslSupportMethod: "sni-only",
+            MinimumProtocolVersion: "TLSv1.2_2021",
+          },
+        },
+      },
+    },
+  ],
+};
+```
+
+> **Note:** ACM certificates for CloudFront must be in the `us-east-1` region.
+
+### Without CloudFront
+
+To deploy without CloudFront (Lambda Function URL only):
+
+```mjs
+export default {
+  adapter: [
+    "aws",
+    {
+      cloudfront: false,
+    },
+  ],
+};
+```
+
+<Link name="sam-template">
+## SAM Template
+</Link>
+
+The adapter generates a `template.json` file in your project root. This is a standard AWS SAM template that can be customized via `adapterOptions.template`:
+
+```mjs
+export default {
+  adapter: [
+    "aws",
+    {
+      template: (template) => {
+        // Add a DynamoDB table
+        template.Resources.MyTable = {
+          Type: "AWS::DynamoDB::Table",
+          Properties: {
+            TableName: "my-table",
+            AttributeDefinitions: [
+              { AttributeName: "id", AttributeType: "S" },
+            ],
+            KeySchema: [
+              { AttributeName: "id", KeyType: "HASH" },
+            ],
+            BillingMode: "PAY_PER_REQUEST",
+          },
+        };
+        return template;
+      },
+    },
+  ],
+};
+```
+
+<Link name="troubleshooting">
+## Troubleshooting
+</Link>
+
+### `zsh: command not found: sam`
+
+Install the AWS SAM CLI:
+
+```sh
+brew install aws-sam-cli
+```
+
+### `zsh: command not found: aws`
+
+Install the AWS CLI:
+
+```sh
+brew install awscli
+```
+
+### `Error: Unable to locate credentials`
+
+Configure your AWS credentials:
+
+```sh
+aws configure
+```
+
+You'll need your Access Key ID, Secret Access Key, default region, and output format. Visit the [AWS IAM Console](https://console.aws.amazon.com/iam/) to create access keys.
+
+If you're using AWS SSO:
+
+```sh
+aws sso login --profile your-profile
+```
+
+### `Failed to create/update the stack ... ROLLBACK_COMPLETE`
+
+A previous deployment failed and CloudFormation is stuck. Delete the failed stack and try again:
+
+```sh
+sam delete --stack-name your-stack-name
+sam deploy --guided --stack-name your-stack-name --capabilities CAPABILITY_IAM
+```
+
+### Lambda cold starts
+
+Cold starts are expected with Lambda functions. To minimize their impact:
+
+- Use `arm64` architecture (default) — Graviton2 processors have faster cold starts
+- Increase `memorySize` — Lambda allocates CPU proportional to memory
+- Consider using [Lambda Provisioned Concurrency](https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html) for production workloads
+
+You can add provisioned concurrency via the template override:
+
+```mjs
+export default {
+  adapter: [
+    "aws",
+    {
+      template: (template) => {
+        const fnKey = Object.keys(template.Resources).find(
+          (k) => template.Resources[k].Type === "AWS::Serverless::Function"
+        );
+        if (fnKey) {
+          template.Resources[fnKey].Properties.ProvisionedConcurrencyConfig = {
+            ProvisionedConcurrentExecutions: 1,
+          };
+        }
+        return template;
+      },
+    },
+  ],
+};
+```
+
+### CloudFront cache invalidation
+
+After redeploying, CloudFront may still serve stale cached content. Create an invalidation:
+
+```sh
+aws cloudfront create-invalidation \
+  --distribution-id YOUR_DISTRIBUTION_ID \
+  --paths "/*"
+```
+
+Build assets with content-hashed filenames (`/assets/*`, `/client/*`) don't need invalidation — new deployments generate new filenames automatically.
+
+> **Note:** For additional AWS-specific features like VPC configuration, IAM policies, or Lambda layers, use the `functionProperties`, `resources`, and `template` options. Refer to the [AWS SAM documentation](https://docs.aws.amazon.com/serverless-application-model/) for the full template specification.

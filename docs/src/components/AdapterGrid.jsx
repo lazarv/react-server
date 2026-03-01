@@ -15,6 +15,11 @@ const adapters = [
     description: "Workers & Pages",
   },
   {
+    name: "AWS Lambda",
+    href: "/deploy/aws",
+    description: "Serverless functions",
+  },
+  {
     name: "Bun",
     href: "/deploy/bun",
     description: "Standalone Bun server",

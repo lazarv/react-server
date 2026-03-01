@@ -21,6 +21,9 @@ deno.lock
 firebase.json
 .bun
 .deno
+.aws
+template.json
+samconfig.toml
 *.pem
 *.sqlite
 *.log

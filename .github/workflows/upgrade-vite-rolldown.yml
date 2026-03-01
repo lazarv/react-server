@@ -1,0 +1,228 @@
+name: Upgrade Vite & Rolldown 📦
+
+on:
+  schedule:
+    # Run daily at 07:00 UTC (staggered from React upgrade)
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+env:
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upgrade-vite-rolldown
+  cancel-in-progress: true
+
+jobs:
+  upgrade-vite-rolldown:
+    name: Upgrade Vite & Rolldown to latest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for existing open PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN=$(gh pr list --head chore/upgrade-vite-rolldown --state open --json number --jq 'length')
+          if [ "$OPEN" -gt 0 ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "An open upgrade PR already exists, skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get current versions
+        if: steps.pr.outputs.exists == 'false'
+        id: current
+        run: |
+          VITE=$(jq -r '.dependencies.vite' packages/react-server/package.json)
+          ROLLDOWN=$(jq -r '.dependencies.rolldown' packages/react-server/package.json)
+          echo "vite=$VITE" >> "$GITHUB_OUTPUT"
+          echo "rolldown=$ROLLDOWN" >> "$GITHUB_OUTPUT"
+          echo "Current Vite: $VITE"
+          echo "Current Rolldown: $ROLLDOWN"
+
+      - name: Get latest versions from npm
+        if: steps.pr.outputs.exists == 'false'
+        id: latest
+        run: |
+          # For Vite, check both latest and beta tags, pick the highest
+          VITE_LATEST=$(npm view vite@latest version 2>/dev/null || echo "")
+          VITE_BETA=$(npm view vite@beta version 2>/dev/null || echo "")
+
+          # Use node to compare and pick the higher semver
+          VITE=$(node -e "
+            const semver = require('semver') || null;
+            const latest = '$VITE_LATEST';
+            const beta = '$VITE_BETA';
+            // Simple comparison: if both exist, compare; otherwise use whichever exists
+            if (!latest && !beta) { process.exit(1); }
+            if (!beta) { console.log(latest); process.exit(0); }
+            if (!latest) { console.log(beta); process.exit(0); }
+            // Extract major.minor.patch for comparison
+            const lParts = latest.replace(/-.*$/, '').split('.').map(Number);
+            const bParts = beta.replace(/-.*$/, '').split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (bParts[i] > lParts[i]) { console.log(beta); process.exit(0); }
+              if (bParts[i] < lParts[i]) { console.log(latest); process.exit(0); }
+            }
+            // Same base version — prefer stable
+            console.log(latest);
+          " 2>/dev/null || echo "$VITE_LATEST")
+
+          # If both failed, fallback to just latest
+          if [ -z "$VITE" ]; then
+            VITE="$VITE_LATEST"
+          fi
+
+          # For Rolldown, check latest and rc tags
+          ROLLDOWN_LATEST=$(npm view rolldown@latest version 2>/dev/null || echo "")
+          ROLLDOWN_RC=$(npm view rolldown@rc version 2>/dev/null || echo "")
+
+          ROLLDOWN=$(node -e "
+            const latest = '$ROLLDOWN_LATEST';
+            const rc = '$ROLLDOWN_RC';
+            if (!latest && !rc) { process.exit(1); }
+            if (!rc) { console.log(latest); process.exit(0); }
+            if (!latest) { console.log(rc); process.exit(0); }
+            const lParts = latest.replace(/-.*$/, '').split('.').map(Number);
+            const rParts = rc.replace(/-.*$/, '').split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (rParts[i] > lParts[i]) { console.log(rc); process.exit(0); }
+              if (rParts[i] < lParts[i]) { console.log(latest); process.exit(0); }
+            }
+            console.log(latest);
+          " 2>/dev/null || echo "$ROLLDOWN_LATEST")
+
+          if [ -z "$ROLLDOWN" ]; then
+            ROLLDOWN="$ROLLDOWN_LATEST"
+          fi
+
+          echo "vite=$VITE" >> "$GITHUB_OUTPUT"
+          echo "rolldown=$ROLLDOWN" >> "$GITHUB_OUTPUT"
+          echo "Latest Vite: $VITE"
+          echo "Latest Rolldown: $ROLLDOWN"
+
+      - name: Check if upgrade is needed
+        if: steps.pr.outputs.exists == 'false'
+        id: check
+        run: |
+          VITE_CHANGED="false"
+          ROLLDOWN_CHANGED="false"
+          if [ "${{ steps.current.outputs.vite }}" != "${{ steps.latest.outputs.vite }}" ]; then
+            VITE_CHANGED="true"
+          fi
+          if [ "${{ steps.current.outputs.rolldown }}" != "${{ steps.latest.outputs.rolldown }}" ]; then
+            ROLLDOWN_CHANGED="true"
+          fi
+
+          if [ "$VITE_CHANGED" = "false" ] && [ "$ROLLDOWN_CHANGED" = "false" ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "Already on latest versions, skipping."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "vite_changed=$VITE_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "rolldown_changed=$ROLLDOWN_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "Upgrade needed — Vite changed: $VITE_CHANGED, Rolldown changed: $ROLLDOWN_CHANGED"
+          fi
+
+      - name: Replace Vite version in all package.json files
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true' && steps.check.outputs.vite_changed == 'true'
+        run: |
+          OLD="${{ steps.current.outputs.vite }}"
+          NEW="${{ steps.latest.outputs.vite }}"
+          echo "Replacing Vite $OLD → $NEW in all package.json files..."
+
+          find . -name 'package.json' -not -path '*/node_modules/*' | while read -r file; do
+            if grep -q "\"$OLD\"" "$file"; then
+              echo "  Updating: $file"
+              sed -i "s|\"$OLD\"|\"$NEW\"|g" "$file"
+            fi
+          done
+
+          echo "Done replacing Vite versions."
+
+      - name: Replace Rolldown version in all package.json files
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true' && steps.check.outputs.rolldown_changed == 'true'
+        run: |
+          OLD="${{ steps.current.outputs.rolldown }}"
+          NEW="${{ steps.latest.outputs.rolldown }}"
+          echo "Replacing Rolldown $OLD → $NEW in all package.json files..."
+
+          find . -name 'package.json' -not -path '*/node_modules/*' | while read -r file; do
+            if grep -q "\"$OLD\"" "$file"; then
+              echo "  Updating: $file"
+              sed -i "s|\"$OLD\"|\"$NEW\"|g" "$file"
+            fi
+          done
+
+          echo "Done replacing Rolldown versions."
+
+      - uses: ./.github/workflows/actions/common-setup
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+      - uses: ./.github/workflows/actions/common-playwright
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+
+      - name: Smoke test (dev mode — hello world)
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        working-directory: ./test
+        run: pnpm test-dev -t "hello world"
+
+      - name: Smoke test (build+start mode — hello world)
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        working-directory: ./test
+        run: pnpm test-build-start -t "hello world"
+
+      - name: Build PR description
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        id: desc
+        run: |
+          TITLE=""
+          BODY="Automated daily upgrade of Vite and/or Rolldown to the latest available versions.\n\n"
+
+          if [ "${{ steps.check.outputs.vite_changed }}" = "true" ]; then
+            TITLE="Vite ${{ steps.current.outputs.vite }} → ${{ steps.latest.outputs.vite }}"
+            BODY+="**Vite:** \`${{ steps.current.outputs.vite }}\` → \`${{ steps.latest.outputs.vite }}\`\n"
+          fi
+          if [ "${{ steps.check.outputs.rolldown_changed }}" = "true" ]; then
+            if [ -n "$TITLE" ]; then
+              TITLE="$TITLE, Rolldown ${{ steps.current.outputs.rolldown }} → ${{ steps.latest.outputs.rolldown }}"
+            else
+              TITLE="Rolldown ${{ steps.current.outputs.rolldown }} → ${{ steps.latest.outputs.rolldown }}"
+            fi
+            BODY+="**Rolldown:** \`${{ steps.current.outputs.rolldown }}\` → \`${{ steps.latest.outputs.rolldown }}\`\n"
+          fi
+
+          BODY+="\n### Updated locations\n"
+          BODY+="- \`packages/react-server/package.json\` — \`vite\`, \`rolldown\`\n"
+          BODY+="- \`test/package.json\` — \`vite\`, \`rolldown\`\n"
+          BODY+="- \`package.json\` — all \`pnpm.overrides\` for Vite\n"
+          BODY+="- \`pnpm-lock.yaml\`\n"
+          BODY+="\n### Smoke test\n- Dev mode — \`hello world\` test passed ✅\n- Build+start mode — \`hello world\` test passed ✅"
+
+          echo "title=chore: upgrade $TITLE" >> "$GITHUB_OUTPUT"
+          # Use a delimiter for multiline body
+          {
+            echo "body<<PREOF"
+            echo -e "$BODY"
+            echo "PREOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
+        if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "${{ steps.desc.outputs.title }}"
+          title: "${{ steps.desc.outputs.title }}"
+          body: "${{ steps.desc.outputs.body }}"
+          branch: chore/upgrade-vite-rolldown
+          delete-branch: true
+          labels: dependencies

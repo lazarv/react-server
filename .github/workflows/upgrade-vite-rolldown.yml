@@ -1,6 +1,10 @@
 name: Upgrade Vite & Rolldown 📦
 
 on:
+  # TODO: remove push trigger before merging
+  push:
+    branches:
+      - chore/auto-upgrade
   schedule:
     # Run daily at 07:00 UTC (staggered from React upgrade)
     - cron: "0 7 * * *"

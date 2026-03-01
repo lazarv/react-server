@@ -1,0 +1,197 @@
+---
+title: Firebase
+category: Deploy
+order: 8
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Firebase Functions
+
+To deploy to Firebase, use the built-in `firebase` adapter. This adapter uses Firebase Cloud Functions (v2) with Firebase Hosting rewrites, bundling your server into a single edge file with full response streaming support.
+
+<Link name="installation">
+## Installation
+</Link>
+
+You need the [Firebase CLI](https://firebase.google.com/docs/cli) installed:
+
+```sh
+npm install -g firebase-tools
+
+# Login to Firebase
+firebase login
+```
+
+No additional packages are needed — the adapter is built into `@lazarv/react-server`.
+
+Your Firebase project must be on the **Blaze (pay-as-you-go) plan** to deploy Cloud Functions. You can upgrade in the [Firebase Console](https://console.firebase.google.com).
+
+Add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "firebase",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "firebase",
+    {
+      project: "my-project",       // Firebase project ID
+      region: "us-central1",       // Function region
+      memory: "512MiB",            // Memory allocation
+      timeoutSeconds: 60,          // Request timeout
+      minInstances: 0,             // Minimum warm instances
+      maxInstances: 100,           // Maximum concurrent instances
+      concurrency: 80,             // Requests per instance
+      hosting: {},                 // Extra firebase.json hosting properties
+      functions: {},               // Extra firebase.json functions properties
+      firebase: {},                // Extra top-level firebase.json properties
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `project`: Firebase project ID. Falls back to `package.json` name (without scope prefix).
+- `region`: Cloud Functions region (default: `"us-central1"`). See [available regions](https://cloud.google.com/functions/docs/locations).
+- `memory`: Memory allocation for the function (default: `"512MiB"`). Valid values: `"128MiB"`, `"256MiB"`, `"512MiB"`, `"1GiB"`, `"2GiB"`, `"4GiB"`, `"8GiB"`, `"16GiB"`, `"32GiB"`.
+- `timeoutSeconds`: Maximum request duration in seconds (default: `60`). Maximum is 540 for v2 functions.
+- `minInstances`: Minimum number of warm instances to keep ready (default: `0`). Setting this above 0 reduces cold starts but incurs costs.
+- `maxInstances`: Maximum number of concurrent instances (default: `100`).
+- `concurrency`: Maximum concurrent requests per instance (default: `80`).
+- `hosting`: Additional properties to merge into the `hosting` section of `firebase.json`.
+- `functions`: Additional properties to merge into the `functions` section of `firebase.json`.
+- `firebase`: Additional top-level properties to merge into `firebase.json`.
+
+You can also pass adapter options at deploy time via the `--deploy` flag:
+
+```sh
+pnpm react-server build --adapter firebase --deploy='{"project":"my-project"}'
+```
+
+<Link name="deploy">
+## Deploy
+</Link>
+
+Build and deploy in one step:
+
+```sh
+pnpm react-server build --deploy
+```
+
+Or build first and deploy manually:
+
+```sh
+# Build
+pnpm react-server build
+
+# Deploy using Firebase CLI
+firebase deploy --only functions,hosting --project <project-id>
+```
+
+<Link name="streaming">
+## Response Streaming
+</Link>
+
+This adapter supports response streaming. React Server Components, Suspense boundaries, and progressive HTML delivery all work out of the box. The generated Cloud Function streams the response body chunk by chunk using the Node.js response object's `write()` method.
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The adapter uses an **edge build** mode, bundling your entire server into a single file. At build time, it:
+
+1. Bundles your server into `.firebase-app/server/.react-server/server/edge.mjs`
+2. Copies all static assets into `.firebase-app/public/`
+3. Generates a `src/index.mjs` wrapper that:
+   - Imports `onRequest` from `firebase-functions/v2/https`
+   - Registers an HTTP-triggered function matching all methods and paths
+   - Serves static files from a build-time route map using `readFileSync()`
+   - Converts incoming Express-style requests to standard `Request` objects
+   - Delegates dynamic requests to the bundled edge handler
+   - Streams the response back
+4. Generates `package.json` with `firebase-functions` and `firebase-admin` dependencies
+5. Runs `npm install` in `.firebase-app/` to install dependencies
+6. Generates `firebase.json` with Hosting rewrites pointing to the function
+7. Generates `.firebaserc` with the project ID (if available)
+
+> **Important:** The `firebase-functions` and `firebase-admin` packages cannot be bundled into the edge build. The Firebase Functions runtime expects these as external dependencies in `node_modules`.
+
+<Link name="static-files">
+## Static Files
+</Link>
+
+Static files are served by Firebase Hosting's CDN when possible. All static assets (HTML, CSS, JS, images) are copied to `.firebase-app/public/` and served directly by Hosting. The function also has a static file route map as a fallback for any requests that reach the function.
+
+Assets under `/assets/` and `/client/` paths are served with immutable cache headers (`Cache-Control: public, max-age=31536000, immutable`).
+
+<Link name="local-development">
+## Local Development
+</Link>
+
+After building, you can test locally using the Firebase Emulator:
+
+```sh
+firebase emulators:start --only functions,hosting
+```
+
+<Link name="output-structure">
+## Output Structure
+</Link>
+
+```
+.firebase-app/
+├── package.json              # Dependencies (firebase-functions, firebase-admin)
+├── node_modules/             # Installed dependencies
+├── public/                   # Static assets (HTML, CSS, JS, images)
+├── server/
+│   └── .react-server/        # Bundled server (edge.mjs, manifests)
+└── src/
+    └── index.mjs             # Firebase Cloud Function entry
+
+firebase.json                 # Firebase configuration (Hosting + Functions)
+.firebaserc                   # Firebase project alias
+```
+
+<Link name="troubleshooting">
+## Troubleshooting
+</Link>
+
+### "Blaze plan required" error
+
+Firebase Cloud Functions require the Blaze (pay-as-you-go) billing plan. Upgrade your project at the [Firebase Console](https://console.firebase.google.com). The Blaze plan still includes generous free-tier usage — you only pay for actual usage beyond the free limits. The billing plan is per-project and does not affect your other Firebase projects.
+
+### Cold starts
+
+By default, `minInstances` is `0`, meaning the function scales to zero when idle. The first request after scaling to zero will experience a cold start (typically 1-3 seconds). Set `minInstances: 1` to keep one instance warm:
+
+```mjs
+export default {
+  adapter: ["firebase", { minInstances: 1 }],
+};
+```
+
+### "Could not find project" error
+
+Make sure your project ID is correct. You can list your Firebase projects with:
+
+```sh
+firebase projects:list
+```
+
+Set the project explicitly via adapter options or the `--deploy` flag:
+
+```sh
+pnpm react-server build --adapter firebase --deploy='{"project":"my-project"}'
+```

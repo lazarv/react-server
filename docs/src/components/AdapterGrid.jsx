@@ -34,11 +34,16 @@ const adapters = [
     href: "/deploy/azure-swa",
     description: "Managed functions & CDN",
   },
+  {
+    name: "Firebase Functions",
+    href: "/deploy/firebase",
+    description: "Cloud Functions v2 with streaming",
+  },
 ];
 
 export default function AdapterGrid() {
   return (
-    <div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4 not-prose">
+    <div className="my-4 grid grid-cols-1 md:grid-cols-3 auto-rows-fr gap-4 not-prose">
       {adapters.map(({ name, href, description }) => (
         <a
           key={href}

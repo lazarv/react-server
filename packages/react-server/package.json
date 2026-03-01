@@ -138,6 +138,10 @@
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/azure-swa/index.mjs"
     },
+    "./adapters/firebase": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/firebase/index.mjs"
+    },
     "./worker": {
       "types": "./worker/index.d.ts",
       "default": "./worker/index.mjs"

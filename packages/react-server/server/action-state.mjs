@@ -21,7 +21,15 @@ export function useActionState(action) {
     error: null,
     actionId: null,
   };
-  if (actionId !== action.$$id && error?.name !== SERVER_FUNCTION_NOT_FOUND) {
+  // The context's actionId can be either:
+  // - the encrypted token (from React's decodeAction – form submissions)
+  // - the decrypted plain-text ID (from the React-Server-Action header path)
+  // Compare against both $$id (encrypted, cached) and $$originalId (plain
+  // text) so that either form of actionId is recognised as a match.
+  const isMatch =
+    actionId === action.$$id ||
+    (action.$$originalId != null && actionId === action.$$originalId);
+  if (!isMatch && error?.name !== SERVER_FUNCTION_NOT_FOUND) {
     return {
       formData: null,
       data: null,

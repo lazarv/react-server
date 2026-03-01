@@ -260,6 +260,10 @@ export default async function edgeBuild(root, options) {
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/build-manifest.mjs")
                   );
+                case "@lazarv/react-server/dist/server/action-secret":
+                  return sys.normalizePath(
+                    join(cwd, options.outDir, "server/action-secret.mjs")
+                  );
               }
             },
             load(id) {
@@ -361,6 +365,10 @@ export default async function edgeBuild(root, options) {
             case "@lazarv/react-server/dist/server/build-manifest":
               return sys.normalizePath(
                 join(cwd, options.outDir, "server/build-manifest.mjs")
+              );
+            case "@lazarv/react-server/dist/server/action-secret":
+              return sys.normalizePath(
+                join(cwd, options.outDir, "server/action-secret.mjs")
               );
           }
         },

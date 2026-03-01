@@ -1,5 +1,6 @@
 import { extname, relative } from "node:path";
 
+import { encryptActionId } from "../../server/action-crypto.mjs";
 import * as sys from "../sys.mjs";
 import { codegen, parse } from "../utils/ast.mjs";
 
@@ -159,7 +160,7 @@ export default function useServer(type, manifest) {
                         arguments: [
                           {
                             type: "Literal",
-                            value: `${actionId}#${name}`,
+                            value: encryptActionId(`${actionId}#${name}`),
                           },
                         ],
                       },
@@ -219,7 +220,7 @@ export default function useServer(type, manifest) {
                           arguments: [
                             {
                               type: "Literal",
-                              value: `${actionId}#${name}`,
+                              value: encryptActionId(`${actionId}#${name}`),
                             },
                             {
                               type: "Identifier",

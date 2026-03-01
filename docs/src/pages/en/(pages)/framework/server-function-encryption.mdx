@@ -1,0 +1,145 @@
+---
+title: Server function encryption
+category: Framework
+order: 3
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Server function encryption
+
+`@lazarv/react-server` encrypts all server function identifiers by default using **AES-256-GCM** encryption. This prevents clients from discovering or calling server functions that were not explicitly exposed during rendering.
+
+Without encryption, server function identifiers are plain-text strings that reveal your source file paths and function names (e.g. `src/actions#deleteUser`). Any client could craft a request to invoke any server function in your application, even functions that were never rendered for that user. Encryption ensures that only server functions returned by the server during rendering are callable.
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+There are two types of server function tokens:
+
+**Inline tokens** are generated when a server function reference is first used. The encrypted token is cached on the function instance so that React's internal form state matching (e.g. `useActionState`) works correctly. Inline server functions and server functions passed as props to client components use these tokens, which are embedded in the RSC stream.
+
+**Static tokens** are generated at build time (or Vite transform time in development) for server function modules — files with `"use server"` at the top level. These tokens are embedded in the client JavaScript bundle and are used when client components import server functions directly.
+
+Both types are encrypted with the same key and decrypted transparently on the server when a server function is invoked.
+
+<Link name="zero-configuration">
+## Zero configuration
+</Link>
+
+Encryption works out of the box with no configuration needed:
+
+- **In development**, an ephemeral key is generated automatically when the dev server starts.
+- **In production builds**, a random 32-byte secret is generated during the build and stored as a build artifact. The production server loads this key on startup.
+
+This means server function encryption is always active. You only need to configure it if you want to provide your own secret or enable key rotation.
+
+<Link name="custom-secret">
+## Custom secret
+</Link>
+
+You can provide your own encryption secret using environment variables or the framework configuration. This is useful when you need deterministic keys across deployments or when running multiple server instances.
+
+The secret is resolved in the following priority order:
+
+1. `REACT_SERVER_FUNCTIONS_SECRET` environment variable
+2. `REACT_SERVER_FUNCTIONS_SECRET_FILE` environment variable (path to a key file)
+3. `serverFunctions.secret` in the framework configuration
+4. `serverFunctions.secretFile` in the framework configuration (path to a key file)
+5. Build artifact (generated automatically during production builds)
+6. Ephemeral random key (development fallback)
+
+<Link name="environment-variable">
+### Environment variable
+</Link>
+
+```sh
+REACT_SERVER_FUNCTIONS_SECRET=my-secret-key pnpm start
+```
+
+Or point to a key file:
+
+```sh
+REACT_SERVER_FUNCTIONS_SECRET_FILE=./keys/action-secret.pem pnpm start
+```
+
+<Link name="framework-configuration">
+### Framework configuration
+</Link>
+
+```mjs filename="react-server.config.mjs"
+export default {
+  serverFunctions: {
+    secret: "my-secret-key",
+  },
+};
+```
+
+Or using a key file:
+
+```mjs filename="react-server.config.mjs"
+export default {
+  serverFunctions: {
+    secretFile: "./keys/action-secret.pem",
+  },
+};
+```
+
+> Environment variables and configuration values always take priority over the build artifact. This allows you to rotate secrets without rebuilding your application.
+
+<Link name="key-rotation">
+## Key rotation
+</Link>
+
+When you rotate your encryption secret, clients that still have pages open with tokens encrypted using the old key would get errors. To avoid this, you can provide previous secrets that the server will try as fallbacks during decryption.
+
+```mjs filename="react-server.config.mjs"
+export default {
+  serverFunctions: {
+    secret: "new-secret-key",
+    previousSecrets: ["old-secret-key"],
+  },
+};
+```
+
+You can also use key files for previous secrets:
+
+```mjs filename="react-server.config.mjs"
+export default {
+  serverFunctions: {
+    secret: "new-secret-key",
+    previousSecretFiles: ["./keys/old-secret.pem"],
+  },
+};
+```
+
+Both `previousSecrets` and `previousSecretFiles` accept arrays. You can combine them to support multiple previous keys simultaneously.
+
+The rotation workflow is:
+
+1. Add your current secret to `previousSecrets`
+2. Set a new value for `secret`
+3. Deploy — all existing tokens still work via the fallback
+4. After all clients have refreshed (e.g. after a deployment window), remove the old secret from `previousSecrets`
+
+<Link name="error-handling">
+## Error handling
+</Link>
+
+When a server function invocation fails decryption — for example, because the token was tampered with, the key was rotated without providing the previous key, or the token is otherwise invalid — the server throws a `ServerFunctionNotFoundError`. This error is propagated through RSC to the client, where it can be caught using an error boundary.
+
+This prevents leaking information about which server functions exist in your application.
+
+<Link name="security-model">
+## Security model
+</Link>
+
+The encryption provides the following security properties:
+
+- **Server function hiding** — clients cannot discover server function file paths or names from the encrypted tokens.
+- **Capability protection** — clients can only invoke server functions that the server explicitly exposed during rendering or bundled into the client code. They cannot forge tokens for arbitrary server functions.
+- **Token uniqueness** — each server function reference receives a unique encrypted token (random initialization vector), making tokens unpredictable.
+- **Key rotation** — secrets can be rotated at runtime without downtime or rebuilds by using the `previousSecrets` configuration.
+
+> Encryption protects _which_ server functions are callable. It does not validate the _arguments_ passed to those functions. Always validate and sanitize inputs inside your server functions.

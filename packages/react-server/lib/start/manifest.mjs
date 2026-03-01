@@ -1,10 +1,12 @@
 import { join } from "node:path";
 
 import { getContext } from "../../server/context.mjs";
-import { runtime$ } from "../../server/runtime.mjs";
+import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
+  CONFIG_CONTEXT,
+  CONFIG_ROOT,
   HTTP_CONTEXT,
   MAIN_MODULE,
   MANIFEST,
@@ -74,6 +76,30 @@ export async function init$(options = {}) {
     }
   } catch {
     // build-manifest may not exist for older builds
+  }
+
+  // Load action encryption secret from the build artifact.
+  // Users can override via env var or config (resolved in initSecretFromConfig).
+  try {
+    const { default: actionSecret } =
+      await import("@lazarv/react-server/dist/server/action-secret");
+    if (actionSecret) {
+      const { initSecret } = await import("../../server/action-crypto.mjs");
+      initSecret(actionSecret);
+    }
+  } catch {
+    // action-secret may not exist for builds without server functions
+  }
+
+  // Resolve the action encryption secret from env vars / config / .pem file.
+  // This runs once at startup — env/config take priority over the build artifact.
+  try {
+    const { initSecretFromConfig } =
+      await import("../../server/action-crypto.mjs");
+    const config = getRuntime(CONFIG_CONTEXT);
+    await initSecretFromConfig(config?.[CONFIG_ROOT]);
+  } catch {
+    // ignore
   }
 
   const mainModule = `/${Object.values(manifest.browser).find((entry) => entry.name === "index")?.file}`;

@@ -23,30 +23,26 @@ const __require =
       }
     : createRequire(import.meta.url);
 
+function tryResolve(id) {
+  try {
+    return normalizePath(__require.resolve(id));
+  } catch {
+    return undefined;
+  }
+}
+
 export function moduleAliases(condition) {
-  let react = normalizePath(__require.resolve("react"));
-  let reactJsxRuntime = normalizePath(__require.resolve("react/jsx-runtime"));
-  let reactJsxDevRuntime;
-  try {
-    reactJsxDevRuntime = normalizePath(
-      __require.resolve("react/jsx-dev-runtime")
-    );
-  } catch {
-    // noop
-  }
-  let reactDom = normalizePath(__require.resolve("react-dom"));
-  let scheduler;
-  try {
-    scheduler = normalizePath(__require.resolve("scheduler"));
-  } catch {
-    // noop
-  }
+  let react = tryResolve("react");
+  let reactJsxRuntime = tryResolve("react/jsx-runtime");
+  let reactJsxDevRuntime = tryResolve("react/jsx-dev-runtime");
+  let reactDom = tryResolve("react-dom");
+  let scheduler = tryResolve("scheduler");
 
   let reactClient = react;
   if (condition === "react-server") {
     reactClient = react;
-    react = react.replace(/index\.js$/, "react.react-server.js");
-    reactJsxRuntime = reactJsxRuntime.replace(
+    react = react?.replace(/index\.js$/, "react.react-server.js");
+    reactJsxRuntime = reactJsxRuntime?.replace(
       /jsx-runtime\.js$/,
       "jsx-runtime.react-server.js"
     );
@@ -54,11 +50,11 @@ export function moduleAliases(condition) {
       /jsx-dev-runtime\.js$/,
       "jsx-dev-runtime.react-server.js"
     );
-    reactDom = reactDom.replace(/index\.js$/, "react-dom.react-server.js");
+    reactDom = reactDom?.replace(/index\.js$/, "react-dom.react-server.js");
   } else {
-    react = react.replace(/react\.react-server\.js$/, "index.js");
+    react = react?.replace(/react\.react-server\.js$/, "index.js");
     reactClient = react;
-    reactJsxRuntime = reactJsxRuntime.replace(
+    reactJsxRuntime = reactJsxRuntime?.replace(
       /jsx-runtime\.react-server\.js$/,
       "jsx-runtime.js"
     );
@@ -66,46 +62,30 @@ export function moduleAliases(condition) {
       /jsx-dev-runtime\.react-server\.js$/,
       "jsx-dev-runtime.js"
     );
-    reactDom = reactDom.replace(/react-dom\.react-server\.js$/, "index.js");
+    reactDom = reactDom?.replace(/react-dom\.react-server\.js$/, "index.js");
   }
 
-  const reactDomServerEdge = normalizePath(
-    __require.resolve("react-dom/server.edge")
+  const reactDomServerEdge = tryResolve("react-dom/server.edge");
+  const reactServerDomWebpackClientEdge = tryResolve(
+    "react-server-dom-webpack/client.edge"
   );
-  const reactServerDomWebpackClientEdge = normalizePath(
-    __require.resolve("react-server-dom-webpack/client.edge")
+  const reactServerDomWebpackServerEdge = tryResolve(
+    "react-server-dom-webpack/server.edge"
   );
-  const reactServerDomWebpackServerEdge = normalizePath(
-    __require.resolve("react-server-dom-webpack/server.edge")
+  const reactIs = tryResolve("react-is");
+  const picocolors = tryResolve("picocolors");
+  const unstorage = tryResolve("unstorage");
+  const unstorageDriversMemory = tryResolve("unstorage/drivers/memory");
+  const unstorageDriversLocalStorage = tryResolve(
+    "unstorage/drivers/localstorage"
   );
-  let reactIs;
-  try {
-    reactIs = normalizePath(__require.resolve("react-is"));
-  } catch {
-    // noop
-  }
-  const picocolors = normalizePath(__require.resolve("picocolors"));
-  const unstorage = normalizePath(__require.resolve("unstorage"));
-  const unstorageDriversMemory = normalizePath(
-    __require.resolve("unstorage/drivers/memory")
+  const unstorageDriversSessionStorage = tryResolve(
+    "unstorage/drivers/session-storage"
   );
-  const unstorageDriversLocalStorage = normalizePath(
-    __require.resolve("unstorage/drivers/localstorage")
-  );
-  const unstorageDriversSessionStorage = normalizePath(
-    __require.resolve("unstorage/drivers/session-storage")
-  );
-  const reactServerHighlightJs = normalizePath(
-    __require.resolve("highlight.js")
-  );
-  let vite;
-  try {
-    vite = normalizePath(__require.resolve("vite"));
-  } catch {
-    // noop
-  }
+  const reactServerHighlightJs = tryResolve("highlight.js");
+  const vite = tryResolve("vite");
 
-  const moduleAliases = {
+  const aliases = {
     react,
     "react/client": reactClient,
     "react/jsx-runtime": reactJsxRuntime,
@@ -124,6 +104,14 @@ export function moduleAliases(condition) {
     scheduler,
     "react-server-highlight.js": reactServerHighlightJs,
   };
+
+  // Filter out any aliases that couldn't be resolved
+  const moduleAliases = {};
+  for (const [key, value] of Object.entries(aliases)) {
+    if (value !== undefined) {
+      moduleAliases[key] = value;
+    }
+  }
 
   return moduleAliases;
 }

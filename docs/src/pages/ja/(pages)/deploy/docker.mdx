@@ -1,0 +1,202 @@
+---
+title: Docker
+category: Deploy
+order: 8
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Docker
+
+Docker でデプロイするには、ビルトインの `docker` アダプタを使用します。このアダプタは、適切なシグナルハンドリング、静的ファイル配信、最小限の Alpine ベースイメージを備えた、プロダクション対応の Docker イメージを作成します。
+
+<Link name="prerequisites">
+## 前提条件
+</Link>
+
+マシンに [Docker](https://docs.docker.com/get-docker/) がインストールされている必要があります。
+
+```sh
+docker --version
+```
+
+<Link name="installation">
+## インストール
+</Link>
+
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+`react-server.config.mjs` ファイルにアダプタを追加します:
+
+```mjs
+export default {
+  adapter: "docker",
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+オプションを渡してアダプタをカスタマイズできます:
+
+```mjs
+export default {
+  adapter: [
+    "docker",
+    {
+      runtime: "node",          // ランタイム: "node"（デフォルト）、"bun"、または "deno"
+      name: "my-app",            // アプリケーション名（デフォルト: package.json から取得）
+      tag: "my-app:v1.0",       // Docker イメージタグ（デフォルト: "<name>:latest"）
+      port: 8080,               // 公開ポート（デフォルト: 3000）
+      version: "22-alpine",     // ベースイメージタグ（デフォルトはランタイムにより異なる）
+    },
+  ],
+};
+```
+
+### 設定オプション
+
+- `runtime`: Docker コンテナ内で使用するランタイム。`"node"`（デフォルト）、`"bun"`、または `"deno"`。Node.js は依存関係トレース付きの `@lazarv/react-server/node` を使用します。Bun と Deno は単一ファイルにバンドルされるエッジビルドを使用します。
+- `name`: Docker イメージに使用されるアプリケーション名。`package.json` の name（スコープなし）または `"react-server-app"` にフォールバックします。
+- `tag`: ビルド時に使用される Docker イメージタグ。デフォルトは `"<name>:latest"` です。
+- `port`: コンテナ内でサーバがリッスンするポート。デフォルトは `3000` です。
+- `version`: Docker ベースイメージタグ。Node.js のデフォルトは `"20-alpine"`、Bun と Deno のデフォルトは `"alpine"` です。
+
+<Link name="build-and-deploy">
+## ビルドとデプロイ
+</Link>
+
+アプリケーションのビルドと Docker イメージの作成を一度に実行できます:
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+これにより以下が行われます:
+1. アプリケーションのビルド（Bun/Deno の場合はエッジビルド、Node.js の場合は標準ビルド）
+2. サーバ出力と静的アセットのコピー、`@vercel/nft` による依存関係トレース（Node.js のみ）
+3. `.docker/` 出力ディレクトリに `Dockerfile`、`.dockerignore`、`package.json` を生成
+4. Docker イメージのビルド
+
+ビルドとデプロイを個別に実行することもできます:
+
+```sh
+# アプリケーションのビルド
+pnpm react-server build [root]
+
+# Docker イメージを手動でビルド
+docker build -t my-app:latest .docker
+```
+
+コンテナを実行します:
+
+```sh
+docker run -p 3000:3000 my-app:latest
+```
+
+<Link name="environment-variables">
+## 環境変数
+</Link>
+
+生成された Dockerfile には以下の環境変数が設定されています:
+
+- `NODE_ENV=production` — React がプロダクションバンドルを使用することを保証します
+- `PORT` — サーバがリッスンするポート（デフォルト: `3000`）
+
+実行時に追加の環境変数を渡すことができます:
+
+```sh
+docker run -p 3000:3000 -e MY_API_KEY=secret my-app:latest
+```
+
+ポートを上書きすることもできます:
+
+```sh
+docker run -p 8080:8080 -e PORT=8080 my-app:latest
+```
+
+`--sourcemap` でビルドした場合、Dockerfile に `NODE_OPTIONS="--enable-source-maps"` も設定されます。
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+アダプタの動作:
+
+1. Node.js ランタイム: 静的ファイルを配信し、SSR は `@lazarv/react-server/node` に委譲するカスタム HTTP サーバエントリをコピーし、`@vercel/nft` を使用して必要な `node_modules` 依存関係をトレース
+2. Bun/Deno ランタイム: すべてを単一ファイルにバンドルするエッジビルドを実行し、インライン化された静的ルートを含むスタートスクリプトを生成
+3. 静的アセット（JS、CSS、画像）とサーバビルド出力（RSC ペイロード、サーバコンポーネント）をコピー
+4. 適切なベースイメージ（`node`、`oven/bun`、または `denoland/deno`）を使用したシングルステージ Dockerfile を生成
+5. Node.js の場合: 適切なシグナルハンドリングのために [tini](https://github.com/krallin/tini) を init プロセスとして使用
+6. セキュリティのために非 root ユーザとして実行（Node.js と Bun）
+
+### 出力構造
+
+Node.js ランタイム:
+
+```
+.docker/
+├── Dockerfile
+├── .dockerignore
+├── package.json
+├── server/
+│   ├── index.mjs              # サーバエントリポイント
+│   ├── .react-server/         # ビルド出力（RSC、サーバコンポーネント）
+│   └── node_modules/          # トレースされた依存関係のみ
+└── static/                    # 静的アセット（JS、CSS、画像）
+```
+
+Bun/Deno ランタイム:
+
+```
+.docker/
+├── Dockerfile
+├── .dockerignore
+├── package.json
+├── start.mjs                  # インライン静的ルート付き生成スタートスクリプト
+├── server/
+│   └── .react-server/         # ビルド出力（エッジバンドル）
+└── static/                    # 静的アセット（JS、CSS、画像）
+```
+
+<Link name="docker-compose">
+## Docker Compose
+</Link>
+
+生成された `.docker/` ディレクトリを Docker Compose で使用できます:
+
+```yaml
+services:
+  app:
+    build:
+      context: .docker
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+```
+
+<Link name="troubleshooting">
+## トラブルシューティング
+</Link>
+
+### ランタイムでモジュールが見つからない（Node.js のみ）
+
+Node.js ランタイムは `@vercel/nft` を使用して依存関係をトレースします。モジュールが動的に読み込まれる場合（例: `createRequire()` 経由）、検出されない可能性があります。コンテナログで `MODULE_NOT_FOUND` エラーを確認し、必要なパッケージが `package.json` の dependencies に記載されていることを確認してください。Bun/Deno ランタイムは単一バンドルファイルを使用するため、この問題は発生しません。
+
+### Ctrl+C でコンテナが停止しない（Node.js のみ）
+
+Node.js の Dockerfile は `tini` を init プロセスとして使用しています。`docker run` を `-it` なしで実行すると、シグナルが転送されない場合があります。以下を使用してください:
+
+```sh
+docker run -it -p 3000:3000 my-app:latest
+```
+
+### ポートの競合
+
+ポート 3000 が既に使用中の場合、別のホストポートにマッピングします:
+
+```sh
+docker run -p 8080:3000 my-app:latest
+```

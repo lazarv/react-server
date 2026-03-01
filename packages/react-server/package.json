@@ -146,6 +146,10 @@
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/firebase/index.mjs"
     },
+    "./adapters/docker": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/docker/index.mjs"
+    },
     "./worker": {
       "types": "./worker/index.d.ts",
       "default": "./worker/index.mjs"

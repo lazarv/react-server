@@ -74,6 +74,14 @@ const adapters = [
       ja: "ストリーミング対応 Cloud Functions v2",
     },
   },
+  {
+    name: "Docker",
+    href: "/deploy/docker",
+    description: {
+      en: "Node.js, Bun, or Deno container",
+      ja: "Node.js、Bun、または Deno コンテナ",
+    },
+  },
 ];
 
 export default function AdapterGrid() {

@@ -105,11 +105,14 @@ export async function getAdapterBuildOptions(config, options) {
 
     if (!adapterModule) return {};
 
+    const deployOptions = parseDeployOptions(options.deploy);
+    const mergedOptions = { ...adapterOptions, ...deployOptions };
+
     const adapterExports = await loadAdapterModule(adapterModule);
     const { buildOptions } = adapterExports;
 
     if (typeof buildOptions === "function") {
-      return (await buildOptions(adapterOptions, options)) ?? {};
+      return (await buildOptions(mergedOptions, options)) ?? {};
     }
 
     return buildOptions ?? {};
@@ -118,19 +121,34 @@ export async function getAdapterBuildOptions(config, options) {
   }
 }
 
+function parseDeployOptions(deploy) {
+  if (!deploy || typeof deploy === "boolean") return {};
+  if (typeof deploy === "string") {
+    try {
+      return JSON.parse(deploy);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
 export default async function adapter(root, options) {
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
+
+  const deployOptions = parseDeployOptions(options.deploy);
 
   const adapter = resolveAdapter(config, options);
   if (adapter) {
     if (typeof adapter === "function") {
-      return await adapter({}, root, options);
+      return await adapter(deployOptions, root, options);
     }
     const [adapterModule, adapterOptions] =
       typeof adapter === "string" ? [adapter] : adapter;
     if (adapterModule) {
+      const mergedOptions = { ...adapterOptions, ...deployOptions };
       const { adapter: adapterFn } = await loadAdapterModule(adapterModule);
-      await adapterFn(adapterOptions, root, options);
+      await adapterFn(mergedOptions, root, options);
     }
   } else if (options.deploy) {
     console.log(colors.yellow("No adapter configured. Skipping deployment."));

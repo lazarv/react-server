@@ -5,6 +5,7 @@ order: 0
 ---
 
 import Link from "../../../../components/Link.jsx";
+import AdapterGrid from "../../../../components/AdapterGrid.jsx";
 
 # アダプタ
 
@@ -14,24 +15,15 @@ import Link from "../../../../components/Link.jsx";
 ### 利用可能なアダプタ
 </Link>
 
-- [x] Vercel
-- [x] Netlify
-- [x] Cloudflare Workers/Pages
-- [x] AWS Lambda
-- [x] Bun
-- [x] Deno
-- [x] Azure Functions
-- [x] Azure Static Web Apps
+<AdapterGrid />
 
 <Link name="configuration">
 ## 設定
 </Link>
 
-`react-server.config.mjs`ファイルに `adapter` エントリを追加します。ビルトインアダプタの名前（`vercel`、`netlify`、`cloudflare`、`aws`、`bun`、`deno`、`azure`、または `azure-swa`）を文字列で指定するか、外部アダプタパッケージを使用できます。
+`react-server.config.mjs`ファイルに `adapter` エントリを追加します。ビルトインアダプタの名前（`vercel`、`netlify`、`cloudflare`、`aws`、`bun`、`deno`、`azure`、`azure-swa`、または `firebase`）を文字列で指定するか、外部アダプタパッケージを使用できます。
 
 > **Note:** **Bun** または **Deno** でプロダクションビルドを実行すると、対応するアダプタが自動的に検出・使用されます。設定は不要です。明示的な `adapter` 設定またはCLIの `--adapter <name>` で上書きできます。自動検出を無効にするには `--no-adapter` を使用してください。
-
-> **Note:** `aws` アダプタには [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) と設定済みのAWS認証情報が必要です。セットアップ手順は [AWS Lambda](/deploy/aws) ページを参照してください。
 
 ```mjs
 export default {

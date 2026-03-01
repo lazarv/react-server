@@ -1,53 +1,90 @@
+import { useLanguage } from "../i18n.mjs";
+import { defaultLanguage } from "../const.mjs";
+
 const adapters = [
   {
     name: "Vercel",
     href: "/deploy/vercel",
-    description: "Serverless & edge functions",
+    description: {
+      en: "Serverless & edge functions",
+      ja: "サーバーレス & エッジ関数",
+    },
   },
   {
     name: "Netlify",
     href: "/deploy/netlify",
-    description: "Serverless functions & edge CDN",
+    description: {
+      en: "Serverless functions & edge CDN",
+      ja: "サーバーレス関数 & エッジ CDN",
+    },
   },
   {
     name: "Cloudflare",
     href: "/deploy/cloudflare",
-    description: "Workers & Pages",
+    description: {
+      en: "Workers & Pages",
+      ja: "Workers & Pages",
+    },
   },
   {
     name: "AWS Lambda",
     href: "/deploy/aws",
-    description: "Serverless functions",
+    description: {
+      en: "Serverless functions",
+      ja: "サーバーレス関数",
+    },
   },
   {
     name: "Bun",
     href: "/deploy/bun",
-    description: "Standalone Bun server",
+    description: {
+      en: "Standalone Bun server",
+      ja: "スタンドアロン Bun サーバー",
+    },
   },
   {
     name: "Deno",
     href: "/deploy/deno",
-    description: "Standalone Deno server",
+    description: {
+      en: "Standalone Deno server",
+      ja: "スタンドアロン Deno サーバー",
+    },
   },
   {
     name: "Azure Functions",
     href: "/deploy/azure",
-    description: "Functions v4 with streaming",
+    description: {
+      en: "Functions v4 with streaming",
+      ja: "ストリーミング対応 Functions v4",
+    },
   },
   {
     name: "Azure Static Web Apps",
     href: "/deploy/azure-swa",
-    description: "Managed functions & CDN",
+    description: {
+      en: "Managed functions & CDN",
+      ja: "マネージド関数 & CDN",
+    },
+  },
+  {
+    name: "Firebase Functions",
+    href: "/deploy/firebase",
+    description: {
+      en: "Cloud Functions v2 with streaming",
+      ja: "ストリーミング対応 Cloud Functions v2",
+    },
   },
 ];
 
 export default function AdapterGrid() {
+  const lang = useLanguage();
   return (
-    <div className="my-4 grid grid-cols-1 md:grid-cols-3 gap-4 not-prose">
+    <div className="my-4 grid grid-cols-1 md:grid-cols-3 auto-rows-fr gap-4 not-prose">
       {adapters.map(({ name, href, description }) => (
         <a
           key={href}
-          href={href}
+          href={`${lang === defaultLanguage ? "" : `/${lang}`}${href}`}
+          hrefLang={lang}
           className="adapter-card flex flex-col rounded-xl p-4 bg-gray-50 dark:bg-gray-800 text-xs shadow-lg dark:shadow-[rgba(255,255,255,0.1)] border border-gray-500 no-underline hover:no-underline transition-colors hover:border-gray-300 dark:hover:border-gray-400"
           style={{ textDecoration: "none", color: "inherit" }}
         >
@@ -55,7 +92,7 @@ export default function AdapterGrid() {
             {name}
           </span>
           <span className="font-normal text-sm text-gray-500 dark:text-gray-400">
-            {description}
+            {description[lang] ?? description.en}
           </span>
         </a>
       ))}

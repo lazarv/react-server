@@ -1,0 +1,189 @@
+---
+title: Firebase
+category: Deploy
+order: 8
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Firebase Functions
+
+Firebase にデプロイするには、ビルトインの `firebase` アダプタを使用します。このアダプタは Firebase Cloud Functions（v2）と Firebase Hosting のリライトを使用し、サーバーを単一のエッジファイルにバンドルし、完全なレスポンスストリーミングをサポートします。
+
+<Link name="installation">
+## インストール
+</Link>
+
+[Firebase CLI](https://firebase.google.com/docs/cli) のインストールが必要です：
+
+```sh
+npm install -g firebase-tools
+
+# Firebase にログイン
+firebase login
+```
+
+追加パッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+Firebase プロジェクトは Cloud Functions をデプロイするために **Blaze（従量課金）プラン** が必要です。[Firebase Console](https://console.firebase.google.com) でアップグレードできます。
+
+`react-server.config.mjs` ファイルにアダプタを追加します：
+
+```mjs
+export default {
+  adapter: "firebase",
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+オプションを渡してアダプタをカスタマイズできます：
+
+```mjs
+export default {
+  adapter: [
+    "firebase",
+    {
+      project: "my-project",       // Firebase プロジェクト ID
+      region: "us-central1",       // 関数のリージョン
+      memory: "512MiB",            // メモリ割り当て
+      timeoutSeconds: 60,          // リクエストタイムアウト
+      minInstances: 0,             // 最小ウォームインスタンス数
+      maxInstances: 100,           // 最大同時インスタンス数
+      concurrency: 80,             // インスタンスあたりのリクエスト数
+      hosting: {},                 // firebase.json hosting の追加プロパティ
+      functions: {},               // firebase.json functions の追加プロパティ
+      firebase: {},                // firebase.json のトップレベル追加プロパティ
+    },
+  ],
+};
+```
+
+### 設定オプション
+
+- `project`: Firebase プロジェクト ID。`package.json` の name（スコーププレフィックスなし）にフォールバックします。
+- `region`: Cloud Functions のリージョン（デフォルト: `"us-central1"`）。[利用可能なリージョン](https://cloud.google.com/functions/docs/locations)を参照してください。
+- `memory`: 関数のメモリ割り当て（デフォルト: `"512MiB"`）。有効な値: `"128MiB"`, `"256MiB"`, `"512MiB"`, `"1GiB"`, `"2GiB"`, `"4GiB"`, `"8GiB"`, `"16GiB"`, `"32GiB"`。
+- `timeoutSeconds`: 最大リクエスト時間（秒）（デフォルト: `60`）。v2 関数の最大値は 540 です。
+- `minInstances`: ウォーム状態を維持する最小インスタンス数（デフォルト: `0`）。0 より大きく設定するとコールドスタートが減少しますが、コストが発生します。
+- `maxInstances`: 最大同時インスタンス数（デフォルト: `100`）。
+- `concurrency`: インスタンスあたりの最大同時リクエスト数（デフォルト: `80`）。
+- `hosting`: `firebase.json` の `hosting` セクションにマージする追加プロパティ。
+- `functions`: `firebase.json` の `functions` セクションにマージする追加プロパティ。
+- `firebase`: `firebase.json` にマージするトップレベルの追加プロパティ。
+
+デプロイ時に `--deploy` フラグでアダプタオプションを渡すこともできます：
+
+```sh
+pnpm react-server build --adapter firebase --deploy='{"project":"my-project"}'
+```
+
+<Link name="deploy">
+## デプロイ
+</Link>
+
+ビルドとデプロイを一括で実行：
+
+```sh
+pnpm react-server build --deploy
+```
+
+または、先にビルドしてから手動でデプロイ：
+
+```sh
+# ビルド
+pnpm react-server build
+
+# Firebase CLI でデプロイ
+firebase deploy --only functions,hosting --project <project-id>
+```
+
+<Link name="streaming">
+## レスポンスストリーミング
+</Link>
+
+このアダプタはレスポンスストリーミングをサポートしています。React Server Components、Suspense バウンダリ、プログレッシブ HTML 配信はすべてそのまま動作します。生成された Cloud Function は、Node.js レスポンスオブジェクトの `write()` メソッドを使用してレスポンスボディをチャンクごとにストリーミングします。
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+アダプタは**エッジビルド**モードを使用し、サーバー全体を単一のファイルにバンドルします。ビルド時に以下を行います：
+
+1. サーバーを `.firebase-app/server/.react-server/server/edge.mjs` にバンドル
+2. すべての静的アセットを `.firebase-app/public/` にコピー
+3. `src/index.mjs` ラッパーを生成：
+   - `firebase-functions/v2/https` から `onRequest` をインポート
+   - すべてのメソッドとパスに対応する HTTP トリガー関数を登録
+   - ビルド時のルートマップから `readFileSync()` で静的ファイルを配信
+   - 受信した Express スタイルのリクエストを標準 `Request` オブジェクトに変換
+   - 動的リクエストをバンドルされたエッジハンドラーに委任
+   - レスポンスをストリーミング
+4. `firebase-functions` と `firebase-admin` の依存関係を含む `package.json` を生成
+5. `.firebase-app/` で `npm install` を実行して依存関係をインストール
+6. 関数へのリライトを設定した `firebase.json` を生成
+7. プロジェクト ID が利用可能な場合 `.firebaserc` を生成
+
+> **重要:** `firebase-functions` と `firebase-admin` パッケージはエッジビルドにバンドルできません。Firebase Functions ランタイムはこれらを `node_modules` の外部依存関係として期待しています。
+
+<Link name="local-development">
+## ローカル開発
+</Link>
+
+ビルド後、Firebase エミュレータを使用してローカルでテストできます：
+
+```sh
+firebase emulators:start --only functions,hosting
+```
+
+<Link name="output-structure">
+## 出力構造
+</Link>
+
+```
+.firebase-app/
+├── package.json              # 依存関係 (firebase-functions, firebase-admin)
+├── node_modules/             # インストールされた依存関係
+├── public/                   # 静的アセット (HTML, CSS, JS, 画像)
+├── server/
+│   └── .react-server/        # バンドルされたサーバー (edge.mjs, マニフェスト)
+└── src/
+    └── index.mjs             # Firebase Cloud Function エントリ
+
+firebase.json                 # Firebase 設定 (Hosting + Functions)
+.firebaserc                   # Firebase プロジェクトエイリアス
+```
+
+<Link name="troubleshooting">
+## トラブルシューティング
+</Link>
+
+### 「Blaze プランが必要」エラー
+
+Firebase Cloud Functions には Blaze（従量課金）課金プランが必要です。[Firebase Console](https://console.firebase.google.com) でプロジェクトをアップグレードしてください。Blaze プランには寛大な無料枠が含まれており、無料枠を超えた実際の使用量に対してのみ課金されます。課金プランはプロジェクトごとに設定され、他の Firebase プロジェクトには影響しません。
+
+### コールドスタート
+
+デフォルトでは `minInstances` は `0` で、アイドル時に関数はゼロにスケールダウンします。ゼロからの最初のリクエストはコールドスタート（通常 1〜3 秒）を経験します。`minInstances: 1` に設定して 1 つのインスタンスをウォーム状態に保ちます：
+
+```mjs
+export default {
+  adapter: ["firebase", { minInstances: 1 }],
+};
+```
+
+### 「プロジェクトが見つかりません」エラー
+
+プロジェクト ID が正しいことを確認してください。Firebase プロジェクトの一覧は以下で確認できます：
+
+```sh
+firebase projects:list
+```
+
+アダプタオプションまたは `--deploy` フラグでプロジェクトを明示的に設定してください：
+
+```sh
+pnpm react-server build --adapter firebase --deploy='{"project":"my-project"}'
+```

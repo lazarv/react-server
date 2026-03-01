@@ -203,6 +203,14 @@ Deploy using adapter. Default is `false`.
 
 If you use an adapter in your `react-server.config.mjs` file, the adapter will pre-build your app for deployment and when you use this argument, the adapter will also deploy your app at the end of the build process.
 
+You can also pass a JSON string to `--deploy` to provide adapter-specific options at deploy time. These options are merged with the `adapterOptions` from your configuration file, with the CLI values taking precedence.
+
+```sh
+pnpm react-server build --deploy '{"project": "my-project"}'
+```
+
+This is useful when you want to override or provide adapter options without modifying your configuration file, for example specifying a deployment target project or environment.
+
 <Link name="build-eval">
 ### --eval
 </Link>

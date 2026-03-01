@@ -20,6 +20,7 @@ deno.lock
 .aws
 template.json
 samconfig.toml
+.docker
 *.pem
 *.sqlite
 *.log

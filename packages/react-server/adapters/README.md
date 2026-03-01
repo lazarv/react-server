@@ -375,6 +375,21 @@ The edge runtime does **not** serve static files. Your entry must handle this:
 - **Deploy**: `swa deploy .azure-swa/static --api-location .azure-swa/functions --api-language node --api-version 20`
 - **Notes**: Uses edge build. Targets Azure Static Web Apps with managed functions. Does **not** support response streaming (SWA buffers responses). Good for simpler/static-heavy apps.
 
+### Docker (`adapters/docker/`)
+
+- **Runtime**: Node.js (no edge build)
+- **Entry**: `server/index.mjs` — uses `@lazarv/react-server/node` (Node middleware mode) with a built-in static file server
+- **Output**: `.docker/static/` + `.docker/server/` + `.docker/Dockerfile`
+- **Config**: Generates `Dockerfile`, `.dockerignore`, and `package.json` in `.docker/`
+- **Static files**: Served by the adapter's `server/index.mjs` from the `static/` directory at runtime
+- **Deploy**: `docker build -t <name>:latest .docker`
+- **Adapter options**:
+  - `name` — Application/image name (falls back to `package.json` name)
+  - `tag` — Docker image tag (default: `<name>:latest`)
+  - `port` — Container port (default: `3000`)
+  - `nodeVersion` — Node.js Docker image tag (default: `"20-alpine"`)
+- **Notes**: Uses Node mode + `copy.dependencies()` (like Vercel). Does NOT set `buildOptions.edge`. Generates a single-stage Dockerfile that copies pre-built output — no build step inside Docker, resulting in smaller images and faster builds. The generated image runs as a non-root user. Use `docker run -p 3000:3000 <tag>` to start the container.
+
 ## Step-by-Step: Creating a New Adapter
 
 1. **Create the directory**: `adapters/<name>/`

@@ -249,26 +249,20 @@ jobs:
         id: desc
         run: |
           TITLE=""
-          BODY="Automated daily upgrade of Vite and/or Rolldown to the latest available versions.\n\n"
+          BODY="Automated daily upgrade of Vite, Rolldown, and/or Vitest to the latest available versions.\n\n"
 
           if [ "${{ steps.check.outputs.vite_changed }}" = "true" ]; then
-            TITLE="Vite ${{ steps.current.outputs.vite }} → ${{ steps.latest.outputs.vite }}"
+            TITLE="Vite ${{ steps.latest.outputs.vite }}"
             BODY+="**Vite:** \`${{ steps.current.outputs.vite }}\` → \`${{ steps.latest.outputs.vite }}\`\n"
           fi
           if [ "${{ steps.check.outputs.rolldown_changed }}" = "true" ]; then
-            if [ -n "$TITLE" ]; then
-              TITLE="$TITLE, Rolldown ${{ steps.current.outputs.rolldown }} → ${{ steps.latest.outputs.rolldown }}"
-            else
-              TITLE="Rolldown ${{ steps.current.outputs.rolldown }} → ${{ steps.latest.outputs.rolldown }}"
-            fi
+            if [ -n "$TITLE" ]; then TITLE="$TITLE, "; fi
+            TITLE+="Rolldown ${{ steps.latest.outputs.rolldown }}"
             BODY+="**Rolldown:** \`${{ steps.current.outputs.rolldown }}\` → \`${{ steps.latest.outputs.rolldown }}\`\n"
           fi
           if [ "${{ steps.check.outputs.vitest_changed }}" = "true" ]; then
-            if [ -n "$TITLE" ]; then
-              TITLE="$TITLE, Vitest ${{ steps.current.outputs.vitest }} → ${{ steps.latest.outputs.vitest }}"
-            else
-              TITLE="Vitest ${{ steps.current.outputs.vitest }} → ${{ steps.latest.outputs.vitest }}"
-            fi
+            if [ -n "$TITLE" ]; then TITLE="$TITLE, "; fi
+            TITLE+="Vitest ${{ steps.latest.outputs.vitest }}"
             BODY+="**Vitest:** \`${{ steps.current.outputs.vitest }}\` → \`${{ steps.latest.outputs.vitest }}\`\n"
           fi
 

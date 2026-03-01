@@ -203,6 +203,14 @@ export default {
 
 `react-server.config.mjs`ファイルでアダプターを使用している場合、アダプターは事前にビルドを行い最後にアプリケーションをデプロイします。
 
+`--deploy` にJSON文字列を渡すことで、デプロイ時にアダプター固有のオプションを指定することもできます。これらのオプションは設定ファイルの `adapterOptions` とマージされ、CLIの値が優先されます。
+
+```sh
+pnpm react-server build --deploy '{"project": "my-project"}'
+```
+
+これは、設定ファイルを変更せずにアダプターオプションを上書きまたは追加したい場合に便利です。例えば、デプロイ先のプロジェクトや環境を指定する際に使用できます。
+
 <Link name="build-eval">
 ### --eval
 </Link>

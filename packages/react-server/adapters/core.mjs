@@ -352,6 +352,18 @@ export async function getDependencies(adapterFiles, reactServerDir) {
     __require.resolve("@lazarv/react-server/lib/start/render-stream.mjs", {
       paths: [cwd],
     }),
+    __require.resolve("@lazarv/react-server/lib/start/node.mjs", {
+      paths: [cwd],
+    }),
+    __require.resolve("@lazarv/react-server/lib/loader/init.mjs", {
+      paths: [cwd],
+    }),
+    __require.resolve("@lazarv/react-server/lib/loader/module-alias.mjs", {
+      paths: [cwd],
+    }),
+    __require.resolve("@lazarv/react-server/lib/build/dependencies.mjs", {
+      paths: [cwd],
+    }),
     __require.resolve("@lazarv/react-server/lib/loader/node-loader.mjs", {
       paths: [cwd],
     }),
@@ -370,6 +382,17 @@ export async function getDependencies(adapterFiles, reactServerDir) {
     __require.resolve("@lazarv/react-server/cache/client.mjs", {
       paths: [cwd],
     }),
+    // module-alias is loaded via createRequire() which NFT can't trace
+    __require.resolve("module-alias", {
+      paths: [cwd],
+    }),
+    // unstorage and drivers are loaded via module-alias createRequire() - NFT can't trace
+    __require.resolve("unstorage", { paths: [cwd] }),
+    __require.resolve("unstorage/drivers/memory", { paths: [cwd] }),
+    __require.resolve("unstorage/drivers/localstorage", { paths: [cwd] }),
+    __require.resolve("unstorage/drivers/session-storage", { paths: [cwd] }),
+    // picocolors is loaded via module-alias createRequire() - NFT can't trace
+    __require.resolve("picocolors", { paths: [cwd] }),
   ];
   sourceFiles.push(...adapterFiles, ...reactServerDeps);
 
@@ -442,7 +465,16 @@ export async function getDependencies(adapterFiles, reactServerDir) {
     nodeFileTrace(
       Array.from(
         new Set([...Object.keys(aliasReactServer), ...Object.keys(aliasReact)])
-      ).map((id) => __require.resolve(id, { paths: [cwd] })),
+      )
+        .filter((id) => !ignoreAlias.includes(id))
+        .map((id) => {
+          try {
+            return __require.resolve(id, { paths: [cwd] });
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean),
       {
         conditions: ["node", "require"],
         cache: traceCache,
@@ -460,6 +492,18 @@ export async function getDependencies(adapterFiles, reactServerDir) {
     t.esmFileList.forEach((file) => trace.add(file));
     return trace;
   }, new Set());
+
+  // Explicitly include module alias files — nodeFileTrace only returns dependencies
+  // of input files (not the inputs themselves), so alias targets like
+  // react/jsx-dev-runtime.js would be missing without this.
+  // Use the already-resolved values from the alias maps directly, since
+  // __require.resolve(key, { paths: [cwd] }) fails in pnpm workspaces.
+  for (const aliases of [aliasReactServer, aliasReact]) {
+    for (const [id, resolved] of Object.entries(aliases)) {
+      if (ignoreAlias.includes(id) || !resolved) continue;
+      trace.add(relative(rootDir, resolved));
+    }
+  }
 
   reactServerDeps.forEach((file) => trace.add(relative(rootDir, file)));
   const dependencyFiles = Array.from(trace).reduce((deps, file) => {
@@ -535,17 +579,23 @@ export async function getDependencies(adapterFiles, reactServerDir) {
   });
 }
 
-export async function spawnCommand(command, args) {
+export async function spawnCommand(command, args, options) {
+  const { cwd: spawnCwd, ...rest } = options ?? {};
   const deploy = spawn(command, args, {
-    cwd,
+    cwd: spawnCwd ?? cwd,
     stdio: "inherit",
+    ...rest,
   });
   await new Promise((resolve, reject) => {
     deploy.on("exit", (code) => {
       if (code === 0) {
         resolve();
       } else {
-        reject();
+        reject(
+          new Error(
+            `Command "${command} ${args.join(" ")}" exited with code ${code}`
+          )
+        );
       }
     });
   });
@@ -726,7 +776,7 @@ export function createAdapter({
           "copying server files",
           await files.server(),
           reactServerDir,
-          join(out ?? outServerDir, ".react-server"),
+          join(out ?? outServerDir, reactServerOutDir),
           reactServerOutDir,
           "🖥️"
         ),
@@ -816,7 +866,9 @@ export function createAdapter({
       const {
         command,
         args,
+        cwd: deployCwd,
         message: deployMessage,
+        afterDeploy,
       } = typeof deploy === "function"
         ? await deploy({ adapterOptions, options, handlerResult })
         : deploy;
@@ -824,7 +876,11 @@ export function createAdapter({
         if (options.deploy) {
           banner(`deploying to ${name}`, { emoji: "🚀" });
           clearProgress();
-          await spawnCommand(command, args);
+          await spawnCommand(command, args, { cwd: deployCwd });
+          if (afterDeploy) {
+            await afterDeploy();
+          }
+          clearProgress();
         } else {
           const deployCmd = `${command} ${args.join(" ")}`;
           const deployLabel = `🚀 Deploy to ${name} using:`;

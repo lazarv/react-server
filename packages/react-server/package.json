@@ -130,6 +130,26 @@
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/vercel/index.mjs"
     },
+    "./adapters/aws": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/aws/index.mjs"
+    },
+    "./adapters/azure": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/azure/index.mjs"
+    },
+    "./adapters/azure-swa": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/azure-swa/index.mjs"
+    },
+    "./adapters/firebase": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/firebase/index.mjs"
+    },
+    "./adapters/docker": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/docker/index.mjs"
+    },
     "./worker": {
       "types": "./worker/index.d.ts",
       "default": "./worker/index.mjs"

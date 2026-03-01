@@ -1,0 +1,202 @@
+---
+title: Docker
+category: Deploy
+order: 8
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Docker
+
+To deploy with Docker, use the built-in `docker` adapter. This adapter creates a production-ready Docker image running your application on Node.js with proper signal handling, static file serving, and a minimal Alpine-based image.
+
+<Link name="prerequisites">
+## Prerequisites
+</Link>
+
+You need [Docker](https://docs.docker.com/get-docker/) installed on your machine.
+
+```sh
+docker --version
+```
+
+<Link name="installation">
+## Installation
+</Link>
+
+No additional packages are needed — the adapter is built into `@lazarv/react-server`.
+
+Add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "docker",
+};
+```
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+You can customize the adapter by passing options:
+
+```mjs
+export default {
+  adapter: [
+    "docker",
+    {
+      runtime: "node",          // Runtime: "node" (default), "bun", or "deno"
+      name: "my-app",            // Application name (default: from package.json)
+      tag: "my-app:v1.0",       // Docker image tag (default: "<name>:latest")
+      port: 8080,               // Port to expose (default: 3000)
+      version: "22-alpine",     // Base image tag (default varies by runtime)
+    },
+  ],
+};
+```
+
+### Configuration Options
+
+- `runtime`: The runtime to use inside the Docker container. `"node"` (default), `"bun"`, or `"deno"`. Node.js uses `@lazarv/react-server/node` with dependency tracing. Bun and Deno use edge builds bundled into a single file.
+- `name`: Application name used for the Docker image. Falls back to `package.json` name (without scope) or `"react-server-app"`.
+- `tag`: Docker image tag used when building. Defaults to `"<name>:latest"`.
+- `port`: Port the server listens on inside the container. Defaults to `3000`.
+- `version`: Docker base image tag. Defaults to `"20-alpine"` for Node.js, `"alpine"` for Bun and Deno.
+
+<Link name="build-and-deploy">
+## Build and Deploy
+</Link>
+
+Build your application and create the Docker image in one step:
+
+```sh
+pnpm react-server build [root] --deploy
+```
+
+This will:
+1. Build your application (edge build for Bun/Deno, standard build for Node.js)
+2. Copy server output and static assets; trace dependencies with `@vercel/nft` (Node.js only)
+3. Generate a `Dockerfile`, `.dockerignore`, and `package.json` in the `.docker/` output directory
+4. Build the Docker image
+
+You can also build and deploy separately:
+
+```sh
+# Build the application
+pnpm react-server build [root]
+
+# Build the Docker image manually
+docker build -t my-app:latest .docker
+```
+
+Then run the container:
+
+```sh
+docker run -p 3000:3000 my-app:latest
+```
+
+<Link name="environment-variables">
+## Environment Variables
+</Link>
+
+The following environment variables are set in the generated Dockerfile:
+
+- `NODE_ENV=production` — ensures React uses production bundles
+- `PORT` — the port the server listens on (default: `3000`)
+
+You can pass additional environment variables at runtime:
+
+```sh
+docker run -p 3000:3000 -e MY_API_KEY=secret my-app:latest
+```
+
+Or override the port:
+
+```sh
+docker run -p 8080:8080 -e PORT=8080 my-app:latest
+```
+
+If you build with `--sourcemap`, the Dockerfile will also set `NODE_OPTIONS="--enable-source-maps"`.
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The adapter:
+
+1. For Node.js runtime: copies a custom HTTP server entry that serves static files and delegates to `@lazarv/react-server/node` for SSR, then uses `@vercel/nft` to trace all required `node_modules` dependencies
+2. For Bun/Deno runtime: performs an edge build that bundles everything into a single file, and generates a start script with inlined static routes
+3. Copies static assets (JS, CSS, images) and server build output (RSC payloads, server components)
+4. Generates a single-stage Dockerfile with the appropriate base image (`node`, `oven/bun`, or `denoland/deno`)
+5. For Node.js: uses [tini](https://github.com/krallin/tini) as the init process for proper signal handling
+6. Runs as a non-root user for security (Node.js and Bun)
+
+### Output structure
+
+Node.js runtime:
+
+```
+.docker/
+├── Dockerfile
+├── .dockerignore
+├── package.json
+├── server/
+│   ├── index.mjs              # Server entry point
+│   ├── .react-server/         # Build output (RSC, server components)
+│   └── node_modules/          # Traced dependencies only
+└── static/                    # Static assets (JS, CSS, images)
+```
+
+Bun/Deno runtime:
+
+```
+.docker/
+├── Dockerfile
+├── .dockerignore
+├── package.json
+├── start.mjs                  # Generated start script with static routes
+├── server/
+│   └── .react-server/         # Build output (edge bundle)
+└── static/                    # Static assets (JS, CSS, images)
+```
+
+<Link name="docker-compose">
+## Docker Compose
+</Link>
+
+You can use the generated `.docker/` directory with Docker Compose:
+
+```yaml
+services:
+  app:
+    build:
+      context: .docker
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+```
+
+<Link name="troubleshooting">
+## Troubleshooting
+</Link>
+
+### Missing modules at runtime (Node.js only)
+
+The Node.js runtime uses `@vercel/nft` to trace dependencies. If a module is loaded dynamically (e.g., via `createRequire()`) it may not be detected. Check the container logs for `MODULE_NOT_FOUND` errors and ensure the required packages are listed in your `package.json` dependencies. This does not apply to Bun/Deno runtimes, which use a single bundled file.
+
+### Container doesn't stop with Ctrl+C (Node.js only)
+
+The Node.js Dockerfile uses `tini` as the init process. If you're running `docker run` without `-it`, signals may not be forwarded. Use:
+
+```sh
+docker run -it -p 3000:3000 my-app:latest
+```
+
+### Port conflicts
+
+If port 3000 is already in use, map to a different host port:
+
+```sh
+docker run -p 8080:3000 my-app:latest
+```

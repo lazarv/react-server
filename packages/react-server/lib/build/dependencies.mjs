@@ -4,69 +4,62 @@ import { normalizePath } from "../sys.mjs";
 
 const __require = createRequire(import.meta.url);
 
-const react = normalizePath(__require.resolve("react"));
-const reactJsxRuntime = normalizePath(__require.resolve("react/jsx-runtime"));
-const reactJsxDevRuntime = normalizePath(
-  __require.resolve("react/jsx-dev-runtime")
-);
-const reactCompilerRuntime = normalizePath(
-  __require.resolve("react/compiler-runtime")
-);
-const reactDom = normalizePath(__require.resolve("react-dom"));
+function tryResolve(id) {
+  try {
+    return normalizePath(__require.resolve(id));
+  } catch {
+    return undefined;
+  }
+}
+
+const react = tryResolve("react");
+const reactJsxRuntime = tryResolve("react/jsx-runtime");
+const reactJsxDevRuntime = tryResolve("react/jsx-dev-runtime");
+const reactCompilerRuntime = tryResolve("react/compiler-runtime");
+const reactDom = tryResolve("react-dom");
 
 // React-server condition versions (for RSC builds)
-const reactServer = react.replace(/index\.js$/, "react.react-server.js");
-const reactJsxRuntimeServer = reactJsxRuntime.replace(
+const reactServer = react?.replace(/index\.js$/, "react.react-server.js");
+const reactJsxRuntimeServer = reactJsxRuntime?.replace(
   /jsx-runtime\.js$/,
   "jsx-runtime.react-server.js"
 );
-const reactJsxDevRuntimeServer = reactJsxDevRuntime.replace(
+const reactJsxDevRuntimeServer = reactJsxDevRuntime?.replace(
   /jsx-dev-runtime\.js$/,
   "jsx-dev-runtime.react-server.js"
 );
-const reactDomServer = reactDom.replace(
+const reactDomServer = reactDom?.replace(
   /index\.js$/,
   "react-dom.react-server.js"
 );
 
-const reactDomClient = normalizePath(__require.resolve("react-dom/client"));
-const reactDomServerEdge = normalizePath(
-  __require.resolve("react-dom/server.edge")
+const reactDomClient = tryResolve("react-dom/client");
+const reactDomServerEdge = tryResolve("react-dom/server.edge");
+const reactServerDomWebpackClientBrowser = tryResolve(
+  "react-server-dom-webpack/client.browser"
 );
-const reactServerDomWebpackClientBrowser = normalizePath(
-  __require.resolve("react-server-dom-webpack/client.browser")
+const reactServerDomWebpackServerBrowser = tryResolve(
+  "react-server-dom-webpack/server.browser"
 );
-const reactServerDomWebpackServerBrowser = normalizePath(
-  __require.resolve("react-server-dom-webpack/server.browser")
+const reactServerDomWebpackClientEdge = tryResolve(
+  "react-server-dom-webpack/client.edge"
 );
-const reactServerDomWebpackClientEdge = normalizePath(
-  __require.resolve("react-server-dom-webpack/client.edge")
+const reactServerDomWebpackServerEdge = tryResolve(
+  "react-server-dom-webpack/server.edge"
 );
-const reactServerDomWebpackServerEdge = normalizePath(
-  __require.resolve("react-server-dom-webpack/server.edge")
+const reactIs = tryResolve("react-is");
+const scheduler = tryResolve("scheduler");
+const unstorage = tryResolve("unstorage");
+const unstorageDriversMemory = tryResolve("unstorage/drivers/memory");
+const unstorageDriversLocalStorage = tryResolve(
+  "unstorage/drivers/localstorage"
 );
-const reactIs = normalizePath(__require.resolve("react-is"));
-let scheduler;
-try {
-  scheduler = normalizePath(__require.resolve("scheduler"));
-} catch {
-  // noop
-}
-const unstorage = normalizePath(__require.resolve("unstorage"));
-const unstorageDriversMemory = normalizePath(
-  __require.resolve("unstorage/drivers/memory")
+const unstorageDriversSessionStorage = tryResolve(
+  "unstorage/drivers/session-storage"
 );
-const unstorageDriversLocalStorage = normalizePath(
-  __require.resolve("unstorage/drivers/localstorage")
-);
-const unstorageDriversSessionStorage = normalizePath(
-  __require.resolve("unstorage/drivers/session-storage")
-);
-const socketIoClient = normalizePath(__require.resolve("socket.io-client"));
-const webStreamsPolyfillPolyfill = normalizePath(
-  __require.resolve("web-streams-polyfill/polyfill")
-);
-const highlightJs = normalizePath(__require.resolve("highlight.js"));
+const socketIoClient = tryResolve("socket.io-client");
+const webStreamsPolyfillPolyfill = tryResolve("web-streams-polyfill/polyfill");
+const highlightJs = tryResolve("highlight.js");
 
 export {
   react,

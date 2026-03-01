@@ -19,12 +19,14 @@ import Link from "../../../../components/Link.jsx";
 - [x] Cloudflare Workers/Pages
 - [x] Bun
 - [x] Deno
+- [x] Azure Functions
+- [x] Azure Static Web Apps
 
 <Link name="configuration">
 ## 設定
 </Link>
 
-`react-server.config.mjs`ファイルに `adapter` エントリを追加します。ビルトインアダプタの名前（`vercel`、`netlify`、`cloudflare`、`bun`、または `deno`）を文字列で指定するか、外部アダプタパッケージを使用できます。
+`react-server.config.mjs`ファイルに `adapter` エントリを追加します。ビルトインアダプタの名前（`vercel`、`netlify`、`cloudflare`、`bun`、`deno`、`azure`、または `azure-swa`）を文字列で指定するか、外部アダプタパッケージを使用できます。
 
 > **Note:** **Bun** または **Deno** でプロダクションビルドを実行すると、対応するアダプタが自動的に検出・使用されます。設定は不要です。明示的な `adapter` 設定またはCLIの `--adapter <name>` で上書きできます。自動検出を無効にするには `--no-adapter` を使用してください。
 

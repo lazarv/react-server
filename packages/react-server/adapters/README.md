@@ -377,18 +377,19 @@ The edge runtime does **not** serve static files. Your entry must handle this:
 
 ### Docker (`adapters/docker/`)
 
-- **Runtime**: Node.js (no edge build)
-- **Entry**: `server/index.mjs` — uses `@lazarv/react-server/node` (Node middleware mode) with a built-in static file server
+- **Runtime**: Node.js (default), Bun, or Deno — configurable via `runtime` option
+- **Entry**: Node mode uses `server/index.mjs` with `@lazarv/react-server/node`; Bun/Deno use edge build with `server/entry.edge.mjs` via `@lazarv/react-server/edge`
 - **Output**: `.docker/static/` + `.docker/server/` + `.docker/Dockerfile`
 - **Config**: Generates `Dockerfile`, `.dockerignore`, and `package.json` in `.docker/`
-- **Static files**: Served by the adapter's `server/index.mjs` from the `static/` directory at runtime
+- **Static files**: Node: served by `server/index.mjs`; Bun/Deno: served by generated `start.mjs` with inlined static routes
 - **Deploy**: `docker build -t <name>:latest .docker`
 - **Adapter options**:
+  - `runtime` — `"node"` (default), `"bun"`, or `"deno"`
   - `name` — Application/image name (falls back to `package.json` name)
   - `tag` — Docker image tag (default: `<name>:latest`)
   - `port` — Container port (default: `3000`)
-  - `nodeVersion` — Node.js Docker image tag (default: `"20-alpine"`)
-- **Notes**: Uses Node mode + `copy.dependencies()` (like Vercel). Does NOT set `buildOptions.edge`. Generates a single-stage Dockerfile that copies pre-built output — no build step inside Docker, resulting in smaller images and faster builds. The generated image runs as a non-root user. Use `docker run -p 3000:3000 <tag>` to start the container.
+  - `version` — Docker base image tag (default: `"20-alpine"` for Node.js, `"alpine"` for Bun/Deno)
+- **Notes**: Node mode uses `copy.dependencies()` for NFT tracing (like Vercel). Bun/Deno mode uses edge build with a single bundled file. `buildOptions` is a function that conditionally enables edge mode based on the `runtime` option. Generates a single-stage Dockerfile — no build step inside Docker, resulting in smaller images and faster builds. Node images use tini for signal handling; all runtimes run as non-root user (except Deno). Use `docker run -p 3000:3000 <tag>` to start the container.
 
 ## Step-by-Step: Creating a New Adapter
 

@@ -45,10 +45,11 @@ export default {
   adapter: [
     "docker",
     {
+      runtime: "node",          // ランタイム: "node"（デフォルト）、"bun"、または "deno"
       name: "my-app",            // アプリケーション名（デフォルト: package.json から取得）
       tag: "my-app:v1.0",       // Docker イメージタグ（デフォルト: "<name>:latest"）
       port: 8080,               // 公開ポート（デフォルト: 3000）
-      nodeVersion: "22-alpine", // Node.js Docker イメージタグ（デフォルト: "20-alpine"）
+      version: "22-alpine",     // ベースイメージタグ（デフォルトはランタイムにより異なる）
     },
   ],
 };
@@ -56,10 +57,11 @@ export default {
 
 ### 設定オプション
 
+- `runtime`: Docker コンテナ内で使用するランタイム。`"node"`（デフォルト）、`"bun"`、または `"deno"`。Node.js は依存関係トレース付きの `@lazarv/react-server/node` を使用します。Bun と Deno は単一ファイルにバンドルされるエッジビルドを使用します。
 - `name`: Docker イメージに使用されるアプリケーション名。`package.json` の name（スコープなし）または `"react-server-app"` にフォールバックします。
 - `tag`: ビルド時に使用される Docker イメージタグ。デフォルトは `"<name>:latest"` です。
 - `port`: コンテナ内でサーバがリッスンするポート。デフォルトは `3000` です。
-- `nodeVersion`: Node.js Docker イメージタグ。デフォルトは `"20-alpine"` です。より小さなイメージには Alpine バリアントを使用してください。
+- `version`: Docker ベースイメージタグ。Node.js のデフォルトは `"20-alpine"`、Bun と Deno のデフォルトは `"alpine"` です。
 
 <Link name="build-and-deploy">
 ## ビルドとデプロイ
@@ -72,8 +74,8 @@ pnpm react-server build [root] --deploy
 ```
 
 これにより以下が行われます:
-1. アプリケーションのビルド
-2. `@vercel/nft` を使用したサーバ依存関係のトレースとコピー
+1. アプリケーションのビルド（Bun/Deno の場合はエッジビルド、Node.js の場合は標準ビルド）
+2. サーバ出力と静的アセットのコピー、`@vercel/nft` による依存関係トレース（Node.js のみ）
 3. `.docker/` 出力ディレクトリに `Dockerfile`、`.dockerignore`、`package.json` を生成
 4. Docker イメージのビルド
 
@@ -122,14 +124,16 @@ docker run -p 8080:8080 -e PORT=8080 my-app:latest
 
 アダプタの動作:
 
-1. 静的ファイルを配信し、SSR は `@lazarv/react-server/node` に委譲するカスタム Node.js HTTP サーバエントリをコピー
-2. `@vercel/nft` を使用して必要な `node_modules` の依存関係をトレース — アプリが実際に必要とするファイルのみがイメージにコピーされます
+1. Node.js ランタイム: 静的ファイルを配信し、SSR は `@lazarv/react-server/node` に委譲するカスタム HTTP サーバエントリをコピーし、`@vercel/nft` を使用して必要な `node_modules` 依存関係をトレース
+2. Bun/Deno ランタイム: すべてを単一ファイルにバンドルするエッジビルドを実行し、インライン化された静的ルートを含むスタートスクリプトを生成
 3. 静的アセット（JS、CSS、画像）とサーバビルド出力（RSC ペイロード、サーバコンポーネント）をコピー
-4. `node:<version>-alpine` ベースのシングルステージ Dockerfile を生成
-5. 適切なシグナルハンドリング（`SIGTERM`/`SIGINT` でのグレースフルシャットダウン）のために [tini](https://github.com/krallin/tini) を init プロセスとして使用
-6. セキュリティのために非 root の `nodejs` ユーザとして実行
+4. 適切なベースイメージ（`node`、`oven/bun`、または `denoland/deno`）を使用したシングルステージ Dockerfile を生成
+5. Node.js の場合: 適切なシグナルハンドリングのために [tini](https://github.com/krallin/tini) を init プロセスとして使用
+6. セキュリティのために非 root ユーザとして実行（Node.js と Bun）
 
 ### 出力構造
+
+Node.js ランタイム:
 
 ```
 .docker/
@@ -140,6 +144,19 @@ docker run -p 8080:8080 -e PORT=8080 my-app:latest
 │   ├── index.mjs              # サーバエントリポイント
 │   ├── .react-server/         # ビルド出力（RSC、サーバコンポーネント）
 │   └── node_modules/          # トレースされた依存関係のみ
+└── static/                    # 静的アセット（JS、CSS、画像）
+```
+
+Bun/Deno ランタイム:
+
+```
+.docker/
+├── Dockerfile
+├── .dockerignore
+├── package.json
+├── start.mjs                  # インライン静的ルート付き生成スタートスクリプト
+├── server/
+│   └── .react-server/         # ビルド出力（エッジバンドル）
 └── static/                    # 静的アセット（JS、CSS、画像）
 ```
 
@@ -164,13 +181,13 @@ services:
 ## トラブルシューティング
 </Link>
 
-### ランタイムでモジュールが見つからない
+### ランタイムでモジュールが見つからない（Node.js のみ）
 
-アダプタは `@vercel/nft` を使用して依存関係をトレースします。モジュールが動的に読み込まれる場合（例: `createRequire()` 経由）、検出されない可能性があります。コンテナログで `MODULE_NOT_FOUND` エラーを確認し、必要なパッケージが `package.json` の dependencies に記載されていることを確認してください。
+Node.js ランタイムは `@vercel/nft` を使用して依存関係をトレースします。モジュールが動的に読み込まれる場合（例: `createRequire()` 経由）、検出されない可能性があります。コンテナログで `MODULE_NOT_FOUND` エラーを確認し、必要なパッケージが `package.json` の dependencies に記載されていることを確認してください。Bun/Deno ランタイムは単一バンドルファイルを使用するため、この問題は発生しません。
 
-### Ctrl+C でコンテナが停止しない
+### Ctrl+C でコンテナが停止しない（Node.js のみ）
 
-生成された Dockerfile は `tini` を init プロセスとして使用しています。`docker run` を `-it` なしで実行すると、シグナルが転送されない場合があります。以下を使用してください:
+Node.js の Dockerfile は `tini` を init プロセスとして使用しています。`docker run` を `-it` なしで実行すると、シグナルが転送されない場合があります。以下を使用してください:
 
 ```sh
 docker run -it -p 3000:3000 my-app:latest

@@ -142,6 +142,10 @@
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/azure-swa/index.mjs"
     },
+    "./adapters/firebase": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/firebase/index.mjs"
+    },
     "./adapters/docker": {
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/docker/index.mjs"

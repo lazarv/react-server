@@ -15,6 +15,10 @@ netlify.toml
 deno.lock
 .azure
 .azure-swa
+.firebase-app
+.firebase
+.firebaserc
+firebase.json
 .bun
 .deno
 .aws

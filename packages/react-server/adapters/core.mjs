@@ -580,16 +580,22 @@ export async function getDependencies(adapterFiles, reactServerDir) {
 }
 
 export async function spawnCommand(command, args, options) {
+  const { cwd: spawnCwd, ...rest } = options ?? {};
   const deploy = spawn(command, args, {
-    cwd: options?.cwd ?? cwd,
+    cwd: spawnCwd ?? cwd,
     stdio: "inherit",
+    ...rest,
   });
   await new Promise((resolve, reject) => {
     deploy.on("exit", (code) => {
       if (code === 0) {
         resolve();
       } else {
-        reject();
+        reject(
+          new Error(
+            `Command "${command} ${args.join(" ")}" exited with code ${code}`
+          )
+        );
       }
     });
   });

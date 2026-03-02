@@ -5,6 +5,7 @@ import { cookie, usePathname } from "@lazarv/react-server";
 import { useMatch } from "@lazarv/react-server/router";
 
 import EditPage from "../components/EditPage.jsx";
+import ViewMarkdown from "../components/ViewMarkdown.jsx";
 import { useLanguage, m } from "../i18n.mjs";
 import { defaultLanguage, defaultLanguageRE, languages } from "../const.mjs";
 import { categories } from "../pages.mjs";
@@ -111,6 +112,7 @@ export default function Layout({
           <article>
             {breadcrumb}
             <EditPage pathname={pathname} />
+            <ViewMarkdown pathname={pathname} />
             {children}
             {navigation}
           </article>

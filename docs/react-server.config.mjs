@@ -18,10 +18,20 @@ export default {
   },
   prerender: false,
   export(paths) {
+    const pagePaths = paths
+      .map(({ path }) => path.replace(/^\/en/, ""))
+      .filter((p) => p !== "/" && p !== "/404" && p.length > 1);
+
     return [
       ...paths.map(({ path }) => ({
         path: path.replace(/^\/en/, ""),
         rsc: false,
+      })),
+      // Markdown versions of all docs pages for AI usage
+      ...pagePaths.map((p) => ({
+        path: `/md${p}`,
+        filename: `${p.slice(1)}.md`,
+        method: "GET",
       })),
       {
         path: "/sitemap.xml",

@@ -73,15 +73,9 @@ export default function Layout({
         <meta property="og:image:height" content="630" />
         <meta property="og:url" content="https://react-server.dev" />
         <meta property="twitter:card" content="summary_large_image" />
-        <meta
-          name="description"
-          content="The easiest way to build React apps with server-side rendering"
-        />
+        <meta name="description" content="Run React anywhere" />
         <meta property="og:title" content="@lazarv/react-server" />
-        <meta
-          property="og:description"
-          content="The easiest way to build React apps with server-side rendering."
-        />
+        <meta property="og:description" content="Run React anywhere" />
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/@docsearch/css@3"

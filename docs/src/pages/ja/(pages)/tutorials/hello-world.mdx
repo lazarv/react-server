@@ -34,7 +34,7 @@ pnpm init
 pnpm add @lazarv/react-server
 ```
 
-このコマンドで`my-first-application`という新しいディレクトリを作成し、`pnpm`プロジェクトを初期化、`@lazarv/react-server`パッケージをインストールします。また`react`や`react-dom`を個別にインストールする必要はありません。それらはフレームワークが正しく動作するために特定のバージョンを必要とするため、`@lazarv/react-server`の依存関係としてすでに含まれているからです。
+このコマンドで`my-first-application`という新しいディレクトリを作成し、`pnpm`プロジェクトを初期化、`@lazarv/react-server`パッケージをインストールします。また`react`や`react-dom`を個別にインストールする必要はありません。それらはランタイムが正しく動作するために特定のバージョンを必要とするため、`@lazarv/react-server`の依存関係としてすでに含まれているからです。
 
 <Link name="create">
 ## React Server Componentを作成する
@@ -133,7 +133,7 @@ pnpm react-server start
 ## npxを使う
 </Link>
 
-小さなプロジェクトで`@lazarv/react-server`をインストールしたくない場合は、依存関係をインストールしなくても`npx`を使用してアプリケーションを動かすことができます。依存関係はアプリケーションに直接必要なものだけをインストールし、フレームワーク自体やReactはインストールしません。以下のコマンドで`npx`を使って開発サーバーを起動することができます:
+小さなプロジェクトで`@lazarv/react-server`をインストールしたくない場合は、依存関係をインストールしなくても`npx`を使用してアプリケーションを動かすことができます。依存関係はアプリケーションに直接必要なものだけをインストールし、ランタイム自体やReactはインストールしません。以下のコマンドで`npx`を使って開発サーバーを起動することができます:
 
 ```sh
 npx @lazarv/react-server ./App.jsx

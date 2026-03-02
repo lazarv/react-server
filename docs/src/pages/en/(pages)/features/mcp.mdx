@@ -1,6 +1,6 @@
 ---
 title: MCP
-category: Framework
+category: Features
 order: 15
 ---
 
@@ -183,15 +183,15 @@ export default async function MyClientComponent() {
 
 This will allow you to fetch the resource data when the button is clicked, demonstrating how MCP handlers can be used in both server and client components to provide a seamless experience.
 
-Don't forget to annotate your MCP handlers with the `"use server"` directive to ensure they are treated as server-side functions. This is important for the `@lazarv/react-server` framework to correctly expose the handlers and allow them to be invoked by your application.
+Don't forget to annotate your MCP handlers with the `"use server"` directive to ensure they are treated as server-side functions. This is important for `@lazarv/react-server` to correctly expose the handlers and allow them to be invoked by your application.
 
-MCP handlers are called using Server Functions in your application, while exposed to MCP clients using the `createServer` function. This allows you to define your handlers in a way that is compatible with both the `@lazarv/react-server` framework and the Model Context Protocol, enabling seamless integration and interaction with language models and other automated agents.
+MCP handlers are called using Server Functions in your application, while exposed to MCP clients using the `createServer` function. This allows you to define your handlers in a way that is compatible with both `@lazarv/react-server` and the Model Context Protocol, enabling seamless integration and interaction with language models and other automated agents.
 
 <Link name="authentication">
 ## Authentication
 </Link>
 
-`@lazarv/react-server` does not currently support MCP authentication, so you will need to implement your own authentication mechanism if you want to secure your MCP handlers. You can use the framework's built-in hooks, such as `cookie` or `headers`, to manage authentication and authorization for your MCP endpoints.
+`@lazarv/react-server` does not currently support MCP authentication, so you will need to implement your own authentication mechanism if you want to secure your MCP handlers. You can use the runtime's built-in hooks, such as `cookie` or `headers`, to manage authentication and authorization for your MCP endpoints.
 
 <Link name="sessions">
 ## Sessions

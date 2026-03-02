@@ -11,7 +11,7 @@ export const pages = Array.from(
 export const categories = [
   "Guide",
   "Integrations",
-  "Framework",
+  "Features",
   "Router",
   "Deploy",
   "Tutorials",

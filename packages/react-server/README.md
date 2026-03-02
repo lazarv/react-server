@@ -1,6 +1,6 @@
 ![@lazarv/react-server](https://github.com/lazarv/react-server/blob/7f56153ae10f304a2777c652c82d394c7560cf91/docs/public/opengraph.jpg?raw=true "@lazarv/react-server")
 
-The easiest way to build [React](https://react.dev) apps with server-side rendering.
+Run [React](https://react.dev) anywhere
 
 Build React apps with server-side rendering the way it should be — write a single file, run one command, and everything just works. Powered by [Vite](https://vite.dev) with React included out of the box.
 

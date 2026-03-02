@@ -2,7 +2,7 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "category_guide": "ガイド",
   "category_integrations": "統合",
-  "category_framework": "フレームワーク",
+  "category_features": "機能",
   "category_router": "ルーター",
   "category_deploy": "デプロイ",
   "category_tutorials": "チュートリアル",

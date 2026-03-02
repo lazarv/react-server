@@ -1,6 +1,6 @@
 ---
 title: Workers
-category: Framework
+category: Features
 order: 14
 ---
 
@@ -8,7 +8,7 @@ import Link from "../../../../components/Link.jsx";
 
 # Workers
 
-The `"use worker"` directive in the `@lazarv/react-server` framework lets you offload heavy computations or blocking tasks to separate threads. On the server, functions marked with `"use worker"` run in a **Node.js Worker Thread** (`node:worker_threads`). On the client, the same directive runs your code in a **Web Worker** (browser `Worker` API). In both cases, you import and call worker functions as if they were ordinary async functions — the framework handles thread creation, message passing, and serialization transparently.
+The `"use worker"` directive in `@lazarv/react-server` lets you offload heavy computations or blocking tasks to separate threads. On the server, functions marked with `"use worker"` run in a **Node.js Worker Thread** (`node:worker_threads`). On the client, the same directive runs your code in a **Web Worker** (browser `Worker` API). In both cases, you import and call worker functions as if they were ordinary async functions — the runtime handles thread creation, message passing, and serialization transparently.
 
 All data flowing between the main thread and the worker is serialized using the **React Server Components (RSC) Flight protocol**. This means worker functions can return not only plain values but also **React elements**, **Suspense boundaries**, **Promises** (for deferred rendering with the `use()` hook), and **ReadableStreams**.
 
@@ -18,14 +18,14 @@ All data flowing between the main thread and the worker is serialized using the 
 
 - **Non-blocking rendering:** CPU-intensive work (prime sieves, sorting, matrix math, image processing) runs off the main thread so it doesn't block server request handling or the browser UI.
 - **Concurrency:** Multiple worker calls can execute in parallel, improving throughput.
-- **Unified API:** The same `"use worker"` directive works in both server and client code. You write one module and the framework picks the right threading primitive for the environment.
+- **Unified API:** The same `"use worker"` directive works in both server and client code. You write one module and the runtime picks the right threading primitive for the environment.
 - **RSC-native serialization:** Because data is serialized via the Flight protocol, you can seamlessly pass and return React elements, Suspense boundaries, ReadableStreams, and deferred Promises between threads.
 
 <Link name="how-it-works">
 ## How It Works
 </Link>
 
-When the framework encounters a file with `"use worker"` at the top, it replaces all exports with thin proxy functions at build time. The original module code is moved into a virtual module that runs inside the worker thread. When you call an exported function, the proxy:
+When the runtime encounters a file with `"use worker"` at the top, it replaces all exports with thin proxy functions at build time. The original module code is moved into a virtual module that runs inside the worker thread. When you call an exported function, the proxy:
 
 1. Serializes the arguments using the RSC Flight protocol.
 2. Posts a message to the worker thread (or Web Worker) with the function name and serialized arguments.
@@ -149,7 +149,7 @@ export async function getWorkerSystemInfo() {
 ## Returning React Elements
 </Link>
 
-Because communication uses the RSC Flight protocol, worker functions can return **React elements**, including components with **Suspense boundaries**. The framework serializes the entire component tree and reconstructs it on the calling side.
+Because communication uses the RSC Flight protocol, worker functions can return **React elements**, including components with **Suspense boundaries**. The runtime serializes the entire component tree and reconstructs it on the calling side.
 
 ```jsx
 "use worker";
@@ -303,7 +303,7 @@ When the request is aborted (e.g., the client navigates away), `signal.aborted` 
 ## Client-Side Web Workers
 </Link>
 
-The same `"use worker"` directive works in client-side code. When a `"use client"` component imports from a `"use worker"` module, the framework automatically creates a **Web Worker** in the browser. The function arguments and return values are serialized using the RSC Flight protocol and transferred between the main thread and the Web Worker.
+The same `"use worker"` directive works in client-side code. When a `"use client"` component imports from a `"use worker"` module, the runtime automatically creates a **Web Worker** in the browser. The function arguments and return values are serialized using the RSC Flight protocol and transferred between the main thread and the Web Worker.
 
 This keeps the browser's main thread responsive while heavy computation runs in the background — no UI jank, no frozen interactions.
 
@@ -469,7 +469,7 @@ export async function streamComputations() {
 ## Edge Runtime Behavior
 </Link>
 
-On **edge and serverless runtimes** (Cloudflare Workers, Vercel Edge, Netlify Edge, Deno Deploy), `node:worker_threads` is not available. In these environments, the framework automatically falls back to **in-process execution** — your worker functions are called directly without any threading or serialization overhead.
+On **edge and serverless runtimes** (Cloudflare Workers, Vercel Edge, Netlify Edge, Deno Deploy), `node:worker_threads` is not available. In these environments, the runtime automatically falls back to **in-process execution** — your worker functions are called directly without any threading or serialization overhead.
 
 This means `"use worker"` modules remain fully portable: the same code works in Node.js (with real worker threads) and on the edge (with direct execution). You don't need to change your code or add conditional logic.
 
@@ -479,7 +479,7 @@ This means `"use worker"` modules remain fully portable: the same code works in 
 ## Worker Detection
 </Link>
 
-The framework provides an `isWorker()` helper function that lets you detect at runtime whether your code is executing inside a worker thread. This is useful when you need to conditionally run logic that should only happen inside a real worker — for example, calling `process.exit()` to terminate the worker without accidentally killing the main server process.
+The runtime provides an `isWorker()` helper function that lets you detect at runtime whether your code is executing inside a worker thread. This is useful when you need to conditionally run logic that should only happen inside a real worker — for example, calling `process.exit()` to terminate the worker without accidentally killing the main server process.
 
 Import `isWorker` from `@lazarv/react-server/worker`. This import path works in both server workers (Node.js Worker Threads) and client workers (Web Workers):
 
@@ -562,7 +562,7 @@ Keep the following constraints in mind when using `"use worker"`:
 
 ### Development mode
 
-- In development, the framework uses Vite's `ModuleRunner` inside the worker thread, providing full **Hot Module Replacement (HMR)** support. Changes to worker files are picked up automatically without restarting the dev server.
+- In development, the runtime uses Vite's `ModuleRunner` inside the worker thread, providing full **Hot Module Replacement (HMR)** support. Changes to worker files are picked up automatically without restarting the dev server.
 
 <Link name="full-example">
 ## Full Example

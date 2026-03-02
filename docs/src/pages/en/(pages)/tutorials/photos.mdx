@@ -12,7 +12,7 @@ In this tutorial, you will learn how to use client components to create interact
 
 We will build a simple photo gallery application that will use client components for navigation and image display. You will learn how to create client components and handle user interactions.
 
-We will also use the file-system based routing solution provided by the framework to create routes for our application. This will allow us to navigate between different pages and display the appropriate content.
+We will also use the file-system based routing solution provided by `@lazarv/react-server` to create routes for our application. This will allow us to navigate between different pages and display the appropriate content.
 
 <Link name="project-setup">
 ## Project setup
@@ -254,7 +254,7 @@ export default function Modal({ children }: { children: React.ReactNode }) {
 }
 ```
 
-The most important part is the first line of the file: `"use client";`. This directive tells the framework that this component should be loaded on the client-side. This is how we can create client components. The rest of the file is a simple modal component that will display the photo in a modal view. We use the `useEffect` hook to add and remove the `overflow-hidden` class from the `body` element to prevent scrolling when the modal is open and another `useEffect` hook to handle keyboard navigation. We also use the `ClickAwayListener` component from the `react-click-away-listener` package to close the modal when the user clicks outside of it. You don't need to specify `"use client";` directive for the `ClickAwayListener` component, because it is imported by our `Modal` component which is already a client component.
+The most important part is the first line of the file: `"use client";`. This directive tells the runtime that this component should be loaded on the client-side. This is how we can create client components. The rest of the file is a simple modal component that will display the photo in a modal view. We use the `useEffect` hook to add and remove the `overflow-hidden` class from the `body` element to prevent scrolling when the modal is open and another `useEffect` hook to handle keyboard navigation. We also use the `ClickAwayListener` component from the `react-click-away-listener` package to close the modal when the user clicks outside of it. You don't need to specify `"use client";` directive for the `ClickAwayListener` component, because it is imported by our `Modal` component which is already a client component.
 
 In client components, you can use all of the React hooks only working on the client-side, like the `useEffect` hooks to handle browser events and you can also use React components which needs to run on the client-side, in the browser, like the `ClickAwayListener` component from the `react-click-away-listener` package.
 
@@ -426,4 +426,4 @@ pnpm start
 ## Conclusion
 </Link>
 
-In this tutorial, you learned how to use client components to create interactive elements in your application. You built a simple photo gallery application that uses client components for navigation and image display. You also learned how to create routes for your application using the file-system based routing solution provided by the framework. You can also find this example application in the [GitHub repository](https://github.com/lazarv/react-server/tree/main/examples/photos) and after cloning the repo and installing the dependencies by executing `pnpm install` you can run the application using the `pnpm --filter ./examples/photos dev` command.
+In this tutorial, you learned how to use client components to create interactive elements in your application. You built a simple photo gallery application that uses client components for navigation and image display. You also learned how to create routes for your application using the file-system based routing solution provided by `@lazarv/react-server`. You can also find this example application in the [GitHub repository](https://github.com/lazarv/react-server/tree/main/examples/photos) and after cloning the repo and installing the dependencies by executing `pnpm install` you can run the application using the `pnpm --filter ./examples/photos dev` command.

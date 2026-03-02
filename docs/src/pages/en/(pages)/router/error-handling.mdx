@@ -55,7 +55,7 @@ export default function GlobalError({ error }: { error: Error }) {
 }
 ```
 
-Optionally, you can specify the global error component in the `react-server.config.json` file. You only need to specify the path to the file when you want to use a file that is not named `react-server.error.jsx` or `react-server.error.tsx`, like `global-error.tsx` or similar, or when you want to use a file specifically for the global error component and not the first the framework can find with the default name.
+Optionally, you can specify the global error component in the `react-server.config.json` file. You only need to specify the path to the file when you want to use a file that is not named `react-server.error.jsx` or `react-server.error.tsx`, like `global-error.tsx` or similar, or when you want to use a file specifically for the global error component and not the first the runtime can find with the default name.
 
 ```jsx
 // react-server.config.json

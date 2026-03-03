@@ -116,7 +116,7 @@ export default function TodoForm() {
 
 ## File-System Router
 
-Omit the entrypoint and the framework automatically routes based on your file structure. Every convention you'd expect — and more:
+Omit the entrypoint and the runtime automatically routes based on your file structure. Every convention you'd expect — and more:
 
 ```
 app/

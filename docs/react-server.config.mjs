@@ -28,9 +28,9 @@ export default {
         rsc: false,
       })),
       // Markdown versions of all docs pages for AI usage
-      ...pagePaths.map((p) => ({
-        path: `/md${p}`,
-        filename: `${p.slice(1)}.md`,
+      ...pagePaths.map((path) => ({
+        path: `${path}.md`,
+        filename: `${path.slice(1)}.md`,
         method: "GET",
       })),
       {

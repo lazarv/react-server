@@ -1,36 +1,40 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { useMatch } from "@lazarv/react-server/router";
 
-// Lazy loaders for all English docs pages
-const rawLoaders = import.meta.glob(
-  ["../en/\\(pages\\)/**/*.{md,mdx}", "../en/*.\\(index\\).{md,mdx}"],
-  { query: "?raw", import: "default" }
-);
-
+// Lazy loaders for frontmatter only
 const moduleLoaders = import.meta.glob([
-  "../en/\\(pages\\)/**/*.{md,mdx}",
+  "../en/*/**/*.{md,mdx}",
   "../en/*.\\(index\\).{md,mdx}",
 ]);
 
 function getSlug(key) {
-  // For pages in (pages)/ directory: ./en/(pages)/guide/quick-start.mdx → guide/quick-start
-  let match = key.match(/\.\.\/en\/\(pages\)\/(.+?)\.mdx?$/);
+  // For pages in (pages)/ directory: (pages)/guide/quick-start.mdx → guide/quick-start
+  let match = key.match(/\(pages\)\/(.+?)\.mdx?$/);
   if (match) {
     return match[1].replace(/\.page$/, "").replace(/\/index$/, "");
   }
-  // For category index pages: ./en/guide.(index).mdx → guide
-  match = key.match(/\.\.\/en\/(.+?)\.\(index\)\.mdx?$/);
+  // For category index pages: guide.(index).mdx → guide
+  match = key.match(/^(.+?)\.\(index\)\.mdx?$/);
   if (match) {
     return match[1];
   }
   return null;
 }
 
-// Build slug → loader key mapping (cheap, no file loading)
+// Map from glob key to raw file path relative to pages/en/
+function globKeyToRelPath(globKey) {
+  return globKey.replace(/^\.\.\/en\//, "");
+}
+
+// Build slug → keys mapping
 const slugToKey = new Map();
-for (const key of Object.keys(rawLoaders)) {
-  const slug = getSlug(key);
+for (const globKey of Object.keys(moduleLoaders)) {
+  const relPath = globKeyToRelPath(globKey);
+  const slug = getSlug(relPath);
   if (slug) {
-    slugToKey.set(slug, key);
+    slugToKey.set(slug, { globKey, relPath });
   }
 }
 
@@ -88,15 +92,15 @@ export default async function MarkdownRoute() {
     return new Response("Not Found", { status: 404 });
   }
 
-  const key = slugToKey.get(path);
-  if (!key) {
+  const keys = slugToKey.get(path);
+  if (!keys) {
     return new Response("Not Found", { status: 404 });
   }
 
-  const [raw, mod] = await Promise.all([
-    rawLoaders[key](),
-    moduleLoaders[key](),
-  ]);
+  // Read raw source file from disk (works in dev and during static export build)
+  const pagesDir = join(process.cwd(), "src", "pages", "en");
+  const raw = await readFile(join(pagesDir, keys.relPath), "utf-8");
+  const mod = await moduleLoaders[keys.globKey]();
   const title = mod?.frontmatter?.title;
 
   let markdown = cleanMdx(raw);

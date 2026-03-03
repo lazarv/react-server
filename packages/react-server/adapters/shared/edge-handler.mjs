@@ -12,6 +12,7 @@ export function finalizeResponse(httpContext, response) {
 
   if (httpContext._setCookies?.length) {
     const headers = new Headers(response.headers);
+    headers.delete("set-cookie");
     for (const c of httpContext._setCookies) {
       headers.append("set-cookie", c);
     }

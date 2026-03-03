@@ -224,9 +224,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const staticDir = join(__dirname, "static");
 
 process.chdir(join(__dirname, "server/${reactServerOutDir}"));
-const { handler, createContext, port, hostname } = await import("./server/${reactServerOutDir}/server/edge.mjs");
-
-let origin;
+const { handleRequest, port, hostname } = await import("./server/${reactServerOutDir}/server/edge.mjs");
 
 Bun.serve({
   port,
@@ -235,45 +233,7 @@ Bun.serve({
 ${staticEntries}
   },
   async fetch(request) {
-    try {
-      const url = new URL(request.url);
-
-      origin =
-        origin ||
-        process.env.ORIGIN ||
-        \`\${url.protocol}//\${url.host}\`;
-
-      const httpContext = createContext(request, {
-        origin,
-        runtime: "bun",
-      });
-
-      const response = await handler(httpContext);
-
-      if (!response) {
-        return new Response("Not Found", { status: 404 });
-      }
-
-      if (httpContext._setCookies?.length) {
-        const headers = new Headers(response.headers);
-        for (const c of httpContext._setCookies) {
-          headers.append("set-cookie", c);
-        }
-        return new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers,
-        });
-      }
-
-      return response;
-    } catch (e) {
-      console.error(e);
-      return new Response(e.message || "Internal Server Error", {
-        status: 500,
-        headers: { "Content-Type": "text/plain" },
-      });
-    }
+    return handleRequest(request, { runtime: "bun" });
   },
 });
 
@@ -289,7 +249,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const staticDir = join(__dirname, "static");
 
 process.chdir(join(__dirname, "server/${reactServerOutDir}"));
-const { handler, createContext, port, hostname } = await import("./server/${reactServerOutDir}/server/edge.mjs");
+const { handleRequest, port, hostname } = await import("./server/${reactServerOutDir}/server/edge.mjs");
 
 const MIME_TYPES = ${JSON.stringify(MIME_TYPES, null, 2)};
 
@@ -300,67 +260,29 @@ function getMimeType(filePath) {
   return MIME_TYPES[ext] || "application/octet-stream";
 }
 
-let origin;
-
 Deno.serve({
   port,
   hostname,
 }, async (request) => {
-  try {
-    const url = new URL(request.url);
+  const url = new URL(request.url);
 
-    // Check static routes first
-    const staticFile = staticRoutes[url.pathname];
-    if (staticFile) {
-      try {
-        const filePath = join(staticDir, staticFile);
-        const file = await Deno.readFile(filePath);
-        return new Response(file, {
-          headers: {
-            "content-type": getMimeType(staticFile),
-          },
-        });
-      } catch {
-        // Fall through to server handler
-      }
-    }
-
-    origin =
-      origin ||
-      process.env.ORIGIN ||
-      \`\${url.protocol}//\${url.host}\`;
-
-    const httpContext = createContext(request, {
-      origin,
-      runtime: "deno",
-    });
-
-    const response = await handler(httpContext);
-
-    if (!response) {
-      return new Response("Not Found", { status: 404 });
-    }
-
-    if (httpContext._setCookies?.length) {
-      const headers = new Headers(response.headers);
-      for (const c of httpContext._setCookies) {
-        headers.append("set-cookie", c);
-      }
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
+  // Check static routes first
+  const staticFile = staticRoutes[url.pathname];
+  if (staticFile) {
+    try {
+      const filePath = join(staticDir, staticFile);
+      const file = await Deno.readFile(filePath);
+      return new Response(file, {
+        headers: {
+          "content-type": getMimeType(staticFile),
+        },
       });
+    } catch {
+      // Fall through to server handler
     }
-
-    return response;
-  } catch (e) {
-    console.error(e);
-    return new Response(e.message || "Internal Server Error", {
-      status: 500,
-      headers: { "Content-Type": "text/plain" },
-    });
   }
+
+  return handleRequest(request, { runtime: "deno" });
 });
 
 console.log(\`Deno server listening on http://\${hostname}:\${port}\`);

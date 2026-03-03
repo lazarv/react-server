@@ -97,9 +97,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const staticDir = join(__dirname, "static");
 
 process.chdir(join(__dirname, "server/${reactServerOutDir}"));
-const { handler, createContext, port, hostname } = await import("./server/${reactServerOutDir}/server/edge.mjs");
-
-let origin;
+const { handleRequest, port, hostname } = await import("./server/${reactServerOutDir}/server/edge.mjs");
 
 Bun.serve({
   port,
@@ -108,45 +106,7 @@ Bun.serve({
 ${staticEntries.join(",\n")}
   },
   async fetch(request) {
-    try {
-      const url = new URL(request.url);
-
-      origin =
-        origin ||
-        process.env.ORIGIN ||
-        \`\${url.protocol}//\${url.host}\`;
-
-      const httpContext = createContext(request, {
-        origin,
-        runtime: "bun",
-      });
-
-      const response = await handler(httpContext);
-
-      if (!response) {
-        return new Response("Not Found", { status: 404 });
-      }
-
-      if (httpContext._setCookies?.length) {
-        const headers = new Headers(response.headers);
-        for (const c of httpContext._setCookies) {
-          headers.append("set-cookie", c);
-        }
-        return new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers,
-        });
-      }
-
-      return response;
-    } catch (e) {
-      console.error(e);
-      return new Response(e.message || "Internal Server Error", {
-        status: 500,
-        headers: { "Content-Type": "text/plain" },
-      });
-    }
+    return handleRequest(request, { runtime: "bun" });
   },
 });
 

@@ -2,6 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 import { reactServer } from "@lazarv/react-server/edge";
 import { createContext } from "@lazarv/react-server/http";
+import { finalizeResponse } from "../../shared/edge-handler.mjs";
 
 let serverPromise = null;
 
@@ -195,27 +196,7 @@ async function handleRequest(event, context) {
     });
 
     const response = await handler(httpContext);
-
-    if (!response) {
-      return new Response("Not Found", {
-        status: 404,
-        headers: { "content-type": "text/plain" },
-      });
-    }
-
-    if (httpContext._setCookies?.length) {
-      const headers = new Headers(response.headers);
-      for (const c of httpContext._setCookies) {
-        headers.append("set-cookie", c);
-      }
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
-    }
-
-    return response;
+    return finalizeResponse(httpContext, response);
   } catch (e) {
     console.error(e);
     return new Response(e.message || "Internal Server Error", {

@@ -1,16 +1,15 @@
 import { useMatch } from "@lazarv/react-server/router";
 
-// Raw content for all English docs pages
-const rawContent = import.meta.glob(
+// Lazy loaders for all English docs pages
+const rawLoaders = import.meta.glob(
   ["../en/\\(pages\\)/**/*.{md,mdx}", "../en/*.\\(index\\).{md,mdx}"],
-  { query: "?raw", import: "default", eager: true }
+  { query: "?raw", import: "default" }
 );
 
-// Module exports (for frontmatter)
-const modules = import.meta.glob(
-  ["../en/\\(pages\\)/**/*.{md,mdx}", "../en/*.\\(index\\).{md,mdx}"],
-  { eager: true }
-);
+const moduleLoaders = import.meta.glob([
+  "../en/\\(pages\\)/**/*.{md,mdx}",
+  "../en/*.\\(index\\).{md,mdx}",
+]);
 
 function getSlug(key) {
   // For pages in (pages)/ directory: ./en/(pages)/guide/quick-start.mdx → guide/quick-start
@@ -24,6 +23,15 @@ function getSlug(key) {
     return match[1];
   }
   return null;
+}
+
+// Build slug → loader key mapping (cheap, no file loading)
+const slugToKey = new Map();
+for (const key of Object.keys(rawLoaders)) {
+  const slug = getSlug(key);
+  if (slug) {
+    slugToKey.set(slug, key);
+  }
 }
 
 function cleanMdx(raw) {
@@ -69,22 +77,10 @@ function cleanMdx(raw) {
   return content.trim();
 }
 
-// Build slug → page data mapping
-const pageMap = new Map();
-for (const [key, raw] of Object.entries(rawContent)) {
-  const slug = getSlug(key);
-  if (slug) {
-    const mod = modules[key];
-    const title = mod?.frontmatter?.title;
-    const category = mod?.frontmatter?.category;
-    pageMap.set(slug, { raw, title, category });
-  }
-}
-
 // Export all available slugs so they can be used for static generation
-export const slugs = Array.from(pageMap.keys());
+export const slugs = Array.from(slugToKey.keys());
 
-export default function MarkdownRoute() {
+export default async function MarkdownRoute() {
   const { slug } = useMatch("/md/[[...slug]]");
   const path = slug?.join("/");
 
@@ -92,16 +88,22 @@ export default function MarkdownRoute() {
     return new Response("Not Found", { status: 404 });
   }
 
-  const page = pageMap.get(path);
-  if (!page) {
+  const key = slugToKey.get(path);
+  if (!key) {
     return new Response("Not Found", { status: 404 });
   }
 
-  let markdown = cleanMdx(page.raw);
+  const [raw, mod] = await Promise.all([
+    rawLoaders[key](),
+    moduleLoaders[key](),
+  ]);
+  const title = mod?.frontmatter?.title;
+
+  let markdown = cleanMdx(raw);
 
   // If title exists and content doesn't already start with it, prepend
-  if (page.title && !markdown.startsWith("# ")) {
-    markdown = `# ${page.title}\n\n${markdown}`;
+  if (title && !markdown.startsWith("# ")) {
+    markdown = `# ${title}\n\n${markdown}`;
   }
 
   return new Response(markdown, {

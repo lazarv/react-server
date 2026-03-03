@@ -2,10 +2,16 @@ import { join, relative } from "node:path";
 
 import { defaultLanguage } from "./const.mjs";
 
-export const pages = Array.from(
-  Object.entries(
-    import.meta.glob("./pages/*/\\(pages\\)/**/*.{md,mdx}", { eager: true })
-  )
+const frontmatterLoaders = import.meta.glob(
+  "./pages/*/\\(pages\\)/**/*.{md,mdx}",
+  { import: "frontmatter" }
+);
+const loaders = import.meta.glob("./pages/*/\\(pages\\)/**/*.{md,mdx}");
+export const pages = await Promise.all(
+  Object.entries(frontmatterLoaders).map(async ([key, load]) => [
+    key,
+    { frontmatter: await load() },
+  ])
 );
 
 export const categories = [
@@ -46,7 +52,7 @@ export function getPages(pathname, lang) {
           ([, { frontmatter: a }], [, { frontmatter: b }]) =>
             (a?.order ?? 0) - (b?.order ?? 0)
         )
-        .reduce((availablePages, [src, { frontmatter, default: page }]) => {
+        .reduce((availablePages, [src, { frontmatter }]) => {
           const path = relative(`./pages/${lang}`, src);
           const href = join(
             lang !== defaultLanguage ? `/${lang}` : "/",
@@ -68,7 +74,7 @@ export function getPages(pathname, lang) {
             frontmatter,
             category,
             src,
-            page,
+            page: () => loaders[src]().then((m) => m.default),
           };
 
           if (

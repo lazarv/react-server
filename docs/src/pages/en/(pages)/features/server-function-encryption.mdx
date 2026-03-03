@@ -1,6 +1,6 @@
 ---
 title: Server function encryption
-category: Framework
+category: Features
 order: 3
 ---
 
@@ -39,14 +39,14 @@ This means server function encryption is always active. You only need to configu
 ## Custom secret
 </Link>
 
-You can provide your own encryption secret using environment variables or the framework configuration. This is useful when you need deterministic keys across deployments or when running multiple server instances.
+You can provide your own encryption secret using environment variables or the runtime configuration. This is useful when you need deterministic keys across deployments or when running multiple server instances.
 
 The secret is resolved in the following priority order:
 
 1. `REACT_SERVER_FUNCTIONS_SECRET` environment variable
 2. `REACT_SERVER_FUNCTIONS_SECRET_FILE` environment variable (path to a key file)
-3. `serverFunctions.secret` in the framework configuration
-4. `serverFunctions.secretFile` in the framework configuration (path to a key file)
+3. `serverFunctions.secret` in the runtime configuration
+4. `serverFunctions.secretFile` in the runtime configuration (path to a key file)
 5. Build artifact (generated automatically during production builds)
 6. Ephemeral random key (development fallback)
 
@@ -64,8 +64,8 @@ Or point to a key file:
 REACT_SERVER_FUNCTIONS_SECRET_FILE=./keys/action-secret.pem pnpm start
 ```
 
-<Link name="framework-configuration">
-### Framework configuration
+<Link name="runtime-configuration">
+### Runtime configuration
 </Link>
 
 ```mjs filename="react-server.config.mjs"

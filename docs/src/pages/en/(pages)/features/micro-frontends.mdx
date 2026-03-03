@@ -1,6 +1,6 @@
 ---
 title: Micro-frontends
-category: Framework
+category: Features
 order: 12
 ---
 
@@ -41,7 +41,7 @@ export default function MicroFrontend() {
 
 Just don't use `html`, `head` or `body` tags in your micro-frontend route as the hosting application can't render multiple of these tags.
 
-> **Note:** React Server Components, client components and server functions are all supported in micro-frontends when using the `@lazarv/react-server` framework using server-side rendering.
+> **Note:** React Server Components, client components and server functions are all supported in micro-frontends when using `@lazarv/react-server` with server-side rendering.
 
 `@lazarv/react-server` provides a set of tools to help you implement micro-frontends in your application. You can use the `RemoteComponent` component to load a micro-frontend from a remote URL. This allows you to load a micro-frontend on demand and render it in your application using server-side rendering.
 
@@ -197,17 +197,17 @@ In development, we can use the hosting application to serve the client component
 export default {
   importMap: {
     imports: {
-      react: "https://esm.sh/react@0.0.0-experimental-ab18f33d-20260220?dev",
+      react: "https://esm.sh/react@0.0.0-experimental-e0cc7202-20260227?dev",
       "react/jsx-dev-runtime":
-        "https://esm.sh/react@0.0.0-experimental-ab18f33d-20260220/jsx-dev-runtime?dev",
+        "https://esm.sh/react@0.0.0-experimental-e0cc7202-20260227/jsx-dev-runtime?dev",
       "react/jsx-runtime":
-        "https://esm.sh/react@0.0.0-experimental-ab18f33d-20260220/jsx-runtime?dev",
+        "https://esm.sh/react@0.0.0-experimental-e0cc7202-20260227/jsx-runtime?dev",
       "react-dom":
-        "https://esm.sh/react-dom@0.0.0-experimental-ab18f33d-20260220?dev",
+        "https://esm.sh/react-dom@0.0.0-experimental-e0cc7202-20260227?dev",
       "react-dom/client":
-        "https://esm.sh/react-dom@0.0.0-experimental-ab18f33d-20260220/client?dev",
+        "https://esm.sh/react-dom@0.0.0-experimental-e0cc7202-20260227/client?dev",
       "react-server-dom-webpack/client.browser":
-        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-ab18f33d-20260220/client.browser?dev",
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-e0cc7202-20260227/client.browser?dev",
     },
   },
 };
@@ -219,15 +219,15 @@ In production, we only map `@lazarv/react-server` modules to share these with ea
 export default {
   importMap: {
     imports: {
-      react: "https://esm.sh/react@0.0.0-experimental-ab18f33d-20260220",
+      react: "https://esm.sh/react@0.0.0-experimental-e0cc7202-20260227",
       "react/jsx-runtime":
-        "https://esm.sh/react@0.0.0-experimental-ab18f33d-20260220/jsx-runtime",
+        "https://esm.sh/react@0.0.0-experimental-e0cc7202-20260227/jsx-runtime",
       "react-dom":
-        "https://esm.sh/react-dom@0.0.0-experimental-ab18f33d-20260220",
+        "https://esm.sh/react-dom@0.0.0-experimental-e0cc7202-20260227",
       "react-dom/client":
-        "https://esm.sh/react-dom@0.0.0-experimental-ab18f33d-20260220/client",
+        "https://esm.sh/react-dom@0.0.0-experimental-e0cc7202-20260227/client",
       "react-server-dom-webpack/client.browser":
-        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-ab18f33d-20260220/client.browser",
+        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-e0cc7202-20260227/client.browser",
     },
   },
 };

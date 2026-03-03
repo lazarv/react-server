@@ -42,10 +42,10 @@ export default function Header({ lang }) {
             {m.category_integrations()}
           </a>
           <a
-            href={`${baseUrl}framework`}
-            className={`hidden lg:inline${activeClass("framework")}`}
+            href={`${baseUrl}features`}
+            className={`hidden lg:inline${activeClass("features")}`}
           >
-            {m.category_framework()}
+            {m.category_features()}
           </a>
           <a
             href={`${baseUrl}router`}

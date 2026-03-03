@@ -2,7 +2,7 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "category_guide": "Guide",
   "category_integrations": "Integrations",
-  "category_framework": "Framework",
+  "category_features": "Features",
   "category_router": "Router",
   "category_deploy": "Deploy",
   "category_tutorials": "Tutorials",

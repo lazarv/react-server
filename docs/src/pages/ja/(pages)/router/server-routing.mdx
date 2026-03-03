@@ -182,7 +182,7 @@ export default function App() {
 ## リダイレクト
 </Link>
 
-コンポーネント内で `redirect` 関数を使用することで、他の場所にリダイレクトすることができます。より正確には、サーバサイドレンダリング中の任意の場所で `redirect` を使用できますが、`RedirectError` がスローされます。フレームワークはこのエラーをキャッチして、クライアントにリダイレクト応答を送信します。
+コンポーネント内で `redirect` 関数を使用することで、他の場所にリダイレクトすることができます。より正確には、サーバサイドレンダリング中の任意の場所で `redirect` を使用できますが、`RedirectError` がスローされます。ランタイムはこのエラーをキャッチして、クライアントにリダイレクト応答を送信します。
 
 ```tsx
 import { redirect } from "@lazarv/react-server";
@@ -203,7 +203,7 @@ export default function ProtectedPage() {
 }
 ```
 
-利用可能なリダイレクト種類：`"navigate"`（デフォルト、replaceState）、`"push"`（pushState）、`"location"`（完全なブラウザナビゲーション）、`"error"`（カスタム処理のためにクライアントでスロー）。詳細は[HTTPリダイレクトのドキュメント](/framework/http#redirect)を参照してください。
+利用可能なリダイレクト種類：`"navigate"`（デフォルト、replaceState）、`"push"`（pushState）、`"location"`（完全なブラウザナビゲーション）、`"error"`（カスタム処理のためにクライアントでスロー）。詳細は[HTTPリダイレクトのドキュメント](/features/http#redirect)を参照してください。
 
 <Link name="rewrites">
 ## リライト

@@ -1,6 +1,6 @@
 # @lazarv/react-server contribution guide
 
-We are thrilled that you are interested in contributing to this framework! You can contribute in many ways.
+We are thrilled that you are interested in contributing to this runtime! You can contribute in many ways.
 
 * as a developer
 * as a technical writer
@@ -22,7 +22,7 @@ To fix an issue, to provide a new feature or create a new example app, follow th
 
 We are using the latest [pnpm](https://pnpm.io) version as the package manager, so don't forget to enable Corepack using `corepack enable`.
 
-The framework is written purely in 100% JavaScript, so we don't need any build steps anywhere in the core codebase. But as Vite supports both JS/TS, any app code can be implemented using plain JavaScript or using TypeScript, when needed. We leave this to the developer of the app and we provide module level TypeScript definitions to provide types for the app developer.
+The runtime is written purely in 100% JavaScript, so we don't need any build steps anywhere in the core codebase. But as Vite supports both JS/TS, any app code can be implemented using plain JavaScript or using TypeScript, when needed. We leave this to the developer of the app and we provide module level TypeScript definitions to provide types for the app developer.
 
 ## Technical writers
 
@@ -30,7 +30,7 @@ To fix or add more content to the documentation, do the same as a developer and 
 
 ## Feedback
 
-Feedback is extremely important! Create a new GitHub [issue](https://github.com/lazarv/react-server/issues) or get in contact on [X](https://x.com/lazarv1982) and tell us about your experience with this framework.
+Feedback is extremely important! Create a new GitHub [issue](https://github.com/lazarv/react-server/issues) or get in contact on [X](https://x.com/lazarv1982) and tell us about your experience with this runtime.
 
 ## Other
 

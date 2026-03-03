@@ -1,0 +1,212 @@
+# @lazarv/react-server
+
+> Run React anywhere
+
+@lazarv/react-server is a React runtime that renders React Server Components on the server with streaming SSR, supports client components, server functions, file-system routing, caching, static generation, partial pre-rendering, live components, workers, micro-frontends, and MCP server capabilities. It runs on Node.js, Bun, and Deno, and deploys to Vercel, Netlify, Cloudflare, AWS, Azure, Firebase, Docker, and more with built-in adapters.
+
+## Quick Start
+
+Install:
+
+```sh
+pnpm add @lazarv/react-server
+```
+
+Create App.jsx:
+
+```jsx
+export default function App() {
+  return <h1>Hello World!</h1>;
+}
+```
+
+Run:
+
+```sh
+pnpm react-server ./App.jsx
+```
+
+No config files, no boilerplate, no separate React installation needed. Or use the scaffolding tool: `npx @lazarv/create-react-server`.
+
+## Key Concepts
+
+- **React Server Components**: The default rendering model. Components render on the server, support async/await, and their source code never reaches the client.
+- **Client Components**: Add `"use client"` directive to enable interactivity. Components are server-rendered then hydrated on the client.
+- **Server Functions**: Add `"use server"` to turn async functions into server-side RPC endpoints. Works as form actions with progressive enhancement.
+- **File-System Router**: Activates automatically when no entrypoint is specified. Supports pages, layouts, outlets, API routes, middlewares, error boundaries, and loading states.
+- **Client Navigation**: SPA-like navigation with `Link`, `Form`, `Refresh`, and `ReactServerComponent` components. Supports prefetching, error rollback, and outlet-scoped rendering.
+- **Caching**: Multi-layered caching with response cache, in-memory cache, `"use cache"` directive, and Unstorage-backed cache providers.
+- **Partial Pre-Rendering (PPR)**: Mix static and dynamic content using `"use dynamic"` and `"use static"` directives.
+- **Live Components**: Real-time server-to-client streaming with `"use live"` async generators over WebSocket.
+- **Workers**: Offload computation with `"use worker"` — Node.js Worker Threads on server, Web Workers on client, with HMR support.
+- **Micro-Frontends**: Compose remote RSC applications with `RemoteComponent`, supporting streaming and shadow DOM isolation.
+- **MCP Server**: Build Model Context Protocol servers with tools, resources, and prompts as HTTP endpoints.
+- **Middleware Mode**: Embed into Express, NestJS, or any connect-compatible server.
+- **Cluster Mode**: Scale across all CPU cores in production.
+
+## Docs
+
+- [Guide](https://react-server.dev/guide): Overview of guides covering getting started, server components, client components, server functions
+- [Get Started](https://react-server.dev/guide/get-started): How to set up prerequisites (Node.js/Bun/Deno) and create your first application from a single file to a full-featured app
+- [Quick Start](https://react-server.dev/guide/quick-start): Minimal steps to run a React Server Component with a single file and one command using npx
+- [Server Components](https://react-server.dev/guide/server-components): How React Server Components work — rendered on the server, streamed as HTML/JSON, supporting async data fetching and Suspense
+- [Client Components](https://react-server.dev/guide/client-components): How to create interactive client-side components using the "use client" directive with server-side rendering and lazy-loaded hydration
+- [Server Functions](https://react-server.dev/guide/server-functions): How to define and call server-side async functions from client code using "use server" including inline, module-level, and form-based usage
+- [Architecture Tradeoffs](https://react-server.dev/guide/design-decisions): Key architectural decisions, layered runtime structure, constraints, and tradeoffs of the runtime design
+- [Features](https://react-server.dev/features): Overview of runtime features including CLI, configuration, HTTP context, caching, error handling, PPR, cluster mode, middleware mode, micro-frontends, and workers
+- [CLI](https://react-server.dev/features/cli): Reference for the @lazarv/react-server CLI commands: dev server, build, start, and available flags/options
+- [Configuration](https://react-server.dev/features/configuration): How to configure @lazarv/react-server using react-server.config files (JS/TS/JSON), Vite config extension, environment-specific and runtime configs
+- [Caching](https://react-server.dev/features/caching): Response caching, in-memory cache with TTL, compound cache keys, cache providers, cache profiles, and cache invalidation/revalidation
+- [HTTP Context](https://react-server.dev/features/http): How to access and manipulate the full HTTP context (request, response, headers, cookies, redirects, rewrites) during SSR and middleware
+- [Error Handling](https://react-server.dev/features/error-handling): Using the built-in ErrorBoundary component to catch and handle errors in server components with fallback and error display components
+- [Middleware Mode](https://react-server.dev/features/middleware-mode): Running @lazarv/react-server as middleware inside existing servers like Express or NestJS in both dev and production
+- [Cluster Mode](https://react-server.dev/features/cluster): Running the production server in multi-process cluster mode to utilize all CPU cores
+- [Partial Pre-Rendering](https://react-server.dev/features/ppr): Pre-rendering static shells at build time while deferring dynamic content to runtime using "use dynamic" and "use static" directives
+- [Live Components](https://react-server.dev/features/live-components): Real-time streaming components using the "use live" directive with async generator functions pushing updates over WebSocket
+- [Workers](https://react-server.dev/features/worker): Offloading heavy computations to separate threads using "use worker" with RSC-based serialization — Node.js Worker Threads on server, Web Workers on client
+- [Micro-Frontends](https://react-server.dev/features/micro-frontends): Implementing micro-frontend architecture with RemoteComponent for loading and rendering remote React applications with SSR
+- [MCP Server](https://react-server.dev/features/mcp): Exposing typed server functions as discoverable tools, resources, and prompts for language models and automation agents via the Model Context Protocol
+- [Server Function Encryption](https://react-server.dev/features/server-function-encryption): AES-256-GCM encryption of server function identifiers to prevent unauthorized discovery and invocation
+- [Router](https://react-server.dev/router): Overview of the file-system based router and low-level routing covering route definition, client navigation, outlets, middlewares, and API routes
+- [File-System Router](https://react-server.dev/router/file-router): How to use the file-system based router that activates automatically when no entrypoint is specified
+- [Define Routes](https://react-server.dev/router/define-routes): How to define routes using file-system conventions including layouts, nested routes, dynamic routes, catch-all routes, and route groups
+- [Client-Side Navigation](https://react-server.dev/router/client-navigation): Client-side navigation components (Link, Refresh, Redirect) and hooks for programmatic navigation, prefetching, and page refresh
+- [Outlets](https://react-server.dev/router/outlets): Creating nested layouts with named outlets using @-prefixed subdirectories that pass matched route components as props to layouts
+- [Middlewares](https://react-server.dev/router/middlewares): File-system based server middlewares using .middleware.{js,mjs,ts,mts} files for authentication, logging, redirects, and request processing
+- [Server-Side Routing](https://react-server.dev/router/server-routing): Low-level server-side routing using the Route component from @lazarv/react-server/router for programmatic route definition
+- [API Routes](https://react-server.dev/router/api): Defining file-system based API route handlers using .server.{js,mjs,ts,mts} files with HTTP method-based exports
+- [Error Handling (Router)](https://react-server.dev/router/error-handling): Defining custom error components per layout using .error.jsx files in the file-system router for route-level error boundaries
+- [Loading States](https://react-server.dev/router/loading): Defining loading state components using .loading.jsx files that show a loading indicator while pages are being fetched
+- [Static Generation](https://react-server.dev/router/static): Marking pages for static generation using .static.{js,mjs,ts,mts,json} files with parameter exports for build-time pre-rendering
+- [Markdown & MDX](https://react-server.dev/router/markdown): Using Markdown and MDX files as pages with Remark/Rehype plugins and React component interop
+- [Router Configuration](https://react-server.dev/router/configuration): Configuring the router root path, public path, file includes/excludes, and private directories using glob patterns
+- [Deploy](https://react-server.dev/deploy): Overview of deployment options with built-in adapters for Vercel, Netlify, Cloudflare, AWS, Azure, Bun, Deno, Docker, and Firebase
+- [Adapters](https://react-server.dev/deploy/adapters): Overview of deployment adapters and how to configure them for different platforms
+- [Vercel](https://react-server.dev/deploy/vercel): How to deploy to Vercel using the built-in adapter with project linking and configuration
+- [Netlify](https://react-server.dev/deploy/netlify): How to deploy to Netlify using the built-in adapter for serverless functions and edge network
+- [Cloudflare](https://react-server.dev/deploy/cloudflare): How to deploy to Cloudflare Workers or Pages using the built-in adapter for edge runtime
+- [Bun](https://react-server.dev/deploy/bun): How to deploy as a standalone Bun server using Bun.serve() with auto-detected adapter
+- [Deno](https://react-server.dev/deploy/deno): How to deploy as a standalone Deno server using Deno.serve() with auto-detected adapter
+- [Docker](https://react-server.dev/deploy/docker): How to deploy with Docker using a production-ready Alpine-based Node.js image
+- [AWS Lambda](https://react-server.dev/deploy/aws): How to deploy to AWS Lambda with CloudFront CDN using AWS SAM and the built-in adapter
+- [Azure Functions](https://react-server.dev/deploy/azure): How to deploy to Azure Functions v4 with full response streaming support
+- [Azure Static Web Apps](https://react-server.dev/deploy/azure-swa): How to deploy to Azure Static Web Apps using SWA managed functions and CDN-backed static hosting
+- [Firebase Functions](https://react-server.dev/deploy/firebase): How to deploy to Firebase Cloud Functions v2 with Firebase Hosting rewrites and response streaming
+- [Adapter API](https://react-server.dev/deploy/api): How to create custom deployment adapters using the createAdapter API from @lazarv/react-server/adapters/core
+- [Integrations](https://react-server.dev/integrations): Overview of integrations with Vite, TypeScript, Tailwind CSS, TanStack Query, Mantine UI, and Material UI
+- [Vite](https://react-server.dev/integrations/vite): How @lazarv/react-server is built on the Vite Environment API with Vite config, env variables, plugins, CSS, and migration support
+- [TypeScript](https://react-server.dev/integrations/typescript): How to configure and use TypeScript with @lazarv/react-server via standard tsconfig.json
+- [Tailwind CSS](https://react-server.dev/integrations/tailwind-css): How to install and configure Tailwind CSS v3 or v4 with @lazarv/react-server using PostCSS or the Vite plugin
+- [TanStack Query](https://react-server.dev/integrations/react-query): How to integrate TanStack Query for server-side prefetching and client-side hydration of data
+- [Mantine UI](https://react-server.dev/integrations/mantine): How to integrate Mantine component library with PostCSS configuration and MantineProvider theming
+- [Material UI](https://react-server.dev/integrations/mui): How to integrate Material UI (MUI) with Emotion CSS-in-JS styling for server-side rendered components
+- [Tutorials](https://react-server.dev/tutorials): Step-by-step tutorials for Hello World, Todo App, and Photos gallery
+- [Hello World Tutorial](https://react-server.dev/tutorials/hello-world): Step-by-step tutorial to create a Hello World application with React Server Components
+- [Todo App Tutorial](https://react-server.dev/tutorials/todo-app): Tutorial to build a Todo app using only React Server Components and Server Functions with SQLite
+- [Photos Tutorial](https://react-server.dev/tutorials/photos): Tutorial to build a photo gallery using client components, file-system routing, and interactive navigation
+
+## CLI Reference
+
+Commands:
+- `react-server [entrypoint]` — Start development server
+- `react-server build [entrypoint]` — Production build
+- `react-server start` — Start production server
+
+Key flags: `--open`, `--port`, `--host`, `--https`, `--export`, `--deploy`, `--edge`, `--compression`, `--adapter <name>`, `--eval`, `--sourcemap`, `--trust-proxy`, `--build`, `--cluster <count>`
+
+## File-System Router Conventions
+
+When no entrypoint is specified, the file-system router activates:
+
+```
+app/
+├── layout.jsx            # Root layout
+├── page.jsx              # / (index page)
+├── about.jsx             # /about
+├── posts/
+│   ├── page.jsx          # /posts
+│   ├── [id].jsx          # /posts/:id (dynamic route)
+│   └── [...slug].jsx     # /posts/* (catch-all route)
+├── (auth)/
+│   └── login.jsx         # /login (route group, no URL segment)
+├── @sidebar/
+│   └── page.jsx          # Parallel outlet
+├── loading.jsx           # Suspense loading fallback
+├── error.jsx             # Error boundary
+├── (i18n).middleware.mjs  # Middleware
+└── GET.api.server.mjs    # GET /api (REST API endpoint)
+```
+
+Configure routing root directory in `react-server.config.json`:
+
+```json
+{
+  "root": "app"
+}
+```
+
+## Configuration
+
+Auto-detected from `react-server.config.{js,mjs,ts,mts,json}`. Supports:
+- Environment-specific variants: `.production.config.*`, `.development.config.*`
+- Extension configs: `+*.config.*`
+- Runtime-only configs: `.runtime.config.*`
+- Vite config: `vite.config.*` is merged automatically
+
+```js
+export default {
+  root: "app",
+  public: "public",
+  cluster: 4,
+  prerender: { timeout: 5000 },
+  cache: {
+    profiles: { default: { ttl: 60000 } },
+  },
+};
+```
+
+## Imports
+
+Key package exports for application code:
+
+- `@lazarv/react-server/navigation` — Link, Form, Refresh, Redirect components for client-side navigation
+- `@lazarv/react-server/client` — useClient() hook for programmatic navigation (navigate, prefetch, refresh)
+- `@lazarv/react-server/router` — Route component for server-side routing
+- `@lazarv/react-server/http` — HTTP context hooks: useUrl, usePathname, useSearchParams, useRequest, useResponse, headers, cookie, redirect, rewrite, status, useResponseCache
+- `@lazarv/react-server/cache` — useCache, revalidate, invalidate for data caching
+- `@lazarv/react-server/error` — ErrorBoundary component
+- `@lazarv/react-server/remote` — RemoteComponent for micro-frontends
+- `@lazarv/react-server/mcp` — createServer, createTool, createResource, createPrompt for MCP server
+- `@lazarv/react-server/dev` — reactServer() for middleware mode in development
+- `@lazarv/react-server/node` — reactServer() for middleware mode in production
+- `@lazarv/react-server/adapters/core` — createAdapter for custom deployment adapters
+
+## Deployment
+
+Build and deploy with one command:
+
+```sh
+react-server build --deploy
+```
+
+Specify the adapter in config:
+
+```json
+{
+  "adapter": "vercel"
+}
+```
+
+Supported platforms: Vercel, Netlify, Cloudflare, AWS Lambda, Azure Functions, Azure Static Web Apps, Firebase Functions, Bun, Deno, Docker.
+
+## Runtime Support
+
+- Node.js >= 20.10
+- Bun >= 1.2.9
+- Deno >= 2.0
+
+## Optional: Source and Examples
+
+- GitHub: https://github.com/lazarv/react-server
+- npm: https://www.npmjs.com/package/@lazarv/react-server
+- Scaffolding: `npx @lazarv/create-react-server`

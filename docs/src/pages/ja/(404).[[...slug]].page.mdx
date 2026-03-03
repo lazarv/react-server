@@ -9,7 +9,8 @@ export async function Fallback({ children }){
   const pages = getPages("/", "en");
   const to = pages.flatMap(({ pages }) => pages).find(page => pathname === page.langHref.replace(/^\/en/, `/${lang}`));
   if (to) {
-    return to.page();
+    const Page = await to.page();
+    return <Page />;
   }
   return children;
 }

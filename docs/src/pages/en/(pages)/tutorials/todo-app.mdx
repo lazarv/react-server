@@ -165,7 +165,7 @@ The Item component will render our Todo item using an `id` and `title` prop. But
 <input type="hidden" name="$ACTION_ID_/Users/lazarv/Projects/tutorials/todo/src/actions.ts#deleteTodo">
 ```
 
-The framework will resolve this `$ACTION_ID_` prefixed path to the server function and it will call our server function function!
+The runtime will resolve this `$ACTION_ID_` prefixed path to the server function and it will call our server function function!
 
 <Link name="server-functions">
 ## Server functions
@@ -232,7 +232,7 @@ export async function deleteTodo(formData: FormData) {
 }
 ```
 
-In the first line of this file, we instrument the framework to treat this file as a server function module using the `“use server”;` directive. All exported async functions will be available for us to use as server functions.
+In the first line of this file, we instruct the runtime to treat this file as a server function module using the `"use server";` directive. All exported async functions will be available for us to use as server functions.
 
 We initialize the Sqlite database on module import and create Zod schemas for item add and delete operations.
 

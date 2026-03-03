@@ -1,6 +1,6 @@
 ---
 title: HTTP context
-category: Framework
+category: Features
 order: 0
 ---
 
@@ -12,7 +12,7 @@ With `@lazarv/react-server` you have access to everything related to the context
 
 The following hooks / functions are available for you to access and manipulate the HTTP context.
 
-All of these functions are available also in middlewares and route handlers with the file-system based router as these are framework specific and not related to React.
+All of these functions are available also in middlewares and route handlers with the file-system based router as these are runtime specific and not related to React.
 
 With `useHttpContext()` you can get access to the full HTTP context.
 
@@ -270,7 +270,7 @@ export default function MyComponent() {
 
 With `redirect()` you can redirect the current request to another URL.
 
-> **Warning:** the `redirect()` function will throw an error which will be caught by the framework and will result in a redirect. When you want to use `redirect()` in a `try`/`catch` block, make sure you rethrow the error if it's a redirect error.
+> **Warning:** the `redirect()` function will throw an error which will be caught by the runtime and will result in a redirect. When you want to use `redirect()` in a `try`/`catch` block, make sure you rethrow the error if it's a redirect error.
 
 ```jsx
 import { redirect } from "@lazarv/react-server";
@@ -415,7 +415,7 @@ export default function MyComponent() {
 ## Logger
 </Link>
 
-With `logger` you can log messages using the framework's built-in logger. The `logger` object provides `info`, `warn`, `error`, and `debug` methods that integrate with the framework's logging system, providing consistent and formatted output.
+With `logger` you can log messages using the runtime's built-in logger. The `logger` object provides `info`, `warn`, `error`, and `debug` methods that integrate with the runtime's logging system, providing consistent and formatted output.
 
 ```jsx
 import { logger } from "@lazarv/react-server";
@@ -427,7 +427,7 @@ export default function MyComponent() {
 }
 ```
 
-The `logger` automatically uses the framework's Vite-integrated logger in development mode for nicely formatted output, and falls back to `console` in production. It is context-aware — when called inside an `after()` callback, the log output is annotated with an `(after)` label so you can distinguish post-response logs from rendering logs.
+The `logger` automatically uses the runtime's Vite-integrated logger in development mode for nicely formatted output, and falls back to `console` in production. It is context-aware — when called inside an `after()` callback, the log output is annotated with an `(after)` label so you can distinguish post-response logs from rendering logs.
 
 ```jsx
 import { after, logger } from "@lazarv/react-server";

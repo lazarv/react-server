@@ -5,6 +5,7 @@ import { cookie, usePathname } from "@lazarv/react-server";
 import { useMatch } from "@lazarv/react-server/router";
 
 import EditPage from "../components/EditPage.jsx";
+import ViewMarkdown from "../components/ViewMarkdown.jsx";
 import { useLanguage, m } from "../i18n.mjs";
 import { defaultLanguage, defaultLanguageRE, languages } from "../const.mjs";
 import { categories } from "../pages.mjs";
@@ -73,15 +74,9 @@ export default function Layout({
         <meta property="og:image:height" content="630" />
         <meta property="og:url" content="https://react-server.dev" />
         <meta property="twitter:card" content="summary_large_image" />
-        <meta
-          name="description"
-          content="The easiest way to build React apps with server-side rendering"
-        />
+        <meta name="description" content="Run React anywhere" />
         <meta property="og:title" content="@lazarv/react-server" />
-        <meta
-          property="og:description"
-          content="The easiest way to build React apps with server-side rendering."
-        />
+        <meta property="og:description" content="Run React anywhere" />
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/@docsearch/css@3"
@@ -117,6 +112,7 @@ export default function Layout({
           <article>
             {breadcrumb}
             <EditPage pathname={pathname} />
+            <ViewMarkdown pathname={pathname} />
             {children}
             {navigation}
           </article>

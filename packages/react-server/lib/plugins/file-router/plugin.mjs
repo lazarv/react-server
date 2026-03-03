@@ -688,6 +688,39 @@ export default function viteReactServerRouter(options = {}) {
             initialFiles.delete(src);
             if (initialFiles.size === 0) {
               logger.info(`Router configuration ${colors.green("ready")} 📦`);
+
+              const pageCount = manifest.pages.filter(
+                ([, , , type]) => type === "page"
+              ).length;
+              const layoutCount = manifest.pages.filter(
+                ([, , , type]) => type === "layout"
+              ).length;
+              const apiCount = entry.api.length;
+              const middlewareCount = manifest.middlewares.length;
+              const outletCount = new Set(
+                manifest.pages
+                  .filter(([, , outlet]) => outlet)
+                  .map(([, , outlet]) => outlet)
+              ).size;
+              const stats = [
+                `${colors.cyan(pageCount)} page${pageCount !== 1 ? "s" : ""}`,
+                layoutCount > 0
+                  ? `${colors.cyan(layoutCount)} layout${layoutCount !== 1 ? "s" : ""}`
+                  : null,
+                outletCount > 0
+                  ? `${colors.cyan(outletCount)} outlet${outletCount !== 1 ? "s" : ""}`
+                  : null,
+                apiCount > 0
+                  ? `${colors.cyan(apiCount)} API route${apiCount !== 1 ? "s" : ""}`
+                  : null,
+                middlewareCount > 0
+                  ? `${colors.cyan(middlewareCount)} middleware${middlewareCount !== 1 ? "s" : ""}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(", ");
+              logger.info(`  ${stats}`);
+
               reactServerRouterReadyResolve?.();
               reactServerRouterReadyResolve = null;
             }

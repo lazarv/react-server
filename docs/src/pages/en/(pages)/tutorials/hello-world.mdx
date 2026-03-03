@@ -34,7 +34,7 @@ pnpm init
 pnpm add @lazarv/react-server
 ```
 
-This command creates a new directory called `my-first-application`, initializes a new `pnpm` project, and installs the `@lazarv/react-server` package. You don't need to install `react` or `react-dom` separately because `@lazarv/react-server` includes them as it's own dependencies and the framework requires specific versions of these packages to work correctly.
+This command creates a new directory called `my-first-application`, initializes a new `pnpm` project, and installs the `@lazarv/react-server` package. You don't need to install `react` or `react-dom` separately because `@lazarv/react-server` includes them as it's own dependencies and the runtime requires specific versions of these packages to work correctly.
 
 <Link name="create">
 ## Create a React Server Component
@@ -133,7 +133,7 @@ You can also add a `start` script to your `package.json` file for convenience:
 ## Using npx
 </Link>
 
-When you have a small project and don't want to install `@lazarv/react-server`, you can also use `npx` to run your application, even without installing any dependencies, just which your application needs directly, but not the framework itself or React. You can run the following command to start the development server with `npx`:
+When you have a small project and don't want to install `@lazarv/react-server`, you can also use `npx` to run your application, even without installing any dependencies, just which your application needs directly, but not the runtime itself or React. You can run the following command to start the development server with `npx`:
 
 ```sh
 npx @lazarv/react-server ./App.jsx

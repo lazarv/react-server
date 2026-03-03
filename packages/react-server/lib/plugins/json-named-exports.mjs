@@ -109,7 +109,7 @@ export default function jsonNamedExports() {
 
       try {
         const content = await readFileCachedAsync(realId);
-        if (!content) return null;
+        if (!content) return { code: "export default {};", map: null };
 
         const json = JSON.parse(content);
 
@@ -154,7 +154,9 @@ export default function jsonNamedExports() {
           map: null,
         };
       } catch {
-        return null;
+        // Return a fallback module instead of null, since resolveId already claimed this ID.
+        // Returning null would cause Rolldown to try loading the ?json-named-exports suffixed path as a file.
+        return { code: "export default {};", map: null };
       }
     },
   };

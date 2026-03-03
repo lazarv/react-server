@@ -55,7 +55,7 @@ export default function GlobalError({ error }: { error: Error }) {
 }
 ```
 
-オプションで、`react-server.config.json`ファイルにグローバルエラーコンポーネントを指定することができます。ファイルのパスを明示的に指定する必要があるのは、たとえば`global-error.tsx`のように`react-server.error.jsx`や`react-server.error.tsx`という標準の名前ではないファイルを使用する場合や、フレームワークが最初に検出するファイルではなく、グローバルエラーコンポーネント専用のファイルを使いたい場合です。
+オプションで、`react-server.config.json`ファイルにグローバルエラーコンポーネントを指定することができます。ファイルのパスを明示的に指定する必要があるのは、たとえば`global-error.tsx`のように`react-server.error.jsx`や`react-server.error.tsx`という標準の名前ではないファイルを使用する場合や、ランタイムが最初に検出するファイルではなく、グローバルエラーコンポーネント専用のファイルを使いたい場合です。
 
 ```jsx
 // react-server.config.json

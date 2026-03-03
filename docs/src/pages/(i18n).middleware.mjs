@@ -10,6 +10,18 @@ export default function I18n() {
     return;
   }
 
+  // Rewrite .md requests to the markdown API route
+  if (pathname.endsWith(".md")) {
+    const mdPath = pathname.replace(/\.md$/, "");
+    rewrite(`/md${mdPath}`);
+    return;
+  }
+
+  // Skip /md/ API route paths from i18n handling
+  if (pathname.startsWith("/md/")) {
+    return;
+  }
+
   const { lang, slug } = useMatch("/[lang=i18n]/[[...slug]]", {
     matchers: {
       i18n: (lang) => languages.includes(lang),

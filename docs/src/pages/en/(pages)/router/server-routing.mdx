@@ -182,7 +182,7 @@ export default function App() {
 ## Redirects
 </Link>
 
-You can redirect to any other location by using the `redirect` function in a component. More precisely, you can use `redirect` anywhere during server-side rendering, but it will throw a `RedirectError`. The framework will catch this error and send a redirect response to the client.
+You can redirect to any other location by using the `redirect` function in a component. More precisely, you can use `redirect` anywhere during server-side rendering, but it will throw a `RedirectError`. The runtime will catch this error and send a redirect response to the client.
 
 ```tsx
 import { redirect } from "@lazarv/react-server";
@@ -203,7 +203,7 @@ export default function ProtectedPage() {
 }
 ```
 
-Available redirect kinds: `"navigate"` (default, replaceState), `"push"` (pushState), `"location"` (full browser navigation), and `"error"` (throw on client for custom handling). See the [HTTP redirect documentation](/framework/http#redirect) for details.
+Available redirect kinds: `"navigate"` (default, replaceState), `"push"` (pushState), `"location"` (full browser navigation), and `"error"` (throw on client for custom handling). See the [HTTP redirect documentation](/features/http#redirect) for details.
 
 <Link name="rewrites">
 ## Rewrites

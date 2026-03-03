@@ -51,7 +51,7 @@ Execute React components across server, client, workers, and edge environments u
 
 React runs outside the browser. Components are executable units — they run on the server, in workers, and at the edge. The runtime decides where and how each component executes.
 
-There is no framework boundary. You write React, and the same model works everywhere. A component can fetch data on the server, stream HTML to the client, or process images in a worker thread — all with the same syntax.
+There is no runtime boundary. You write React, and the same model works everywhere. A component can fetch data on the server, stream HTML to the client, or process images in a worker thread — all with the same syntax.
 
 A single directive — `"use client"`, `"use worker"`, or `"use live"` — is all it takes to change where a component runs. No build-step magic, no separate APIs to learn. The runtime handles serialization, streaming, and hydration automatically.
 
@@ -168,7 +168,7 @@ export default async function Home() {
 
 ### Why @lazarv/react-server?
 
-Most React frameworks require significant setup before you write your first component. **@lazarv/react-server** takes a different approach — it's as simple as running a script with `node`, but for React.
+Most React frameworks and meta-frameworks require significant setup before you write your first component. **@lazarv/react-server** takes a different approach — it's as simple as running a script with `node`, but for React.
 
 Start with a single file and scale to a full-featured application with file-system routing, caching, static generation, and multi-runtime deployment as your needs grow.
 
@@ -196,13 +196,13 @@ Built on Vite for instant HMR. Ships with its own React, so your project stays l
 
 Add a single dependency, create a `.jsx` file that exports a React component, and start the dev server. That's it — full SSR with hot module replacement, no boilerplate.
 
-You don't even need to install React. It's bundled with the framework and always kept up to date.
+You don't even need to install React. It's bundled with the runtime and always kept up to date.
 
 </div>
 
 <div>
 
-<p className="code-label">Add the framework to your project with a single dependency — React is included, no separate install needed.</p>
+<p className="code-label">Add the runtime to your project with a single dependency — React is included, no separate install needed.</p>
 
 ```sh
 pnpm add @lazarv/react-server
@@ -376,7 +376,7 @@ You only pay the hydration cost where you actually need interactivity. Everythin
 
 `"use server"` turns any async function into a server-side RPC endpoint. Use them as form actions with progressive enhancement — forms work even without JavaScript.
 
-No API routes to define, no fetch wrappers. The framework handles serialization, error boundaries, and revalidation.
+No API routes to define, no fetch wrappers. The runtime handles serialization, error boundaries, and revalidation.
 
 </div>
 
@@ -609,7 +609,7 @@ export default function App() {
 
 ### File-System Router
 
-Omit the entrypoint and the framework routes based on your file structure. Pages, layouts, parallel outlets, API routes, middlewares, error boundaries, loading states — all convention-driven.
+Omit the entrypoint and the runtime routes based on your file structure. Pages, layouts, parallel outlets, API routes, middlewares, error boundaries, loading states — all convention-driven.
 
 Dynamic segments, catch-all routes, route groups, and typed route generation are built in.
 
@@ -924,7 +924,7 @@ react-server build --adapter vercel --deploy
 
 <div className="order-2 lg:order-1">
 
-<p className="code-label">Use middleware mode to embed the framework into any existing Express, NestJS, or connect-compatible server.</p>
+<p className="code-label">Use middleware mode to embed the runtime into any existing Express, NestJS, or connect-compatible server.</p>
 
 ```js
 import { reactServer } from
@@ -953,7 +953,7 @@ REACT_SERVER_CLUSTER=8 react-server start
 
 ### Multi-Runtime & Production
 
-Run on **Node.js** ≥ 20.10, **Bun** ≥ 1.2.9, or **Deno** ≥ 2.0 — the framework auto-detects your runtime. Embed into any existing server with middleware mode.
+Run on **Node.js** ≥ 20.10, **Bun** ≥ 1.2.9, or **Deno** ≥ 2.0 — `@lazarv/react-server` auto-detects your runtime. Embed into any existing server with middleware mode.
 
 Scale across all CPU cores with cluster mode. Static export generates fully static sites with dynamic route params, compression, and cache headers. HTTPS, source maps, and gzip/brotli compression are built in.
 

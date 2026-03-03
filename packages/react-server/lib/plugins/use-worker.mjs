@@ -172,6 +172,7 @@ self.addEventListener("message", async ({ data: { type, id, fn, args: argsStream
           return null;
 
         const ast = await parse(code, id);
+        if (!ast) return null;
 
         const directives = ast.body
           .filter((node) => node.type === "ExpressionStatement")

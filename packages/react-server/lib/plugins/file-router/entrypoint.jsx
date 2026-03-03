@@ -95,19 +95,23 @@ export async function init$() {
             (() => {})
           )(context);
 
-          if (
-            response.headers.get("Location") &&
-            response.status >= 300 &&
-            response.status < 400
-          ) {
-            const renderContext = getContext(RENDER_CONTEXT);
-            if (renderContext?.flags.isRSC) {
-              return redirect(response.headers.get("Location"), response.status)
-                .response;
+          if (response) {
+            if (
+              response.headers.get("Location") &&
+              response.status >= 300 &&
+              response.status < 400
+            ) {
+              const renderContext = getContext(RENDER_CONTEXT);
+              if (renderContext?.flags.isRSC) {
+                return redirect(
+                  response.headers.get("Location"),
+                  response.status
+                ).response;
+              }
             }
-          }
 
-          return response;
+            return response;
+          }
         } catch (e) {
           const redirect = getContext(REDIRECT_CONTEXT);
           if (redirect?.response) {

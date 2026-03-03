@@ -7,7 +7,7 @@ import Link from "../../../../components/Link.jsx";
 
 # Server functions
 
-Server functions are async functions that can be called from the client-side. You don't have to implement API endpoints for these functions to be callable as the client can call these functions like a direct reference to the function itself. Server functions are usable on forms, buttons, submit inputs, and as props to client components. React and the framework will manage calling these functions on the server-side.
+Server functions are async functions that can be called from the client-side. You don't have to implement API endpoints for these functions to be callable as the client can call these functions like a direct reference to the function itself. Server functions are usable on forms, buttons, submit inputs, and as props to client components. React and the runtime will manage calling these functions on the server-side.
 
 You can expose any `"use server";` marked function as a server function. Server functions can be called from the client using the `action` prop on a `<form>` element, `formAction` on a `<button>` or `<input>` element, or from a client component passing down the server function as a prop to the client component.
 

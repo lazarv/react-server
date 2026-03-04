@@ -1,0 +1,95 @@
+---
+title: Singlefile
+category: Deploy
+order: 9
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Singlefile
+
+> **Experimental:** This adapter is experimental and may change in future releases. It is intended for simple, single-page applications and static sites.
+
+The `singlefile` adapter bundles your entire statically exported React application into a single, self-contained HTML file. All CSS and JavaScript modules are inlined — no external resources are fetched at runtime.
+
+This is useful for:
+
+- **Offline-capable apps** that work from a `file://` URL or a single HTTP request
+- **Portable demos** or prototypes you can share as a single file
+- **Embedding** in environments where only one HTML file is allowed (e.g. email attachments, embedded webviews)
+
+<Link name="installation">
+## Installation
+</Link>
+
+No additional packages are needed — the adapter is built into `@lazarv/react-server`.
+
+Add the adapter to your `react-server.config.mjs` file:
+
+```mjs
+export default {
+  adapter: "singlefile",
+};
+```
+
+Or pass it via the CLI:
+
+```sh
+pnpm react-server build ./src/index.jsx --adapter singlefile
+```
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The singlefile adapter performs these steps during the build:
+
+1. **Static export** — The `"/"` route is statically exported to produce `index.html`
+2. **CSS inlining** — All `<link rel="stylesheet">` tags are replaced with inline `<style>` blocks. CSS references in React Server Component flight data are converted to `data:` URIs
+3. **JS module inlining** — All client-side ES modules are base64-encoded and embedded in a boot `<script>`. At runtime, they are decoded into blob URLs and wired up via a dynamic [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap)
+4. **Cleanup** — Modulepreload hints, dev-only live-reload links, and the static import map are removed
+
+The result is a single `dist/index.html` file that contains everything the app needs to render and hydrate.
+
+<Link name="build">
+## Build
+</Link>
+
+Build your application:
+
+```sh
+pnpm react-server build [root] --adapter singlefile
+```
+
+This produces a `dist/` directory containing a single file:
+
+```
+dist/
+└── index.html    # Self-contained HTML with all CSS + JS inlined
+```
+
+<Link name="usage">
+## Usage
+</Link>
+
+The output file works in any of these ways:
+
+```sh
+# Open directly in a browser
+open dist/index.html
+
+# Serve with any static file server
+npx serve dist
+
+# Or with Python
+python3 -m http.server 3000 --directory dist
+```
+
+<Link name="limitations">
+## Limitations
+</Link>
+
+- **Single route only** — Only the `"/"` path is exported. Multi-page applications with file-based routing are not supported.
+- **No server-side features** — Server actions, API routes, and dynamic server rendering are not available. The output is purely static.
+- **File size** — All assets are inlined (with base64 encoding for JS modules), so the output file will be larger than the sum of individual files (~33% overhead for JS due to base64).
+- **SPA mode recommended** — This adapter works best with single-page applications. Use it with client components and client-side routing.

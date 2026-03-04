@@ -25,6 +25,7 @@ firebase.json
 template.json
 samconfig.toml
 .docker
+examples/*/dist
 *.pem
 *.sqlite
 *.log

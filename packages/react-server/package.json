@@ -150,6 +150,10 @@
       "types": "./adapters/adapter.d.ts",
       "default": "./adapters/docker/index.mjs"
     },
+    "./adapters/singlefile": {
+      "types": "./adapters/adapter.d.ts",
+      "default": "./adapters/singlefile/index.mjs"
+    },
     "./worker": {
       "types": "./worker/index.d.ts",
       "default": "./worker/index.mjs"

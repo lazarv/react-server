@@ -1,0 +1,95 @@
+---
+title: Singlefile
+category: Deploy
+order: 9
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Singlefile
+
+> **実験的:** このアダプタは実験的であり、将来のリリースで変更される可能性があります。シンプルなシングルページアプリケーションや静的サイトを対象としています。
+
+`singlefile` アダプタは、静的エクスポートされた React アプリケーション全体を単一の自己完結型 HTML ファイルにバンドルします。すべての CSS と JavaScript モジュールがインライン化され、実行時に外部リソースを取得する必要がありません。
+
+以下のような用途に便利です：
+
+- `file://` URL や単一の HTTP リクエストで動作する**オフライン対応アプリ**
+- 単一ファイルとして共有できる**ポータブルなデモ**やプロトタイプ
+- 1 つの HTML ファイルのみが許可される環境（メール添付、埋め込みウェブビューなど）での**埋め込み**
+
+<Link name="installation">
+## インストール
+</Link>
+
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+`react-server.config.mjs` ファイルにアダプタを追加します：
+
+```mjs
+export default {
+  adapter: "singlefile",
+};
+```
+
+または CLI で指定します：
+
+```sh
+pnpm react-server build ./src/index.jsx --adapter singlefile
+```
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+singlefile アダプタはビルド時に以下のステップを実行します：
+
+1. **静的エクスポート** — `"/"` ルートを静的エクスポートして `index.html` を生成します
+2. **CSS のインライン化** — すべての `<link rel="stylesheet">` タグをインライン `<style>` ブロックに置換します。React Server Component のフライトデータ内の CSS 参照は `data:` URI に変換されます
+3. **JS モジュールのインライン化** — すべてのクライアント側 ES モジュールを base64 エンコードしてブート `<script>` に埋め込みます。実行時にデコードされ、blob URL として動的な [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap) を通じて接続されます
+4. **クリーンアップ** — modulepreload ヒント、開発用ライブリロードリンク、静的 import map が削除されます
+
+結果として、アプリのレンダリングとハイドレーションに必要なすべてを含む単一の `dist/index.html` ファイルが生成されます。
+
+<Link name="build">
+## ビルド
+</Link>
+
+アプリケーションをビルドします：
+
+```sh
+pnpm react-server build [root] --adapter singlefile
+```
+
+単一ファイルを含む `dist/` ディレクトリが生成されます：
+
+```
+dist/
+└── index.html    # CSS + JS がすべてインライン化された自己完結型 HTML
+```
+
+<Link name="usage">
+## 使い方
+</Link>
+
+出力ファイルは以下のいずれかの方法で使用できます：
+
+```sh
+# ブラウザで直接開く
+open dist/index.html
+
+# 任意の静的ファイルサーバーで配信
+npx serve dist
+
+# または Python で配信
+python3 -m http.server 3000 --directory dist
+```
+
+<Link name="limitations">
+## 制限事項
+</Link>
+
+- **単一ルートのみ** — `"/"` パスのみがエクスポートされます。ファイルベースルーティングを使用するマルチページアプリケーションはサポートされていません。
+- **サーバー側機能なし** — サーバーアクション、API ルート、動的サーバーレンダリングは利用できません。出力は純粋に静的です。
+- **ファイルサイズ** — すべてのアセットがインライン化されるため（JS モジュールは base64 エンコード）、出力ファイルは個別ファイルの合計より大きくなります（JS は base64 により約 33% のオーバーヘッド）。
+- **SPA モード推奨** — このアダプタはシングルページアプリケーションに最適です。クライアントコンポーネントとクライアント側ルーティングと併用してください。

@@ -10,6 +10,7 @@ import DenoIcon from "../../public/deno.svg?react";
 import AzureIcon from "../../public/azure.svg?react";
 import FirebaseIcon from "../../public/firebase.svg?react";
 import DockerIcon from "../../public/docker.svg?react";
+import Html5Icon from "../../public/html5.svg?react";
 
 const adapters = [
   {
@@ -109,32 +110,52 @@ const adapters = [
       ja: "Node.js、Bun、または Deno コンテナ",
     },
   },
+  {
+    name: "Singlefile",
+    href: "/deploy/singlefile",
+    icon: Html5Icon,
+    color: "#E34F26",
+    description: {
+      en: "Self-contained single HTML file",
+      ja: "自己完結型の単一HTMLファイル",
+    },
+    experimental: true,
+  },
 ];
 
 export default function AdapterGrid() {
   const lang = useLanguage();
   return (
     <div className="my-4 grid grid-cols-1 md:grid-cols-3 auto-rows-fr gap-4 not-prose">
-      {adapters.map(({ name, href, icon: Icon, color, description }) => (
-        <a
-          key={href}
-          href={`${lang === defaultLanguage ? "" : `/${lang}`}${href}`}
-          hrefLang={lang}
-          className="adapter-card flex flex-col rounded-xl p-4 bg-gray-50 dark:bg-gray-800 text-xs shadow-lg dark:shadow-[rgba(255,255,255,0.1)] border border-gray-500 no-underline hover:no-underline transition-colors hover:border-gray-300 dark:hover:border-gray-400"
-          style={{ textDecoration: "none", color: "inherit" }}
-        >
-          <span className="adapter-card-title relative inline-flex items-start gap-2 self-start font-semibold text-base text-black dark:text-gray-300 mb-1">
-            <Icon
-              className="h-[1em] w-auto shrink-0 translate-y-[0.15em]"
-              style={color ? { color } : undefined}
-            />
-            {name}
-          </span>
-          <span className="font-normal text-sm text-gray-500 dark:text-gray-400">
-            {description[lang] ?? description.en}
-          </span>
-        </a>
-      ))}
+      {adapters.map(
+        ({ name, href, icon: Icon, color, description, experimental }) => (
+          <a
+            key={href}
+            href={`${lang === defaultLanguage ? "" : `/${lang}`}${href}`}
+            hrefLang={lang}
+            className="adapter-card relative flex flex-col rounded-xl p-4 bg-gray-50 dark:bg-gray-800 text-xs shadow-lg dark:shadow-[rgba(255,255,255,0.1)] border border-gray-500 no-underline hover:no-underline transition-colors hover:border-gray-300 dark:hover:border-gray-400"
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            {experimental ? (
+              <span className="absolute top-2 right-2 inline-flex items-center rounded-md bg-yellow-50 dark:bg-yellow-900/30 px-1.5 py-0.5 text-[10px] font-medium text-yellow-800 dark:text-yellow-200 ring-1 ring-inset ring-yellow-600/20">
+                Experimental
+              </span>
+            ) : null}
+            <span className="adapter-card-title relative inline-flex items-start gap-2 self-start font-semibold text-base text-black dark:text-gray-300 mb-1">
+              {Icon ? (
+                <Icon
+                  className="h-[1em] w-auto shrink-0 translate-y-[0.15em]"
+                  style={color ? { color } : undefined}
+                />
+              ) : null}
+              {name}
+            </span>
+            <span className="font-normal text-sm text-gray-500 dark:text-gray-400">
+              {description[lang] ?? description.en}
+            </span>
+          </a>
+        )
+      )}
     </div>
   );
 }

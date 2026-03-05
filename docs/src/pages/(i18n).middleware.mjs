@@ -6,7 +6,7 @@ import { defaultLanguage, languages } from "../const.mjs";
 export default function I18n() {
   const { pathname } = useUrl();
 
-  if (pathname === "/sitemap.xml") {
+  if (pathname === "/sitemap.xml" || pathname === "/schema.json") {
     return;
   }
 

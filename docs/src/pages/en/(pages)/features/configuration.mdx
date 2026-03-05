@@ -14,6 +14,39 @@ You can use the `+*.config.*` file to extend the configuration of `@lazarv/react
 
 The `+*.config.*` file is useful when you want to extend the configuration of the runtime. You can use as many `+*.config.*` files as you want. All the configuration files are merged together in the order they are loaded.
 
+<Link name="typed-configuration">
+## Typed configuration
+</Link>
+
+For **JavaScript and TypeScript** config files, wrap your config with `defineConfig` to get full IntelliSense — autocompletion, type checking, and inline descriptions with examples for every option:
+
+```mjs filename="react-server.config.mjs"
+import { defineConfig } from "@lazarv/react-server/config";
+
+export default defineConfig({
+  port: 3000,
+  adapter: "vercel",
+});
+```
+
+For **JSON** config files, add a `$schema` property to enable validation and autocomplete directly in your editor:
+
+```json filename="react-server.config.json"
+{
+  "$schema": "https://react-server.dev/schema.json",
+  "port": 3000,
+  "adapter": "vercel"
+}
+```
+
+The JSON Schema is also available from the package itself for offline use:
+
+```json filename="react-server.config.json"
+{
+  "$schema": "node_modules/@lazarv/react-server/config/schema.json"
+}
+```
+
 If you want to only add configuration to use when running the runtime in production mode, then use the `.production.config.*` extension. These configuration files only loaded in production mode.
 
 In a similar way, you can create configuration files with the `.development.config.*` extension to use a different configuration for development mode.

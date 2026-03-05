@@ -195,3 +195,5 @@ export async function loadConfig(initialConfig, options = {}) {
 export function defineConfig(config) {
   return config;
 }
+
+export { DESCRIPTIONS, generateJsonSchema } from "./schema.mjs";

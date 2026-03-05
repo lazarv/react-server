@@ -41,6 +41,14 @@ export default {
           accept: "application/xml",
         },
       },
+      {
+        path: "/schema.json",
+        filename: "schema.json",
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      },
     ];
   },
 };

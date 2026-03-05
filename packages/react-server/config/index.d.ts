@@ -1,10 +1,12 @@
-export type ReactServerConfig = any;
-export function loadConfig<T extends Record<string, unknown>>(
-  initialConfig: T
+import type { ReactServerConfig } from "./schema.js";
+
+export type { ReactServerConfig } from "./schema.js";
+export { DESCRIPTIONS, generateJsonSchema } from "./schema.js";
+
+export function loadConfig(
+  initialConfig: ReactServerConfig
 ): Promise<ReactServerConfig>;
-export function defineConfig<T extends Record<string, unknown>>(
-  config: T
-): ReactServerConfig;
+export function defineConfig(config: ReactServerConfig): ReactServerConfig;
 
 export function forRoot(config?: ReactServerConfig): ReactServerConfig;
 export function forChild(config?: ReactServerConfig): ReactServerConfig;

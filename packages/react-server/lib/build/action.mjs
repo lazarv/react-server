@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 import colors from "picocolors";
 import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
+import {
+  validateConfig,
+  formatValidationErrors,
+} from "../../config/validate.mjs";
 import { ContextStorage } from "../../server/context.mjs";
 import {
   BUILD_OPTIONS,
@@ -53,6 +57,22 @@ export default async function build(root, options) {
   }
 
   const config = await loadConfig({}, { ...options, command: "build" });
+
+  // Validate config — fail and exit on hard errors during build.
+  {
+    const validation = validateConfig(config[CONFIG_ROOT]);
+    if (!validation.valid || validation.warnings.length > 0) {
+      const output = formatValidationErrors(
+        [...validation.errors, ...validation.warnings],
+        { command: "build" }
+      );
+      if (output) console.error(output);
+
+      if (!validation.valid) {
+        return 1;
+      }
+    }
+  }
 
   // Apply sourcemap from config if not explicitly set via CLI
   if (

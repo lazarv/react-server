@@ -1,4 +1,4 @@
-import { generateJsonSchema } from "@lazarv/react-server/config";
+import { generateJsonSchema } from "@lazarv/react-server/config/schema";
 
 export default function Schema() {
   const schema = generateJsonSchema();

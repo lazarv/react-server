@@ -7,6 +7,7 @@ import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
 
+import optionalDeps from "../plugins/optional-deps.mjs";
 import * as sys from "../sys.mjs";
 import customLogger from "./custom-logger.mjs";
 import { fileListingReporterPlugin } from "./output-filter.mjs";
@@ -170,9 +171,14 @@ export default async function edgeBuild(root, options) {
           if (id.startsWith("node:") || /manifest\.json/.test(id)) {
             return true;
           }
+          // @opentelemetry/* is NOT externalized — edge runtimes like
+          // Cloudflare Workers have no node_modules, so packages must
+          // be bundled. Dynamic imports in telemetry.mjs use try/catch
+          // to gracefully fall back when OTel isn't installed.
           return false;
         },
         plugins: [
+          optionalDeps([/^@opentelemetry\//]),
           replace({
             preventAssignment: true,
             "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
@@ -287,6 +293,7 @@ export default async function edgeBuild(root, options) {
       },
     },
     plugins: [
+      optionalDeps([/^@opentelemetry\//]),
       {
         name: "react-server:edge",
         enforce: "pre",

@@ -22,6 +22,12 @@ import {
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
+import {
+  resolveTelemetryConfig,
+  initTelemetry,
+  shutdownTelemetry,
+  getTracer,
+} from "../../server/telemetry.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import staticHandler from "../handlers/static.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
@@ -52,6 +58,19 @@ export default async function createServer(root, options) {
 
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT] ?? {};
 
+  // ── Telemetry: initialize OpenTelemetry SDK ──
+  const telemetryConfig = resolveTelemetryConfig(config);
+  await initTelemetry(telemetryConfig);
+
+  // ── Telemetry: server startup span ──
+  const startupTracer = getTracer();
+  const startupSpan = startupTracer.startSpan("Server Startup", {
+    attributes: {
+      "react_server.mode": "production",
+      "react_server.root": root || "file-router",
+    },
+  });
+
   const initialRuntime = {
     [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
   };
@@ -67,7 +86,9 @@ export default async function createServer(root, options) {
   const publicDir =
     typeof config.public === "string" ? config.public : "public";
   const initialHandlers = await Promise.all([
-    async () => PrerenderStorage.enterWith({}),
+    async function prerenderInit() {
+      PrerenderStorage.enterWith({});
+    },
     staticHandler(join(cwd, options.outDir, "dist"), {
       cwd: join(options.outDir, "dist"),
     }),
@@ -90,7 +111,7 @@ export default async function createServer(root, options) {
     notFoundHandler(),
   ]);
   if (config.base) {
-    initialHandlers.unshift(async (context) => {
+    initialHandlers.unshift(async function basePathStrip(context) {
       if (context.url.pathname.startsWith(config.base)) {
         context.url.pathname =
           context.url.pathname.slice(config.base.length) || "/";
@@ -192,6 +213,16 @@ export default async function createServer(root, options) {
       io.close();
     });
   }
+
+  // ── Telemetry: flush on server close ──
+  if (httpServer) {
+    httpServer.on("close", () => {
+      shutdownTelemetry();
+    });
+  }
+
+  // ── Telemetry: end startup span ──
+  startupSpan.end();
 
   return server;
 }

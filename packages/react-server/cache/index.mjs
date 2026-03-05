@@ -16,6 +16,7 @@ import {
   MEMORY_CACHE_CONTEXT,
   PRERENDER_CACHE,
 } from "../server/symbols.mjs";
+import { getTracer, getOtelContext } from "../server/telemetry.mjs";
 
 export { StorageCache, memoryDriver as default, CACHE_MISS };
 
@@ -88,6 +89,22 @@ export async function useCache(
   }
 
   const key = cache.rawCanonicalKey(keys);
+  const providerName = provider?.name ?? "default";
+
+  // ── Telemetry: cache operation span (all calls are synchronous) ──
+  const tracer = getTracer();
+  const parentCtx = getOtelContext();
+  const cacheSpan = tracer.startSpan(
+    "Cache Lookup",
+    {
+      attributes: {
+        "react_server.cache.provider": providerName,
+        "react_server.cache.ttl": ttl === Infinity ? "Infinity" : String(ttl),
+        "react_server.cache.force": force,
+      },
+    },
+    parentCtx ?? undefined
+  );
 
   // HACK: concurrency workaround to avoid race condition on the lock
   await new Promise((resolve) => setImmediate(resolve));
@@ -105,6 +122,8 @@ export async function useCache(
     result = await cache.get(keys);
 
     if (force || result === CACHE_MISS) {
+      cacheSpan.setAttribute("react_server.cache.hit", false);
+      cacheSpan.updateName("Cache Miss → Recompute");
       let value = promise;
 
       if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
@@ -133,6 +152,9 @@ export async function useCache(
         ttl: ttl ?? Infinity,
         provider,
       });
+    } else {
+      cacheSpan.setAttribute("react_server.cache.hit", true);
+      cacheSpan.updateName("Cache Hit");
     }
 
     lock.delete(key);
@@ -140,9 +162,12 @@ export async function useCache(
   } catch (e) {
     lock.delete(key);
     release?.();
+    cacheSpan.setStatus({ code: 2, message: e?.message });
+    cacheSpan.recordException(e);
     error = e;
   }
 
+  cacheSpan.end();
   if (error) throw error;
   return result;
 }

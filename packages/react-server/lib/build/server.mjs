@@ -10,6 +10,7 @@ import { build as viteBuild } from "vite";
 import { forRoot } from "../../config/index.mjs";
 import configPrebuilt from "../plugins/config-prebuilt.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
+import optionalDeps from "../plugins/optional-deps.mjs";
 import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
 
@@ -151,6 +152,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
     /^@lazarv\/react-server\/dist\//,
+    /^@opentelemetry\//,
   ]);
   const ssrExternal = createExternal([
     /manifest\.json/,
@@ -162,9 +164,14 @@ export default async function serverBuild(root, options, clientManifestBus) {
     "@lazarv/react-server/storage-cache",
     "@lazarv/react-server/http-context",
     /^@lazarv\/react-server\/dist\//,
+    /^@opentelemetry\//,
   ]);
 
-  // Edge external - only externalize node builtins, bundle everything else
+  // Edge external - only externalize node builtins, bundle everything else.
+  // @opentelemetry/* is NOT externalized here because edge runtimes like
+  // Cloudflare Workers have no node_modules — packages must be bundled.
+  // The dynamic imports in telemetry.mjs are wrapped in try/catch so they
+  // gracefully fall back to no-ops when OTel packages aren't installed.
   const edgeExternal = (id, parentId, isResolved) => {
     if (isBuiltin(id)) {
       return true;
@@ -710,6 +717,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
           );
         },
         plugins: [
+          ...(options.edge ? [optionalDeps([/^@opentelemetry\//])] : []),
           manifestRegistry(),
           resolveWorkspace(),
           ...(options.edge ? [preloadManifestVirtual(options)] : []),
@@ -996,6 +1004,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ? ssrExternal
             : external,
         plugins: [
+          ...(options.edge ? [optionalDeps([/^@opentelemetry\//])] : []),
           manifestRegistry(),
           resolveWorkspace(),
           ...(options.edge ? [preloadManifestVirtual(options)] : []),

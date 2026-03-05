@@ -8,10 +8,9 @@ import {
   bareImportRE,
   hasClientComponents,
   hasClientComponentsAsync,
-  isModule,
+  isESMSyntaxAsync,
   isRootModule,
   nodeResolve,
-  readFileCachedAsync,
   tryStat,
 } from "../utils/module.mjs";
 
@@ -149,6 +148,15 @@ export { findPackagesWithClientComponents };
 export default function optimizeDeps() {
   let clientComponentPackages = null;
 
+  // Cache stat results to avoid repeated synchronous statSync syscalls
+  const statCache = new Map();
+  function isFileCached(filePath) {
+    if (statCache.has(filePath)) return statCache.get(filePath);
+    const result = tryStat(filePath)?.isFile() ?? false;
+    statCache.set(filePath, result);
+    return result;
+  }
+
   return {
     name: "react-server:optimize-deps",
     enforce: "pre",
@@ -167,6 +175,9 @@ export default function optimizeDeps() {
       }
     },
     async resolveId(specifier, importer, resolveOptions) {
+      // Skip virtual modules - they're handled by their respective plugins
+      if (specifier[0] === "\0") return null;
+
       try {
         const resolved = await this.resolve(specifier, importer, {
           ...resolveOptions,
@@ -177,7 +188,7 @@ export default function optimizeDeps() {
           (this.environment.name === "rsc" ||
             this.environment.name === "ssr") &&
           /\.[cm]?js$/.test(path) &&
-          tryStat(path)?.isFile()
+          isFileCached(path)
         ) {
           // Check if this is a bare import (not relative/absolute)
           const isBareImport =
@@ -189,25 +200,9 @@ export default function optimizeDeps() {
             return resolved;
           }
 
-          // Check if file is ESM by parsing it (more reliable than package.json type)
-          let fileIsESM = isModule(path);
-          if (!fileIsESM && path.endsWith(".js")) {
-            try {
-              const content = await readFileCachedAsync(path);
-              if (content) {
-                const ast = this.parse(content);
-                fileIsESM = ast.body.some(
-                  (node) =>
-                    node.type === "ImportDeclaration" ||
-                    node.type === "ExportNamedDeclaration" ||
-                    node.type === "ExportDefaultDeclaration" ||
-                    node.type === "ExportAllDeclaration"
-                );
-              }
-            } catch {
-              // If parsing fails, fall back to package.json type
-            }
-          }
+          // Check if file is ESM using cached extension + regex detection
+          // (.mjs/.cjs resolved by extension, .js by cached content regex scan)
+          const fileIsESM = await isESMSyntaxAsync(path);
 
           // If the resolved file is CJS, externalize it
           if (!fileIsESM) {
@@ -249,7 +244,7 @@ export default function optimizeDeps() {
             (specifier[0] !== "." && specifier[0] !== "/")) &&
           applyAlias(alias, specifier) === specifier &&
           !isRootModule(path) &&
-          tryStat(path)?.isFile()
+          isFileCached(path)
         ) {
           // Don't optimize packages with client components - optimization breaks
           // React Context because optimized bundles create separate context instances

@@ -1,0 +1,417 @@
+---
+title: Observability
+category: Features
+order: 16
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Observability
+
+`@lazarv/react-server` provides built-in [OpenTelemetry](https://opentelemetry.io/) integration for full observability in both development and production. When enabled, the runtime automatically instruments HTTP requests, SSR rendering, server functions, and middleware — emitting distributed traces and metrics without any application code changes.
+
+All OpenTelemetry dependencies are **optional** and loaded lazily. When telemetry is disabled (the default), there is **zero runtime overhead** — all instrumentation resolves to no-op objects.
+
+<Link name="getting-started">
+## Getting Started
+</Link>
+
+### Install OpenTelemetry packages
+
+```bash
+pnpm add @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http @opentelemetry/exporter-metrics-otlp-http @opentelemetry/sdk-metrics @opentelemetry/core @opentelemetry/resources @opentelemetry/semantic-conventions
+```
+
+### Enable telemetry
+
+You can enable telemetry in any of these ways:
+
+**1. Configuration file** — add a `telemetry` section to your `react-server.config.mjs`:
+
+```js
+export default {
+  telemetry: {
+    enabled: true,
+    serviceName: "my-app",
+  },
+};
+```
+
+**2. Environment variable** — set the standard OpenTelemetry endpoint:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+
+**3. Runtime-specific env var:**
+
+```bash
+REACT_SERVER_TELEMETRY=true
+```
+
+When enabled, the runtime initializes the OpenTelemetry SDK on server startup and shuts it down gracefully when the server closes.
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+All telemetry settings live under the `telemetry` key in your configuration file:
+
+```js
+export default {
+  telemetry: {
+    // Enable/disable telemetry (default: false)
+    enabled: true,
+
+    // Service name reported to your backend (default: package name or "@lazarv/react-server")
+    serviceName: "my-app",
+
+    // OTLP endpoint (default: "http://localhost:4318")
+    endpoint: "http://localhost:4318",
+
+    // Exporter type: "otlp" | "console" | "dev-console" (default: auto-detected)
+    exporter: "otlp",
+
+    // Sampling rate 0.0–1.0 (default: 1.0 — sample everything)
+    sampleRate: 1.0,
+
+    // Metrics configuration
+    metrics: {
+      // Enable/disable metrics collection (default: true when telemetry is enabled)
+      enabled: true,
+
+      // Export interval in milliseconds (default: 30000)
+      interval: 30000,
+    },
+  },
+};
+```
+
+### Environment variables
+
+The following environment variables are respected:
+
+| Variable | Description |
+| --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint. Setting this also enables telemetry. |
+| `OTEL_SERVICE_NAME` | Service name override. |
+| `REACT_SERVER_TELEMETRY` | Set to `"true"` to enable telemetry. |
+
+Standard OpenTelemetry environment variables (`OTEL_*`) are passed through to the SDK.
+
+<Link name="built-in-spans">
+## Built-in Spans
+</Link>
+
+When telemetry is enabled, the runtime automatically creates the following trace spans:
+
+### HTTP Request Span
+
+**`HTTP Request`** — Root span for every incoming HTTP request. Extracts W3C TraceContext from incoming headers and injects trace context into response headers.
+
+| Attribute | Description |
+| --- | --- |
+| `http.method` | HTTP method (GET, POST, etc.) |
+| `http.url` | Full request URL |
+| `http.target` | Request path |
+| `http.host` | Host header |
+| `http.scheme` | Protocol (http/https) |
+| `http.user_agent` | User-Agent header |
+| `http.status_code` | Response status code (set after response) |
+| `http.response_content_type` | Response Content-Type (set after response) |
+| `net.peer.ip` | Client IP address |
+
+### Middleware Spans
+
+**`Middleware: {displayName}`** — One span per middleware in the compose chain. Each span measures only the middleware's own work — calling `next()` ends the span before the next middleware runs.
+
+| Attribute | Description |
+| --- | --- |
+| `react_server.middleware.index` | Position in the middleware chain (0-based) |
+| `react_server.middleware.name` | Middleware function name |
+| `react_server.middleware.display_name` | Human-readable name (e.g. "CORS", "Static Files", "SSR Handler") |
+
+### Render Spans
+
+The renderer creates two nested **`Render`** spans per request:
+
+1. **RSC Render** — outer span wrapping the full RSC→SSR pipeline
+2. **SSR Render** — inner span (child of RSC) for HTML stream rendering
+
+| Attribute | Description |
+| --- | --- |
+| `react_server.render_type` | `"RSC"` or `"SSR"` |
+| `react_server.outlet` | Outlet name or `"PAGE_ROOT"` |
+| `http.url` | Request URL |
+
+### Server Function Span
+
+**`Server Function`** — Span for each server function invocation.
+
+| Attribute | Description |
+| --- | --- |
+| `react_server.server_function.id` | Function identifier |
+| `react_server.server_function.is_form` | Whether invoked via form submission |
+| `react_server.server_function.has_error` | Whether the function produced an error (set after execution) |
+
+### Cache Spans
+
+**`Cache Lookup`** — Span for each `useCache()` call. Dynamically renamed to **`Cache Hit`** or **`Cache Miss → Recompute`** based on the result.
+
+| Attribute | Description |
+| --- | --- |
+| `react_server.cache.provider` | Cache provider name (or `"default"`) |
+| `react_server.cache.ttl` | TTL value (or `"Infinity"`) |
+| `react_server.cache.force` | Whether cache was force-refreshed |
+| `react_server.cache.hit` | `true` on hit, `false` on miss (set after lookup) |
+
+### Server Startup Span
+
+**`Server Startup`** — Span covering server initialization (both dev and production).
+
+| Attribute | Description |
+| --- | --- |
+| `react_server.mode` | `"development"` or `"production"` |
+| `react_server.root` | Application root or `"file-router"` |
+
+### Vite Dev Server Init Span
+
+**`Vite Dev Server Init`** — Span for Vite dev server creation (development only).
+
+| Attribute | Description |
+| --- | --- |
+| `react_server.vite.mode` | Vite mode |
+| `react_server.vite.force` | Whether dependency optimization was forced |
+
+### Vite Plugin Hook Spans
+
+**`Vite plugin [{pluginName}].{hookName}`** — In development, every Vite plugin hook (`resolveId`, `load`, `transform`, `buildStart`, `buildEnd`, `handleHotUpdate`) is automatically instrumented.
+
+| Attribute | Description |
+| --- | --- |
+| `react_server.vite.plugin` | Plugin name |
+| `react_server.vite.hook` | Hook name |
+| `react_server.vite.module_id` | Module being processed (for `resolveId`, `load`, `transform`) |
+
+<Link name="built-in-metrics">
+## Built-in Metrics
+</Link>
+
+The following metrics are automatically recorded:
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `http.server.request.duration` | Histogram (ms) | Duration of HTTP requests |
+| `http.server.active_requests` | UpDownCounter | Number of in-flight HTTP requests |
+| `react_server.server_function.duration` | Histogram (ms) | Duration of server function execution |
+| `react_server.rsc.render.duration` | Histogram (ms) | Duration of RSC rendering |
+| `react_server.dom.render.duration` | Histogram (ms) | Duration of SSR DOM rendering |
+| `react_server.cache.hits` | Counter | Number of cache hits |
+| `react_server.cache.misses` | Counter | Number of cache misses |
+
+<Link name="user-api">
+## Telemetry API
+</Link>
+
+Import from `@lazarv/react-server/telemetry` to extend built-in telemetry with custom spans and metrics in your server components, server functions, or middleware.
+
+### `withSpan(name, attributes?, fn)`
+
+Execute a function within a child span:
+
+```js
+import { withSpan } from "@lazarv/react-server/telemetry";
+
+export async function fetchProducts() {
+  return withSpan("db.query", { "db.system": "postgres" }, async (span) => {
+    const rows = await db.query("SELECT * FROM products");
+    span.setAttribute("db.row_count", rows.length);
+    return rows;
+  });
+}
+```
+
+### `getSpan()`
+
+Get the current request span to add attributes or events:
+
+```js
+import { getSpan } from "@lazarv/react-server/telemetry";
+
+export function MyComponent() {
+  const span = getSpan();
+  span.addEvent("component.render", { component: "MyComponent" });
+  // ...
+}
+```
+
+### `getTracer()`
+
+Get the active OpenTelemetry tracer for manual span creation:
+
+```js
+import { getTracer } from "@lazarv/react-server/telemetry";
+
+const tracer = getTracer();
+const span = tracer.startSpan("custom.operation");
+try {
+  // ... your code
+} finally {
+  span.end();
+}
+```
+
+### `getMeter()`
+
+Get the active OpenTelemetry meter for custom metrics:
+
+```js
+import { getMeter } from "@lazarv/react-server/telemetry";
+
+const meter = getMeter();
+const counter = meter.createCounter("my_app.api_calls", {
+  description: "Number of external API calls",
+});
+counter.add(1, { "api.name": "stripe" });
+```
+
+### `getOtelContext()`
+
+Get the OTel context for the current request. Useful for advanced propagation scenarios:
+
+```js
+import { getOtelContext } from "@lazarv/react-server/telemetry";
+
+const ctx = getOtelContext();
+```
+
+### `injectTraceContext(headers)`
+
+Inject W3C trace context into outgoing headers for distributed tracing across services:
+
+```js
+import { injectTraceContext } from "@lazarv/react-server/telemetry";
+
+const headers = new Headers();
+await injectTraceContext(headers);
+const res = await fetch("https://api.example.com/data", { headers });
+```
+
+<Link name="trace-propagation">
+## Trace Propagation
+</Link>
+
+The runtime automatically:
+
+1. **Extracts** W3C TraceContext headers (`traceparent`, `tracestate`) from incoming requests
+2. **Propagates** context through the middleware chain, SSR handler, and server functions
+3. **Injects** trace context into outgoing response headers
+
+This means traces from upstream services (API gateways, load balancers) are automatically correlated with react-server traces, and downstream services can continue the trace.
+
+<Link name="dev-console-exporter">
+## Dev Console Exporter
+</Link>
+
+In development, when you enable telemetry without setting an OTLP endpoint, the runtime uses a pretty-printed console exporter that renders a compact trace tree in your terminal:
+
+```
+  GET  /about  200  45.2ms
+  ├─ Middleware: CORS ░ 0.3ms
+  ├─ Middleware: Cookies ░ 0.1ms
+  ├─ Middleware: SSR Handler ░░░░░░ 42.1ms
+  │ ├─ Render RSC ░░░░ 18.3ms
+  │ └─ Render SSR ░░░░░ 22.4ms
+  ├─ Vite plugin [vite:resolve].resolveId:  ×47 ░ 3.2ms
+  ├─ Vite plugin [vite:css].transform:  ×12 ░ 1.1ms
+  └─ 8 spans (<1ms)
+```
+
+Features:
+- **Color-coded durations**: green (< 20ms), yellow (20–100ms), red (> 100ms)
+- **Proportional timing bars** showing relative duration within each trace
+- **Hierarchical tree** using span parent-child relationships
+- **Grouped Vite spans**: fast (green) Vite plugin hook spans are grouped by name with a count; slow or errored spans are shown individually
+- **Collapsed micro-spans**: spans shorter than 1ms are summarized in a single line
+
+To use the dev console exporter explicitly:
+
+```js
+export default {
+  telemetry: {
+    enabled: true,
+    exporter: "dev-console",
+  },
+};
+```
+
+<Link name="production-setup">
+## Production Setup
+</Link>
+
+### Jaeger
+
+Run Jaeger locally with OTLP support:
+
+```bash
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+```
+
+Then enable telemetry:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm react-server start
+```
+
+Open `http://localhost:16686` to view traces.
+
+### Grafana / Tempo
+
+Configure your OTLP endpoint in your config:
+
+```js
+export default {
+  telemetry: {
+    enabled: true,
+    endpoint: "https://tempo.grafana.net/otlp",
+    serviceName: "my-production-app",
+  },
+};
+```
+
+### Honeycomb / Datadog / New Relic
+
+Most observability platforms support OTLP ingestion. Set the endpoint and any required headers via environment variables:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io
+OTEL_EXPORTER_OTLP_HEADERS="x-honeycomb-team=your-api-key"
+```
+
+<Link name="edge-runtime">
+## Edge Runtime
+</Link>
+
+Telemetry is also supported in edge runtimes (Cloudflare Workers, Netlify Edge Functions, etc.) with a lightweight tracer. Due to platform constraints, only traces are supported in edge — metrics are not available.
+
+When building for edge, the bundler automatically handles OpenTelemetry packages:
+- **Packages installed** → bundled into the worker, OTLP export or console fallback
+- **Packages not installed** → resolved to empty modules, zero overhead
+
+The edge telemetry uses `BasicTracerProvider` with `SimpleSpanProcessor` and attempts to use the OTLP HTTP exporter, falling back to console output when it's not available.
+
+<Link name="zero-overhead">
+## Zero Overhead When Disabled
+</Link>
+
+When telemetry is not enabled:
+
+- No OpenTelemetry packages are loaded
+- All span and metric operations resolve to no-op objects
+- The `withSpan()` helper simply calls your function directly
+- `getTracer()` and `getMeter()` return no-op instances that discard all data
+
+This ensures there is no performance impact on applications that don't use telemetry.

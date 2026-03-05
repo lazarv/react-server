@@ -72,6 +72,13 @@ import { getServerCors } from "../utils/server-config.mjs";
 import createLogger from "./create-logger.mjs";
 import { HybridEvaluator } from "./hybrid-evaluator.mjs";
 import ssrHandler from "./ssr-handler.mjs";
+import telemetryHooks from "../plugins/telemetry-hooks.mjs";
+import {
+  resolveTelemetryConfig,
+  initTelemetry,
+  shutdownTelemetry,
+  getTracer,
+} from "../../server/telemetry.mjs";
 
 const cwd = sys.cwd();
 const workspaceRoot = findPackageRoot(join(cwd, "..")) ?? cwd;
@@ -82,6 +89,20 @@ export default async function createServer(root, options) {
     options.outDir = ".react-server";
   }
   const config = getRuntime(CONFIG_CONTEXT)?.[CONFIG_ROOT];
+
+  // ── Telemetry: initialize OpenTelemetry SDK ──
+  const telemetryConfig = resolveTelemetryConfig(config);
+  await initTelemetry(telemetryConfig);
+
+  // ── Telemetry: server startup span ──
+  const startupTracer = getTracer();
+  const startupSpan = startupTracer.startSpan("Server Startup", {
+    attributes: {
+      "react_server.mode": "development",
+      "react_server.root": root || "file-router",
+    },
+  });
+
   let worker = null;
   if (sys.isDeno) {
     const { renderProcessSpawn } = await import("./render-process-spawn.mjs");
@@ -248,6 +269,7 @@ export default async function createServer(root, options) {
       asset(),
       optimizeDeps(),
       reactServerLive(options.httpServer, config),
+      ...(telemetryConfig ? [telemetryHooks()] : []),
     ],
     cacheDir:
       config.cacheDir ||
@@ -499,7 +521,15 @@ export default async function createServer(root, options) {
     }
   }
 
+  // ── Telemetry: Vite dev server creation span ──
+  const viteCreateSpan = startupTracer.startSpan("Vite Dev Server Init", {
+    attributes: {
+      "react_server.vite.mode": options.mode || "development",
+      "react_server.vite.force": !!options.force,
+    },
+  });
   const viteDevServer = await createViteDevServer(viteConfig);
+  viteCreateSpan.end();
 
   if (config.envDir !== false) {
     if (globalThis.__react_server_prev_env_keys__) {
@@ -917,7 +947,7 @@ export default async function createServer(root, options) {
   });
 
   const initialHandlers = await Promise.all([
-    async (context) => {
+    async function devTooling(context) {
       if (context.url.pathname === "/__react_server_console__") {
         try {
           await handleClientConsole(context.request.body);
@@ -965,7 +995,7 @@ export default async function createServer(root, options) {
   }
 
   if (config.base) {
-    initialHandlers.unshift(async (context) => {
+    initialHandlers.unshift(async function basePathStrip(context) {
       if (context.url.pathname.startsWith(config.base)) {
         context.url.pathname =
           context.url.pathname.slice(config.base.length) || "/";
@@ -980,6 +1010,9 @@ export default async function createServer(root, options) {
   );
 
   viteDevServer.middlewares.use(createMiddleware(composedHandlers));
+
+  // ── Telemetry: end startup span ──
+  startupSpan.end();
 
   const localHostnames = new Set([
     "localhost",
@@ -997,6 +1030,7 @@ export default async function createServer(root, options) {
       });
     },
     close: () => {
+      shutdownTelemetry();
       viteDevServer.close();
     },
     ws: viteDevServer.environments.client.hot,

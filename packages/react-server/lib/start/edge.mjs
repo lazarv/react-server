@@ -8,6 +8,10 @@ import {
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
+import {
+  resolveTelemetryConfig,
+  initEdgeTelemetry,
+} from "../../server/telemetry.mjs";
 import notFoundHandler from "../handlers/not-found.mjs";
 import trailingSlashHandler from "../handlers/trailing-slash.mjs";
 import { getServerCors } from "../utils/server-config.mjs";
@@ -31,6 +35,12 @@ export function reactServer(root, options = {}, initialConfig = {}) {
       await runtime_init$(async () => {
         runtime$(CONFIG_CONTEXT, config);
         await createLogger({ logger: console, ...config[CONFIG_ROOT] });
+
+        // ── Telemetry: initialize for edge runtime ──
+        const telemetryConfig = resolveTelemetryConfig(
+          config?.[CONFIG_ROOT] ?? {}
+        );
+        await initEdgeTelemetry(telemetryConfig);
 
         if (!options.outDir) {
           options.outDir = ".react-server";

@@ -5,6 +5,9 @@ import remarkGfm from "remark-gfm";
 export default {
   root: "src/pages",
   public: "public",
+  telemetry: {
+    enabled: true,
+  },
   adapter: [
     "cloudflare",
     {

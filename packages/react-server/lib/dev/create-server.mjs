@@ -864,9 +864,17 @@ export default async function createServer(root, options) {
           if (!mod) return;
 
           if (mod.__react_server_client_component__) {
-            modules.unshift(
-              `/@fs/${sys.normalizePath(moduleId)}`.replace(/\/+/g, "/")
-            );
+            const normalizedId = sys.normalizePath(moduleId);
+            const relPath = sys.normalizePath(relative(cwd, normalizedId));
+            if (
+              relPath.startsWith("../") ||
+              relPath.startsWith("__/") ||
+              relPath.includes("node_modules")
+            ) {
+              modules.unshift(`/@fs/${normalizedId}`.replace(/\/+/g, "/"));
+            } else {
+              modules.unshift(`/${relPath}`.replace(/\/+/g, "/"));
+            }
           } else {
             if (/node_modules/.test(moduleId)) return;
 

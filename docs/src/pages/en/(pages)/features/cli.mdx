@@ -100,6 +100,14 @@ Clear screen on server start. Default is `false`. If you want to start with a cl
 
 Disable color output. Default is `false`. This is useful for CI/CD environments.
 
+<Link name="dev-no-validation">
+### --no-validation
+</Link>
+
+Skip configuration validation. Default is `false`.
+
+When set, the development server will not validate your `react-server.config.*` file on startup. This is useful as an escape hatch if validation incorrectly rejects a valid configuration, or when you intentionally need to use an option that is normally forbidden.
+
 <Link name="dev-eval">
 ### --eval
 </Link>
@@ -178,6 +186,14 @@ See more details in the Vite documentation at [build.sourcemap](https://vitejs.d
 </Link>
 
 Disable color output. Default is `false`. This is useful for CI/CD environments.
+
+<Link name="build-no-validation">
+### --no-validation
+</Link>
+
+Skip configuration validation. Default is `false`.
+
+When set, the build process will not validate your `react-server.config.*` file before building. This is useful as an escape hatch if validation incorrectly rejects a valid configuration, or when you intentionally need to use an option that is normally forbidden.
 
 <Link name="build-export">
 ### --export

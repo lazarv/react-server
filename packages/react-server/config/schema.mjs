@@ -56,15 +56,29 @@ export const DESCRIPTIONS = {
     "Additional file types to treat as static assets. String, RegExp, or array.",
   logLevel: 'Vite log level: "info" | "warn" | "error" | "silent".',
   clearScreen: "Whether to clear the terminal screen on dev server start.",
+  html: "HTML options (e.g. cspNonce).",
+  json: "JSON import options (namedExports, stringify).",
+  appType: 'Application type: "spa" | "mpa" | "custom".',
+  worker: "Web worker bundling configuration.",
+  "worker.format": "Worker bundle format.",
+  "worker.plugins": "Vite plugins for worker bundles.",
+  "worker.rollupOptions": "Rollup options for worker bundles (deprecated).",
+  "worker.rolldownOptions": "Rolldown options for worker bundles.",
 
   // server.*
   server: "Dev server configuration (Vite-compatible).",
   "server.host": "Specify which IP addresses the server should listen on.",
   "server.port": "Specify server port.",
+  "server.strictPort":
+    "If enabled, Vite will exit if the specified port is already in use.",
   "server.https": "Enable HTTPS / TLS.",
   "server.cors": "Configure CORS for the dev server.",
   "server.open": "Open the app in the browser on server start.",
   "server.hmr": "Configure HMR connection. Set to false to disable HMR.",
+  "server.ws":
+    "Set to false to disable the WebSocket connection. Experimental.",
+  "server.allowedHosts":
+    "Hostnames that Vite is allowed to respond to. Set to true to allow all hosts.",
   "server.fs": "File system serving restrictions.",
   "server.fs.allow": "Directories allowed to be served.",
   "server.fs.deny": "Directories denied from being served.",
@@ -73,9 +87,15 @@ export const DESCRIPTIONS = {
   "server.origin":
     "Define the origin of the generated asset URLs during development.",
   "server.proxy": "Custom proxy rules for the dev server.",
+  "server.middlewareMode":
+    "Create Vite dev server to be used as a middleware in an existing server.",
   "server.trustProxy": "Trust the X-Forwarded-* headers from reverse proxies.",
   "server.headers": "Custom response headers for the dev server.",
   "server.warmup": "Warm up files to pre-transform on server start.",
+  "server.preTransformRequests":
+    "Pre-transform known direct imports. Enabled by default.",
+  "server.sourcemapIgnoreList":
+    "Whether to ignore-list source files in the dev server sourcemap. By default excludes node_modules.",
 
   // resolve.*
   resolve: "Module resolution configuration.",
@@ -90,15 +110,27 @@ export const DESCRIPTIONS = {
   "resolve.extensions": "File extensions to try when resolving imports.",
   "resolve.mainFields":
     "Fields in package.json to try when resolving entry points.",
+  "resolve.externalConditions":
+    "Conditions for external package exports resolution.",
+  "resolve.preserveSymlinks":
+    "Whether to preserve symlinks when resolving. Defaults to false.",
+  "resolve.tsconfigPaths":
+    "Whether to use tsconfig paths for resolution. Defaults to false.",
 
   // build.*
   build: "Build configuration (Vite-compatible).",
-  "build.target": "Browser compatibility target.",
-  "build.outDir": "Output directory (relative to project root).",
+  "build.target":
+    '[Forbidden] react-server always builds with target "esnext".',
+  "build.outDir":
+    "[Forbidden] react-server controls the output directory. Use the --outDir CLI flag.",
   "build.assetsDir": "Directory for assets inside outDir.",
-  "build.minify": "Minification strategy.",
+  "build.minify":
+    "[Forbidden] react-server controls minification. Use the --minify CLI flag.",
   "build.cssMinify": "CSS minification (uses minify value by default).",
   "build.cssCodeSplit": "Enable CSS code splitting.",
+  "build.cssTarget": "CSS browser compatibility target.",
+  "build.sourcemap":
+    '[Forbidden] Use the top-level "sourcemap" config option instead.',
   "build.assetsInlineLimit":
     "Threshold (in bytes) for inlining assets as base64.",
   "build.reportCompressedSize": "Show compressed size of build output.",
@@ -106,7 +138,22 @@ export const DESCRIPTIONS = {
   "build.modulePreload": "Module preload configuration.",
   "build.chunkSizeWarningLimit": "Warn when a chunk exceeds this size (in kB).",
   "build.lib": "Build in library mode.",
-  "build.rollupOptions": "Rollup-specific build options.",
+  "build.terserOptions": "Terser minification options (when minify is terser).",
+  "build.write": "Whether to write the bundle to disk.",
+  "build.emptyOutDir":
+    "[Forbidden] react-server uses multiple build passes sharing the output directory.",
+  "build.manifest":
+    "[Forbidden] react-server uses fixed manifest paths per build step.",
+  "build.ssrManifest": "Generate an SSR manifest for preload directives.",
+  "build.emitAssets": "Whether to emit assets during build.",
+  "build.watch": "Rollup watcher options, or null to disable.",
+  "build.license": "Generate license file for third-party dependencies.",
+  "build.ssr":
+    "[Forbidden] react-server controls SSR build mode per build step.",
+  "build.dynamicImportVarsOptions":
+    "Options for dynamic import variable analysis.",
+  "build.rollupOptions":
+    "Rollup-specific build options (deprecated, use rolldownOptions).",
   "build.rolldownOptions": "Rolldown-specific build options.",
   "build.server": "Custom Vite config for the server build.",
   "build.client": "Custom Vite config for the client build.",
@@ -115,24 +162,40 @@ export const DESCRIPTIONS = {
   ssr: "SSR configuration (Vite-compatible).",
   "ssr.external": "Force externalize these dependencies during SSR.",
   "ssr.noExternal": "Force bundle these dependencies during SSR.",
+  "ssr.target": 'SSR target environment: "node" or "webworker".',
   "ssr.resolve": "SSR resolve options.",
-  "ssr.worker": "Run SSR in a web worker.",
+  "ssr.optimizeDeps": "SSR dependency optimization options.",
 
   // css.*
   css: "CSS configuration (Vite-compatible).",
-  "css.modules": "CSS Modules configuration.",
+  "css.transformer": 'CSS transformer: "postcss" or "lightningcss".',
+  "css.modules": "CSS Modules configuration, or false to disable.",
   "css.preprocessorOptions": "Options for CSS preprocessors.",
+  "css.preprocessorMaxWorkers":
+    "Max workers for CSS preprocessing. Number or true for auto.",
   "css.postcss": "PostCSS config (inline or path to config file).",
   "css.devSourcemap": "Enable sourcemaps during dev for CSS.",
+  "css.lightningcss": "Lightning CSS options.",
 
   // optimizeDeps.*
   optimizeDeps: "Dependency optimization configuration (Vite-compatible).",
+  "optimizeDeps.entries": "Entry points for dependency pre-bundling.",
   "optimizeDeps.include": "Dependencies to force-include in pre-bundling.",
   "optimizeDeps.exclude": "Dependencies to exclude from pre-bundling.",
   "optimizeDeps.force": "Force re-optimization on every dev server start.",
+  "optimizeDeps.needsInterop": "Dependencies that need CommonJS interop.",
+  "optimizeDeps.extensions": "File extensions to scan for dependencies.",
+  "optimizeDeps.disabled":
+    'Disable optimization: true, false, "build", or "dev" (deprecated).',
+  "optimizeDeps.noDiscovery": "Disable automatic dependency discovery.",
+  "optimizeDeps.holdUntilCrawlEnd":
+    "Hold optimization until initial crawl ends.",
+  "optimizeDeps.rollupOptions":
+    "Rollup options for dependency optimization (deprecated).",
   "optimizeDeps.rolldownOptions":
     "Rolldown options for dependency optimization.",
-  "optimizeDeps.esbuildOptions": "esbuild options for dependency optimization.",
+  "optimizeDeps.esbuildOptions":
+    "esbuild options for dependency optimization (deprecated).",
 
   // cache.*
   cache: "Cache configuration for server-side caching.",
@@ -359,6 +422,22 @@ export function generateJsonSchema() {
       ),
       logLevel: prop({ enum: ["info", "warn", "error", "silent"] }, "logLevel"),
       clearScreen: prop({ type: "boolean" }, "clearScreen"),
+      html: prop({ type: "object" }, "html"),
+      // json: Forbidden — react-server replaces the entire json config internally.
+      // appType: Forbidden — react-server always sets appType to "custom".
+      worker: prop(
+        {
+          type: "object",
+          properties: {
+            // format: Forbidden — react-server always uses "es" during builds.
+            plugins: { type: "array" },
+            rollupOptions: { type: "object" },
+            rolldownOptions: { type: "object" },
+          },
+          additionalProperties: false,
+        },
+        "worker"
+      ),
 
       // ── server.* ──
       server: prop(
@@ -373,6 +452,7 @@ export function generateJsonSchema() {
               { type: "integer", minimum: 0, maximum: 65535 },
               "server.port"
             ),
+            strictPort: prop({ type: "boolean" }, "server.strictPort"),
             https: prop(
               { oneOf: [{ type: "boolean" }, { type: "object" }] },
               "server.https"
@@ -388,6 +468,16 @@ export function generateJsonSchema() {
             hmr: prop(
               { oneOf: [{ type: "boolean" }, { type: "object" }] },
               "server.hmr"
+            ),
+            ws: prop({ const: false }, "server.ws"),
+            allowedHosts: prop(
+              {
+                oneOf: [
+                  { type: "array", items: { type: "string" } },
+                  { const: true },
+                ],
+              },
+              "server.allowedHosts"
             ),
             fs: prop(
               {
@@ -413,6 +503,14 @@ export function generateJsonSchema() {
             trustProxy: prop({ type: "boolean" }, "server.trustProxy"),
             headers: prop({ type: "object" }, "server.headers"),
             warmup: prop({ type: "object" }, "server.warmup"),
+            preTransformRequests: prop(
+              { type: "boolean" },
+              "server.preTransformRequests"
+            ),
+            sourcemapIgnoreList: prop(
+              { const: false },
+              "server.sourcemapIgnoreList"
+            ),
           },
           additionalProperties: false,
         },
@@ -485,6 +583,15 @@ export function generateJsonSchema() {
               { type: "array", items: { type: "string" } },
               "resolve.mainFields"
             ),
+            externalConditions: prop(
+              { type: "array", items: { type: "string" } },
+              "resolve.externalConditions"
+            ),
+            preserveSymlinks: prop(
+              { type: "boolean" },
+              "resolve.preserveSymlinks"
+            ),
+            tsconfigPaths: prop({ type: "boolean" }, "resolve.tsconfigPaths"),
           },
           additionalProperties: false,
         },
@@ -496,28 +603,31 @@ export function generateJsonSchema() {
         {
           type: "object",
           properties: {
-            target: prop(
+            // target: Forbidden — react-server always builds with "esnext".
+            // outDir: Forbidden — use --outDir CLI flag.
+            assetsDir: prop({ type: "string" }, "build.assetsDir"),
+            // minify: Forbidden — use --minify CLI flag.
+            cssMinify: prop(
+              {
+                oneOf: [
+                  { type: "boolean" },
+                  { enum: ["lightningcss", "esbuild"] },
+                ],
+              },
+              "build.cssMinify"
+            ),
+            cssCodeSplit: prop({ type: "boolean" }, "build.cssCodeSplit"),
+            cssTarget: prop(
               {
                 oneOf: [
                   { type: "string" },
                   { type: "array", items: { type: "string" } },
+                  { const: false },
                 ],
               },
-              "build.target"
+              "build.cssTarget"
             ),
-            outDir: prop({ type: "string" }, "build.outDir"),
-            assetsDir: prop({ type: "string" }, "build.assetsDir"),
-            minify: prop(
-              {
-                oneOf: [{ type: "boolean" }, { enum: ["terser", "esbuild"] }],
-              },
-              "build.minify"
-            ),
-            cssMinify: prop(
-              { oneOf: [{ type: "boolean" }, { type: "string" }] },
-              "build.cssMinify"
-            ),
-            cssCodeSplit: prop({ type: "boolean" }, "build.cssCodeSplit"),
+            // sourcemap: Forbidden — use top-level "sourcemap" config option.
             assetsInlineLimit: prop(
               { type: "number" },
               "build.assetsInlineLimit"
@@ -535,7 +645,32 @@ export function generateJsonSchema() {
               { type: "number" },
               "build.chunkSizeWarningLimit"
             ),
-            lib: prop({ type: "boolean" }, "build.lib"),
+            lib: prop(
+              { oneOf: [{ type: "boolean" }, { type: "object" }] },
+              "build.lib"
+            ),
+            terserOptions: prop({ type: "object" }, "build.terserOptions"),
+            write: prop({ type: "boolean" }, "build.write"),
+            // emptyOutDir: Forbidden — react-server always sets false.
+            // manifest: Forbidden — react-server uses fixed manifest paths.
+            ssrManifest: prop(
+              { oneOf: [{ type: "boolean" }, { type: "string" }] },
+              "build.ssrManifest"
+            ),
+            emitAssets: prop({ type: "boolean" }, "build.emitAssets"),
+            watch: prop(
+              { oneOf: [{ type: "object" }, { const: null }] },
+              "build.watch"
+            ),
+            license: prop(
+              { oneOf: [{ type: "boolean" }, { type: "object" }] },
+              "build.license"
+            ),
+            // ssr: Forbidden — react-server controls SSR mode per build step.
+            dynamicImportVarsOptions: prop(
+              { type: "object" },
+              "build.dynamicImportVarsOptions"
+            ),
             rollupOptions: rollupOptionsSchema("build.rollupOptions"),
             rolldownOptions: rollupOptionsSchema("build.rolldownOptions"),
             server: prop(
@@ -573,7 +708,7 @@ export function generateJsonSchema() {
               {
                 oneOf: [
                   { type: "array", items: { type: "string" } },
-                  { type: "boolean" },
+                  { const: true },
                 ],
               },
               "ssr.external"
@@ -581,14 +716,16 @@ export function generateJsonSchema() {
             noExternal: prop(
               {
                 oneOf: [
+                  { type: "string" },
                   { type: "array", items: { type: "string" } },
-                  { type: "boolean" },
+                  { const: true },
                 ],
               },
               "ssr.noExternal"
             ),
+            target: prop({ enum: ["node", "webworker"] }, "ssr.target"),
             resolve: prop({ type: "object" }, "ssr.resolve"),
-            worker: prop({ type: "boolean" }, "ssr.worker"),
+            optimizeDeps: prop({ type: "object" }, "ssr.optimizeDeps"),
           },
           additionalProperties: false,
         },
@@ -600,16 +737,28 @@ export function generateJsonSchema() {
         {
           type: "object",
           properties: {
-            modules: prop({ type: "object" }, "css.modules"),
+            transformer: prop(
+              { enum: ["postcss", "lightningcss"] },
+              "css.transformer"
+            ),
+            modules: prop(
+              { oneOf: [{ type: "object" }, { const: false }] },
+              "css.modules"
+            ),
             preprocessorOptions: prop(
               { type: "object" },
               "css.preprocessorOptions"
+            ),
+            preprocessorMaxWorkers: prop(
+              { oneOf: [{ type: "number" }, { const: true }] },
+              "css.preprocessorMaxWorkers"
             ),
             postcss: prop(
               { oneOf: [{ type: "string" }, { type: "object" }] },
               "css.postcss"
             ),
             devSourcemap: prop({ type: "boolean" }, "css.devSourcemap"),
+            lightningcss: prop({ type: "object" }, "css.lightningcss"),
           },
           additionalProperties: false,
         },
@@ -621,6 +770,15 @@ export function generateJsonSchema() {
         {
           type: "object",
           properties: {
+            entries: prop(
+              {
+                oneOf: [
+                  { type: "string" },
+                  { type: "array", items: { type: "string" } },
+                ],
+              },
+              "optimizeDeps.entries"
+            ),
             include: prop(
               { type: "array", items: { type: "string" } },
               "optimizeDeps.include"
@@ -630,6 +788,29 @@ export function generateJsonSchema() {
               "optimizeDeps.exclude"
             ),
             force: prop({ type: "boolean" }, "optimizeDeps.force"),
+            needsInterop: prop(
+              { type: "array", items: { type: "string" } },
+              "optimizeDeps.needsInterop"
+            ),
+            extensions: prop(
+              { type: "array", items: { type: "string" } },
+              "optimizeDeps.extensions"
+            ),
+            disabled: prop(
+              {
+                oneOf: [{ type: "boolean" }, { enum: ["build", "dev"] }],
+              },
+              "optimizeDeps.disabled"
+            ),
+            noDiscovery: prop({ type: "boolean" }, "optimizeDeps.noDiscovery"),
+            holdUntilCrawlEnd: prop(
+              { type: "boolean" },
+              "optimizeDeps.holdUntilCrawlEnd"
+            ),
+            rollupOptions: prop(
+              { type: "object" },
+              "optimizeDeps.rollupOptions"
+            ),
             rolldownOptions: prop(
               { type: "object" },
               "optimizeDeps.rolldownOptions"

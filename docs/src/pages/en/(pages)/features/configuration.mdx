@@ -225,3 +225,18 @@ Console forwarding is enabled by default in your application. To disable console
   "console": false
 }
 ```
+
+<Link name="config-validation">
+#### Config validation
+</Link>
+
+By default, `@lazarv/react-server` validates your configuration file on startup (development) and before building (production). If the configuration contains invalid or forbidden options, you will see a clear error message.
+
+To disable config validation, use the `--no-validation` CLI flag:
+
+```sh
+pnpm react-server ./App.jsx --no-validation
+pnpm react-server build --no-validation
+```
+
+This is useful as an escape hatch if validation incorrectly rejects a valid configuration, or when you intentionally need to bypass a forbidden option.

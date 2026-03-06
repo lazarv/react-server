@@ -532,6 +532,44 @@ describe("config validation — vite", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  Forbidden top-level options
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("config validation — forbidden top-level", () => {
+  describe("appType", () => {
+    it("is forbidden", () => {
+      expectInvalid({ appType: "custom" }, "appType");
+    });
+  });
+
+  describe("json", () => {
+    it("is forbidden", () => {
+      expectInvalid({ json: { namedExports: true } }, "json");
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  worker (forbidden format)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("config validation — worker", () => {
+  it("accepts empty worker object", () => {
+    expectValid({ worker: {} });
+  });
+
+  it("accepts plugins array", () => {
+    expectValid({ worker: { plugins: [{ name: "test" }] } });
+  });
+
+  describe("worker.format", () => {
+    it("is forbidden", () => {
+      expectInvalid({ worker: { format: "es" } }, "worker.format");
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  customLogger
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -983,6 +1021,15 @@ describe("config validation — server", () => {
       expectInvalid({ server: { warmup: "bad" } }, "server.warmup");
     });
   });
+
+  describe("server.middlewareMode", () => {
+    it("is forbidden", () => {
+      expectInvalid(
+        { server: { middlewareMode: true } },
+        "server.middlewareMode"
+      );
+    });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1141,26 +1188,14 @@ describe("config validation — build", () => {
   });
 
   describe("build.target", () => {
-    it("accepts string", () => {
-      expectValid({ build: { target: "esnext" } });
-    });
-
-    it("accepts string array", () => {
-      expectValid({ build: { target: ["es2020", "edge88"] } });
-    });
-
-    it("rejects number", () => {
-      expectInvalid({ build: { target: 42 } }, "build.target");
+    it("is forbidden", () => {
+      expectInvalid({ build: { target: "esnext" } }, "build.target");
     });
   });
 
   describe("build.outDir", () => {
-    it("accepts string", () => {
-      expectValid({ build: { outDir: "dist" } });
-    });
-
-    it("rejects number", () => {
-      expectInvalid({ build: { outDir: 42 } }, "build.outDir");
+    it("is forbidden", () => {
+      expectInvalid({ build: { outDir: "dist" } }, "build.outDir");
     });
   });
 
@@ -1175,20 +1210,32 @@ describe("config validation — build", () => {
   });
 
   describe("build.minify", () => {
-    it("accepts boolean", () => {
-      expectValid({ build: { minify: true } });
+    it("is forbidden", () => {
+      expectInvalid({ build: { minify: true } }, "build.minify");
     });
+  });
 
-    it('accepts "terser"', () => {
-      expectValid({ build: { minify: "terser" } });
+  describe("build.sourcemap", () => {
+    it("is forbidden", () => {
+      expectInvalid({ build: { sourcemap: true } }, "build.sourcemap");
     });
+  });
 
-    it('accepts "esbuild"', () => {
-      expectValid({ build: { minify: "esbuild" } });
+  describe("build.emptyOutDir", () => {
+    it("is forbidden", () => {
+      expectInvalid({ build: { emptyOutDir: true } }, "build.emptyOutDir");
     });
+  });
 
-    it("rejects unknown string", () => {
-      expectInvalid({ build: { minify: "uglify" } }, "build.minify");
+  describe("build.manifest", () => {
+    it("is forbidden", () => {
+      expectInvalid({ build: { manifest: true } }, "build.manifest");
+    });
+  });
+
+  describe("build.ssr", () => {
+    it("is forbidden", () => {
+      expectInvalid({ build: { ssr: true } }, "build.ssr");
     });
   });
 
@@ -1452,13 +1499,17 @@ describe("config validation — ssr", () => {
     });
   });
 
-  describe("ssr.worker", () => {
-    it("accepts boolean", () => {
-      expectValid({ ssr: { worker: false } });
+  describe("ssr.target", () => {
+    it('accepts "node"', () => {
+      expectValid({ ssr: { target: "node" } });
     });
 
-    it("rejects string", () => {
-      expectInvalid({ ssr: { worker: "yes" } }, "ssr.worker");
+    it('accepts "webworker"', () => {
+      expectValid({ ssr: { target: "webworker" } });
+    });
+
+    it("rejects invalid string", () => {
+      expectInvalid({ ssr: { target: "browser" } }, "ssr.target");
     });
   });
 });
@@ -1940,8 +1991,6 @@ describe("config validation — real-world configs", () => {
         mainFields: ["module"],
       },
       build: {
-        target: "esnext",
-        minify: "esbuild",
         chunkSizeWarningLimit: 2048,
         rollupOptions: { external: ["lodash"], treeshake: true },
         rolldownOptions: { input: { main: "./src/main.ts" } },
@@ -1952,7 +2001,7 @@ describe("config validation — real-world configs", () => {
         external: ["pg"],
         noExternal: ["my-ui-lib"],
         resolve: { conditions: ["worker"] },
-        worker: false,
+        target: "node",
       },
       css: {
         modules: { localsConvention: "camelCase" },

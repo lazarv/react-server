@@ -114,6 +114,12 @@ export interface ServerConfig {
   port?: number;
 
   /**
+   * If enabled, Vite will exit if the specified port is already in use.
+   * @example `strictPort: true`
+   */
+  strictPort?: boolean;
+
+  /**
    * Enable HTTPS / TLS.
    * @example `https: true` or `https: { key: "...", cert: "..." }`
    */
@@ -139,6 +145,21 @@ export interface ServerConfig {
   hmr?: boolean | Record<string, unknown>;
 
   /**
+   * Set to `false` to disable the WebSocket connection.
+   * @experimental
+   * @example `ws: false`
+   */
+  ws?: false;
+
+  /**
+   * Hostnames that Vite is allowed to respond to. `localhost` and subdomains
+   * under `.localhost` and all IP addresses are allowed by default.
+   * Set to `true` to allow all hosts.
+   * @example `allowedHosts: ["example.com"]` or `allowedHosts: true`
+   */
+  allowedHosts?: string[] | true;
+
+  /**
    * File system serving restrictions.
    * @example `fs: { allow: [".."] }`
    */
@@ -152,10 +173,10 @@ export interface ServerConfig {
   };
 
   /**
-   * File watcher options (passed to chokidar).
+   * File watcher options (passed to chokidar), or `null` to disable FS watching.
    * @example `watch: { usePolling: true }`
    */
-  watch?: Record<string, unknown>;
+  watch?: Record<string, unknown> | null;
 
   /**
    * Define the origin of the generated asset URLs during development.
@@ -168,6 +189,9 @@ export interface ServerConfig {
    * @example `proxy: { "/api": "http://localhost:4000" }`
    */
   proxy?: Record<string, unknown>;
+
+  // Note: `middlewareMode` is intentionally omitted.
+  // react-server always runs Vite in middleware mode internally.
 
   /**
    * Trust the `X-Forwarded-*` headers from reverse proxies.
@@ -186,6 +210,23 @@ export interface ServerConfig {
    * @example `warmup: { clientFiles: ["./src/main.ts"] }`
    */
   warmup?: Record<string, unknown>;
+
+  /**
+   * Pre-transform known direct imports. Enabled by default.
+   * @default true
+   * @example `preTransformRequests: true`
+   */
+  preTransformRequests?: boolean;
+
+  /**
+   * Whether to ignore-list source files in the dev server sourcemap.
+   * By default, it excludes all paths containing `node_modules`.
+   * Pass `false` to disable this behavior, or a function for full control.
+   * @example `sourcemapIgnoreList: false`
+   */
+  sourcemapIgnoreList?:
+    | false
+    | ((sourcePath: string, sourcemapPath: string) => boolean);
 }
 
 // ───── Resolve config ─────
@@ -244,22 +285,35 @@ export interface ResolveConfig {
    * @example `mainFields: ["module", "main"]`
    */
   mainFields?: string[];
+
+  /**
+   * Custom conditions to use when resolving external packages.
+   * @example `externalConditions: ["node", "import"]`
+   */
+  externalConditions?: string[];
+
+  /**
+   * Whether to preserve symbolic links when resolving.
+   * @default false
+   * @example `preserveSymlinks: true`
+   */
+  preserveSymlinks?: boolean;
+
+  /**
+   * Enable path resolution via `tsconfig.json` `paths` / `compilerOptions.paths`.
+   * @example `tsconfigPaths: true`
+   */
+  tsconfigPaths?: boolean;
 }
 
 // ───── Build config ─────
 
 export interface BuildConfig {
-  /**
-   * Browser compatibility target.
-   * @example `target: "esnext"` or `target: ["es2020", "edge88"]`
-   */
-  target?: string | string[];
+  // Note: `target` is intentionally omitted.
+  // react-server always builds with target "esnext".
 
-  /**
-   * Output directory (relative to project root).
-   * @example `outDir: "dist"`
-   */
-  outDir?: string;
+  // Note: `outDir` is intentionally omitted.
+  // react-server controls the output directory. Use the --outDir CLI flag.
 
   /**
    * Directory for assets inside `outDir`.
@@ -267,17 +321,14 @@ export interface BuildConfig {
    */
   assetsDir?: string;
 
-  /**
-   * Minification strategy.
-   * @example `minify: true` or `minify: "terser"` or `minify: "esbuild"`
-   */
-  minify?: boolean | "terser" | "esbuild";
+  // Note: `minify` is intentionally omitted.
+  // react-server controls minification. Use the --minify CLI flag.
 
   /**
    * CSS minification (uses `minify` value by default).
-   * @example `cssMinify: true`
+   * @example `cssMinify: true` or `cssMinify: "lightningcss"`
    */
-  cssMinify?: boolean | string;
+  cssMinify?: boolean | "lightningcss" | "esbuild";
 
   /**
    * Enable CSS code splitting.
@@ -316,10 +367,70 @@ export interface BuildConfig {
   chunkSizeWarningLimit?: number;
 
   /**
+   * CSS compilation target.
+   * @example `cssTarget: "chrome80"`
+   */
+  cssTarget?: string | string[] | false;
+
+  // Note: `sourcemap` is intentionally omitted.
+  // Use the top-level `sourcemap` config option (or --sourcemap CLI flag) instead.
+
+  /**
    * Build in library mode.
    * @example `lib: true`
    */
-  lib?: boolean;
+  lib?: boolean | Record<string, unknown>;
+
+  /**
+   * Terser minification options (when `minify: "terser"`).
+   * @example `terserOptions: { compress: { drop_console: true } }`
+   */
+  terserOptions?: Record<string, unknown>;
+
+  /**
+   * Whether to write the bundle to disk.
+   * @default true
+   */
+  write?: boolean;
+
+  // Note: `emptyOutDir` is intentionally omitted.
+  // react-server uses multiple build passes sharing the output directory.
+
+  // Note: `manifest` is intentionally omitted.
+  // react-server uses fixed internal manifest paths per build step.
+
+  /**
+   * Generate an SSR manifest for preload link determination.
+   * @example `ssrManifest: true`
+   */
+  ssrManifest?: boolean | string;
+
+  /**
+   * Whether to emit assets during the build.
+   * @default true
+   */
+  emitAssets?: boolean;
+
+  /**
+   * Enable Rollup watcher for rebuilding on file changes.
+   * @example `watch: {}` or `watch: null`
+   */
+  watch?: Record<string, unknown> | null;
+
+  /**
+   * License banner/notice configuration.
+   * @example `license: { banner: "// MIT" }`
+   */
+  license?: boolean | Record<string, unknown>;
+
+  // Note: `ssr` is intentionally omitted.
+  // react-server controls SSR build mode internally per build step.
+
+  /**
+   * Dynamic import variables options.
+   * @example `dynamicImportVarsOptions: { include: ["src/**"] }`
+   */
+  dynamicImportVarsOptions?: Record<string, unknown>;
 
   /**
    * Rollup-specific build options.
@@ -359,15 +470,23 @@ export interface BuildConfig {
 export interface SsrConfig {
   /**
    * Force externalize these dependencies during SSR.
-   * @example `external: ["pg", "mysql2"]`
+   * Set to `true` to externalize all dependencies.
+   * @example `external: ["pg", "mysql2"]` or `external: true`
    */
-  external?: string[] | boolean;
+  external?: string[] | true;
 
   /**
    * Force bundle these dependencies during SSR.
-   * @example `noExternal: ["my-ui-lib"]`
+   * Set to `true` to bundle all dependencies.
+   * @example `noExternal: ["my-ui-lib"]` or `noExternal: true`
    */
-  noExternal?: string[] | boolean | RegExp;
+  noExternal?: string | string[] | true | RegExp;
+
+  /**
+   * SSR target environment.
+   * @example `target: "node"`
+   */
+  target?: "node" | "webworker";
 
   /**
    * SSR resolve options.
@@ -376,26 +495,39 @@ export interface SsrConfig {
   resolve?: Record<string, unknown>;
 
   /**
-   * Run SSR in a web worker.
-   * @example `worker: false`
+   * SSR dependency optimization options.
+   * @example `optimizeDeps: { include: ["my-dep"] }`
    */
-  worker?: boolean;
+  optimizeDeps?: Record<string, unknown>;
 }
 
 // ───── CSS config ─────
 
 export interface CssConfig {
   /**
-   * CSS Modules configuration.
-   * @example `modules: { localsConvention: "camelCase" }`
+   * CSS transformer to use.
+   * @example `transformer: "lightningcss"`
    */
-  modules?: Record<string, unknown>;
+  transformer?: "postcss" | "lightningcss";
+
+  /**
+   * CSS Modules configuration, or `false` to disable.
+   * @example `modules: { localsConvention: "camelCase" }` or `modules: false`
+   */
+  modules?: Record<string, unknown> | false;
 
   /**
    * Options for CSS preprocessors.
    * @example `preprocessorOptions: { scss: { additionalData: '...' } }`
    */
   preprocessorOptions?: Record<string, unknown>;
+
+  /**
+   * Maximum workers for CSS preprocessing.
+   * Set to `true` to use the number of CPUs minus 1.
+   * @example `preprocessorMaxWorkers: 4` or `preprocessorMaxWorkers: true`
+   */
+  preprocessorMaxWorkers?: number | true;
 
   /**
    * PostCSS config (inline or path to config file).
@@ -408,11 +540,23 @@ export interface CssConfig {
    * @example `devSourcemap: true`
    */
   devSourcemap?: boolean;
+
+  /**
+   * Lightning CSS options (when `transformer: "lightningcss"`).
+   * @example `lightningcss: { drafts: { nesting: true } }`
+   */
+  lightningcss?: Record<string, unknown>;
 }
 
 // ───── OptimizeDeps config ─────
 
 export interface OptimizeDepsConfig {
+  /**
+   * Entry points to scan for dependencies.
+   * @example `entries: ["./src/main.ts"]`
+   */
+  entries?: string | string[];
+
   /**
    * Dependencies to force-include in pre-bundling.
    * @example `include: ["lodash"]`
@@ -430,6 +574,41 @@ export interface OptimizeDepsConfig {
    * @example `force: true`
    */
   force?: boolean;
+
+  /**
+   * Modules that need interop for CJS/ESM compatibility.
+   * @example `needsInterop: ["cjs-dep"]`
+   */
+  needsInterop?: string[];
+
+  /**
+   * Additional file extensions to scan.
+   * @example `extensions: [".vue"]`
+   */
+  extensions?: string[];
+
+  /**
+   * Disable dependency optimization.
+   * @example `disabled: true` or `disabled: "build"`
+   */
+  disabled?: boolean | "build" | "dev";
+
+  /**
+   * Disable automatic dependency discovery.
+   * @example `noDiscovery: true`
+   */
+  noDiscovery?: boolean;
+
+  /**
+   * Whether to hold loading until static imports are crawled.
+   * @example `holdUntilCrawlEnd: true`
+   */
+  holdUntilCrawlEnd?: boolean;
+
+  /**
+   * Rollup options for dependency optimization.
+   */
+  rollupOptions?: Record<string, unknown>;
 
   /**
    * Rolldown options for dependency optimization.
@@ -753,6 +932,31 @@ export interface ReactServerConfig {
    * @example `clearScreen: false`
    */
   clearScreen?: boolean;
+
+  /**
+   * Configure how HTML is processed and transformed.
+   * @example `html: { cspNonce: "abc123" }`
+   */
+  html?: Record<string, unknown>;
+
+  // Note: `json` is intentionally omitted from the recommended config.
+  // react-server replaces the entire json config with { namedExports: true } internally.
+  // Use the `vite` config key for raw Vite overrides if needed.
+
+  // Note: `appType` is intentionally omitted.
+  // react-server always sets appType to "custom" internally.
+
+  /**
+   * Web worker bundling options.
+   * Note: `format` is controlled by react-server (always "es") and cannot be changed.
+   * @example `worker: { rolldownOptions: { output: { ... } } }`
+   */
+  worker?: {
+    // format is intentionally omitted — always "es" during builds.
+    plugins?: unknown[];
+    rollupOptions?: Record<string, unknown>;
+    rolldownOptions?: Record<string, unknown>;
+  };
 
   /**
    * Dev server configuration (Vite-compatible).

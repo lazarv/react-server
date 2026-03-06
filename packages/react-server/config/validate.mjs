@@ -63,6 +63,13 @@ function enumOf(...values) {
   return fn;
 }
 
+function forbidden(reason) {
+  const fn = () => false;
+  fn._forbidden = true;
+  fn._reason = reason;
+  return fn;
+}
+
 // ───── Describe a validator for error messages ─────
 
 function describeValidator(validator) {
@@ -207,16 +214,36 @@ const REACT_SERVER_SCHEMA = {
   ),
   logLevel: optional(enumOf("info", "warn", "error", "silent")),
   clearScreen: optional(is.boolean),
+  html: optional(is.object),
+  json: forbidden(
+    'react-server replaces the entire json config with { namedExports: true } in all modes. Your json configuration would be silently ignored. Use the "vite" config key for raw Vite overrides if needed.'
+  ),
+  appType: forbidden(
+    'react-server always sets appType to "custom". This is required for the framework\'s middleware architecture and cannot be changed.'
+  ),
+  worker: optional(
+    objectShape({
+      format: forbidden(
+        'react-server always sets worker format to "es" during builds. This cannot be changed.'
+      ),
+      plugins: optional(oneOf(arrayOf(pluginValidator), is.function)),
+      rollupOptions: optional(is.object),
+      rolldownOptions: optional(is.object),
+    })
+  ),
 
   // ── server.* ──
   server: optional(
     objectShape({
       host: optional(oneOf(is.string, (v) => v === true)),
       port: optional(is.number),
+      strictPort: optional(is.boolean),
       https: optional(oneOf(is.boolean, is.object)),
       cors: optional(oneOf(is.boolean, is.object)),
       open: optional(oneOf(is.boolean, is.string)),
       hmr: optional(oneOf(is.boolean, is.object)),
+      ws: optional((v) => v === false),
+      allowedHosts: optional(oneOf(arrayOf(is.string), (v) => v === true)),
       fs: optional(
         objectShape({
           allow: optional(arrayOf(is.string)),
@@ -224,12 +251,17 @@ const REACT_SERVER_SCHEMA = {
           strict: optional(is.boolean),
         })
       ),
-      watch: optional(is.object),
+      watch: optional(oneOf(is.object, (v) => v === null)),
       origin: optional(is.string),
       proxy: optional(is.object),
+      middlewareMode: forbidden(
+        'react-server always runs Vite in middleware mode internally. This option cannot be changed. Use the "vite" config key for raw Vite overrides if needed.'
+      ),
       trustProxy: optional(is.boolean),
       headers: optional(is.object),
       warmup: optional(is.object),
+      preTransformRequests: optional(is.boolean),
+      sourcemapIgnoreList: optional(oneOf((v) => v === false, is.function)),
     })
   ),
 
@@ -238,33 +270,77 @@ const REACT_SERVER_SCHEMA = {
     objectShape({
       alias: optional(aliasValidator),
       dedupe: optional(arrayOf(is.string)),
-      noExternal: optional(oneOf(arrayOf(is.string), is.boolean, is.regexp)),
+      noExternal: optional(
+        oneOf(
+          is.string,
+          is.regexp,
+          arrayOf(oneOf(is.string, is.regexp)),
+          (v) => v === true
+        )
+      ),
       shared: optional(arrayOf(is.string)),
       external: optional(
-        oneOf(is.regexp, is.string, arrayOf(is.string), is.function)
+        oneOf(
+          is.regexp,
+          is.string,
+          arrayOf(is.string),
+          is.function,
+          (v) => v === true
+        )
       ),
-      builtins: optional(arrayOf(is.string)),
+      builtins: optional(arrayOf(oneOf(is.string, is.regexp))),
       conditions: optional(arrayOf(is.string)),
+      externalConditions: optional(arrayOf(is.string)),
       extensions: optional(arrayOf(is.string)),
       mainFields: optional(arrayOf(is.string)),
+      preserveSymlinks: optional(is.boolean),
+      tsconfigPaths: optional(is.boolean),
     })
   ),
 
   // ── build.* ──
   build: optional(
     objectShape({
-      target: optional(oneOf(is.string, arrayOf(is.string))),
-      outDir: optional(is.string),
+      target: forbidden(
+        'react-server always builds with target "esnext". This cannot be changed.'
+      ),
+      outDir: forbidden(
+        "react-server controls the output directory internally. Use the --outDir CLI flag instead."
+      ),
       assetsDir: optional(is.string),
-      minify: optional(oneOf(is.boolean, enumOf("terser", "esbuild"))),
-      cssMinify: optional(oneOf(is.boolean, is.string)),
+      minify: forbidden(
+        "react-server controls minification internally. Use the --minify CLI flag instead."
+      ),
+      cssMinify: optional(oneOf(is.boolean, enumOf("lightningcss", "esbuild"))),
       cssCodeSplit: optional(is.boolean),
+      cssTarget: optional(
+        oneOf(is.string, arrayOf(is.string), (v) => v === false)
+      ),
+      sourcemap: forbidden(
+        'react-server controls source maps via the top-level "sourcemap" config option (or the --sourcemap CLI flag). Use that instead of build.sourcemap.'
+      ),
       assetsInlineLimit: optional(oneOf(is.number, is.function)),
       reportCompressedSize: optional(is.boolean),
       copyPublicDir: optional(is.boolean),
       modulePreload: optional(oneOf(is.boolean, is.object)),
       chunkSizeWarningLimit: optional(is.number),
-      lib: optional(is.boolean),
+      lib: optional(oneOf(is.boolean, is.object)),
+      terserOptions: optional(is.object),
+      write: optional(is.boolean),
+      emptyOutDir: forbidden(
+        "react-server uses multiple build passes that share the output directory, so emptyOutDir is always set to false. This cannot be changed."
+      ),
+      manifest: forbidden(
+        'react-server uses fixed internal manifest file paths for each build step (e.g. "client/browser-manifest.json", "server/server-manifest.json"). This cannot be changed.'
+      ),
+      ssrManifest: optional(oneOf(is.boolean, is.string)),
+      emitAssets: optional(is.boolean),
+      watch: optional(oneOf(is.object, (v) => v === null)),
+      license: optional(oneOf(is.boolean, is.object)),
+      ssr: forbidden(
+        "react-server controls SSR build mode internally per build step. This cannot be changed."
+      ),
+      dynamicImportVarsOptions: optional(is.object),
       rollupOptions: optional(
         objectShape({
           external: optional(oneOf(arrayOf(is.string), is.function, is.regexp)),
@@ -301,29 +377,47 @@ const REACT_SERVER_SCHEMA = {
   // ── ssr.* ──
   ssr: optional(
     objectShape({
-      external: optional(oneOf(arrayOf(is.string), is.boolean)),
-      noExternal: optional(oneOf(arrayOf(is.string), is.boolean, is.regexp)),
+      external: optional(oneOf(arrayOf(is.string), (v) => v === true)),
+      noExternal: optional(
+        oneOf(
+          is.string,
+          is.regexp,
+          arrayOf(oneOf(is.string, is.regexp)),
+          (v) => v === true
+        )
+      ),
+      target: optional(enumOf("node", "webworker")),
       resolve: optional(is.object),
-      worker: optional(is.boolean),
+      optimizeDeps: optional(is.object),
     })
   ),
 
   // ── css.* ── (passed through to Vite)
   css: optional(
     objectShape({
-      modules: optional(is.object),
+      transformer: optional(enumOf("postcss", "lightningcss")),
+      modules: optional(oneOf(is.object, (v) => v === false)),
       preprocessorOptions: optional(is.object),
+      preprocessorMaxWorkers: optional(oneOf(is.number, (v) => v === true)),
       postcss: optional(oneOf(is.string, is.object)),
       devSourcemap: optional(is.boolean),
+      lightningcss: optional(is.object),
     })
   ),
 
   // ── optimizeDeps.* ──
   optimizeDeps: optional(
     objectShape({
+      entries: optional(oneOf(is.string, arrayOf(is.string))),
       include: optional(arrayOf(is.string)),
       exclude: optional(arrayOf(is.string)),
       force: optional(is.boolean),
+      needsInterop: optional(arrayOf(is.string)),
+      extensions: optional(arrayOf(is.string)),
+      disabled: optional(oneOf(is.boolean, enumOf("build", "dev"))),
+      noDiscovery: optional(is.boolean),
+      holdUntilCrawlEnd: optional(is.boolean),
+      rollupOptions: optional(is.object),
       rolldownOptions: optional(is.object),
       esbuildOptions: optional(is.object),
     })
@@ -401,20 +495,29 @@ const EXAMPLES = {
   assetsInclude: `assetsInclude: ["**/*.gltf"]  // or string | RegExp`,
   logLevel: `logLevel: "info"  // "info" | "warn" | "error" | "silent"`,
   clearScreen: `clearScreen: false`,
+  html: `html: { cspNonce: "my-nonce" }`,
+  appType: `appType: "custom"`,
+  worker: `worker: { rolldownOptions: { output: { ... } } }`,
   server: `server: { port: 3000, host: "localhost", https: false }`,
   "server.host": `server: { host: "0.0.0.0" }`,
   "server.port": `server: { port: 8080 }`,
+  "server.strictPort": `server: { strictPort: true }`,
   "server.https": `server: { https: true }  // or { key: "...", cert: "..." }`,
   "server.cors": `server: { cors: true }`,
   "server.open": `server: { open: true }  // or "/specific-page"`,
   "server.hmr": `server: { hmr: { port: 24678 } }  // or false to disable`,
+  "server.ws": `server: { ws: false }  // disable WebSocket connection`,
+  "server.allowedHosts": `server: { allowedHosts: ["example.com"] }  // or true for all`,
   "server.fs": `server: { fs: { allow: [".."] } }`,
   "server.watch": `server: { watch: { usePolling: true } }`,
   "server.origin": `server: { origin: "https://example.com" }`,
   "server.proxy": `server: { proxy: { "/api": "http://localhost:4000" } }`,
+  "server.middlewareMode": `server: { middlewareMode: true }`,
   "server.trustProxy": `server: { trustProxy: true }`,
   "server.headers": `server: { headers: { "X-Custom": "value" } }`,
   "server.warmup": `server: { warmup: { clientFiles: ["./src/main.ts"] } }`,
+  "server.preTransformRequests": `server: { preTransformRequests: true }`,
+  "server.sourcemapIgnoreList": `server: { sourcemapIgnoreList: false }`,
   resolve: `resolve: { alias: { "@": "./src" }, shared: ["lodash"] }`,
   "resolve.alias": `resolve: { alias: { "@": "./src" } }  // or [{ find: "@", replacement: "./src" }]`,
   "resolve.dedupe": `resolve: { dedupe: ["react", "react-dom"] }`,
@@ -425,33 +528,54 @@ const EXAMPLES = {
   "resolve.conditions": `resolve: { conditions: ["worker", "browser"] }`,
   "resolve.extensions": `resolve: { extensions: [".mjs", ".js", ".ts"] }`,
   "resolve.mainFields": `resolve: { mainFields: ["module", "main"] }`,
-  build: `build: { chunkSizeWarningLimit: 1024, rollupOptions: { ... } }`,
-  "build.target": `build: { target: "esnext" }  // or ["es2020", "edge88"]`,
-  "build.outDir": `build: { outDir: "dist" }`,
+  "resolve.externalConditions": `resolve: { externalConditions: ["node"] }`,
+  "resolve.preserveSymlinks": `resolve: { preserveSymlinks: true }`,
+  "resolve.tsconfigPaths": `resolve: { tsconfigPaths: true }`,
+  build: `build: { chunkSizeWarningLimit: 1024, rolldownOptions: { ... } }`,
   "build.assetsDir": `build: { assetsDir: "assets" }`,
-  "build.minify": `build: { minify: true }  // or "terser" | "esbuild"`,
-  "build.cssMinify": `build: { cssMinify: true }`,
+  "build.cssMinify": `build: { cssMinify: true }  // or "lightningcss" | "esbuild"`,
   "build.cssCodeSplit": `build: { cssCodeSplit: true }`,
+  "build.cssTarget": `build: { cssTarget: "es2015" }  // or false`,
   "build.chunkSizeWarningLimit": `build: { chunkSizeWarningLimit: 2048 }`,
-  "build.lib": `build: { lib: true }`,
+  "build.lib": `build: { lib: { entry: "./src/index.ts", formats: ["es"] } }`,
+  "build.terserOptions": `build: { terserOptions: { compress: { drop_console: true } } }`,
+  "build.write": `build: { write: true }`,
+  "build.ssrManifest": `build: { ssrManifest: true }`,
+  "build.emitAssets": `build: { emitAssets: true }`,
+  "build.watch": `build: { watch: {} }  // or null to disable`,
+  "build.license": `build: { license: true }`,
+  "build.dynamicImportVarsOptions": `build: { dynamicImportVarsOptions: { include: ["src/**"] } }`,
   "build.rollupOptions": `build: { rollupOptions: { external: ["lodash"] } }`,
   "build.rolldownOptions": `build: { rolldownOptions: { output: { minify: true } } }`,
   "build.server": `build: { server: { config: { /* Vite config for server build */ } } }`,
   "build.client": `build: { client: { config: { /* Vite config for client build */ } } }`,
   ssr: `ssr: { external: ["pg"], noExternal: ["my-ui-lib"] }`,
-  "ssr.external": `ssr: { external: ["pg", "mysql2"] }`,
-  "ssr.noExternal": `ssr: { noExternal: ["my-ui-lib"] }`,
+  "ssr.external": `ssr: { external: ["pg", "mysql2"] }  // or true`,
+  "ssr.noExternal": `ssr: { noExternal: ["my-ui-lib"] }  // or true`,
+  "ssr.target": `ssr: { target: "node" }  // or "webworker"`,
   "ssr.resolve": `ssr: { resolve: { conditions: ["worker"] } }`,
-  "ssr.worker": `ssr: { worker: false }`,
+  "ssr.optimizeDeps": `ssr: { optimizeDeps: { include: ["dep"] } }`,
   css: `css: { modules: { localsConvention: "camelCase" } }`,
-  "css.modules": `css: { modules: { localsConvention: "camelCase" } }`,
+  "css.transformer": `css: { transformer: "postcss" }  // or "lightningcss"`,
+  "css.modules": `css: { modules: { localsConvention: "camelCase" } }  // or false`,
   "css.preprocessorOptions": `css: { preprocessorOptions: { scss: { additionalData: '...' } } }`,
+  "css.preprocessorMaxWorkers": `css: { preprocessorMaxWorkers: 4 }  // or true for auto`,
   "css.postcss": `css: { postcss: "./postcss.config.js" }`,
   "css.devSourcemap": `css: { devSourcemap: true }`,
+  "css.lightningcss": `css: { lightningcss: { drafts: { customMedia: true } } }`,
   optimizeDeps: `optimizeDeps: { include: ["lodash"], force: true }`,
+  "optimizeDeps.entries": `optimizeDeps: { entries: ["src/main.ts"] }`,
   "optimizeDeps.include": `optimizeDeps: { include: ["lodash"] }`,
   "optimizeDeps.exclude": `optimizeDeps: { exclude: ["large-dep"] }`,
   "optimizeDeps.force": `optimizeDeps: { force: true }`,
+  "optimizeDeps.needsInterop": `optimizeDeps: { needsInterop: ["cjs-pkg"] }`,
+  "optimizeDeps.extensions": `optimizeDeps: { extensions: [".vue"] }`,
+  "optimizeDeps.disabled": `optimizeDeps: { disabled: "build" }  // or true | false | "dev"`,
+  "optimizeDeps.noDiscovery": `optimizeDeps: { noDiscovery: true }`,
+  "optimizeDeps.holdUntilCrawlEnd": `optimizeDeps: { holdUntilCrawlEnd: true }`,
+  "optimizeDeps.rollupOptions": `optimizeDeps: { rollupOptions: { ... } }  // deprecated, use rolldownOptions`,
+  "optimizeDeps.rolldownOptions": `optimizeDeps: { rolldownOptions: { ... } }`,
+  "optimizeDeps.esbuildOptions": `optimizeDeps: { esbuildOptions: { ... } }  // deprecated`,
   cache: `cache: { profiles: { ... }, providers: { ... } }`,
   "cache.profiles": `cache: { profiles: { default: { ttl: 60 } } }`,
   "cache.providers": `cache: { providers: { memory: { ... } } }`,
@@ -552,6 +676,19 @@ function validateObject(config, schema, prefix = "") {
     }
 
     if (value === undefined) continue;
+
+    // Forbidden key – always an error with explanation
+    if (validator._forbidden) {
+      errors.push({
+        path,
+        message: validator._reason || `"${path}" is not allowed in config`,
+        value,
+        expected: "This option should not be set",
+        example: undefined,
+        type: "invalid",
+      });
+      continue;
+    }
 
     // Get the inner validator (unwrap optional)
     let innerValidator = validator;

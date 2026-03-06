@@ -196,21 +196,27 @@ describe("generateJsonSchema", () => {
     );
   });
 
-  it("build sub-schema has target, outDir, minify, rollupOptions", () => {
+  it("build sub-schema has rollupOptions but not forbidden target, outDir, minify", () => {
     const b = getSchema().properties.build;
     expect(b.type).toBe("object");
     const keys = Object.keys(b.properties);
-    expect(keys).toEqual(
-      expect.arrayContaining(["target", "outDir", "minify", "rollupOptions"])
-    );
+    expect(keys).toContain("rollupOptions");
+    expect(keys).not.toContain("target");
+    expect(keys).not.toContain("outDir");
+    expect(keys).not.toContain("minify");
+    expect(keys).not.toContain("sourcemap");
+    expect(keys).not.toContain("emptyOutDir");
+    expect(keys).not.toContain("manifest");
+    expect(keys).not.toContain("ssr");
   });
 
-  it("ssr sub-schema has external, noExternal, worker", () => {
+  it("ssr sub-schema has external, noExternal, target, optimizeDeps", () => {
     const s = getSchema().properties.ssr;
     expect(s.type).toBe("object");
     expect(s.properties).toHaveProperty("external");
     expect(s.properties).toHaveProperty("noExternal");
-    expect(s.properties).toHaveProperty("worker");
+    expect(s.properties).toHaveProperty("target");
+    expect(s.properties).toHaveProperty("optimizeDeps");
   });
 
   it("css sub-schema has modules, preprocessorOptions, postcss", () => {

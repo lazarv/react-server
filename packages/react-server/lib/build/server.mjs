@@ -8,6 +8,7 @@ import glob from "fast-glob";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
+import { resolveTelemetryConfig } from "../../server/telemetry.mjs";
 import configPrebuilt from "../plugins/config-prebuilt.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
 import optionalDeps from "../plugins/optional-deps.mjs";
@@ -77,6 +78,12 @@ export default async function serverBuild(root, options, clientManifestBus) {
   }
 
   const config = forRoot();
+
+  // When telemetry is disabled at build time, force-empty all @opentelemetry/*
+  // packages so they are excluded from edge bundles entirely.
+  const telemetryEnabled = resolveTelemetryConfig(config) !== null;
+  const otelForceEmpty = telemetryEnabled ? [] : [/^@opentelemetry\//];
+
   const clientManifest = new Map();
   const serverManifest = new Map();
   const buildPlugins = [
@@ -168,10 +175,8 @@ export default async function serverBuild(root, options, clientManifestBus) {
   ]);
 
   // Edge external - only externalize node builtins, bundle everything else.
-  // @opentelemetry/* is NOT externalized here because edge runtimes like
-  // Cloudflare Workers have no node_modules — packages must be bundled.
-  // The dynamic imports in telemetry.mjs are wrapped in try/catch so they
-  // gracefully fall back to no-ops when OTel packages aren't installed.
+  // When telemetry is disabled, also externalize @opentelemetry/* so the
+  // bundler never traces their (heavy) dependency trees.
   const edgeExternal = (id, parentId, isResolved) => {
     if (isBuiltin(id)) {
       return true;
@@ -182,6 +187,10 @@ export default async function serverBuild(root, options, clientManifestBus) {
     }
     // Externalize @lazarv/react-server/dist/ imports
     if (/^@lazarv\/react-server\/dist\//.test(id)) {
+      return true;
+    }
+    // Externalize @opentelemetry/* when telemetry is disabled
+    if (!telemetryEnabled && /^@opentelemetry\//.test(id)) {
       return true;
     }
     return false;
@@ -717,7 +726,13 @@ export default async function serverBuild(root, options, clientManifestBus) {
           );
         },
         plugins: [
-          ...(options.edge ? [optionalDeps([/^@opentelemetry\//])] : []),
+          ...(options.edge
+            ? [
+                optionalDeps([/^@opentelemetry\//], {
+                  forceEmpty: otelForceEmpty,
+                }),
+              ]
+            : []),
           manifestRegistry(),
           resolveWorkspace(),
           ...(options.edge ? [preloadManifestVirtual(options)] : []),
@@ -1004,7 +1019,13 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ? ssrExternal
             : external,
         plugins: [
-          ...(options.edge ? [optionalDeps([/^@opentelemetry\//])] : []),
+          ...(options.edge
+            ? [
+                optionalDeps([/^@opentelemetry\//], {
+                  forceEmpty: otelForceEmpty,
+                }),
+              ]
+            : []),
           manifestRegistry(),
           resolveWorkspace(),
           ...(options.edge ? [preloadManifestVirtual(options)] : []),

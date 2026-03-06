@@ -486,6 +486,59 @@ export interface ServerFunctionsConfig {
   previousSecretFiles?: string[];
 }
 
+// ───── Telemetry config ─────
+
+export interface TelemetryMetricsConfig {
+  /**
+   * Enable/disable metrics collection.
+   * @default true (when telemetry is enabled)
+   */
+  enabled?: boolean;
+
+  /**
+   * Metrics export interval in milliseconds.
+   * @default 30000
+   */
+  interval?: number;
+}
+
+export interface TelemetryConfig {
+  /**
+   * Enable/disable telemetry.
+   * Also enabled by OTEL_EXPORTER_OTLP_ENDPOINT or REACT_SERVER_TELEMETRY env vars.
+   */
+  enabled?: boolean;
+
+  /**
+   * Service name reported to your observability backend.
+   * @default package name or "@lazarv/react-server"
+   */
+  serviceName?: string;
+
+  /**
+   * OTLP collector endpoint.
+   * @default "http://localhost:4318"
+   */
+  endpoint?: string;
+
+  /**
+   * Exporter type.
+   * @default auto-detected
+   */
+  exporter?: "otlp" | "console" | "dev-console";
+
+  /**
+   * Sampling rate 0.0–1.0.
+   * @default 1.0
+   */
+  sampleRate?: number;
+
+  /**
+   * Metrics sub-configuration.
+   */
+  metrics?: TelemetryMetricsConfig;
+}
+
 // ───── MDX config ─────
 
 export interface MdxConfig {
@@ -801,6 +854,13 @@ export interface ReactServerConfig {
    * @example `serverFunctions: { secret: "my-secret-key" }`
    */
   serverFunctions?: ServerFunctionsConfig;
+
+  /**
+   * OpenTelemetry observability configuration.
+   * When enabled, the runtime instruments HTTP requests, rendering, server functions, and middleware.
+   * @example `telemetry: { enabled: true, serviceName: "my-app" }`
+   */
+  telemetry?: TelemetryConfig;
 
   /**
    * File-router layout configuration.

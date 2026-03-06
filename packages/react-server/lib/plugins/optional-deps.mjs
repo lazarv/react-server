@@ -10,16 +10,24 @@ const VIRTUAL_EMPTY = "\0virtual:optional-dep-empty";
  * Cloudflare Workers) where there's no node_modules at runtime.
  *
  * Behaviour:
+ *  - Package matches `forceEmpty` → always resolve to empty module
  *  - Package installed → let the bundler resolve & bundle it normally
  *  - Package NOT installed → resolve to a virtual empty module (noop)
  *
  * @param {RegExp[]} patterns - Array of regexes matching package specifiers
+ * @param {{ forceEmpty?: RegExp[] }} [opts] - Additional options
+ * @param {RegExp[]} [opts.forceEmpty] - Patterns to always resolve to empty,
+ *   even if the package is installed (e.g. @opentelemetry/* when telemetry is disabled)
  */
-export default function optionalDeps(patterns) {
+export default function optionalDeps(patterns, { forceEmpty = [] } = {}) {
   const resolved = new Map();
 
   function isOptional(id) {
     return patterns.some((re) => re.test(id));
+  }
+
+  function isForceEmpty(id) {
+    return forceEmpty.some((re) => re.test(id));
   }
 
   function canResolve(id) {
@@ -38,7 +46,7 @@ export default function optionalDeps(patterns) {
     name: "react-server:optional-deps",
     enforce: "pre",
     resolveId(id) {
-      if (isOptional(id) && !canResolve(id)) {
+      if (isOptional(id) && (isForceEmpty(id) || !canResolve(id))) {
         return VIRTUAL_EMPTY;
       }
       // let the default resolver handle it

@@ -347,6 +347,27 @@ const REACT_SERVER_SCHEMA = {
     })
   ),
 
+  // ── telemetry.* ──
+  telemetry: optional(
+    objectShape({
+      enabled: optional(is.boolean),
+      serviceName: optional(is.string),
+      endpoint: optional(is.string),
+      exporter: optional(enumOf("otlp", "console", "dev-console")),
+      sampleRate: optional(
+        custom((v) => is.number(v) && v >= 0 && v <= 1, "number (0 – 1)")
+      ),
+      metrics: optional(
+        objectShape({
+          enabled: optional(is.boolean),
+          interval: optional(
+            custom((v) => Number.isInteger(v) && v >= 1000, "integer (>= 1000)")
+          ),
+        })
+      ),
+    })
+  ),
+
   // ── File-router child config ──
   layout: optional(oneOf(is.object, is.function)),
   page: optional(oneOf(is.object, is.function)),
@@ -458,6 +479,15 @@ const EXAMPLES = {
   serverFunctions: `serverFunctions: { secret: "my-secret-key" }`,
   "serverFunctions.secret": `serverFunctions: { secret: "my-secret-key" }`,
   "serverFunctions.secretFile": `serverFunctions: { secretFile: "./secret.pem" }`,
+  telemetry: `telemetry: { enabled: true, serviceName: "my-app" }`,
+  "telemetry.enabled": `telemetry: { enabled: true }`,
+  "telemetry.serviceName": `telemetry: { serviceName: "my-app" }`,
+  "telemetry.endpoint": `telemetry: { endpoint: "http://localhost:4318" }`,
+  "telemetry.exporter": `telemetry: { exporter: "otlp" }  // or "dev-console" or "console"`,
+  "telemetry.sampleRate": `telemetry: { sampleRate: 1.0 }`,
+  "telemetry.metrics": `telemetry: { metrics: { enabled: true, interval: 30000 } }`,
+  "telemetry.metrics.enabled": `telemetry: { metrics: { enabled: true } }`,
+  "telemetry.metrics.interval": `telemetry: { metrics: { interval: 30000 } }`,
   mdx: `mdx: { remarkPlugins: [...], rehypePlugins: [...] }`,
   "mdx.remarkPlugins": `mdx: { remarkPlugins: [remarkGfm] }`,
   "mdx.rehypePlugins": `mdx: { rehypePlugins: [rehypeHighlight] }`,

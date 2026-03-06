@@ -6,6 +6,7 @@ import replace from "@rollup/plugin-replace";
 import { build as viteBuild } from "vite";
 
 import { forRoot } from "../../config/index.mjs";
+import { resolveTelemetryConfig } from "../../server/telemetry.mjs";
 
 import optionalDeps from "../plugins/optional-deps.mjs";
 import * as sys from "../sys.mjs";
@@ -28,6 +29,11 @@ const cwd = sys.cwd();
 
 export default async function edgeBuild(root, options) {
   const config = forRoot();
+
+  // When telemetry is disabled at build time, force-empty all @opentelemetry/*
+  // packages so they are excluded from the edge bundle entirely.
+  const telemetryEnabled = resolveTelemetryConfig(config) !== null;
+  const otelForceEmpty = telemetryEnabled ? [] : [/^@opentelemetry\//];
 
   const viteConfigEdge = {
     root: cwd,
@@ -171,14 +177,13 @@ export default async function edgeBuild(root, options) {
           if (id.startsWith("node:") || /manifest\.json/.test(id)) {
             return true;
           }
-          // @opentelemetry/* is NOT externalized — edge runtimes like
-          // Cloudflare Workers have no node_modules, so packages must
-          // be bundled. Dynamic imports in telemetry.mjs use try/catch
-          // to gracefully fall back when OTel isn't installed.
+          // @opentelemetry/* is NOT externalized — edge runtimes have no
+          // node_modules. The optionalDeps plugin with forceEmpty resolves
+          // them to empty modules when telemetry is disabled.
           return false;
         },
         plugins: [
-          optionalDeps([/^@opentelemetry\//]),
+          optionalDeps([/^@opentelemetry\//], { forceEmpty: otelForceEmpty }),
           replace({
             preventAssignment: true,
             "import.meta.url": JSON.stringify("file:///C:/worker.mjs"),
@@ -293,7 +298,7 @@ export default async function edgeBuild(root, options) {
       },
     },
     plugins: [
-      optionalDeps([/^@opentelemetry\//]),
+      optionalDeps([/^@opentelemetry\//], { forceEmpty: otelForceEmpty }),
       {
         name: "react-server:edge",
         enforce: "pre",

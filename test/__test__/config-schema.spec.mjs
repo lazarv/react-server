@@ -113,6 +113,7 @@ describe("generateJsonSchema", () => {
       "port",
       "logLevel",
       "clearScreen",
+      "telemetry",
     ];
     for (const prop of requiredProps) {
       expect(s.properties).toHaveProperty(prop);
@@ -286,9 +287,70 @@ describe("generateJsonSchema", () => {
       "cache",
       "serverFunctions",
       "mdx",
+      "telemetry",
     ];
     for (const key of nested) {
       expect(s.properties[key].additionalProperties).toBe(false);
     }
+  });
+
+  // ── telemetry sub-schema ─────────────────────────────────────────────
+
+  it("telemetry sub-schema has enabled, serviceName, endpoint, exporter, sampleRate, metrics", () => {
+    const t = getSchema().properties.telemetry;
+    expect(t.type).toBe("object");
+    const keys = Object.keys(t.properties);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "enabled",
+        "serviceName",
+        "endpoint",
+        "exporter",
+        "sampleRate",
+        "metrics",
+      ])
+    );
+  });
+
+  it("telemetry.enabled is boolean", () => {
+    const t = getSchema().properties.telemetry;
+    expect(t.properties.enabled.type).toBe("boolean");
+  });
+
+  it("telemetry.serviceName is string", () => {
+    const t = getSchema().properties.telemetry;
+    expect(t.properties.serviceName.type).toBe("string");
+  });
+
+  it("telemetry.endpoint is string", () => {
+    const t = getSchema().properties.telemetry;
+    expect(t.properties.endpoint.type).toBe("string");
+  });
+
+  it("telemetry.exporter is an enum of otlp, console, dev-console", () => {
+    const t = getSchema().properties.telemetry;
+    expect(t.properties.exporter.enum).toEqual([
+      "otlp",
+      "console",
+      "dev-console",
+    ]);
+  });
+
+  it("telemetry.sampleRate is number with min 0 max 1", () => {
+    const t = getSchema().properties.telemetry;
+    expect(t.properties.sampleRate.type).toBe("number");
+    expect(t.properties.sampleRate.minimum).toBe(0);
+    expect(t.properties.sampleRate.maximum).toBe(1);
+  });
+
+  it("telemetry.metrics sub-schema has enabled and interval", () => {
+    const m = getSchema().properties.telemetry.properties.metrics;
+    expect(m.type).toBe("object");
+    expect(m.properties).toHaveProperty("enabled");
+    expect(m.properties).toHaveProperty("interval");
+    expect(m.properties.enabled.type).toBe("boolean");
+    expect(m.properties.interval.type).toBe("integer");
+    expect(m.properties.interval.minimum).toBe(1000);
+    expect(m.additionalProperties).toBe(false);
   });
 });

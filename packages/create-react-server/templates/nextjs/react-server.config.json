@@ -1,9 +1,9 @@
 {
   "root": "src/app",
-  "layouts": {
+  "layout": {
     "include": ["**/layout.jsx"]
   },
-  "pages": {
+  "page": {
     "include": ["**/page.jsx"]
   }
 }

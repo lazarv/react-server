@@ -4078,10 +4078,10 @@ export default [
 ",
   "react-server.config.json": "{
   "root": "src/app",
-  "layouts": {
+  "layout": {
     "include": ["**/layout.jsx"]
   },
-  "pages": {
+  "page": {
     "include": ["**/page.jsx"]
   }
 }

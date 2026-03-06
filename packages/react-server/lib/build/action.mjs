@@ -59,7 +59,7 @@ export default async function build(root, options) {
   const config = await loadConfig({}, { ...options, command: "build" });
 
   // Validate config — fail and exit on hard errors during build.
-  {
+  if (options.validation !== false) {
     const validation = validateConfig(config[CONFIG_ROOT]);
     if (!validation.valid || validation.warnings.length > 0) {
       const output = formatValidationErrors(

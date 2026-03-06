@@ -13,6 +13,7 @@ export default (cli) =>
     )
     .option("--no-color", "disable color output", { default: false })
     .option("--no-check", "skip dependency checks", { default: false })
+    .option("--no-validation", "skip config validation", { default: false })
     .option("--export", "[boolean] static export")
     .option("--compression", "[boolean] enable compression", { default: false })
     .option("--adapter <adapter>", "[boolean|string] adapter", {

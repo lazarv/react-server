@@ -93,7 +93,7 @@ export default async function dev(root, options) {
           let configRoot = config[CONFIG_ROOT];
 
           // Validate config and show errors if invalid
-          {
+          if (options.validation !== false) {
             const validation = validateConfig(configRoot);
             if (!validation.valid || validation.warnings.length > 0) {
               const output = formatValidationErrors(

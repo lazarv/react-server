@@ -5,23 +5,23 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  react-click-away-listener>react: 0.0.0-experimental-4cc5b7a9-20260303
-  react-click-away-listener>react-dom: 0.0.0-experimental-4cc5b7a9-20260303
-  react-router-dom>react: 0.0.0-experimental-4cc5b7a9-20260303
-  react-router-dom>react-dom: 0.0.0-experimental-4cc5b7a9-20260303
-  react-router>react: 0.0.0-experimental-4cc5b7a9-20260303
-  '@tanstack/react-router>react': 0.0.0-experimental-4cc5b7a9-20260303
-  '@tanstack/react-router>react-dom': 0.0.0-experimental-4cc5b7a9-20260303
-  '@tanstack/react-store>react': 0.0.0-experimental-4cc5b7a9-20260303
-  '@tanstack/react-store>react-dom': 0.0.0-experimental-4cc5b7a9-20260303
-  use-sync-external-store>react: 0.0.0-experimental-4cc5b7a9-20260303
-  '@tanstack/router-devtools>react': 0.0.0-experimental-4cc5b7a9-20260303
-  '@tanstack/router-devtools>react-dom': 0.0.0-experimental-4cc5b7a9-20260303
-  '@docsearch/react>react': 0.0.0-experimental-4cc5b7a9-20260303
-  '@uidotdev/usehooks>react': 0.0.0-experimental-4cc5b7a9-20260303
-  '@uidotdev/usehooks>react-dom': 0.0.0-experimental-4cc5b7a9-20260303
-  '@vercel/analytics>react': 0.0.0-experimental-4cc5b7a9-20260303
-  '@vercel/speed-insights>react': 0.0.0-experimental-4cc5b7a9-20260303
+  react-click-away-listener>react: 0.0.0-experimental-3bc2d414-20260304
+  react-click-away-listener>react-dom: 0.0.0-experimental-3bc2d414-20260304
+  react-router-dom>react: 0.0.0-experimental-3bc2d414-20260304
+  react-router-dom>react-dom: 0.0.0-experimental-3bc2d414-20260304
+  react-router>react: 0.0.0-experimental-3bc2d414-20260304
+  '@tanstack/react-router>react': 0.0.0-experimental-3bc2d414-20260304
+  '@tanstack/react-router>react-dom': 0.0.0-experimental-3bc2d414-20260304
+  '@tanstack/react-store>react': 0.0.0-experimental-3bc2d414-20260304
+  '@tanstack/react-store>react-dom': 0.0.0-experimental-3bc2d414-20260304
+  use-sync-external-store>react: 0.0.0-experimental-3bc2d414-20260304
+  '@tanstack/router-devtools>react': 0.0.0-experimental-3bc2d414-20260304
+  '@tanstack/router-devtools>react-dom': 0.0.0-experimental-3bc2d414-20260304
+  '@docsearch/react>react': 0.0.0-experimental-3bc2d414-20260304
+  '@uidotdev/usehooks>react': 0.0.0-experimental-3bc2d414-20260304
+  '@uidotdev/usehooks>react-dom': 0.0.0-experimental-3bc2d414-20260304
+  '@vercel/analytics>react': 0.0.0-experimental-3bc2d414-20260304
+  '@vercel/speed-insights>react': 0.0.0-experimental-3bc2d414-20260304
   vite: 8.0.0-beta.16
   vite-plugin-inspect>vite: 8.0.0-beta.16
   vite-plugin-svgr>vite: 8.0.0-beta.16
@@ -1045,14 +1045,14 @@ importers:
         specifier: ^8.14.1
         version: 8.21.0
       react:
-        specifier: 0.0.0-experimental-4cc5b7a9-20260303
-        version: 0.0.0-experimental-4cc5b7a9-20260303
+        specifier: 0.0.0-experimental-3bc2d414-20260304
+        version: 0.0.0-experimental-3bc2d414-20260304
       react-dom:
-        specifier: 0.0.0-experimental-4cc5b7a9-20260303
-        version: 0.0.0-experimental-4cc5b7a9-20260303(react@0.0.0-experimental-4cc5b7a9-20260303)
+        specifier: 0.0.0-experimental-3bc2d414-20260304
+        version: 0.0.0-experimental-3bc2d414-20260304(react@0.0.0-experimental-3bc2d414-20260304)
       react-is:
-        specifier: 0.0.0-experimental-4cc5b7a9-20260303
-        version: 0.0.0-experimental-4cc5b7a9-20260303
+        specifier: 0.0.0-experimental-3bc2d414-20260304
+        version: 0.0.0-experimental-3bc2d414-20260304
       react-property:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1060,8 +1060,8 @@ importers:
         specifier: ^0.14.2
         version: 0.14.2
       react-server-dom-webpack:
-        specifier: 0.0.0-experimental-4cc5b7a9-20260303
-        version: 0.0.0-experimental-4cc5b7a9-20260303(react-dom@0.0.0-experimental-4cc5b7a9-20260303(react@0.0.0-experimental-4cc5b7a9-20260303))(react@0.0.0-experimental-4cc5b7a9-20260303)(webpack@5.97.1(@swc/core@1.11.21))
+        specifier: 0.0.0-experimental-3bc2d414-20260304
+        version: 0.0.0-experimental-3bc2d414-20260304(react-dom@0.0.0-experimental-3bc2d414-20260304(react@0.0.0-experimental-3bc2d414-20260304))(react@0.0.0-experimental-3bc2d414-20260304)(webpack@5.97.1(@swc/core@1.11.21))
       remark-frontmatter:
         specifier: ^5.0.0
         version: 5.0.0
@@ -1069,8 +1069,8 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0
       rolldown:
-        specifier: 1.0.0-rc.6
-        version: 1.0.0-rc.6
+        specifier: 1.0.0-rc.7
+        version: 1.0.0-rc.7
       sass:
         specifier: ^1.86.0
         version: 1.86.0
@@ -1151,8 +1151,8 @@ importers:
         specifier: ^4.0.2
         version: 4.0.2
       rolldown:
-        specifier: 1.0.0-rc.6
-        version: 1.0.0-rc.6
+        specifier: 1.0.0-rc.7
+        version: 1.0.0-rc.7
       tinyglobby:
         specifier: ^0.2.13
         version: 0.2.13
@@ -2325,7 +2325,7 @@ packages:
     resolution: {integrity: sha512-HUFut4ztcVNmqy9gp/wxNbC7pTOHhgVVkHVGCACTuLhUKUhKAF9KYHJtMiLUJxEqiFLQiuri1fWF8zqwM/cu1w==}
     peerDependencies:
       '@types/react': '>= 16.8.0 < 19.0.0'
-      react: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
       react-dom: '>= 16.8.0 < 19.0.0'
       search-insights: '>= 1 < 3'
     peerDependenciesMeta:
@@ -4151,8 +4151,20 @@ packages:
     cpu: [arm64]
     os: [android]
 
+  '@rolldown/binding-android-arm64@1.0.0-rc.7':
+    resolution: {integrity: sha512-/uadfNUaMLFFBGvcIOiq8NnlhvTZTjOyybJaJnhGxD0n9k5vZRJfTaitH5GHnbwmc6T2PC+ZpS1FQH+vXyS/UA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [android]
+
   '@rolldown/binding-darwin-arm64@1.0.0-rc.6':
     resolution: {integrity: sha512-+tJhD21KvGNtUrpLXrZQlT+j5HZKiEwR2qtcZb3vNOUpvoT9QjEykr75ZW/Kr0W89gose/HVXU6351uVZD8Qvw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@rolldown/binding-darwin-arm64@1.0.0-rc.7':
+    resolution: {integrity: sha512-zokYr1KgRn0hRA89dmgtPj/BmKp9DxgrfAJvOEFfXa8nfYWW2nmgiYIBGpSIAJrEg7Qc/Qznovy6xYwmKh0M8g==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [darwin]
@@ -4163,8 +4175,20 @@ packages:
     cpu: [x64]
     os: [darwin]
 
+  '@rolldown/binding-darwin-x64@1.0.0-rc.7':
+    resolution: {integrity: sha512-eZFjbmrapCBVgMmuLALH3pmQQQStHFuRhsFceJHk6KISW8CkI2e9OPLp9V4qXksrySQcD8XM8fpvGLs5l5C7LQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [darwin]
+
   '@rolldown/binding-freebsd-x64@1.0.0-rc.6':
     resolution: {integrity: sha512-8TThsRkCPAnfyMBShxrGdtoOE6h36QepqRQI97iFaQSCRbHFWHcDHppcojZnzXoruuhPnjMEygzaykvPVJsMRg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@rolldown/binding-freebsd-x64@1.0.0-rc.7':
+    resolution: {integrity: sha512-xjMrh8Dmu2DNwdY6DZsrF6YPGeesc3PaTlkh8v9cqmkSCNeTxnhX3ErhVnuv1j3n8t2IuuhQIwM9eZDINNEt5Q==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [freebsd]
@@ -4175,8 +4199,21 @@ packages:
     cpu: [arm]
     os: [linux]
 
+  '@rolldown/binding-linux-arm-gnueabihf@1.0.0-rc.7':
+    resolution: {integrity: sha512-mOvftrHiXg4/xFdxJY3T9Wl1/zDAOSlMN8z9an2bXsCwuvv3RdyhYbSMZDuDO52S04w9z7+cBd90lvQSPTAQtw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm]
+    os: [linux]
+
   '@rolldown/binding-linux-arm64-gnu@1.0.0-rc.6':
     resolution: {integrity: sha512-ZsGzbNETxPodGlLTYHaCSGVhNN/rvkMDCJYHdT7PZr5jFJRmBfmDi2awhF64Dt2vxrJqY6VeeYSgOzEbHRsb7Q==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rolldown/binding-linux-arm64-gnu@1.0.0-rc.7':
+    resolution: {integrity: sha512-TuUkeuEEPRyXMBbJ86NRhAiPNezxHW8merl3Om2HASA9Pl1rI+VZcTtsVQ6v/P0MDIFpSl0k0+tUUze9HIXyEw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
@@ -4189,8 +4226,36 @@ packages:
     os: [linux]
     libc: [musl]
 
+  '@rolldown/binding-linux-arm64-musl@1.0.0-rc.7':
+    resolution: {integrity: sha512-G43ZElEvaby+YSOgrXfBgpeQv42LdS0ivFFYQufk2tBDWeBfzE/+ob5DmO8Izbyn4Y8k6GgLF11jFDYNnmU/3w==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@rolldown/binding-linux-ppc64-gnu@1.0.0-rc.7':
+    resolution: {integrity: sha512-Y48ShVxGE2zUTt0A0PR3grCLNxW4DWtAfe5lxf6L3uYEQujwo/LGuRogMsAtOJeYLCPTJo2i714LOdnK34cHpw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [ppc64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rolldown/binding-linux-s390x-gnu@1.0.0-rc.7':
+    resolution: {integrity: sha512-KU5DUYvX3qI8/TX6D3RA4awXi4Ge/1+M6Jqv7kRiUndpqoVGgD765xhV3Q6QvtABnYjLJenrWDl3S1B5U56ixA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [s390x]
+    os: [linux]
+    libc: [glibc]
+
   '@rolldown/binding-linux-x64-gnu@1.0.0-rc.6':
     resolution: {integrity: sha512-IBwXsf56o3xhzAyaZxdM1CX8UFiBEUFCjiVUgny67Q8vPIqkjzJj0YKhd3TbBHanuxThgBa59f6Pgutg2OGk5A==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rolldown/binding-linux-x64-gnu@1.0.0-rc.7':
+    resolution: {integrity: sha512-1THb6FdBkAEL12zvUue2bmK4W1+P+tz8Pgu5uEzq+xrtYa3iBzmmKNlyfUzCFNCqsPd8WJEQrYdLcw4iMW4AVw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
@@ -4203,8 +4268,21 @@ packages:
     os: [linux]
     libc: [musl]
 
+  '@rolldown/binding-linux-x64-musl@1.0.0-rc.7':
+    resolution: {integrity: sha512-12o73atFNWDgYnLyA52QEUn9AH8pHIe12W28cmqjyHt4bIEYRzMICvYVCPa2IQm6DJBvCBrEhD9K+ct4wr2hwg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
   '@rolldown/binding-openharmony-arm64@1.0.0-rc.6':
     resolution: {integrity: sha512-ASjEDI4MRv7XCQb2JVaBzfEYO98JKCGrAgoW6M03fJzH/ilCnC43Mb3ptB9q/lzsaahoJyIBoAGKAYEjUvpyvQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [openharmony]
+
+  '@rolldown/binding-openharmony-arm64@1.0.0-rc.7':
+    resolution: {integrity: sha512-+uUgGwvuUCXl894MTsmTS2J0BnCZccFsmzV7y1jFxW5pTSxkuwL5agyPuDvDOztPeS6RrdqWkn7sT0jRd0ECkg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [openharmony]
@@ -4214,8 +4292,19 @@ packages:
     engines: {node: '>=14.0.0'}
     cpu: [wasm32]
 
+  '@rolldown/binding-wasm32-wasi@1.0.0-rc.7':
+    resolution: {integrity: sha512-53p2L/NSy21UiFOqUGlC11kJDZS2Nx2GJRz1QvbkXovypA3cOHbsyZHLkV72JsLSbiEQe+kg4tndUhSiC31UEA==}
+    engines: {node: '>=14.0.0'}
+    cpu: [wasm32]
+
   '@rolldown/binding-win32-arm64-msvc@1.0.0-rc.6':
     resolution: {integrity: sha512-e2ABskbNH3MRUBMjgxaMjYIw11DSwjLJxBII3UgpF6WClGLIh8A20kamc+FKH5vIaFVnYQInmcLYSUVpqMPLow==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [win32]
+
+  '@rolldown/binding-win32-arm64-msvc@1.0.0-rc.7':
+    resolution: {integrity: sha512-K6svNRljO6QrL6VTKxwh4yThhlR9DT/tK0XpaFQMnJwwQKng+NYcVEtUkAM0WsoiZHw+Hnh3DGnn3taf/pNYGg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [win32]
@@ -4226,11 +4315,20 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@rolldown/binding-win32-x64-msvc@1.0.0-rc.7':
+    resolution: {integrity: sha512-3ZJBT47VWLKVKIyvHhUSUgVwHzzZW761YAIkM3tOT+8ZTjFVp0acCM0Y2Z2j3jCl+XYi2d9y2uEWQ8H0PvvpPw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [win32]
+
   '@rolldown/pluginutils@1.0.0-beta.53':
     resolution: {integrity: sha512-vENRlFU4YbrwVqNDZ7fLvy+JR1CRkyr01jhSiDpE1u6py3OMzQfztQU2jxykW3ALNxO4kSlqIDeYyD0Y9RcQeQ==}
 
   '@rolldown/pluginutils@1.0.0-rc.6':
     resolution: {integrity: sha512-Y0+JT8Mi1mmW08K6HieG315XNRu4L0rkfCpA364HtytjgiqYnMYRdFPcxRl+BQQqNXzecL2S9nii+RUpO93XIA==}
+
+  '@rolldown/pluginutils@1.0.0-rc.7':
+    resolution: {integrity: sha512-qujRfC8sFVInYSPPMLQByRh7zhwkGFS4+tyMQ83srV1qrxL4g8E2tyxVVyxd0+8QeBM1mIk9KbWxkegRr76XzA==}
 
   '@rollup/plugin-replace@5.0.7':
     resolution: {integrity: sha512-PqxSfuorkHz/SPpyngLyg5GCEkOcee9M1bkxiVDr41Pd61mqP1PLOoDPbpl44SB2mQGKwV/In74gqQmGITOhEQ==}
@@ -4774,14 +4872,14 @@ packages:
     resolution: {integrity: sha512-1DJUBezrZ7oVPapQtWww/Mx7mbU/0mYZXVUShDOrkBw+l+PJTVJ0YvzLlnBHbcpoXql5kflRZmPZjjOntme6kw==}
     engines: {node: '>=12'}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      react-dom: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
+      react-dom: 0.0.0-experimental-3bc2d414-20260304
 
   '@tanstack/react-store@0.2.1':
     resolution: {integrity: sha512-tEbMCQjbeVw9KOP/202LfqZMSNAVi6zYkkp1kBom8nFuMx/965Hzes3+6G6b/comCwVxoJU8Gg9IrcF8yRPthw==}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      react-dom: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
+      react-dom: 0.0.0-experimental-3bc2d414-20260304
 
   '@tanstack/react-table@8.21.3':
     resolution: {integrity: sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==}
@@ -4795,8 +4893,8 @@ packages:
     engines: {node: '>=12'}
     peerDependencies:
       '@tanstack/react-router': ^1.43.3
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      react-dom: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
+      react-dom: 0.0.0-experimental-3bc2d414-20260304
 
   '@tanstack/router-generator@1.43.1':
     resolution: {integrity: sha512-9dK/vVGO6SupMed1EAHwsIY0sHEu1EBsVYa208/V+zonJLOTNTthuDAYUxjmLTLm18FeqsujKoDl0hFX4rsREw==}
@@ -5302,8 +5400,8 @@ packages:
     resolution: {integrity: sha512-1I+RwWyS+kdv3Mv0Vmc+p0dPYH0DTRAo04HLyXReYBL9AeseDWUJyi4THuksBJcu9F0Pih69Ak150VDnqbVnXg==}
     engines: {node: '>=16'}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      react-dom: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
+      react-dom: 0.0.0-experimental-3bc2d414-20260304
 
   '@uiw/copy-to-clipboard@1.0.19':
     resolution: {integrity: sha512-AYxzFUBkZrhtExb2QC0C4lFH2+BSx6JVId9iqeGHakBuosqiQHUQaNZCvIBeM97Ucp+nJ22flOh8FBT2pKRRAA==}
@@ -9421,18 +9519,18 @@ packages:
   react-click-away-listener@2.2.3:
     resolution: {integrity: sha512-p63JRQtK9d085+QHUJ2Pje22P/N4tEaXsS2x7tbbptriQqZ9o8xEk7G1JrxwND5YmEVc/VO4fC3+cSBsqqgLUQ==}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      react-dom: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
+      react-dom: 0.0.0-experimental-3bc2d414-20260304
 
   react-clientside-effect@1.2.6:
     resolution: {integrity: sha512-XGGGRQAKY+q25Lz9a/4EPqom7WRjz3z9R2k4jhVKA/puQFH/5Nt27vFZYql4m4NVNdUvX8PS3O7r/Zzm7cjUlg==}
     peerDependencies:
       react: ^15.3.0 || ^16.0.0 || ^17.0.0 || ^18.0.0
 
-  react-dom@0.0.0-experimental-4cc5b7a9-20260303:
-    resolution: {integrity: sha512-3a+EYjdexP4rkg9h+kYQn3Oc8YXTfkKd16itUmSNRjT1dunQXwE7vKE32WZHfi10NeCibzfjuWVeq/XLAqI04w==}
+  react-dom@0.0.0-experimental-3bc2d414-20260304:
+    resolution: {integrity: sha512-A2zau1/mmSl8tn1v8ztqKmDj1MlavtFbMpei2aBUNo8/NdjJW7gIaU4DbnDBTrI0PxI30NqUdRS83lBRiPqDOQ==}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
 
   react-dom@0.0.0-experimental-ab18f33d-20260220:
     resolution: {integrity: sha512-UXGhVKyGJ+k8LBrbaTk16zwQowaJriHGENGUNZiK3qNX/mPk+JUPRNK4p7qL9xeayxnX9fALDcPpNNEPc1w0kA==}
@@ -9467,8 +9565,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-is@0.0.0-experimental-4cc5b7a9-20260303:
-    resolution: {integrity: sha512-WM4CtE7yVGW4Ieb/kycPLlYjOs27WppKKlL5Msv66WlPr2NffY7dYtA3DcDMzEhOdB3ERUhVmv3RI83ALgchkw==}
+  react-is@0.0.0-experimental-3bc2d414-20260304:
+    resolution: {integrity: sha512-Tjt/Sz4rzQLnc2ZWD4W0Q8HB1osIkpFe79GhcpuDFeX0l14nMlg7TRZHeH/bHqb3k2aO4qTok1Ur9sKDoWvPlg==}
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -9558,21 +9656,21 @@ packages:
     resolution: {integrity: sha512-960sKuau6/yEwS8e+NVEidYQb1hNjAYM327gjEyXlc6r3Skf2vtwuJ2l7lssdegD2YjoKG5l8MsVyeTDlVeY8g==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      react-dom: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
+      react-dom: 0.0.0-experimental-3bc2d414-20260304
 
   react-router@6.24.0:
     resolution: {integrity: sha512-sQrgJ5bXk7vbcC4BxQxeNa5UmboFm35we1AFK0VvQaz9g0LzxEIuLOhHIoZ8rnu9BO21ishGeL9no1WB76W/eg==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
 
-  react-server-dom-webpack@0.0.0-experimental-4cc5b7a9-20260303:
-    resolution: {integrity: sha512-/A+p0NQIuvMENxupzKV0e7uy1BMqazeeTt6QYQYghR7+Fx4DFtU1DtCAFzDfNmaVy3eNvC2cjCAhm1LngpzkrQ==}
+  react-server-dom-webpack@0.0.0-experimental-3bc2d414-20260304:
+    resolution: {integrity: sha512-9fHQoXS4kAh7hpVw6ymcDdHtpSJRxYB0OW7jAAMje0N3D4WslmJtF3S8uysLJRSg2v6BgZDXmu45MCecOg10Cg==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      react-dom: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
+      react-dom: 0.0.0-experimental-3bc2d414-20260304
       webpack: ^5.59.0
 
   react-server-dom-webpack@0.0.0-experimental-ab18f33d-20260220:
@@ -9641,8 +9739,8 @@ packages:
       react-dom:
         optional: true
 
-  react@0.0.0-experimental-4cc5b7a9-20260303:
-    resolution: {integrity: sha512-YrfB8YA3xJzG1oegqaFWHDsQkACHB8vtXMppL/ZqxtJEyZ1ZcSvrRodYw3nDPcPBDVJJN7065oNhEZLvC9QRYA==}
+  react@0.0.0-experimental-3bc2d414-20260304:
+    resolution: {integrity: sha512-gvim5SAn+L6Tiu6AlUav4wAc5CNFbb8SSqBiSjqcYJMjN+hzE6zOU7eyQ7B2UCOEiZqatpGc70P+rWuLfhwNeA==}
     engines: {node: '>=0.10.0'}
 
   react@0.0.0-experimental-ab18f33d-20260220:
@@ -9859,6 +9957,11 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
+  rolldown@1.0.0-rc.7:
+    resolution: {integrity: sha512-5X0zEeQFzDpB3MqUWQZyO2TUQqP9VnT7CqXHF2laTFRy487+b6QZyotCazOySAuZLAvplCaOVsg1tVn/Zlmwfg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    hasBin: true
+
   rollup@4.53.2:
     resolution: {integrity: sha512-MHngMYwGJVi6Fmnk6ISmnk7JAHRNF0UkuucA0CUW3N3a4KnONPEZz+vUanQP/ZC/iY1Qkf3bwPWzyY84wEks1g==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
@@ -9930,8 +10033,8 @@ packages:
   sax@1.4.1:
     resolution: {integrity: sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg==}
 
-  scheduler@0.0.0-experimental-4cc5b7a9-20260303:
-    resolution: {integrity: sha512-NT6W9AejN+MT6KN7fQbmos9DGvZZKRO7dJuCqQfi2V+MWyqIioj2Ivsxc3DH7BgnI9l2iPY9igZrTVXpxH1IGA==}
+  scheduler@0.0.0-experimental-3bc2d414-20260304:
+    resolution: {integrity: sha512-R/WdoFWskYMc/FzrRIUVWfmgCBDLeN8ABxtHrNzPEsT2kUpO+gzgfOnGJbs4oQap1x2G/fuGRRDUt05hvthPLQ==}
 
   scheduler@0.0.0-experimental-ab18f33d-20260220:
     resolution: {integrity: sha512-k2FNJuxo0mIDFGryeRsIkpo2T9pboTLJPEiYuj1W6iZEETku4Ive83zHy9p0znQBHBpBV56A0f4lfq2t+PT37g==}
@@ -10895,12 +10998,12 @@ packages:
   use-sync-external-store@1.2.2:
     resolution: {integrity: sha512-PElTlVMwpblvbNqQ82d2n6RjStvdSoNe9FG28kNfz3WiXilJm4DdNkEzRhCZuIDwY8U08WVihhGR5iRqAwfDiw==}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
 
   use-sync-external-store@1.6.0:
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
     peerDependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
@@ -15058,31 +15161,67 @@ snapshots:
   '@rolldown/binding-android-arm64@1.0.0-rc.6':
     optional: true
 
+  '@rolldown/binding-android-arm64@1.0.0-rc.7':
+    optional: true
+
   '@rolldown/binding-darwin-arm64@1.0.0-rc.6':
+    optional: true
+
+  '@rolldown/binding-darwin-arm64@1.0.0-rc.7':
     optional: true
 
   '@rolldown/binding-darwin-x64@1.0.0-rc.6':
     optional: true
 
+  '@rolldown/binding-darwin-x64@1.0.0-rc.7':
+    optional: true
+
   '@rolldown/binding-freebsd-x64@1.0.0-rc.6':
+    optional: true
+
+  '@rolldown/binding-freebsd-x64@1.0.0-rc.7':
     optional: true
 
   '@rolldown/binding-linux-arm-gnueabihf@1.0.0-rc.6':
     optional: true
 
+  '@rolldown/binding-linux-arm-gnueabihf@1.0.0-rc.7':
+    optional: true
+
   '@rolldown/binding-linux-arm64-gnu@1.0.0-rc.6':
+    optional: true
+
+  '@rolldown/binding-linux-arm64-gnu@1.0.0-rc.7':
     optional: true
 
   '@rolldown/binding-linux-arm64-musl@1.0.0-rc.6':
     optional: true
 
+  '@rolldown/binding-linux-arm64-musl@1.0.0-rc.7':
+    optional: true
+
+  '@rolldown/binding-linux-ppc64-gnu@1.0.0-rc.7':
+    optional: true
+
+  '@rolldown/binding-linux-s390x-gnu@1.0.0-rc.7':
+    optional: true
+
   '@rolldown/binding-linux-x64-gnu@1.0.0-rc.6':
+    optional: true
+
+  '@rolldown/binding-linux-x64-gnu@1.0.0-rc.7':
     optional: true
 
   '@rolldown/binding-linux-x64-musl@1.0.0-rc.6':
     optional: true
 
+  '@rolldown/binding-linux-x64-musl@1.0.0-rc.7':
+    optional: true
+
   '@rolldown/binding-openharmony-arm64@1.0.0-rc.6':
+    optional: true
+
+  '@rolldown/binding-openharmony-arm64@1.0.0-rc.7':
     optional: true
 
   '@rolldown/binding-wasm32-wasi@1.0.0-rc.6':
@@ -15090,15 +15229,28 @@ snapshots:
       '@napi-rs/wasm-runtime': 1.1.1
     optional: true
 
+  '@rolldown/binding-wasm32-wasi@1.0.0-rc.7':
+    dependencies:
+      '@napi-rs/wasm-runtime': 1.1.1
+    optional: true
+
   '@rolldown/binding-win32-arm64-msvc@1.0.0-rc.6':
+    optional: true
+
+  '@rolldown/binding-win32-arm64-msvc@1.0.0-rc.7':
     optional: true
 
   '@rolldown/binding-win32-x64-msvc@1.0.0-rc.6':
     optional: true
 
+  '@rolldown/binding-win32-x64-msvc@1.0.0-rc.7':
+    optional: true
+
   '@rolldown/pluginutils@1.0.0-beta.53': {}
 
   '@rolldown/pluginutils@1.0.0-rc.6': {}
+
+  '@rolldown/pluginutils@1.0.0-rc.7': {}
 
   '@rollup/plugin-replace@5.0.7(rollup@4.53.2)':
     dependencies:
@@ -21057,10 +21209,10 @@ snapshots:
       '@babel/runtime': 7.26.7
       react: 19.2.1
 
-  react-dom@0.0.0-experimental-4cc5b7a9-20260303(react@0.0.0-experimental-4cc5b7a9-20260303):
+  react-dom@0.0.0-experimental-3bc2d414-20260304(react@0.0.0-experimental-3bc2d414-20260304):
     dependencies:
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      scheduler: 0.0.0-experimental-4cc5b7a9-20260303
+      react: 0.0.0-experimental-3bc2d414-20260304
+      scheduler: 0.0.0-experimental-3bc2d414-20260304
 
   react-dom@0.0.0-experimental-ab18f33d-20260220(react@0.0.0-experimental-ab18f33d-20260220):
     dependencies:
@@ -21095,7 +21247,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.5
 
-  react-is@0.0.0-experimental-4cc5b7a9-20260303: {}
+  react-is@0.0.0-experimental-3bc2d414-20260304: {}
 
   react-is@16.13.1: {}
 
@@ -21207,12 +21359,12 @@ snapshots:
       '@remix-run/router': 1.17.0
       react: 19.2.1
 
-  react-server-dom-webpack@0.0.0-experimental-4cc5b7a9-20260303(react-dom@0.0.0-experimental-4cc5b7a9-20260303(react@0.0.0-experimental-4cc5b7a9-20260303))(react@0.0.0-experimental-4cc5b7a9-20260303)(webpack@5.97.1(@swc/core@1.11.21)):
+  react-server-dom-webpack@0.0.0-experimental-3bc2d414-20260304(react-dom@0.0.0-experimental-3bc2d414-20260304(react@0.0.0-experimental-3bc2d414-20260304))(react@0.0.0-experimental-3bc2d414-20260304)(webpack@5.97.1(@swc/core@1.11.21)):
     dependencies:
       acorn-loose: 8.4.0
       neo-async: 2.6.2
-      react: 0.0.0-experimental-4cc5b7a9-20260303
-      react-dom: 0.0.0-experimental-4cc5b7a9-20260303(react@0.0.0-experimental-4cc5b7a9-20260303)
+      react: 0.0.0-experimental-3bc2d414-20260304
+      react-dom: 0.0.0-experimental-3bc2d414-20260304(react@0.0.0-experimental-3bc2d414-20260304)
       webpack: 5.97.1(@swc/core@1.11.21)
       webpack-sources: 3.2.3
 
@@ -21290,7 +21442,7 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.1(react@19.2.1)
 
-  react@0.0.0-experimental-4cc5b7a9-20260303: {}
+  react@0.0.0-experimental-3bc2d414-20260304: {}
 
   react@0.0.0-experimental-ab18f33d-20260220: {}
 
@@ -21630,6 +21782,27 @@ snapshots:
       '@rolldown/binding-win32-arm64-msvc': 1.0.0-rc.6
       '@rolldown/binding-win32-x64-msvc': 1.0.0-rc.6
 
+  rolldown@1.0.0-rc.7:
+    dependencies:
+      '@oxc-project/types': 0.115.0
+      '@rolldown/pluginutils': 1.0.0-rc.7
+    optionalDependencies:
+      '@rolldown/binding-android-arm64': 1.0.0-rc.7
+      '@rolldown/binding-darwin-arm64': 1.0.0-rc.7
+      '@rolldown/binding-darwin-x64': 1.0.0-rc.7
+      '@rolldown/binding-freebsd-x64': 1.0.0-rc.7
+      '@rolldown/binding-linux-arm-gnueabihf': 1.0.0-rc.7
+      '@rolldown/binding-linux-arm64-gnu': 1.0.0-rc.7
+      '@rolldown/binding-linux-arm64-musl': 1.0.0-rc.7
+      '@rolldown/binding-linux-ppc64-gnu': 1.0.0-rc.7
+      '@rolldown/binding-linux-s390x-gnu': 1.0.0-rc.7
+      '@rolldown/binding-linux-x64-gnu': 1.0.0-rc.7
+      '@rolldown/binding-linux-x64-musl': 1.0.0-rc.7
+      '@rolldown/binding-openharmony-arm64': 1.0.0-rc.7
+      '@rolldown/binding-wasm32-wasi': 1.0.0-rc.7
+      '@rolldown/binding-win32-arm64-msvc': 1.0.0-rc.7
+      '@rolldown/binding-win32-x64-msvc': 1.0.0-rc.7
+
   rollup@4.53.2:
     dependencies:
       '@types/estree': 1.0.8
@@ -21728,7 +21901,7 @@ snapshots:
   sax@1.4.1:
     optional: true
 
-  scheduler@0.0.0-experimental-4cc5b7a9-20260303: {}
+  scheduler@0.0.0-experimental-3bc2d414-20260304: {}
 
   scheduler@0.0.0-experimental-ab18f33d-20260220: {}
 

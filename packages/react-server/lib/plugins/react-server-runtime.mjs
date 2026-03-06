@@ -46,26 +46,28 @@ export default function viteReactServerRuntime() {
           };
           self.__react_server_hydrate_init__();`;
         } else if (id.endsWith("/@__webpack_require__")) {
+          const basePrefix = config.base
+            ? `${config.base}/`.replace(/\/+/g, "/")
+            : "/";
+          const fsPrefix = config.base
+            ? `${config.base}/@fs/${cwd()}`.replace(/\/+/g, "/")
+            : `/@fs/${cwd()}`.replace(/\/+/g, "/");
           return `
           const moduleCache = new Map();
           self.__webpack_require__ = function (id) {
           if (!moduleCache.has(id)) {
             if (/^https?\\:/.test(id)) {
               const url = new URL(id);
-              url.pathname = "${
-                config.base
-                  ? `${config.base}/@fs/${cwd()}`.replace(/\/+/g, "/")
-                  : `/@fs/${cwd()}`.replace(/\/+/g, "/")
-              }" + url.pathname;
+              url.pathname = "${fsPrefix}" + url.pathname;
               const mod = import(/* @vite-ignore */ url.href);
               moduleCache.set(id, mod);
               return mod;
             }
-          ${
-            config.base
-              ? `const mod = import(/* @vite-ignore */ new URL("${`${config.base}/@fs/${cwd()}/`.replace(/\/+/g, "/")}" + id, location.origin).href);`
-              : `const mod = import(/* @vite-ignore */ new URL("${`/@fs/${cwd()}/`.replace(/\/+/g, "/")}" + id, location.origin).href);`
-          }
+          const isExternal = id.startsWith("__/") || id.startsWith("../") || id.includes("node_modules");
+          const prefix = isExternal
+            ? "${fsPrefix}/" + (id.startsWith("__/") ? id.replace(/^(__\\/)+/, function(m) { return m.replace(/__\\//g, "../"); }) : id)
+            : "${basePrefix}" + id;
+          const mod = import(/* @vite-ignore */ new URL(prefix, location.origin).href);
           moduleCache.set(id, mod);
           return mod;
           }

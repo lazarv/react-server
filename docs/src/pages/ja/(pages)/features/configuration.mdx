@@ -14,6 +14,39 @@ import Link from "../../../../components/Link.jsx";
 
 `+*.config.*` ファイルはランタイムの設定を拡張したい場合に便利です。`+*.config.*`ファイルはいくつでも使うことができます。すべての設定ファイルは読み込まれた順にマージされます。
 
+<Link name="typed-configuration">
+## 型付き設定
+</Link>
+
+**JavaScriptおよびTypeScript**の設定ファイルでは、`defineConfig`で設定をラップすることで、すべてのオプションに対する自動補完、型チェック、インラインの説明と例を含む完全なIntelliSenseを利用できます：
+
+```mjs filename="react-server.config.mjs"
+import { defineConfig } from "@lazarv/react-server/config";
+
+export default defineConfig({
+  port: 3000,
+  adapter: "vercel",
+});
+```
+
+**JSON**設定ファイルでは、`$schema`プロパティを追加することで、エディタ上で直接バリデーションと自動補完を有効にできます：
+
+```json filename="react-server.config.json"
+{
+  "$schema": "https://react-server.dev/schema.json",
+  "port": 3000,
+  "adapter": "vercel"
+}
+```
+
+JSONスキーマはオフライン利用のためにパッケージ自体からも利用できます：
+
+```json filename="react-server.config.json"
+{
+  "$schema": "node_modules/@lazarv/react-server/config/schema.json"
+}
+```
+
 プロダクションモードでランタイムを実行するときに使用する設定のみを追加したい場合は、`.production.config.*` 拡張子を使用します。これらの設定ファイルはプロダクションモードでのみ読み込まれます。
 
 同じように、`.development.config.*`という拡張子で設定ファイルを作ると、開発モード用に別の設定を使うことができます。

@@ -30,6 +30,11 @@
       "types": "./config/index.d.ts",
       "default": "./config/index.mjs"
     },
+    "./config/schema": {
+      "types": "./config/schema.d.ts",
+      "default": "./config/schema.mjs"
+    },
+    "./config/schema.json": "./config/schema.json",
     "./error-boundary": {
       "types": "./server/error-boundary.d.ts",
       "default": "./server/error-boundary.jsx"

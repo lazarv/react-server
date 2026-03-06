@@ -6,6 +6,10 @@ import colors from "picocolors";
 import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
 import {
+  validateConfig,
+  formatValidationErrors,
+} from "../../config/validate.mjs";
+import {
   getRuntime,
   init$ as runtime_init$,
   runtime$,
@@ -87,6 +91,26 @@ export default async function dev(root, options) {
               : options
           );
           let configRoot = config[CONFIG_ROOT];
+
+          // Validate config and show errors if invalid
+          {
+            const validation = validateConfig(configRoot);
+            if (!validation.valid || validation.warnings.length > 0) {
+              const output = formatValidationErrors(
+                [...validation.errors, ...validation.warnings],
+                { command: "dev" }
+              );
+              if (output) console.error(output);
+
+              // On hard errors, skip server start and wait for config change
+              if (!validation.valid) {
+                console.error(
+                  colors.yellow("  Waiting for config changes to restart...\n")
+                );
+                return;
+              }
+            }
+          }
 
           runtime$(CONFIG_CONTEXT, config);
 

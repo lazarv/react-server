@@ -1,0 +1,936 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "react-server configuration",
+  "description": "Configuration schema for @lazarv/react-server. Covers react-server specific options and Vite-level pass-through configuration.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (ignored at runtime)."
+    },
+    "root": {
+      "type": "string",
+      "description": "Root directory for file-router page discovery."
+    },
+    "base": {
+      "type": "string",
+      "description": "Base public path for the application."
+    },
+    "entry": {
+      "type": "string",
+      "description": "Entry point for the application (used in non-file-router mode)."
+    },
+    "public": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "const": false
+        }
+      ],
+      "description": "Public directory for static assets, or false to disable. Example: \"public\""
+    },
+    "name": {
+      "type": "string",
+      "description": "Application name."
+    },
+    "adapter": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "minItems": 1,
+          "maxItems": 2
+        }
+      ],
+      "description": "Deployment adapter. Known adapters: aws, azure, azure-swa, bun, cloudflare, deno, docker, firebase, netlify, singlefile, vercel. Example: \"vercel\" or [\"cloudflare\", { ... }]"
+    },
+    "plugins": {
+      "type": "array",
+      "description": "Vite plugins array or factory function."
+    },
+    "define": {
+      "type": "object",
+      "description": "Global constant replacements (passed to Vite define)."
+    },
+    "envDir": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "const": false
+        }
+      ],
+      "description": "Directory to load .env files from, or false to disable."
+    },
+    "envPrefix": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "description": "Env variable prefix(es) to expose to client-side code."
+    },
+    "cacheDir": {
+      "type": "string",
+      "description": "Directory for Vite's dependency cache."
+    },
+    "external": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "description": "Packages to externalize from the server bundle."
+    },
+    "sourcemap": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "enum": ["inline", "hidden", "server", "server-inline"]
+        }
+      ],
+      "description": "Source map generation strategy: true, false, \"inline\", \"hidden\", \"server\", or \"server-inline\"."
+    },
+    "compression": {
+      "type": "boolean",
+      "description": "Enable response compression."
+    },
+    "export": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              }
+            ]
+          }
+        }
+      ],
+      "description": "Static export configuration. Provide paths, path descriptors, a function, or boolean."
+    },
+    "prerender": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object"
+        }
+      ],
+      "description": "Enable prerendering. true or { timeout: number }."
+    },
+    "cluster": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        }
+      ],
+      "description": "Number of cluster workers, or true for auto-detection."
+    },
+    "cors": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object"
+        }
+      ],
+      "description": "Enable CORS. true or { origin, credentials, ... }."
+    },
+    "vite": {
+      "type": "object",
+      "description": "Raw Vite config override (object or function)."
+    },
+    "customLogger": {
+      "type": "object",
+      "description": "Custom Vite logger instance."
+    },
+    "logger": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object"
+        }
+      ],
+      "description": "Logger configuration. String (e.g. \"pino\") or object."
+    },
+    "globalErrorComponent": {
+      "type": "string",
+      "description": "Glob pattern for the global error component."
+    },
+    "handlers": {
+      "oneOf": [
+        {
+          "type": "array"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "pre": {
+              "type": "array"
+            },
+            "post": {
+              "type": "array"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "description": "HTTP request handlers (middleware). Array, function, or { pre, post }."
+    },
+    "importMap": {
+      "type": "object",
+      "properties": {
+        "imports": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Import map for bare specifier resolution in the browser."
+    },
+    "inspect": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object"
+        }
+      ],
+      "description": "Enable vite-plugin-inspect for debugging."
+    },
+    "runtime": {
+      "type": "object",
+      "description": "Runtime configuration passed to the server."
+    },
+    "cookies": {
+      "type": "object",
+      "description": "Cookie options for the session."
+    },
+    "host": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "const": true
+        }
+      ],
+      "description": "Host to listen on. Example: \"0.0.0.0\" or true (all interfaces)."
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535,
+      "description": "Port to listen on (0–65535)."
+    },
+    "console": {
+      "type": "boolean",
+      "description": "Disable the dev console overlay."
+    },
+    "overlay": {
+      "type": "boolean",
+      "description": "Disable the dev error overlay."
+    },
+    "assetsInclude": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "description": "Additional file types to treat as static assets. String, RegExp, or array."
+    },
+    "logLevel": {
+      "enum": ["info", "warn", "error", "silent"],
+      "description": "Vite log level: \"info\" | \"warn\" | \"error\" | \"silent\"."
+    },
+    "clearScreen": {
+      "type": "boolean",
+      "description": "Whether to clear the terminal screen on dev server start."
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "const": true
+            }
+          ],
+          "description": "Specify which IP addresses the server should listen on."
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "description": "Specify server port."
+        },
+        "https": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "description": "Enable HTTPS / TLS."
+        },
+        "cors": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "description": "Configure CORS for the dev server."
+        },
+        "open": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Open the app in the browser on server start."
+        },
+        "hmr": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "description": "Configure HMR connection. Set to false to disable HMR."
+        },
+        "fs": {
+          "type": "object",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Directories allowed to be served."
+            },
+            "deny": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Directories denied from being served."
+            },
+            "strict": {
+              "type": "boolean",
+              "description": "Enable strict file serving mode."
+            }
+          },
+          "additionalProperties": false,
+          "description": "File system serving restrictions."
+        },
+        "watch": {
+          "type": "object",
+          "description": "File watcher options (passed to chokidar)."
+        },
+        "origin": {
+          "type": "string",
+          "description": "Define the origin of the generated asset URLs during development."
+        },
+        "proxy": {
+          "type": "object",
+          "description": "Custom proxy rules for the dev server."
+        },
+        "trustProxy": {
+          "type": "boolean",
+          "description": "Trust the X-Forwarded-* headers from reverse proxies."
+        },
+        "headers": {
+          "type": "object",
+          "description": "Custom response headers for the dev server."
+        },
+        "warmup": {
+          "type": "object",
+          "description": "Warm up files to pre-transform on server start."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Dev server configuration (Vite-compatible)."
+    },
+    "resolve": {
+      "type": "object",
+      "properties": {
+        "alias": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "find": {
+                    "type": "string"
+                  },
+                  "replacement": {
+                    "type": "string"
+                  }
+                },
+                "required": ["find", "replacement"]
+              }
+            }
+          ],
+          "description": "Import alias mapping."
+        },
+        "dedupe": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Dependencies to force-deduplicate."
+        },
+        "noExternal": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "description": "Packages to bundle instead of externalizing during SSR."
+        },
+        "shared": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Shared dependencies between server and client bundles."
+        },
+        "external": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "External dependencies for SSR."
+        },
+        "builtins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Built-in modules that should not be bundled."
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Custom conditions for package exports resolution."
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "File extensions to try when resolving imports."
+        },
+        "mainFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Fields in package.json to try when resolving entry points."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Module resolution configuration."
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Browser compatibility target."
+        },
+        "outDir": {
+          "type": "string",
+          "description": "Output directory (relative to project root)."
+        },
+        "assetsDir": {
+          "type": "string",
+          "description": "Directory for assets inside outDir."
+        },
+        "minify": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": ["terser", "esbuild"]
+            }
+          ],
+          "description": "Minification strategy."
+        },
+        "cssMinify": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "CSS minification (uses minify value by default)."
+        },
+        "cssCodeSplit": {
+          "type": "boolean",
+          "description": "Enable CSS code splitting."
+        },
+        "assetsInlineLimit": {
+          "type": "number",
+          "description": "Threshold (in bytes) for inlining assets as base64."
+        },
+        "reportCompressedSize": {
+          "type": "boolean",
+          "description": "Show compressed size of build output."
+        },
+        "copyPublicDir": {
+          "type": "boolean",
+          "description": "Copy public directory to outDir on build."
+        },
+        "modulePreload": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "description": "Module preload configuration."
+        },
+        "chunkSizeWarningLimit": {
+          "type": "number",
+          "description": "Warn when a chunk exceeds this size (in kB)."
+        },
+        "lib": {
+          "type": "boolean",
+          "description": "Build in library mode."
+        },
+        "rollupOptions": {
+          "type": "object",
+          "properties": {
+            "external": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "output": {
+              "type": "object"
+            },
+            "plugins": {
+              "type": "array"
+            },
+            "input": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "checks": {
+              "type": "object"
+            },
+            "treeshake": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "Rollup-specific build options."
+        },
+        "rolldownOptions": {
+          "type": "object",
+          "properties": {
+            "external": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "output": {
+              "type": "object"
+            },
+            "plugins": {
+              "type": "array"
+            },
+            "input": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "checks": {
+              "type": "object"
+            },
+            "treeshake": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "Rolldown-specific build options."
+        },
+        "server": {
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Custom Vite config for the server build."
+        },
+        "client": {
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Custom Vite config for the client build."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Build configuration (Vite-compatible)."
+    },
+    "ssr": {
+      "type": "object",
+      "properties": {
+        "external": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "description": "Force externalize these dependencies during SSR."
+        },
+        "noExternal": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "description": "Force bundle these dependencies during SSR."
+        },
+        "resolve": {
+          "type": "object",
+          "description": "SSR resolve options."
+        },
+        "worker": {
+          "type": "boolean",
+          "description": "Run SSR in a web worker."
+        }
+      },
+      "additionalProperties": false,
+      "description": "SSR configuration (Vite-compatible)."
+    },
+    "css": {
+      "type": "object",
+      "properties": {
+        "modules": {
+          "type": "object",
+          "description": "CSS Modules configuration."
+        },
+        "preprocessorOptions": {
+          "type": "object",
+          "description": "Options for CSS preprocessors."
+        },
+        "postcss": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "description": "PostCSS config (inline or path to config file)."
+        },
+        "devSourcemap": {
+          "type": "boolean",
+          "description": "Enable sourcemaps during dev for CSS."
+        }
+      },
+      "additionalProperties": false,
+      "description": "CSS configuration (Vite-compatible)."
+    },
+    "optimizeDeps": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Dependencies to force-include in pre-bundling."
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Dependencies to exclude from pre-bundling."
+        },
+        "force": {
+          "type": "boolean",
+          "description": "Force re-optimization on every dev server start."
+        },
+        "rolldownOptions": {
+          "type": "object",
+          "description": "Rolldown options for dependency optimization."
+        },
+        "esbuildOptions": {
+          "type": "object",
+          "description": "esbuild options for dependency optimization."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Dependency optimization configuration (Vite-compatible)."
+    },
+    "cache": {
+      "type": "object",
+      "properties": {
+        "profiles": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "array"
+            }
+          ],
+          "description": "Cache profiles (TTL, key strategies, etc.)."
+        },
+        "providers": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "array"
+            }
+          ],
+          "description": "Cache storage providers."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Cache configuration for server-side caching."
+    },
+    "serverFunctions": {
+      "type": "object",
+      "properties": {
+        "secret": {
+          "type": "string",
+          "description": "Secret key for signing server function calls."
+        },
+        "secretFile": {
+          "type": "string",
+          "description": "Path to a file containing the secret key."
+        },
+        "previousSecrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Previously used secrets for key rotation."
+        },
+        "previousSecretFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Previously used secret files for key rotation."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Server functions (RPC) configuration."
+    },
+    "layout": {
+      "type": "object",
+      "description": "File-router layout configuration."
+    },
+    "page": {
+      "type": "object",
+      "description": "File-router page configuration."
+    },
+    "middleware": {
+      "type": "object",
+      "description": "File-router middleware configuration."
+    },
+    "api": {
+      "type": "object",
+      "description": "File-router API route configuration."
+    },
+    "router": {
+      "type": "object",
+      "description": "File-router router configuration (applies on top of layout/page/middleware/api)."
+    },
+    "mdx": {
+      "type": "object",
+      "properties": {
+        "remarkPlugins": {
+          "type": "array",
+          "description": "Remark plugins for MDX processing."
+        },
+        "rehypePlugins": {
+          "type": "array",
+          "description": "Rehype plugins for MDX processing."
+        },
+        "components": {
+          "type": "string",
+          "description": "Path to the MDX components file."
+        }
+      },
+      "additionalProperties": false,
+      "description": "MDX processing configuration."
+    }
+  },
+  "additionalProperties": false
+}

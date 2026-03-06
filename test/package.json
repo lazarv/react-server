@@ -23,9 +23,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.53.1",
-    "@vitest/ui": "^4.1.0-beta.5",
+    "@vitest/ui": "^4.1.0-beta.6",
     "npm-run-all2": "^8.0.4",
     "playwright-chromium": "^1.53.1",
-    "vitest": "^4.1.0-beta.5"
+    "vitest": "^4.1.0-beta.6"
   }
 }

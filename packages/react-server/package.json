@@ -30,6 +30,11 @@
       "types": "./config/index.d.ts",
       "default": "./config/index.mjs"
     },
+    "./config/schema": {
+      "types": "./config/schema.d.ts",
+      "default": "./config/schema.mjs"
+    },
+    "./config/schema.json": "./config/schema.json",
     "./error-boundary": {
       "types": "./server/error-boundary.d.ts",
       "default": "./server/error-boundary.jsx"
@@ -218,15 +223,15 @@
     "parse5": "^7.1.2",
     "picocolors": "^1.0.1",
     "pino": "^8.14.1",
-    "react": "0.0.0-experimental-4cc5b7a9-20260303",
-    "react-dom": "0.0.0-experimental-4cc5b7a9-20260303",
-    "react-is": "0.0.0-experimental-4cc5b7a9-20260303",
+    "react": "0.0.0-experimental-3bc2d414-20260304",
+    "react-dom": "0.0.0-experimental-3bc2d414-20260304",
+    "react-is": "0.0.0-experimental-3bc2d414-20260304",
     "react-property": "^2.0.2",
     "react-refresh": "^0.14.2",
-    "react-server-dom-webpack": "0.0.0-experimental-4cc5b7a9-20260303",
+    "react-server-dom-webpack": "0.0.0-experimental-3bc2d414-20260304",
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",
-    "rolldown": "1.0.0-rc.6",
+    "rolldown": "1.0.0-rc.7",
     "sass": "^1.86.0",
     "semver": "^7.6.3",
     "smol-toml": "^1.6.0",

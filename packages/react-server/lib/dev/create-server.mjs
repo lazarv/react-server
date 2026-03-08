@@ -1017,7 +1017,20 @@ export default async function createServer(root, options) {
       : [...initialHandlers, ...(config.handlers ?? [])]
   );
 
-  viteDevServer.middlewares.use(createMiddleware(composedHandlers));
+  viteDevServer.middlewares.use(
+    createMiddleware(composedHandlers, {
+      origin:
+        options.origin ??
+        sys.getEnv("ORIGIN") ??
+        config.server?.origin ??
+        `${
+          config.server?.https || options.https ? "https" : "http"
+        }://${options.host ?? sys.getEnv("HOST") ?? config.server?.host ?? "localhost"}:$${
+          options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000
+        }`,
+      trustProxy: config.server?.trustProxy ?? options.trustProxy,
+    })
+  );
 
   // ── Telemetry: end startup span ──
   startupSpan.end();

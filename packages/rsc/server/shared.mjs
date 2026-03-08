@@ -1320,6 +1320,23 @@ function serializeElement(request, element) {
       // Keyless Fragment - output children as plain array
       const children = props?.children;
       if (Array.isArray(children)) {
+        // Mark keyless element children as needing validation (validated=2)
+        // to match React's renderFragment behavior. This ensures the Flight
+        // client-side reconciler correctly warns about missing keys.
+        for (let i = 0; i < children.length; i++) {
+          const child = children[i];
+          if (
+            child !== null &&
+            typeof child === "object" &&
+            isReactElement(child) &&
+            child.key === null &&
+            !child._store?.validated
+          ) {
+            if (child._store) {
+              child._store.validated = 2;
+            }
+          }
+        }
         return children.map((child, i) =>
           serializeValue(request, child, props, i)
         );
@@ -1492,7 +1509,7 @@ function serializeElement(request, element) {
 
   // Build the element tuple
   // Production format: ["$", type, key, props]
-  // Dev format: ["$", type, key, props, owner?, debugStack?, debugCounter?]
+  // Dev format: ["$", type, key, props, owner?, debugStack?, validated?]
   const tuple = [
     "$",
     serializedType,
@@ -1573,9 +1590,16 @@ function serializeElement(request, element) {
     // Add debug stack reference (6th element)
     tuple.push(debugStackRef);
 
-    // Add debug counter (7th element) - increments for each element
-    request.debugCounter++;
-    tuple.push(request.debugCounter);
+    // Add validated flag (7th element) - matches React's Flight protocol
+    // where position 6 carries `element._store.validated`:
+    //   0 = not yet validated
+    //   1 = already validated (key check passed or set by parent)
+    //   2 = needs validation (element is in an array without a key)
+    // The Flight client reads this into `_store.validated` on deserialized
+    // elements, and react-dom's reconciler uses it to decide whether to
+    // warn about missing keys.
+    const validated = element._store?.validated ?? 0;
+    tuple.push(validated);
   }
 
   return tuple;

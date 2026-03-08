@@ -3,12 +3,15 @@ import { renderToReadableStream } from "@lazarv/rsc/server";
 
 import { concat, copyBytesFrom } from "../lib/sys.mjs";
 
+const isDev = typeof import.meta.env !== "undefined" && !!import.meta.env.DEV;
+
 export function toBuffer(model, options = {}) {
   return new Promise(async (resolve, reject) => {
     const { clientReferenceMap } =
       await import("@lazarv/react-server/dist/server/client-reference-map");
     const map = clientReferenceMap();
     const stream = renderToReadableStream(model, {
+      debug: isDev,
       ...options,
       moduleResolver: {
         resolveClientReference(value) {
@@ -34,6 +37,7 @@ export async function toStream(model, options = {}) {
     await import("@lazarv/react-server/dist/server/client-reference-map");
   const map = clientReferenceMap();
   return renderToReadableStream(model, {
+    debug: isDev,
     ...options,
     moduleResolver: {
       resolveClientReference(value) {

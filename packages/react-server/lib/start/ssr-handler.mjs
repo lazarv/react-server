@@ -32,6 +32,8 @@ import {
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
   MODULE_CACHE,
+  OTEL_SPAN,
+  OTEL_CONTEXT,
   POSTPONE_CONTEXT,
   POSTPONE_STATE,
   PRELUDE_HTML,
@@ -229,7 +231,7 @@ export default async function ssrHandler(root, options = {}) {
     });
   };
 
-  return async (httpContext) => {
+  return async function ssr(httpContext) {
     const noCache =
       httpContext.request.headers.get("cache-control") === "no-cache";
 
@@ -261,6 +263,9 @@ export default async function ssrHandler(root, options = {}) {
               [ERROR_BOUNDARY]: ErrorBoundary,
               [MODULE_CACHE]: moduleCacheStorage,
               [LINK_QUEUE]: linkQueueStorage,
+              // Propagate OTel span from the HTTP layer into per‑request context
+              [OTEL_SPAN]: httpContext._otelSpan ?? null,
+              [OTEL_CONTEXT]: httpContext._otelCtx ?? null,
             },
             async () => {
               if (!noCache) {
@@ -362,7 +367,14 @@ export default async function ssrHandler(root, options = {}) {
               if (getContext(POSTPONE_CONTEXT) === null) {
                 context$(POSTPONE_CONTEXT, true);
               }
-              render(Component, {}, { middlewareError }).then(resolve, reject);
+              render(Component, {}, { middlewareError }).then(
+                (result) => {
+                  resolve(result);
+                },
+                (err) => {
+                  reject(err);
+                }
+              );
             }
           );
         });

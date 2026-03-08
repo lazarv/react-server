@@ -224,6 +224,25 @@ export const DESCRIPTIONS = {
   "mdx.remarkPlugins": "Remark plugins for MDX processing.",
   "mdx.rehypePlugins": "Rehype plugins for MDX processing.",
   "mdx.components": "Path to the MDX components file.",
+
+  // telemetry.*
+  telemetry:
+    "OpenTelemetry observability configuration. When enabled, the runtime instruments HTTP requests, rendering, server functions, and middleware.",
+  "telemetry.enabled":
+    "Enable/disable telemetry. Also enabled by OTEL_EXPORTER_OTLP_ENDPOINT or REACT_SERVER_TELEMETRY env vars.",
+  "telemetry.serviceName":
+    'Service name reported to your observability backend. Default: package name or "@lazarv/react-server".',
+  "telemetry.endpoint":
+    'OTLP collector endpoint. Default: "http://localhost:4318".',
+  "telemetry.exporter":
+    'Exporter type: "otlp" | "console" | "dev-console". Default: auto-detected.',
+  "telemetry.sampleRate":
+    "Sampling rate 0.0\u20131.0. Default: 1.0 (sample everything).",
+  "telemetry.metrics": "Metrics sub-configuration.",
+  "telemetry.metrics.enabled":
+    "Enable/disable metrics collection. Default: true when telemetry is enabled.",
+  "telemetry.metrics.interval":
+    "Metrics export interval in milliseconds. Default: 30000.",
 };
 
 // ───── JSON Schema generator ─────
@@ -884,6 +903,45 @@ export function generateJsonSchema() {
           additionalProperties: false,
         },
         "mdx"
+      ),
+
+      // ── telemetry.* ──
+      telemetry: prop(
+        {
+          type: "object",
+          properties: {
+            enabled: prop({ type: "boolean" }, "telemetry.enabled"),
+            serviceName: prop({ type: "string" }, "telemetry.serviceName"),
+            endpoint: prop({ type: "string" }, "telemetry.endpoint"),
+            exporter: prop(
+              { enum: ["otlp", "console", "dev-console"] },
+              "telemetry.exporter"
+            ),
+            sampleRate: prop(
+              { type: "number", minimum: 0, maximum: 1 },
+              "telemetry.sampleRate"
+            ),
+            metrics: prop(
+              {
+                type: "object",
+                properties: {
+                  enabled: prop(
+                    { type: "boolean" },
+                    "telemetry.metrics.enabled"
+                  ),
+                  interval: prop(
+                    { type: "integer", minimum: 1000 },
+                    "telemetry.metrics.interval"
+                  ),
+                },
+                additionalProperties: false,
+              },
+              "telemetry.metrics"
+            ),
+          },
+          additionalProperties: false,
+        },
+        "telemetry"
       ),
     },
     additionalProperties: false,

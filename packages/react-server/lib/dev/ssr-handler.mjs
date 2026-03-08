@@ -24,6 +24,8 @@ import {
   MAIN_MODULE,
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
+  OTEL_SPAN,
+  OTEL_CONTEXT,
   REDIRECT_CONTEXT,
   RENDER,
   RENDER_CONTEXT,
@@ -52,7 +54,7 @@ export default async function ssrHandler(root) {
   const renderStream = createWorker();
   const moduleCacheStorage = new AsyncLocalStorage();
 
-  return async (httpContext) => {
+  return async function ssr(httpContext) {
     return new Promise((resolve, reject) => {
       try {
         const noCache =
@@ -81,6 +83,9 @@ export default async function ssrHandler(root) {
             [COLLECT_STYLESHEETS]: collectStylesheets,
             [ACTION_CONTEXT]: {},
             [RENDER_STREAM]: renderStream,
+            // Propagate OTel span from the HTTP layer
+            [OTEL_SPAN]: httpContext._otelSpan ?? null,
+            [OTEL_CONTEXT]: httpContext._otelCtx ?? null,
           },
           async () => {
             try {
@@ -180,7 +185,8 @@ export default async function ssrHandler(root) {
               };
 
               context$(RENDER_HANDLER, handler);
-              return resolve(await handler());
+              const result = await handler();
+              return resolve(result);
             } catch (e) {
               logger.error(e);
               return errorHandler(e).then(resolve, reject);

@@ -62,12 +62,6 @@ Use HTTPS protocol. Default is `false`.
 
 When you want to use HTTPS for your development server. You need to specify your HTTPS configuration in your `react-server.config.mjs` or `vite.config.mjs` file. See details in the Vite documentation at [server.https](https://vitejs.dev/config/server-options.html#server-https).
 
-<Link name="dev-open">
-### --open
-</Link>
-
-Open browser on server start. Default is `false`. Opens your app in the default browser.
-
 <Link name="dev-cors">
 ### --cors
 </Link>
@@ -75,6 +69,24 @@ Open browser on server start. Default is `false`. Opens your app in the default 
 Enable CORS. Default is `false`.
 
 This is useful when you want to allow cross-origin requests. If you need more detailed CORS configuration, you can define the CORS configuration in your `react-server.config.mjs` or `vite.config.mjs` file. See details in the Vite documentation at [server.cors](https://vitejs.dev/config/server-options.html#server-cors).
+
+<Link name="dev-origin">
+### --origin
+</Link>
+
+Specify the origin part of the URL to a constant value. Same as using the `ORIGIN` environment variable.
+
+<Link name="dev-trust-proxy">
+### --trust-proxy
+</Link>
+
+Trust `X-Forwarded-*` headers.
+
+<Link name="dev-open">
+### --open
+</Link>
+
+Open browser on server start. Default is `false`. Opens your app in the default browser.
 
 <Link name="dev-force">
 ### --force

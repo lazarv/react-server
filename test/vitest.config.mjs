@@ -9,6 +9,9 @@ export default defineConfig({
     },
   },
   test: {
+    env: {
+      REACT_SERVER_TELEMETRY: "false",
+    },
     include: ["**/__test__/**/*.spec.mjs"],
     setupFiles: ["./vitestSetup.mjs"],
     globalSetup: ["./vitestGlobalSetup.mjs"],

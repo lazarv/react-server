@@ -10,8 +10,25 @@ export default function visit(node, context) {
       return node.value;
     case "#comment":
       return null;
+    case "script":
+      node.nodeName = "template";
+      node.attrs = [
+        {
+          name: "data-script-attrs",
+          value: JSON.stringify(
+            node.attrs.reduce((attrs, attr) => {
+              attrs[attr.name] = attr.value;
+              return attrs;
+            }, {})
+          ),
+        },
+      ];
     default: {
-      if (node.nodeName === "template" && context.defer) {
+      if (
+        node.nodeName === "template" &&
+        context.defer &&
+        !node.attrs?.some((attr) => attr.name === "data-script")
+      ) {
         return null;
       }
       const childNodes =

@@ -62,12 +62,6 @@ HTTPSプロトコルを有効にする場合に指定します。デフォルト
 
 もし開発サーバーでHTTPSプロトコルを使う場合、`react-server.config.mjs`または`vite.config.mjs`でHTTPSの設定をする必要があります。詳しくはViteドキュメントの[server.https](https://ja.vite.dev/config/server-options#server-https)を参照してください。
 
-<Link name="dev-open">
-### --open
-</Link>
-
-サーバー起動時にデフォルトブラウザを開くか指定します。デフォルトは`false`です。デフォルトブラウザでアプリケーションにアクセスします。
-
 <Link name="dev-cors">
 ### --cors
 </Link>
@@ -75,6 +69,24 @@ HTTPSプロトコルを有効にする場合に指定します。デフォルト
 CORSを有効にします。デフォルトは`false`です。
 
 もしオリジン間リソース共有を有効化したい場合は便利です。より詳細なCORS設定が必要な場合は`react-server.config.mjs`または`vite.config.mjs`で設定することが出来ます。詳しくはViteドキュメントの[server.cors](https://ja.vite.dev/config/server-options#server-cors)を参照してください。
+
+<Link name="dev-origin">
+### --origin
+</Link>
+
+URLのオリジン部分を定数に指定します。環境変数`ORIGIN`を使っても同じ結果になります。
+
+<Link name="dev-trust-proxy">
+### --trust-proxy
+</Link>
+
+`X-Forwarded-*`ヘッダーを信頼します。
+
+<Link name="dev-open">
+### --open
+</Link>
+
+サーバー起動時にデフォルトブラウザを開くか指定します。デフォルトは`false`です。デフォルトブラウザでアプリケーションにアクセスします。
 
 <Link name="dev-force">
 ### --force

@@ -49,6 +49,12 @@ import {
   SERVER_FUNCTION_NOT_FOUND,
 } from "@lazarv/react-server/server/symbols.mjs";
 import { ServerFunctionNotFoundError } from "./action-state.mjs";
+import {
+  getTracer,
+  getMetrics,
+  getOtelContext,
+  makeSpanContext,
+} from "./telemetry.mjs";
 import { cwd } from "../lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-reference-map";
 import { serverReferenceMap as _serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
@@ -213,7 +219,44 @@ export async function render(Component, props = {}, options = {}) {
             }
           }
 
-          const { data, actionId, error } = await action();
+          const { data, actionId, error } = await (async () => {
+            // ── Telemetry: server function span ──
+            const tracer = getTracer();
+            const parentCtx = getOtelContext();
+            const actionSpan = tracer.startSpan(
+              "Server Function",
+              {
+                attributes: {
+                  "react_server.server_function.id":
+                    serverActionHeader || "form-action",
+                  "react_server.server_function.is_form": !!isFormData,
+                },
+              },
+              parentCtx ?? undefined
+            );
+            const actionStart = performance.now();
+            try {
+              const result = await action();
+              actionSpan.setAttribute(
+                "react_server.server_function.has_error",
+                !!result.error
+              );
+              if (result.error) {
+                actionSpan.recordException(result.error);
+              }
+              return result;
+            } catch (e) {
+              actionSpan.recordException(e);
+              throw e;
+            } finally {
+              actionSpan.end();
+              const metrics = getMetrics();
+              metrics?.actionDuration.record(performance.now() - actionStart, {
+                "react_server.server_function.id":
+                  serverActionHeader || "form-action",
+              });
+            }
+          })();
 
           if (error?.name === SERVER_FUNCTION_NOT_FOUND) {
             const e = new ServerFunctionNotFoundError();
@@ -505,6 +548,19 @@ export async function render(Component, props = {}, options = {}) {
           }
 
           let hasError = false;
+          const rscRenderTracer = getTracer();
+          const rscRenderParentCtx = getOtelContext();
+          const rscFlightSpan = rscRenderTracer.startSpan(
+            "Render",
+            {
+              attributes: {
+                "react_server.render_type": "RSC",
+                "react_server.outlet": outlet || "PAGE_ROOT",
+                "http.url": context.url?.href,
+              },
+            },
+            rscRenderParentCtx ?? undefined
+          );
           const stream = new ReadableStream({
             type: "bytes",
             async start(controller) {
@@ -627,6 +683,15 @@ export async function render(Component, props = {}, options = {}) {
                   ttl
                 );
               }
+
+              // End RSC flight rendering span
+              if (hasError) {
+                rscFlightSpan.setStatus({
+                  code: 2,
+                  message: "RSC rendering error",
+                });
+              }
+              rscFlightSpan.end();
             },
           });
         } else if (renderContext.flags.isHTML || renderContext.flags.isRemote) {
@@ -673,6 +738,23 @@ export async function render(Component, props = {}, options = {}) {
           context$(HTTP_RESPONSE, responsePromise);
 
           let hasError = false;
+
+          // ── Telemetry: RSC rendering span (wraps the full RSC→SSR pipeline) ──
+          const renderTracer = getTracer();
+          const renderParentCtx = getOtelContext();
+
+          const rscSpan = renderTracer.startSpan(
+            "Render",
+            {
+              attributes: {
+                "react_server.render_type": "RSC",
+                "react_server.outlet": outlet || "PAGE_ROOT",
+                "http.url": context.url?.href,
+              },
+            },
+            renderParentCtx ?? undefined
+          );
+
           const flight = server.renderToReadableStream(
             app,
             clientReferenceMap({ remote: remote || remoteRSC, origin }),
@@ -693,12 +775,27 @@ export async function render(Component, props = {}, options = {}) {
             }
           );
 
+          // ── Telemetry: SSR rendering span (child of RSC, consumes flight stream → HTML) ──
+          const rscSpanCtx = makeSpanContext(rscSpan, renderParentCtx);
+          const ssrSpan = renderTracer.startSpan(
+            "Render",
+            {
+              attributes: {
+                "react_server.render_type": "SSR",
+                "react_server.outlet": outlet || "PAGE_ROOT",
+                "http.url": context.url?.href,
+              },
+            },
+            rscSpanCtx
+          );
+
           const contextStore = ContextStorage.getStore();
           const { onPostponed, prerender } = context;
           const prelude = getContext(PRELUDE_HTML);
           const postponed = getContext(POSTPONE_STATE);
           const importMap = getContext(IMPORT_MAP);
           let isStarted = false;
+
           const stream = await renderStream({
             stream: flight,
             bootstrapModules:
@@ -779,6 +876,8 @@ export async function render(Component, props = {}, options = {}) {
                   ...httpStatus,
                   headers,
                 });
+                ssrSpan.end();
+                rscSpan.end();
                 resolveResponse(response);
                 resolve(response);
               });
@@ -789,6 +888,12 @@ export async function render(Component, props = {}, options = {}) {
               }
               (logger ?? console).error(e);
               hasError = true;
+              ssrSpan.setStatus({ code: 2, message: e?.message });
+              ssrSpan.recordException(e);
+              ssrSpan.end();
+              rscSpan.setStatus({ code: 2, message: e?.message });
+              rscSpan.recordException(e);
+              rscSpan.end();
               if (!isStarted) {
                 ContextStorage.run(contextStore, async () => {
                   context$(HTTP_STATUS, {

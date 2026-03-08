@@ -38,6 +38,10 @@ export default function(props) {
       },
       async handler(code, id) {
         try {
+          if (!/from\s+["']https?:\/\//.test(code)) {
+            return null;
+          }
+
           const ast = await parse(code, id);
 
           let hasRemoteImport = false;

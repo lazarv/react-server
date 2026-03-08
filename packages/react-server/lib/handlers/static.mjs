@@ -45,7 +45,7 @@ export default async function staticHandler(dir, options = {}) {
 
   const fileCache = new Map();
 
-  return async (context) => {
+  return async function serveStatic(context) {
     if (context.request.method !== "GET") {
       return;
     }

@@ -1836,6 +1836,176 @@ describe("config validation — mdx", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  telemetry.*
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("config validation — telemetry", () => {
+  it("accepts empty telemetry object", () => {
+    expectValid({ telemetry: {} });
+  });
+
+  it("rejects non-object", () => {
+    expectInvalid({ telemetry: "bad" }, "telemetry");
+  });
+
+  it("rejects unknown nested key", () => {
+    expectInvalid({ telemetry: { foobar: true } }, "telemetry.foobar");
+  });
+
+  describe("telemetry.enabled", () => {
+    it("accepts boolean true", () => {
+      expectValid({ telemetry: { enabled: true } });
+    });
+
+    it("accepts boolean false", () => {
+      expectValid({ telemetry: { enabled: false } });
+    });
+
+    it("rejects string", () => {
+      expectInvalid({ telemetry: { enabled: "yes" } }, "telemetry.enabled");
+    });
+  });
+
+  describe("telemetry.serviceName", () => {
+    it("accepts string", () => {
+      expectValid({ telemetry: { serviceName: "my-app" } });
+    });
+
+    it("rejects number", () => {
+      expectInvalid(
+        { telemetry: { serviceName: 42 } },
+        "telemetry.serviceName"
+      );
+    });
+  });
+
+  describe("telemetry.endpoint", () => {
+    it("accepts string", () => {
+      expectValid({ telemetry: { endpoint: "http://localhost:4318" } });
+    });
+
+    it("rejects number", () => {
+      expectInvalid({ telemetry: { endpoint: 4318 } }, "telemetry.endpoint");
+    });
+  });
+
+  describe("telemetry.exporter", () => {
+    it("accepts 'otlp'", () => {
+      expectValid({ telemetry: { exporter: "otlp" } });
+    });
+
+    it("accepts 'console'", () => {
+      expectValid({ telemetry: { exporter: "console" } });
+    });
+
+    it("accepts 'dev-console'", () => {
+      expectValid({ telemetry: { exporter: "dev-console" } });
+    });
+
+    it("rejects unknown string", () => {
+      expectInvalid(
+        { telemetry: { exporter: "jaeger" } },
+        "telemetry.exporter"
+      );
+    });
+  });
+
+  describe("telemetry.sampleRate", () => {
+    it("accepts 0", () => {
+      expectValid({ telemetry: { sampleRate: 0 } });
+    });
+
+    it("accepts 1", () => {
+      expectValid({ telemetry: { sampleRate: 1 } });
+    });
+
+    it("accepts 0.5", () => {
+      expectValid({ telemetry: { sampleRate: 0.5 } });
+    });
+
+    it("rejects value > 1", () => {
+      expectInvalid({ telemetry: { sampleRate: 2 } }, "telemetry.sampleRate");
+    });
+
+    it("rejects negative value", () => {
+      expectInvalid(
+        { telemetry: { sampleRate: -0.1 } },
+        "telemetry.sampleRate"
+      );
+    });
+
+    it("rejects string", () => {
+      expectInvalid(
+        { telemetry: { sampleRate: "half" } },
+        "telemetry.sampleRate"
+      );
+    });
+  });
+
+  describe("telemetry.metrics", () => {
+    it("accepts empty metrics object", () => {
+      expectValid({ telemetry: { metrics: {} } });
+    });
+
+    it("rejects non-object", () => {
+      expectInvalid({ telemetry: { metrics: "bad" } }, "telemetry.metrics");
+    });
+
+    it("rejects unknown nested key", () => {
+      expectInvalid(
+        { telemetry: { metrics: { foobar: true } } },
+        "telemetry.metrics.foobar"
+      );
+    });
+
+    it("accepts metrics.enabled boolean", () => {
+      expectValid({ telemetry: { metrics: { enabled: true } } });
+    });
+
+    it("rejects metrics.enabled string", () => {
+      expectInvalid(
+        { telemetry: { metrics: { enabled: "yes" } } },
+        "telemetry.metrics.enabled"
+      );
+    });
+
+    it("accepts metrics.interval integer >= 1000", () => {
+      expectValid({ telemetry: { metrics: { interval: 5000 } } });
+    });
+
+    it("rejects metrics.interval below minimum", () => {
+      expectInvalid(
+        { telemetry: { metrics: { interval: 500 } } },
+        "telemetry.metrics.interval"
+      );
+    });
+
+    it("rejects metrics.interval string", () => {
+      expectInvalid(
+        { telemetry: { metrics: { interval: "5000" } } },
+        "telemetry.metrics.interval"
+      );
+    });
+  });
+
+  it("accepts full telemetry config", () => {
+    expectValid({
+      telemetry: {
+        enabled: true,
+        serviceName: "my-service",
+        endpoint: "http://localhost:4318",
+        exporter: "otlp",
+        sampleRate: 0.5,
+        metrics: {
+          enabled: true,
+          interval: 30000,
+        },
+      },
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  Multiple errors at once
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -2023,6 +2193,14 @@ describe("config validation — real-world configs", () => {
       runtime: { key: "value" },
       vite: { build: {} },
       mdx: { remarkPlugins: [], rehypePlugins: [], components: "./mdx.jsx" },
+      telemetry: {
+        enabled: true,
+        serviceName: "my-app",
+        endpoint: "http://localhost:4318",
+        exporter: "otlp",
+        sampleRate: 1,
+        metrics: { enabled: true, interval: 30000 },
+      },
     });
   });
 });

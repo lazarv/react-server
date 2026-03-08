@@ -7,6 +7,11 @@ import { compose } from "./middlewares/compose.mjs";
 import { ContextStorage } from "../../server/context.mjs";
 import { getRuntime } from "../../server/runtime.mjs";
 import { AFTER_CONTEXT, LOGGER_CONTEXT } from "../../server/symbols.mjs";
+import {
+  getMetrics,
+  startRequestSpan,
+  injectTraceContext,
+} from "../../server/telemetry.mjs";
 
 export function createContext(
   request,
@@ -46,6 +51,8 @@ export function createMiddleware(handler, options = {}) {
   const { origin, trustProxy = false, defaultNotFound = false } = options;
   const run = normalizeHandler(handler);
   return async function nodeAdapter(req, res, next) {
+    let ctx;
+    let metrics;
     try {
       const headersObj = req.headers || {};
       const xfProto = headerFirst(headersObj["x-forwarded-proto"]);
@@ -94,7 +101,7 @@ export function createMiddleware(handler, options = {}) {
       const request = new Request(fullUrl, requestInit);
       const abortController = new AbortController();
       const { signal } = abortController;
-      const ctx = createContext(request, {
+      ctx = createContext(request, {
         origin,
         runtime: "node",
         signal,
@@ -111,6 +118,28 @@ export function createMiddleware(handler, options = {}) {
       ctx.ip = ip;
       ctx.host = host;
       ctx.protocol = protocol;
+
+      // ── Telemetry: start root HTTP span ──
+      const requestStart = performance.now();
+      metrics = getMetrics();
+      metrics?.httpActiveRequests.add(1, { "http.method": req.method });
+
+      const { span: rootSpan, otelCtx } = await startRequestSpan(
+        `HTTP Request`,
+        headersObj,
+        {
+          "http.method": req.method,
+          "http.url": fullUrl,
+          "http.target": req.url,
+          "http.host": host,
+          "http.scheme": protocol,
+          "http.user_agent": headersObj["user-agent"] || "",
+          "net.peer.ip": ip || "",
+        }
+      );
+      ctx._otelSpan = rootSpan;
+      ctx._otelCtx = otelCtx;
+
       let response = await run(ctx);
       if (!response) {
         if (defaultNotFound && !next)
@@ -123,6 +152,15 @@ export function createMiddleware(handler, options = {}) {
       if (ctx._setCookies?.length)
         for (const c of ctx._setCookies)
           response.headers.append("set-cookie", c);
+
+      // ── Telemetry: record response attributes ──
+      rootSpan.setAttribute("http.status_code", response.status);
+      rootSpan.setAttribute(
+        "http.response_content_type",
+        response.headers.get("content-type") || ""
+      );
+      await injectTraceContext(response.headers);
+
       res.statusCode = response.status;
       for (const [k, v] of response.headers.entries()) res.setHeader(k, v);
       if (req.method === "HEAD" || !response.body) {
@@ -176,6 +214,16 @@ export function createMiddleware(handler, options = {}) {
         req.off("aborted", onDisconnect);
       }
 
+      // ── Telemetry: finish root span and record metrics ──
+      const duration = performance.now() - requestStart;
+      rootSpan.end();
+      metrics?.httpActiveRequests.add(-1, { "http.method": req.method });
+      metrics?.httpRequestDuration.record(duration, {
+        "http.method": req.method,
+        "http.status_code": res.statusCode,
+        "http.route": req.url,
+      });
+
       try {
         const { afterHooks } = ctx;
         if (afterHooks) {
@@ -194,6 +242,20 @@ export function createMiddleware(handler, options = {}) {
         logger.error(e);
       }
     } catch (e) {
+      // ── Telemetry: record error on root span ──
+      if (ctx?._otelSpan) {
+        try {
+          ctx._otelSpan.setStatus({
+            code: 2 /* SpanStatusCode.ERROR */,
+            message: e?.message,
+          });
+          ctx._otelSpan.recordException(e);
+          ctx._otelSpan.end();
+          metrics?.httpActiveRequests.add(-1, { "http.method": req.method });
+        } catch {
+          // no-op if OTel not available
+        }
+      }
       if (e.name !== "AbortError" && e.message !== "aborted") {
         if (next) next(e);
         else internalError(res, e);

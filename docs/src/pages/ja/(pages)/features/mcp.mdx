@@ -1,0 +1,233 @@
+---
+title: MCP
+category: Features
+order: 15
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# MCP (Model Context Protocol)
+
+MCP（Model Context Protocol）は、サーバーサイドの関数、ツール、リソースを言語モデルやその他の自動化されたエージェントに公開するための構造化された方法です。`@lazarv/react-server` の文脈において、MCP は型付きサーバ関数を定義することを可能にし、それらは標準化されたインターフェースを通じて発見、検証、呼び出しが可能です。これにより、AI ツールの統合、インタラクティブな開発者ワークフローの構築、あるいは内部機能を安全かつ拡張可能な方法で自動化に公開することが容易になります。
+
+> **警告:** MCPは`@lazarv/react-server`の実験的機能であり、将来のリリースで変更される可能性があります。本番環境での使用はまだ推奨されませんが、アプリケーションで試してその機能を探索し、フィードバックを提供することができます。
+
+<Link name="why-mcp">
+## なぜMCPを使うのか
+</Link>
+
+従来のAPIは言語モデルや自動化エージェントとのシームレスな連携には、しばしば硬直的、型指定なし、冗長すぎることが多い。MCPは軽量で宣言型のフォーマットを提供し、サーバ関数を自己記述型、型安全、LLM対応にします。`@lazarv/react-server`でMCPを採用することで複雑なラッパーや追加インフラを構築することなく、ツール・リソース・プロンプトをアプリケーションから直接公開可能になります。これにより優れた自動化、開発ツール、AI統合をすぐに実現できます。
+
+MCPハンドラー（ツール、リソース、プロンプトなど）は`"use server"`を使用した通常のサーバ関数として実装されますが、これらは追加のセマンティックな意義（意味論的）とメタデータ層を提供します。単体のサーバ関数はサーバー上で呼び出し可能な関数に過ぎませんが、MCPハンドラーは定義済みのID、タイトル、入力スキーマ、呼び出しテンプレートを備えた自己記述型ユニットです。これによりMCPハンドラーはLLMによる発見が可能となり、構造化されたツールチェーンとの互換性を持ち、自動化されたワークフローへの統合が容易になります。しかもネイティブサーバー関数のシンプルさと使いやすさを損なうことはありません。
+
+<Link name="how-to-implement">
+## 実装方法
+</Link>
+
+`@lazarv/react-server` アプリケーションで MCP を実装するには、`@lazarv/react-server/mcp` パッケージの `createServer` 関数を使用できます。この関数により、言語モデルやその他の自動化されたエージェントによって検出および呼び出されるツール、リソース、プロンプトなどの MCP ハンドラーを定義できます。
+
+```javascript filename="mcp.server.mjs"
+import { createServer } from "@lazarv/react-server/mcp";
+
+export default createServer({
+  tools: {
+    // ここにツールを定義してください
+  },
+  resources: {
+    // ここにリソースを定義してください
+  },
+  prompts: {
+    // ここにプロンプトを定義してください
+  },
+});
+```
+
+これにより定義されたツール、リソース、プロンプトを公開するMCPサーバーが作成されます。その後アプリケーション内でこれらのハンドラーを使用し、言語モデルやその他の自動化されたエージェントによって検出および呼び出される機能を提供できます。
+
+MCPハンドラーはコードベースを整理しメンテナンス性を保つため、`mcp/tools`、`mcp/resources`、`mcp/prompts`などの別々のファイルやディレクトリに整理するのが最適です。各ハンドラーは`@lazarv/react-server/mcp`パッケージの`createTool`、`createResource`、`createPrompt`関数を使用して定義できます。
+
+MCPハンドラーは`mcp.server.mjs`ファイルで公開できます。このファイルは`@lazarv/react-server`のファイルシステムベースのルーターによって自動的に検出されます。このようなAPIルートを使用することで、言語モデルやその他の自動エージェントがMCPハンドラーを発見・呼び出せる公開エンドポイントを作成できます。`mcp.server.mjs`ファイルをアプリケーションのルートディレクトリに配置すると、自動的にMCPサーバーとして登録され、定義されたハンドラーが`/mcp`ルートで公開されます。
+
+<Link name="mcp-handlers">
+## MCPハンドラー
+</Link>
+
+MCPハンドラーは`@lazarv/react-server`におけるModel Context Protocolの中核となる構成要素です。これらは言語モデルやその他の自動化されたエージェントによって検出および呼び出されるサーバーサイド機能を定義することを可能にします。主なMCPハンドラーの種類は以下の通りです。
+
+- **ツール**: 特定のアクションや計算を実行するサーバ関数です。データ処理、外部API呼び出し、言語モデルから呼び出せるその他のサーバーサイドロジックなどの機能を公開するために使用できます。
+- **リソース**: データや状態へのアクセスを提供するサーバ関数です。データソース、設定、言語モデルからアクセス可能なその他のサーバーサイドリソースを公開するために使用できます。
+- **プロンプト**: 言語モデル向けに事前定義されたプロンプトやテンプレートを提供するサーバ関数です。言語モデルとの対話を誘導し、応答生成のための文脈や指示を提供するために使用できます。
+
+<Link name="tools">
+## ツール
+</Link>
+
+MCPツールは特定のアクションや計算を実行するサーバ関数です。データ処理、外部API呼び出し、言語モデルから呼び出せるその他のサーバーサイドロジックなどの機能を公開するために使用できます。MCPツールを作成するには`@lazarv/react-server/mcp`パッケージの`createTool`関数を使用できます。
+
+```js
+"use server";
+
+import { createTool } from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+export const myTool = createTool({
+  id: "my-tool",
+  title: "My Tool",
+  description: "This is a sample tool",
+  inputSchema: {
+    input: z.string().describe("Input for the tool"),
+  },
+  async handler({ input }) {
+    // 入力に対して何かしらの操作を実行する
+    return `Processed input: ${input}`;
+  },
+});
+```
+
+これにより指定されたID、タイトル、説明、入力スキーマを持つMCPツールが作成されます。`handler`関数はツールが呼び出された際に実行され、入力処理と結果の返却に必要なサーバーサイドロジックを実行できます。
+
+<Link name="resources">
+## リソース
+</Link>
+
+MCPリソースはデータや状態へのアクセスを提供するサーバ関数です。これらはデータソース、設定、または言語モデルがアクセス可能なその他のサーバーサイドリソースを公開するために使用できます。MCPリソースを作成するには`@lazarv/react-server/mcp`パッケージの`createResource`関数を使用できます。
+
+```js
+"use server";
+
+import { createResource } from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+export const myResource = createResource({
+  id: "my-resource",
+  template: "my-resource://{id}",
+  title: "My Resource",
+  description: "This is a sample resource",
+  async handler({ id }) {
+    // リソースデータを取得または計算する
+    return `Resource data for ${id}`;
+  },
+});
+```
+
+これにより指定されたID、テンプレート、タイトル、説明を持つMCPリソースが作成されます。`handler`関数はリソースがアクセスされた際に呼び出され、リソースデータの取得や計算に必要なサーバーサイドロジックを実行できます。
+
+<Link name="prompts">
+## プロンプト
+</Link>
+
+MCPプロンプトは言語モデル向けに事前定義されたプロンプトやテンプレートを提供するサーバ関数です。これらは言語モデルとの対話を誘導し、応答生成のための文脈や指示を提供するために使用できます。MCPプロンプトを作成するには、`@lazarv/react-server/mcp`パッケージの`createPrompt`関数を使用できます。
+
+```js
+"use server";
+
+import { createPrompt } from "@lazarv/react-server/mcp";
+import { z } from "zod";
+
+export const myPrompt = createPrompt({
+  id: "my-prompt",
+  title: "My Prompt",
+  description: "This is a sample prompt",
+  argsSchema: {
+    context: z.string().describe("Context for the prompt"),
+  },
+  async handler({ context }) {
+    // 文脈に基づいて応答を生成する
+    return `Generated response for context: ${context}`;
+  },
+});
+```
+
+これにより指定されたID、タイトル、説明、入力スキーマを持つMCPプロンプトが作成されます。プロンプトが使用されると`handler`関数が呼び出され、提供されたコンテキストに基づいて応答を生成するために必要なサーバーサイドロジックを実行できます。
+
+<Link name="invoking-handlers">
+## ハンドラーの呼び出し
+</Link> 
+
+MCPハンドラーを`@lazarv/react-server`アプリケーションに統合するには、それらをインポートしてコンポーネントやサーバ関数内で使用できます。例えば、React Server Component内でMCPツールを次のように使用できます。
+
+```jsx
+import { myTool } from "../mcp/tools/my-tool.mjs";
+export default async function MyServerFunction() {
+  const result = await myTool({ input: "Hello, world!" });
+
+  return <div>Tool result: {result}</div>;
+}
+```
+
+これにより指定された入力で`myTool` MCPツールが呼び出され、結果がコンポーネント内にレンダリングされます。同様にMCPリソースやプロンプトも使用でき、Model Context Protocolの力を活用したリッチでインタラクティブなアプリケーションを構築することが可能です。
+
+クライアントコンポーネント内でも、MCPハンドラーをインポートして必要に応じて呼び出すことで使用できます。例えばクライアントコンポーネントでMCPリソースを次のように使用できます。
+
+```jsx
+"use client";
+
+import { myTool } from "../mcp/tools/my-tool.mjs";
+
+export default async function MyClientComponent() {
+  return (
+    <div>
+      <h1>My Client Component</h1>
+      <button
+        onClick={async () => {
+          const data = await myTool({ input: "Hello, world!" });
+          console.log("Tool result:", data);
+        }}
+      >
+        Fetch Tool Data
+      </button>
+    </div>
+  );
+}
+```
+
+これによりボタンがクリックされた際にリソースデータを取得できるようになり、MCPハンドラーがサーバーコンポーネントとクライアントコンポーネントの両方で使用され、シームレスな体験を提供する方法が示されます。
+
+MCPハンドラには必ず`"use server"`ディレクティブを付与し、サーバーサイド関数として扱われるようにしてください。これは`@lazarv/react-server`がハンドラを正しく公開し、アプリケーションから呼び出せるようにするために重要です。
+
+MCPハンドラーはアプリケーション内のサーバー関数を使用して呼び出され、`createServer`関数を通じてMCPクライアントに公開されます。これにより`@lazarv/react-server`とModel Context Protocolの両方と互換性のある方法でハンドラーを定義でき、言語モデルやその他の自動化されたエージェントとのシームレスな統合と相互作用が可能になります。
+
+<Link name="authentication">
+## 認証
+</Link>
+
+`@lazarv/react-server` は現在MCP認証をサポートしていないため、MCPハンドラーを保護したい場合は独自の認証メカニズムを実装する必要があります。MCPエンドポイントの認証と認可を管理するには、`cookie` や `headers` などのランタイム組み込みフックを利用できます。
+
+<Link name="sessions">
+## セッション
+</Link>
+
+MCPセッションは複数のリクエストにわたって状態を維持する方法であり、ユーザーの入力やコンテキストを記憶できる対話型ワークフローを作成できます。ただし`@lazarv/react-server` は現在MCPセッションを実装していないため、Reactの状態やサーバーサイドストレージなど、他の方法でアプリケーションの状態を管理する必要があります。
+
+`@lazarv/react-server` のサーバーサイドAPIはすべてMCPハンドラー内で利用可能です。これによりステートフルなインタラクションにおけるセッション管理や状態管理を処理できます。例えば`cookie` または `headers` フックを使用してセッションを管理したり、データベースやインメモリストアを使用してリクエスト間で状態を永続化したりできます。
+
+<Link name="example-application">
+## サンプルアプリケーション
+</Link>
+
+react serverリポジトリの[examples/mcp](https://github.com/lazarv/react-server/tree/main/examples/mcp)ディレクトリにMCPハンドラーの例があります。
+
+<Link name="mcp-inspector">
+## MCPインスペクター
+</Link>
+
+MCPインスペクターは`@lazarv/react-server`アプリケーションやその他のMCPサーバーで定義されたMCPハンドラーを探索・操作できるツールです。利用可能なツール、リソース、プロンプトを発見し、その機能をテストするためのユーザーフレンドリーなインターフェースを提供します。
+
+MCPインスペクターを起動するには、ターミナルで次のコマンドを実行します。
+
+```bash
+DANGEROUSLY_OMIT_AUTH=true npx @modelcontextprotocol/inspector
+```
+
+`@lazarv/react-server`ではMCP認証がサポートされていないため、`DANGEROUSLY_OMIT_AUTH`フラグを使用して認証をバイパスし、MCPハンドラーに直接アクセスできます。
+
+`@lazarv/react-server` は常にストリーミングHTTPを使用してMCPハンドラーを公開します。`stdio` およびServer-Sent Events (SSE)はサポートされていないため、MCPインスペクターはこれらのプロトコルでは動作しません。代わりに、MCPハンドラーとのやり取りにはストリーミングHTTPを使用する必要があります。
+
+<Link name="read-more">
+## 続きを読む
+</Link>
+
+Model Context Protocolについてさらに学ぶための有用なリソースには以下が含まれます。
+
+- [Model Context Protocol Specification](https://modelcontextprotocol.org/specification)
+- [Model Context Protocol TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)

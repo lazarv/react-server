@@ -163,6 +163,10 @@
       "types": "./worker/index.d.ts",
       "default": "./worker/index.mjs"
     },
+    "./telemetry": {
+      "types": "./telemetry/index.d.ts",
+      "default": "./telemetry/index.mjs"
+    },
     "./cache/*": "./cache/*",
     "./client/*": "./client/*",
     "./server/*": "./server/*",
@@ -245,6 +249,46 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.0.0",
+    "@opentelemetry/core": "^1.0.0 || ^2.0.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.50.0 || ^1.0.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.50.0 || ^1.0.0",
+    "@opentelemetry/resources": "^1.0.0 || ^2.0.0",
+    "@opentelemetry/sdk-metrics": "^1.0.0 || ^2.0.0",
+    "@opentelemetry/sdk-node": "^0.50.0 || ^1.0.0",
+    "@opentelemetry/sdk-trace-base": "^1.0.0 || ^2.0.0",
+    "@opentelemetry/semantic-conventions": "^1.0.0 || ^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-node": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-trace-base": {
+      "optional": true
+    },
+    "@opentelemetry/exporter-trace-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/exporter-metrics-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-metrics": {
+      "optional": true
+    },
+    "@opentelemetry/core": {
+      "optional": true
+    },
+    "@opentelemetry/resources": {
+      "optional": true
+    },
+    "@opentelemetry/semantic-conventions": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=20.10.0"

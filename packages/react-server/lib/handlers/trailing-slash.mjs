@@ -1,5 +1,8 @@
 export default async function trailingSlash() {
-  return async ({ url: { pathname }, request: { method } }) => {
+  return async function trailingSlashRedirect({
+    url: { pathname },
+    request: { method },
+  }) {
     if (
       pathname !== "/" &&
       pathname.endsWith("/") &&

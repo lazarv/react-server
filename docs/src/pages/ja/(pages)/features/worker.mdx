@@ -1,0 +1,572 @@
+---
+title: Workers
+category: Features
+order: 14
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Workers
+
+`@lazarv/react-server` の `"use worker"` ディレクティブを使用すると、重い計算やブロックするタスクを別のスレッドにオフロードできます。サーバー側では、`"use worker"` でマークされた関数は **Node.js ワーカースレッド** (`node:worker_threads`) で実行されます。クライアント側では、同じディレクティブがコードを**Web Worker**（ブラウザの`Worker` API）で実行します。いずれの場合も、ワーカー関数は通常の非同期関数と同様にインポートして呼び出せます。スレッドの作成、メッセージの受け渡し、シリアライズはランタイムが透過的に処理します。
+
+メインスレッドとワーカー間でやり取りされる全データは、**React Server Components (RSC) Flightプロトコル**を用いてシリアライズされます。これによりワーカー関数は単純な値だけでなく、**Reactエレメント*、**Suspenseバウンダリ**、**Promise**（`use()`フックによる遅延レンダリング用）、および**ReadableStream**も返すことが可能です。
+
+<Link name="why-use-workers">
+## なぜWorkersを使うのか
+</Link>
+
+- **ノンブロッキングレンダリング:** CPU負荷の高い処理（素数ふるい分け、ソート、行列演算、画像処理）はメインスレッド外で実行されるため、サーバーリクエスト処理やブラウザUIをブロックしません。
+- **並行性:** 複数のワーカー呼び出しを並列実行でき、スループットが向上します。
+- **統一されたAPI:** サーバー側とクライアント側のコードで同じ `"use worker"` ディレクティブが機能します。1つのモジュールを記述するだけで、ランタイムが環境に応じた適切なスレッドプリミティブを選択します。
+- **RSCネイティブシリアライゼーション:** データはFlightプロトコル経由でシリアライズされるため、Reactエレメント、Suspenseバウンダリ、ReadableStream、遅延Promiseをスレッド間でシームレスに受け渡しできます。
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+ランタイムが先頭に `"use worker"` を記述したファイルを検出すると、ビルド時にすべてのエクスポートを薄いプロキシ関数に置き換えます。元のモジュールコードはワーカースレッド内で実行される仮想モジュールに移動されます。エクスポートされた関数を呼び出すと、プロキシは
+
+1. RSC Flightプロトコルを使用して引数をシリアライズする。
+2. 関数名とシリアライズされた引数を含むメッセージをワーカースレッド（またはWeb Worker）に投稿する。
+3. ワーカーは引数をデシリアライズし、関数を実行し、戻り値を再びシリアライズする。
+4. プロキシは結果をデシリアライズし、返されたPromiseを解決する。
+
+`ReadableStream`の値は、`postMessage`転送リストを介してスレッド間で**転送**（ゼロコピー）されるため、ストリーミング結果の処理が効率的です。
+
+<Link name="server-workers">
+## Server Workers
+</Link>
+
+サーバー上では、`"use worker"` モジュールは**Node.js ワーカースレッド**で実行されます。ワーカーは最初の呼び出し時に遅延起動され、以降の呼び出しでは再利用されます。ワーカーがクラッシュした場合、自動的に再起動されます。
+
+### 基本的な使用方法
+
+ファイルの先頭に `"use worker"` ディレクティブを記述し、非同期関数をエクスポートします。
+
+```jsx
+"use worker";
+
+export async function computeFactorial(n) {
+  if (n <= 1) return 1;
+  return n * computeFactorial(n - 1);
+}
+```
+
+任意のサーバーコンポーネントからインポートして呼び出せます。
+
+```jsx
+import { computeFactorial } from "./computeFactorial";
+
+export default async function FactorialPage({ number }) {
+  const result = await computeFactorial(42);
+  return <div>Factorial of 42 is {result}</div>;
+}
+```
+
+`computeFactorial` 関数は専用のワーカースレッドで実行され、メインのサーバースレッドを他のリクエスト処理に自由に使える状態に保ちます。
+
+### CPU負荷の高い計算
+
+ワーカーはサーバーサイドレンダリングを妨げる可能性のあるCPU負荷の高いタスクに最適です。
+
+```jsx
+"use worker";
+
+export async function findPrimes(limit) {
+  const start = Date.now();
+  const sieve = new Uint8Array(limit + 1);
+  const primes = [];
+  for (let i = 2; i <= limit; i++) {
+    if (!sieve[i]) {
+      primes.push(i);
+      for (let j = i * i; j <= limit; j += i) sieve[j] = 1;
+    }
+  }
+  return {
+    count: primes.length,
+    largest: primes.at(-1),
+    duration: Date.now() - start,
+  };
+}
+```
+
+```jsx
+import { findPrimes } from "./worker";
+
+export default async function PrimesPage() {
+  const result = await findPrimes(100_000);
+  return <div>Found {result.count} primes in {result.duration}ms</div>;
+}
+```
+
+### Node.js APIへのアクセス
+
+サーバーワーカーはNode.jsで実行されるため、Node.jsの組み込みモジュールをすべて利用できます。
+
+```jsx
+"use worker";
+
+import { workerData } from "node:worker_threads";
+import { setTimeout } from "node:timers/promises";
+
+export async function getSystemInfo() {
+  await setTimeout(100);
+  const mem = process.memoryUsage();
+  return {
+    heapUsed: (mem.heapUsed / 1024 / 1024).toFixed(1) + " MB",
+    uptime: process.uptime().toFixed(1) + "s",
+    workerData: JSON.stringify(workerData),
+  };
+}
+```
+
+### 他モジュールのインポート
+
+ワーカーファイルは他のモジュールからインポートできます。`"use worker"` ディレクティブを持つファイルのみがワーカーエントリとなります(インポートされたモジュールは通常通りワーカーにバンドルされます)。
+
+```js
+// WorkerModule.mjs — 通常のモジュール（ディレクティブは不要）
+export function getSystemInfo() {
+  return {
+    platform: process.platform,
+    nodeVersion: process.version,
+  };
+}
+```
+
+```js
+"use worker";
+
+import { getSystemInfo } from "./WorkerModule.mjs";
+
+export async function getWorkerSystemInfo() {
+  return getSystemInfo();
+}
+```
+
+<Link name="returning-react-elements">
+## Reactエレメントの返却
+</Link>
+
+通信にはRSC Flightプロトコルが使用されるため、ワーカー関数は**Reactエレメント**（**Suspenseバウンダリ**を含むコンポーネント）を返すことができます。ランタイムはコンポーネントツリー全体をシリアライズし、呼び出し元で再構築します。
+
+```jsx
+"use worker";
+
+import { Suspense } from "react";
+
+async function ExpensiveChart() {
+  // 高コストなデータ処理をシミュレートする
+  const data = await computeChartData();
+  return (
+    <div className="chart">
+      <h3>Results</h3>
+      <ul>
+        {data.map((d) => <li key={d.id}>{d.label}: {d.value}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+export async function getChart() {
+  return (
+    <Suspense fallback={<p>Loading chart...</p>}>
+      <ExpensiveChart />
+    </Suspense>
+  );
+}
+```
+
+```jsx
+import { getChart } from "./chartWorker";
+
+export default async function Dashboard() {
+  const chart = await getChart();
+  return <main>{chart}</main>;
+}
+```
+
+`<Suspense>`バウンダリは期待通りに動作します。`ExpensiveChart`がワーカースレッドで解決される間、フォールバックが表示されます。
+
+<Link name="streaming-with-workers">
+## Workersを用いたストリーミング
+</Link>
+
+ワーカー関数は `ReadableStream` を返すことができます。このストリームはワーカーとメインスレッド間で**転送**（ゼロコピー）されるため、大規模データや増分データの処理に効率的です。通常このストリームはクライアントコンポーネントに渡され、そこで順次読み込まれます。
+
+```jsx
+"use worker";
+
+export async function streamActivity() {
+  const steps = [
+    { phase: "init", msg: "Initializing" },
+    { phase: "process", msg: "Processing data" },
+    { phase: "compute", msg: "Running computation" },
+    { phase: "done", msg: "Complete" },
+  ];
+
+  return new ReadableStream({
+    async start(controller) {
+      for (const step of steps) {
+        controller.enqueue(
+          JSON.stringify({ ...step, time: new Date().toISOString() }) + "\n"
+        );
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      controller.close();
+    },
+  });
+}
+```
+
+クライアントコンポーネントでストリームを消費する。
+
+```jsx
+import { streamActivity } from "./worker";
+import { StreamViewer } from "./StreamViewer";
+
+export default async function ActivityPage() {
+  const stream = await streamActivity();
+  return <StreamViewer data={stream} />;
+}
+```
+
+```jsx
+"use client";
+
+import { useState, useEffect } from "react";
+
+export function StreamViewer({ data }) {
+  const [entries, setEntries] = useState([]);
+
+  useEffect(() => {
+    const reader = data.getReader();
+    const decoder = new TextDecoder();
+
+    async function read() {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = typeof value === "string" ? value : decoder.decode(value);
+        const lines = text.trim().split("\n").filter(Boolean);
+        for (const line of lines) {
+          setEntries((prev) => [...prev, JSON.parse(line)]);
+        }
+      }
+    }
+    read();
+  }, [data]);
+
+  return (
+    <ul>
+      {entries.map((e, i) => (
+        <li key={i}>[{e.phase}] {e.msg}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+<Link name="abort-signals">
+## `useSignal`によるシグナルの中止
+</Link>
+
+サーバー側では、ワーカー関数内で `@lazarv/react-server` の `useSignal()` を使用することで、現在のリクエストの `AbortSignal` を取得できます。これにより、クライアントが切断された場合やリクエストが中止された場合に、長時間実行中の操作をキャンセルすることが可能になります。
+
+```jsx
+"use worker";
+
+import { useSignal } from "@lazarv/react-server";
+
+export async function streamActivity() {
+  const signal = useSignal();
+
+  return new ReadableStream({
+    async start(controller) {
+      for (let i = 0; i < 100; i++) {
+        if (signal?.aborted) break;
+        controller.enqueue(`Step ${i}\n`);
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      controller.close();
+    },
+  });
+}
+```
+
+リクエストが中止された場合（例：クライアントがページを離れた場合）、`signal.aborted` が `true` になり、ワーカーはデータの生成を停止します。
+
+> **注記:** `useSignal()` はサーバーワーカーでのみ利用可能です。クライアントサイドのWeb Workersではサポートされていません。
+
+<Link name="client-workers">
+## Client Side Web Workers
+</Link>
+
+同じ`"use worker"`ディレクティブはクライアントサイドコードでも機能します。`"use client"`コンポーネントが`"use worker"`モジュールからインポートすると、ランタイムは自動的にブラウザ内に**Web Worker**を作成します。関数の引数と戻り値はRSC Flightプロトコルを用いてシリアライズされ、メインスレッドとWeb Worker間で転送されます。
+
+これにより重い計算処理がバックグラウンドで実行されている間も、ブラウザのメインスレッドは応答性を維持します。UIのジャークや操作のフリーズが発生しません。
+
+### 基本的な使用方法
+
+ワーカーモジュールを作成します（`"use client"` は不要で `"use worker"` のみが必要です）。
+
+```jsx
+"use worker";
+
+export async function fibonacci(n) {
+  const start = performance.now();
+  let a = 0n, b = 1n;
+  for (let i = 0; i < n; i++) {
+    [a, b] = [b, a + b];
+  }
+  return {
+    n,
+    digits: a.toString().length,
+    duration: (performance.now() - start).toFixed(2),
+  };
+}
+
+export async function sortBenchmark(size) {
+  const start = performance.now();
+  const arr = Float64Array.from({ length: size }, () => Math.random());
+  arr.sort();
+  return {
+    size: size.toLocaleString(),
+    duration: (performance.now() - start).toFixed(2),
+    median: arr[Math.floor(arr.length / 2)].toFixed(8),
+  };
+}
+```
+
+クライアントコンポーネントから使用します。
+
+```jsx
+"use client";
+
+import { useState, useCallback } from "react";
+import { fibonacci, sortBenchmark } from "./WebWorker.jsx";
+
+export function ComputePanel() {
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const runFibonacci = useCallback(async () => {
+    setLoading(true);
+    const res = await fibonacci(1000);
+    setResult(res);
+    setLoading(false);
+  }, []);
+
+  return (
+    <div>
+      <button onClick={runFibonacci} disabled={loading}>
+        {loading ? "Computing..." : "Compute Fibonacci(1000)"}
+      </button>
+      {result && (
+        <p>{result.digits} digits, computed in {result.duration}ms</p>
+      )}
+    </div>
+  );
+}
+```
+
+`fibonacci`の呼び出しは完全にWeb Worker内で実行されます。ブラウザのUIは、重いBigInt計算中も応答性を維持します。
+
+### 遅延Promiseの返却
+
+クライアントサイドワーカー関数は、`Promise`値を含むオブジェクトを返すことができます。遅延レンダリングのために、Reactの`use()`フックでこれらを利用できます。
+
+```jsx
+"use worker";
+
+export async function analyzeDataset() {
+  return {
+    status: "processing",
+    data: new Promise((resolve) => {
+      setTimeout(() => {
+        const values = Array.from({ length: 10000 }, () => Math.random() * 100);
+        const mean = values.reduce((a, b) => a + b) / values.length;
+        resolve({
+          samples: values.length,
+          mean: mean.toFixed(2),
+        });
+      }, 2000);
+    }),
+  };
+}
+```
+
+```jsx
+"use client";
+
+import { Suspense, use, useState, useCallback } from "react";
+import { analyzeDataset } from "./WebWorker.jsx";
+
+function AnalysisResult({ dataPromise }) {
+  const data = use(dataPromise);
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+
+export function AnalysisPanel() {
+  const [result, setResult] = useState(null);
+
+  const run = useCallback(async () => {
+    const res = await analyzeDataset();
+    setResult(res);
+  }, []);
+
+  return (
+    <div>
+      <button onClick={run}>Analyze</button>
+      {result && (
+        <Suspense fallback={<p>Analyzing...</p>}>
+          <AnalysisResult dataPromise={result.data} />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+```
+
+### Web Workersからのストリーミング
+
+クライアントサイドワーカーも`ReadableStream`値を返すことができます。このストリームはWebワーカーからメインスレッドへ**転送**（ゼロコピー）されます。
+
+```jsx
+"use worker";
+
+export async function streamComputations() {
+  const operations = [
+    "Generating matrix",
+    "Computing dot product",
+    "Normalizing vectors",
+    "Finalizing results",
+  ];
+
+  return new ReadableStream({
+    async start(controller) {
+      for (let i = 0; i < operations.length; i++) {
+        const result = Array.from({ length: 50000 }, () => Math.random())
+          .reduce((a, b) => a + b, 0);
+        controller.enqueue(
+          JSON.stringify({
+            step: i + 1,
+            total: operations.length,
+            operation: operations[i],
+            result: result.toFixed(2),
+          }) + "\n"
+        );
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      controller.close();
+    },
+  });
+}
+```
+
+<Link name="edge-runtime">
+## Edge Runtimeの挙動
+</Link>
+
+**エッジおよびサーバーレスランタイム**（Cloudflare Workers、Vercel Edge、Netlify Edge、Deno Deploy）では、`node:worker_threads` は利用できません。これらの環境では、ランタイムは自動的に**インプロセス実行**にフォールバックします。つまりワーカー関数はスレッド化やシリアライゼーションのオーバーヘッドなしに直接呼び出されます。
+
+これは `"use worker"` を使用するモジュールが完全に移植性を保つことを意味します。同じコードがNode.js（実際のワーカースレッドを使用）とエッジ（直接実行）の両方で動作します。コードを変更したり条件分岐を追加したりする必要はありません。
+
+> **注記:** エッジランタイムでは、ワーカー関数は**別スレッドで実行されません**。これらはサーバーコードの他の部分と同じプロセス内で実行されます。つまり、真のワーカースレッドのような並行処理の利点は得られませんが、コードはすべてのデプロイ先で互換性を保ちます。
+
+<Link name="worker-detection">
+## Workersの検知
+</Link>
+
+ランタイムはコードがワーカースレッド内で実行されているかどうかを実行時に検出できる`isWorker()`ヘルパー関数を提供します。これは実際のワーカー内でのみ実行すべきロジックを条件付きで実行する必要がある場合に有用です。例えばメインサーバープロセスを誤って終了させずにワーカーを終了させるために`process.exit()`を呼び出す場合などが挙げられます。
+
+`@lazarv/react-server/worker` から `isWorker` をインポートします。このインポートパスは、サーバーワーカー（Node.js ワーカースレッド）とクライアントワーカー（Web ワーカー）の両方で動作します：
+
+
+```jsx
+import { isWorker } from "@lazarv/react-server/worker";
+```
+
+### Server workerの例
+
+一般的なユースケースとして、ワーカースレッドを安全に終了させる方法があります。エッジランタイムではワーカー関数はプロセス内で実行されるため、`process.exit()` を呼び出すとサーバー全体が強制終了されます。これを防ぐには `isWorker()` を使用してください。
+
+```jsx
+"use worker";
+
+import { isWorker } from "@lazarv/react-server/worker";
+
+export async function terminate() {
+  if (isWorker()) {
+    process.exit(0); // ワーカースレッドのみを終了し、サーバーは終了しない
+  }
+}
+```
+
+### Client workerの例
+
+クライアントサイドのWeb Workerでは、`isWorker()`も`true`を返すため、ワーカー環境を検出できます:
+
+```jsx
+"use worker";
+
+import { isWorker } from "@lazarv/react-server/worker";
+
+export async function checkIsWorker() {
+  return isWorker(); // Web Worker内で実行されている場合にtrue
+}
+```
+
+> **注記:** `"use worker"`関数がプロセス内で実行されるEdgeランタイムでは、コードが実際に別個のワーカースレッドで実行されていないため、`isWorker()`は`false`を返します。
+
+<Link name="constraints">
+## 制約と制限
+</Link>
+
+`"use worker"`を使用する際には、以下の制約事項を念頭に置いてください。
+
+### シリアライゼーション
+
+- すべての関数引数と戻り値は、**RSC Flight プロトコル**を介してシリアライズ可能である必要があります。これにはプレーンオブジェクト、配列、文字列、数値、ブール値、`null`、`undefined`、Reactエレメント、`Promise`値、`ReadableStream`インスタンスが含まれます。
+- 関数、クラスインスタンス（Reactコンポーネントを除く）、`WeakMap`、`WeakSet`、`Symbol`、クロージャなどのシリアライズ不可能な値を引数や戻り値として渡すことは**できません**。
+- 引数と戻り値の両方は、**すべての環境**（サーバーとクライアント）でRSC Flightプロトコルを使用してシリアライズされます。これにより、ワーカーの実行場所に関係なく一貫したシリアライズ動作が保証されます。
+
+### モジュールレベルディレクティブ
+
+- `"use worker"` ディレクティブは、ファイル内の（コメントの後の）**最初の文**でなければなりません。これは**モジュール全体**に適用され、そのファイルからのすべてのエクスポートがワーカー関数になります。
+- モジュール内で個々の関数を選択的にワーカーとしてマークすることはできません。一部の関数をワーカーで実行し、他の関数をメインスレッドで実行する必要がある場合は、それらを別々のファイルに配置してください。
+
+### 非同期関数のみ
+
+- `"use worker"` モジュールからエクスポートされるすべての関数は、**非同期**（または Promise を返す）でなければなりません。これはスレッド間の通信が本質的に非同期であるためです。
+
+### 状態共有なし
+
+- ワーカーは独自のメモリ空間を持つ**別スレッド**で実行されます。メインスレッドと状態を共有**しません**。ワーカー内のグローバル変数、モジュールレベルの状態、メモリ内キャッシュはメインスレッドや他のリクエストから隔離されています。
+- サーバーワーカーは**モジュールごとにシングルトン**です。つまり同じワーカースレッドインスタンスが全リクエストで再利用されます。モジュールレベルの可変状態はリクエスト間で永続化されるため注意が必要です。
+
+### サーバー固有のAPI
+
+- `useSignal()` は **サーバーワーカー** でのみ利用可能です。クライアントサイドの Web ワーカーには中止シグナルの統合機能がありません。
+- `node:worker_threads` の `workerData` はサーバーワーカーではアクセス可能ですが、クライアントサイドの Web ワーカーではアクセスできません。
+
+### クライアントサイド制約
+
+- クライアントサイドのWebワーカーは、プロキシの作成ごとに（インポートごとに）生成されます。`"use worker"`モジュールをインポートするたびに、新しいWebワーカーインスタンスが作成されます。
+- WebワーカーはDOMにアクセスできません。メインスレッドにデータを返すことしかできず、ページを直接操作することはできません。
+
+### Edge/serverless制約
+
+- エッジランタイムでは、`"use worker"`関数は**プロセス内**（別スレッドではない）で実行されます。これはCPU集約的な処理がメインの実行コンテキストをブロックし続けることを意味します。
+- プロセス内フォールバックによりシリアライゼーションのオーバーヘッドは発生しませんが、真の並列処理も実現されません。
+
+### 開発モード
+
+- 開発時には、ランタイムがワーカースレッド内でViteの`ModuleRunner`を使用し、完全な **ホットモジュール置換（HMR）** をサポートします。開発サーバーを再起動せずに、ワーカーファイルの変更が自動的に反映されます。
+
+<Link name="full-example">
+## 全ての例
+</Link>
+
+ワーカーの全機能（サーバーサイド計算、ワーカー内でのReactエレメントのレンダリング、ストリーミング、フィボナッチを用いたクライアントサイドWebワーカー、ソートベンチマーク、遅延プロミス、ストリーミング）を実証する完全な動作例については、公式リポジトリ内の[use-workerの例](https://github.com/lazarv/react-server/tree/main/examples/use-worker)を参照してください。

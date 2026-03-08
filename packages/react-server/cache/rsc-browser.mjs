@@ -16,9 +16,12 @@ function concat(buffers) {
   return result;
 }
 
+const isDev = typeof import.meta.env !== "undefined" && !!import.meta.env.DEV;
+
 export function toBuffer(model, options = {}) {
   return new Promise(async (resolve, reject) => {
     const stream = renderToReadableStream(model, {
+      debug: isDev,
       ...options,
       onError(error) {
         reject(error);
@@ -35,7 +38,7 @@ export function toBuffer(model, options = {}) {
 }
 
 export async function toStream(model, options = {}) {
-  return renderToReadableStream(model, options);
+  return renderToReadableStream(model, { debug: isDev, ...options });
 }
 
 export function fromBuffer(payload, options = {}) {

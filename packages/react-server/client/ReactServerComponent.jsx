@@ -19,6 +19,26 @@ import {
   useClient,
 } from "./context.mjs";
 
+// Execute scripts stored as <template data-script-attrs> by dom-flight.mjs
+// to avoid React's "Encountered a script tag" warning during SSR/RSC rendering.
+// We leave the template in the DOM so React can still reconcile its fiber tree.
+function activateScriptTemplates(root) {
+  if (typeof document === "undefined") return;
+  root.querySelectorAll("template[data-script-attrs]").forEach((template) => {
+    if (template.dataset.activated) return;
+    template.dataset.activated = "";
+    const attrs = JSON.parse(template.dataset.scriptAttrs);
+    const script = document.createElement("script");
+    for (const [key, value] of Object.entries(attrs)) {
+      script.setAttribute(key, value);
+    }
+    script.textContent = template.content.textContent;
+    // Append to execute, then remove the script (not the template).
+    document.head.appendChild(script);
+    script.remove();
+  });
+}
+
 function FlightComponent({
   remote = false,
   defer = false,
@@ -39,23 +59,36 @@ function FlightComponent({
     createTemporaryReferenceSet,
     encodeReply,
   } = client;
-  const [{ resourceKey, error, Component }, setComponent] = useState({
-    resourceKey: 0,
-    error: null,
-    Component:
-      children ||
-      (outlet === PAGE_ROOT || remote
-        ? getFlightResponse?.(url, {
-            outlet,
-            remote,
-            remoteProps,
-            temporaryReferences: remoteProps
-              ? createRemoteTemporaryReferenceSet(remoteProps)
-              : null,
-            defer,
-            request,
-          })
-        : null),
+  const [{ resourceKey, error, Component }, setComponent] = useState(() => {
+    // Activate script templates before first getFlightResponse so the
+    // __flightStream__ globals are available for hydration.
+    if (typeof document !== "undefined") {
+      if (isolate) {
+        const host = document.getElementById(`shadowroot_${outlet}`);
+        if (host?.shadowRoot) {
+          activateScriptTemplates(host.shadowRoot);
+        }
+      }
+      activateScriptTemplates(document);
+    }
+    return {
+      resourceKey: 0,
+      error: null,
+      Component:
+        children ||
+        (outlet === PAGE_ROOT || remote
+          ? getFlightResponse?.(url, {
+              outlet,
+              remote,
+              remoteProps,
+              temporaryReferences: remoteProps
+                ? createRemoteTemporaryReferenceSet(remoteProps)
+                : null,
+              defer,
+              request,
+            })
+          : null),
+    };
   });
   const errorRef = useRef(null);
   const componentPromiseRef = useRef(null);
@@ -184,6 +217,16 @@ function FlightComponent({
           })()
         : Promise.resolve({})
       ).then(({ temporaryReferences, body }) => {
+        // Activate any new script templates before reading flight stream
+        if (typeof document !== "undefined") {
+          if (isolate) {
+            const host = document.getElementById(`shadowroot_${outlet}`);
+            if (host?.shadowRoot) {
+              activateScriptTemplates(host.shadowRoot);
+            }
+          }
+          activateScriptTemplates(document);
+        }
         getFlightResponse(url, {
           outlet,
           remote,

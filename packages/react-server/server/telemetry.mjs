@@ -395,8 +395,6 @@ export async function initTelemetry(telemetryConfig) {
       { PeriodicExportingMetricReader },
       api,
       { W3CTraceContextPropagator },
-      { resourceFromAttributes },
-      { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION },
     ] = await Promise.all([
       import("@opentelemetry/sdk-node"),
       import("@opentelemetry/exporter-trace-otlp-http"),
@@ -404,26 +402,30 @@ export async function initTelemetry(telemetryConfig) {
       import("@opentelemetry/sdk-metrics"),
       import("@opentelemetry/api"),
       import("@opentelemetry/core"),
-      import("@opentelemetry/resources"),
-      import("@opentelemetry/semantic-conventions"),
     ]);
 
     // Cache the API module so synchronous helpers (makeSpanContext) work
     _api = api;
     runtime$(OTEL_API, api);
 
-    const resource = resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: telemetryConfig.serviceName,
-      [ATTR_SERVICE_VERSION]: "0.0.0",
-      "react_server.runtime": "node",
-    });
+    // Use NodeSDK's built-in serviceName option instead of creating a custom
+    // resource. This avoids cross-version Resource class incompatibilities
+    // that can arise when pnpm hoists different @opentelemetry/resources
+    // versions for the user project vs sdk-node's own dependency.
+    // Additional resource attributes are set via OTEL_RESOURCE_ATTRIBUTES.
+    process.env.OTEL_RESOURCE_ATTRIBUTES = [
+      process.env.OTEL_RESOURCE_ATTRIBUTES,
+      "react_server.runtime=node",
+    ]
+      .filter(Boolean)
+      .join(",");
 
     const traceExporter = new OTLPTraceExporter({
       url: `${telemetryConfig.endpoint}/v1/traces`,
     });
 
     const sdkConfig = {
-      resource,
+      serviceName: telemetryConfig.serviceName,
       traceExporter,
       textMapPropagator: new W3CTraceContextPropagator(),
     };

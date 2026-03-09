@@ -1,14 +1,17 @@
+import "@docsearch/css";
 import "highlight.js/styles/github-dark-dimmed.css";
+import "katex/dist/katex.min.css";
 import "./global.css";
 
 import { cookie, usePathname } from "@lazarv/react-server";
 import { useMatch } from "@lazarv/react-server/router";
 
 import EditPage from "../components/EditPage.jsx";
+import PageMeta from "../components/PageMeta.jsx";
 import ViewMarkdown from "../components/ViewMarkdown.jsx";
 import { useLanguage, m } from "../i18n.mjs";
 import { defaultLanguage, defaultLanguageRE, languages } from "../const.mjs";
-import { categories } from "../pages.mjs";
+import { categories, getPageFrontmatter } from "../pages.mjs";
 
 const lowerCaseCategories = categories.map((category) =>
   category.trim().toLowerCase()
@@ -36,6 +39,7 @@ export default function Layout({
     new RegExp(`^/(${defaultLanguage}|${lang})`),
     ""
   );
+  const frontmatter = getPageFrontmatter(pathname, lang);
 
   return (
     <html
@@ -77,10 +81,7 @@ export default function Layout({
         <meta name="description" content="Run React anywhere" />
         <meta property="og:title" content="@lazarv/react-server" />
         <meta property="og:description" content="Run React anywhere" />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@docsearch/css@3"
-        />
+
         <link
           rel="preconnect"
           href="https://OVQLOZDOSH-dsn.algolia.net"
@@ -114,6 +115,12 @@ export default function Layout({
             <EditPage pathname={pathname} />
             <ViewMarkdown pathname={pathname} />
             {children}
+            <PageMeta
+              date={frontmatter?.date}
+              author={frontmatter?.author}
+              github={frontmatter?.github}
+              lang={lang}
+            />
             {navigation}
           </article>
           {contents}

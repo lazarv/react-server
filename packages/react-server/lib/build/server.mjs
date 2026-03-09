@@ -20,7 +20,9 @@ import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import reactServerLive from "../plugins/live.mjs";
 import rootModule from "../plugins/root-module.mjs";
 import rolldownUseClient from "../plugins/use-client.mjs";
-import rolldownUseServerInline from "../plugins/use-server-inline.mjs";
+import { useClientInlineConfig } from "../plugins/use-client-inline.mjs";
+import { useServerInlineConfig } from "../plugins/use-server-inline.mjs";
+import rolldownUseDirectiveInline from "../plugins/use-directive-inline.mjs";
 import rolldownUseServer from "../plugins/use-server.mjs";
 import rolldownUseCacheInline from "../plugins/use-cache-inline.mjs";
 import rolldownUseDynamic from "../plugins/use-dynamic.mjs";
@@ -752,10 +754,13 @@ export default async function serverBuild(root, options, clientManifestBus) {
                 }
               : {}),
           }),
+          rolldownUseDirectiveInline([
+            useServerInlineConfig,
+            useClientInlineConfig,
+          ]),
           rolldownUseClient("rsc", clientManifest, "pre", clientManifestBus),
           rolldownUseClient("rsc", clientManifest, undefined),
           rolldownUseServer("rsc", serverManifest),
-          rolldownUseServerInline(serverManifest),
           rolldownUseCacheInline(
             config.cache?.profiles,
             config.cache?.providers,
@@ -1043,7 +1048,11 @@ export default async function serverBuild(root, options, clientManifestBus) {
                 }
               : {}),
           }),
-          rolldownUseClient("ssr", undefined, "pre", clientManifestBus),
+          rolldownUseDirectiveInline([
+            useServerInlineConfig,
+            useClientInlineConfig,
+          ]),
+          rolldownUseClient("ssr", clientManifest, "pre", clientManifestBus),
           rolldownUseClient("ssr"),
           rolldownUseServer("ssr"),
           rolldownUseCacheInline(

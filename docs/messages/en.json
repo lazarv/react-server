@@ -6,6 +6,7 @@
   "category_router": "Router",
   "category_deploy": "Deploy",
   "category_tutorials": "Tutorials",
+  "category_advanced": "Advanced",
   "category_team": "Team",
   "algolia_placeholder": "Search docs",
   "algolia_buttonText": "Search",

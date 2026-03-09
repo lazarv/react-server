@@ -99,18 +99,31 @@ export default async function manifest(
     (entry) => entry.isEntry
   );
   const clientReferenceMap = {};
+  const processedBuildEntries = new Set();
 
   for (let i = 0; i < clientManifestEntries.length; i++) {
     const entry = clientManifestEntries[i];
     const id = entry.name;
     const buildEntry = buildClientManifest.get(id);
     if (!buildEntry) continue;
-    const path = sys.normalizePath(relative(cwd, realpathSync(buildEntry.id)));
+    processedBuildEntries.add(id);
+    const qIdx = buildEntry.id.indexOf("?");
+    const buildEntryPath =
+      qIdx === -1 ? buildEntry.id : buildEntry.id.slice(0, qIdx);
+    const buildEntryQuery = qIdx === -1 ? "" : buildEntry.id.slice(qIdx + 1);
+    const path =
+      sys.normalizePath(relative(cwd, realpathSync(buildEntryPath))) +
+      (buildEntryQuery ? `?${buildEntryQuery}` : "");
 
     // Use the file path as the key
-    const key = `${path
+    const pathBase = path.split("?")[0];
+    const pathQuery = path.includes("?") ? path.slice(path.indexOf("?")) : "";
+    const key = `${pathBase
       .replace(/^(?:\.\.\/)+/, (match) => match.replace(/\.\.\//g, "__/"))
-      .replace(new RegExp(`${extname(path)}$`, "g"), "")}${extname(path)}`;
+      .replace(
+        new RegExp(`${extname(pathBase)}$`, "g"),
+        ""
+      )}${extname(pathBase)}${pathQuery}`;
 
     for (const name of buildEntry?.exports || []) {
       clientReferenceMap[`${key}#${name}`] = {
@@ -130,6 +143,56 @@ export default async function manifest(
 
     // Yield every 50 entries to keep spinner responsive
     if (i % 50 === 0) await yieldToEventLoop();
+  }
+
+  // Process buildClientManifest entries that were not found via the SSR
+  // output manifest (e.g. inline "use client" modules with query params
+  // that only appear as dynamic imports in the SSR build)
+  let extraIdx = 0;
+  for (const [id, buildEntry] of buildClientManifest) {
+    if (processedBuildEntries.has(id)) continue;
+    const qIdx = buildEntry.id.indexOf("?");
+    const buildEntryPath =
+      qIdx === -1 ? buildEntry.id : buildEntry.id.slice(0, qIdx);
+    const buildEntryQuery = qIdx === -1 ? "" : buildEntry.id.slice(qIdx + 1);
+    let resolvedPath;
+    try {
+      resolvedPath = realpathSync(buildEntryPath);
+    } catch {
+      continue;
+    }
+    const path =
+      sys.normalizePath(relative(cwd, resolvedPath)) +
+      (buildEntryQuery ? `?${buildEntryQuery}` : "");
+
+    const pathBase = path.split("?")[0];
+    const pathQuery = path.includes("?") ? path.slice(path.indexOf("?")) : "";
+    const key = `${pathBase
+      .replace(/^(?:\.\.\/)+/, (match) => match.replace(/\.\.\//g, "__/"))
+      .replace(
+        new RegExp(`${extname(pathBase)}$`, "g"),
+        ""
+      )}${extname(pathBase)}${pathQuery}`;
+
+    const browserEntry = browserManifestBySrc[path];
+    if (!browserEntry) continue;
+
+    for (const name of buildEntry?.exports || []) {
+      clientReferenceMap[`${key}#${name}`] = {
+        id: `/${browserEntry.file}`.replace(/\/+/, "/"),
+        chunks: [],
+        name,
+        async: true,
+      };
+      clientReferenceMap[`/${browserEntry.file}`] = {
+        id: `/${browserEntry.file}`.replace(/\/+/, "/"),
+        chunks: [],
+        name,
+        async: true,
+      };
+    }
+
+    if (++extraIdx % 50 === 0) await yieldToEventLoop();
   }
 
   const clientReferenceMapCode = `const map = ${JSON.stringify(

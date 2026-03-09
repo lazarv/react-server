@@ -50,9 +50,11 @@ import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import useCacheInline from "../plugins/use-cache-inline.mjs";
 import useClient from "../plugins/use-client.mjs";
+import { useClientInlineConfig } from "../plugins/use-client-inline.mjs";
+import { useServerInlineConfig } from "../plugins/use-server-inline.mjs";
+import useDirectiveInline from "../plugins/use-directive-inline.mjs";
 import useDynamic from "../plugins/use-dynamic.mjs";
 import useServer from "../plugins/use-server.mjs";
-import useServerInline from "../plugins/use-server-inline.mjs";
 import useWorker from "../plugins/use-worker.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
@@ -258,10 +260,10 @@ export default async function createServer(root, options) {
       reactServerEval(options),
       reactServerRuntime(),
       ...userOrBuiltInVitePluginReact(config.plugins),
+      useDirectiveInline([useServerInlineConfig, useClientInlineConfig]),
       useClient(null, null, "pre"),
       useClient(),
       useServer(),
-      useServerInline(),
       useCacheInline(config.cache?.profiles, config.cache?.providers),
       useDynamic(),
       useWorker(),

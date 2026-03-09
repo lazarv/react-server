@@ -7,6 +7,7 @@ const frontmatterLoaders = import.meta.glob(
   { import: "frontmatter" }
 );
 const loaders = import.meta.glob("./pages/*/\\(pages\\)/**/*.{md,mdx}");
+const indexPages = import.meta.glob("./pages/*/*.\\(index\\).{md,mdx}");
 export const pages = await Promise.all(
   Object.entries(frontmatterLoaders).map(async ([key, load]) => [
     key,
@@ -21,6 +22,7 @@ export const categories = [
   "Router",
   "Deploy",
   "Tutorials",
+  "Advanced",
   "Team",
 ];
 
@@ -111,4 +113,26 @@ export function getPages(pathname, lang) {
 
 export function hasCategory(category) {
   return categories?.find((c) => c.toLowerCase() === category?.toLowerCase());
+}
+
+export function hasCategoryIndex(category, lang) {
+  return (
+    Object.keys(indexPages).some(
+      (key) =>
+        key === `./pages/${lang}/${category.toLowerCase()}.(index).md` ||
+        key === `./pages/${lang}/${category.toLowerCase()}.(index).mdx`
+    ) ||
+    pages.some(
+      ([, { frontmatter }]) => frontmatter?.slug === category.toLowerCase()
+    )
+  );
+}
+
+export function getPageFrontmatter(pathname, lang) {
+  const allPages = getPages(pathname, lang);
+  for (const { pages: categoryPages } of allPages) {
+    const page = categoryPages.find((p) => p.isActive);
+    if (page) return page.frontmatter;
+  }
+  return null;
 }

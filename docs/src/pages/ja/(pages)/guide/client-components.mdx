@@ -99,6 +99,69 @@ export default async function MyServerComponent() {
 }
 ```
 
+<Link name="inline-client-components">
+## インラインクライアントコンポーネント
+</Link>
+
+クライアントコンポーネントごとに別ファイルを作成する代わりに、関数本体の中で`"use client"`ディレクティブを使用できます。これにより、使用するサーバーコンポーネントのすぐ隣にクライアントコンポーネントをインラインで定義できます。
+
+```jsx
+import { useState } from "react";
+
+function Counter() {
+  "use client";
+  const [count, setCount] = useState(0);
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <div>
+      <h1>My App</h1>
+      <Counter />
+    </div>
+  );
+}
+```
+
+上記の`Counter`関数は自動的に別のクライアントコンポーネントモジュールとして抽出されます。サーバーコンポーネント`App`は関数そのものではなく、`Counter`へのクライアント参照をレンダリングします。
+
+他の関数内でもインラインクライアントコンポーネントを使用できます。フレームワークは親スコープからキャプチャされた変数を自動的に検出し、抽出されたクライアントコンポーネントにpropsとして渡します。
+
+```jsx
+import { useState } from "react";
+
+export default function App() {
+  const label = "clicks";
+  const Counter = () => {
+    "use client";
+    const [count, setCount] = useState(0);
+    return (
+      <div>
+        <p>{label}: {count}</p>
+        <button onClick={() => setCount(count + 1)}>Increment</button>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h1>My App</h1>
+      <Counter />
+    </div>
+  );
+}
+```
+
+この例では、`label`変数が`App`のスコープからキャプチャされ、クライアントコンポーネントにpropsとして自動的に転送されます。インラインコンポーネントが使用するモジュールレベルのインポートやトップレベルの宣言は、抽出されたモジュールに直接含まれます。
+
+> **注意:** キャプチャされた変数はすべて、通常のクライアントコンポーネントのpropsと同様にシリアル化可能でなければなりません。関数、クラスインスタンス、その他のシリアル化できない値はキャプチャできません。
+
 <Link name="client-only-components">
 ## クライアント専用コンポーネント
 </Link>

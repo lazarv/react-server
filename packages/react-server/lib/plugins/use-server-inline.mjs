@@ -1,292 +1,51 @@
-import { extname, relative } from "node:path";
+// Inject captured scope variables as prepended function parameters for server functions.
+function injectCapturedParams(fnSource, targetFn, capturedVars) {
+  const capturedList = capturedVars.join(", ");
 
-import * as sys from "../sys.mjs";
-import { codegen, parse, walk } from "../utils/ast.mjs";
+  if (targetFn.params.length === 0) {
+    // () → (x, y)
+    const openParen = fnSource.indexOf("(");
+    const closeParen = fnSource.indexOf(")", openParen);
+    if (openParen !== -1 && closeParen !== -1) {
+      fnSource =
+        fnSource.slice(0, openParen + 1) +
+        capturedList +
+        fnSource.slice(closeParen);
+    }
+  } else {
+    // (data) → (x, y, data)
+    const firstParam = targetFn.params[0];
+    const relStart = firstParam.start - targetFn.start;
+    fnSource =
+      fnSource.slice(0, relStart) +
+      capturedList +
+      ", " +
+      fnSource.slice(relStart);
+  }
 
-const cwd = sys.cwd();
-
-export default function useServerInline(manifest) {
-  return {
-    name: "react-server:use-server-inline",
-    transform: {
-      filter: {
-        id: /\.m?[jt]sx?$/,
-      },
-      async handler(code, id) {
-        if (!code.includes("use server")) return null;
-
-        const ast = await parse(code, id);
-        if (!ast) return null;
-
-        const directives = ast.body
-          .filter((node) => node.type === "ExpressionStatement")
-          .map(({ directive }) => directive);
-
-        if (directives.includes("use client"))
-          throw new Error(
-            "Cannot use both 'use client' and 'use server' in the same module."
-          );
-
-        const actions = [];
-        const locals = [];
-        let parent = null;
-        let useServerNode = null;
-        let useServerAction = null;
-
-        const actionKey = (node) =>
-          `__react_server_action__line${node.loc.start.line}_col${node.loc.start.column}__`;
-
-        walk(ast, {
-          enter(node) {
-            node.parent = parent;
-
-            if (
-              node.body?.body?.find?.(
-                (node) =>
-                  node.type === "ExpressionStatement" &&
-                  node.directive === "use server"
-              )
-            ) {
-              useServerNode = node;
-              useServerAction = {
-                node,
-                parent,
-                name: actionKey(node),
-                identifier:
-                  node.type === "FunctionDeclaration" ? node.id.name : null,
-                params: [],
-                locals: [],
-              };
-              actions.push(useServerAction);
-            }
-
-            if (useServerNode && node.type === "Identifier") {
-              if (
-                locals.includes(node.name) &&
-                !useServerAction.params.includes(node.name)
-              ) {
-                useServerAction.params.push(node.name);
-              }
-            }
-
-            if (node.type === "VariableDeclarator") {
-              let parent = node.parent;
-              while (parent) {
-                if (
-                  parent.type === "FunctionDeclaration" ||
-                  parent.type === "FunctionExpression" ||
-                  parent.type === "ArrowFunctionExpression"
-                )
-                  break;
-                parent = parent.parent;
-              }
-              if (parent) {
-                if (useServerNode) {
-                  useServerAction.locals.push(node.id.name);
-                } else {
-                  locals.push(node.id.name);
-                }
-              }
-            }
-
-            parent = node;
-          },
-          leave(node) {
-            if (node === useServerNode) {
-              if (useServerAction.params.length > 0) {
-                useServerNode.type = "CallExpression";
-                useServerNode.callee = {
-                  type: "MemberExpression",
-                  object: {
-                    type: "Identifier",
-                    name: useServerAction.name,
-                  },
-                  property: {
-                    type: "Identifier",
-                    name: "bind",
-                  },
-                };
-                useServerNode.arguments = [
-                  {
-                    type: "Literal",
-                    value: null,
-                  },
-                  ...useServerAction.params.map((param) => ({
-                    type: "Identifier",
-                    name: param,
-                  })),
-                ];
-              } else {
-                useServerNode.type = "Identifier";
-                useServerNode.name = useServerAction.name;
-              }
-
-              if (
-                useServerAction.parent?.type === "BlockStatement" ||
-                useServerAction.parent?.type === "Program"
-              ) {
-                useServerAction.parent.body = useServerAction.parent.body.map(
-                  (n) =>
-                    n === useServerAction.node
-                      ? {
-                          type: "VariableDeclaration",
-                          kind: "const",
-                          declarations: [
-                            {
-                              type: "VariableDeclarator",
-                              id: {
-                                type: "Identifier",
-                                name: useServerAction.identifier,
-                              },
-                              init: useServerNode,
-                            },
-                          ],
-                        }
-                      : n
-                );
-              }
-
-              useServerNode = null;
-              useServerAction = null;
-            }
-
-            parent = node.parent ?? null;
-          },
-        });
-
-        if (actions.length === 0) return null;
-
-        ast.body.unshift({
-          type: "ImportDeclaration",
-          specifiers: [
-            {
-              type: "ImportSpecifier",
-              imported: {
-                type: "Identifier",
-                name: "registerServerReference",
-              },
-              local: {
-                type: "Identifier",
-                name: "registerServerReference",
-              },
-            },
-          ],
-          source: {
-            type: "Literal",
-            value: `${sys.rootDir}/server/action-register.mjs`,
-          },
-          importKind: "value",
-        });
-
-        const exportedNames = new Set();
-        for (const action of actions) {
-          let argsName;
-          if (action.params.length > 0) {
-            argsName = `args__${action.name}`;
-            action.node.body.body.unshift({
-              type: "VariableDeclaration",
-              kind: "let",
-              declarations: [
-                {
-                  type: "VariableDeclarator",
-                  id: {
-                    type: "ArrayPattern",
-                    elements: [
-                      ...action.params.map((param) => ({
-                        type: "VariableDeclarator",
-                        id: {
-                          type: "Identifier",
-                          name: param,
-                        },
-                      })),
-                      ...action.node.params,
-                    ],
-                  },
-                  init: {
-                    type: "Identifier",
-                    name: argsName,
-                  },
-                },
-              ],
-            });
-          }
-          ast.body.push(
-            {
-              type: "ExportNamedDeclaration",
-              declaration: {
-                type: "FunctionDeclaration",
-                async: true,
-                id: {
-                  type: "Identifier",
-                  name: action.name,
-                },
-                params: [
-                  ...(argsName
-                    ? [
-                        {
-                          type: "RestElement",
-                          argument: {
-                            type: "Identifier",
-                            name: argsName,
-                          },
-                        },
-                      ]
-                    : action.node.params),
-                ],
-                body: action.node.body,
-              },
-            },
-            {
-              type: "ExpressionStatement",
-              expression: {
-                type: "CallExpression",
-                callee: {
-                  type: "Identifier",
-                  name: "registerServerReference",
-                },
-                arguments: [
-                  {
-                    type: "Identifier",
-                    name: action.name,
-                  },
-                  {
-                    type: "Literal",
-                    value: manifest
-                      ? sys
-                          .normalizePath(relative(cwd, id))
-                          .replace(/\.m?[jt]sx?$/, "")
-                      : id,
-                  },
-                  {
-                    type: "Literal",
-                    value: action.name,
-                  },
-                ],
-              },
-            }
-          );
-          exportedNames.add(action.name);
-        }
-
-        if (manifest) {
-          const specifier = sys.normalizePath(relative(cwd, id));
-          const name = specifier
-            .replace(extname(specifier), "")
-            .replace(/[^@/\-a-zA-Z0-9]/g, "_");
-          manifest.set(name, {
-            id: specifier,
-            exports: Array.from(exportedNames),
-          });
-
-          this.emitFile({
-            type: "chunk",
-            id: `virtual:rsc:react-server-reference:inline:${specifier}`,
-            name,
-          });
-        }
-
-        return codegen(ast, id);
-      },
-    },
-  };
+  return fnSource;
 }
+
+export const useServerInlineConfig = {
+  directive: "use server",
+  queryKey: "use-server-inline",
+  // Do NOT skip "use client" modules — we want "use server" inside "use client" to work
+  skipIfModuleDirective: null,
+  injectCapturedParams,
+  buildCallSiteReplacement(importName, inlineId, capturedVars) {
+    const prependImport = `import "${inlineId}";\nimport ${importName} from "${inlineId}";`;
+
+    if (capturedVars.length === 0) {
+      return {
+        replacement: importName,
+        prependImport,
+      };
+    }
+
+    const capturedArgs = capturedVars.join(", ");
+    return {
+      replacement: `${importName}.bind(null, ${capturedArgs})`,
+      prependImport,
+    };
+  },
+};

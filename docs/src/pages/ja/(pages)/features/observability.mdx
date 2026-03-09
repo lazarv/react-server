@@ -1,0 +1,417 @@
+---
+title: オブザーバビリティ
+category: Features
+order: 16
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# オブザーバビリティ
+
+`@lazarv/react-server` は開発環境と本番環境の両方で完全な可観測性を実現する組み込みの [OpenTelemetry](https://opentelemetry.io/) 統合を提供します。有効化するとランタイムは自動的に HTTP リクエスト、SSR レンダリング、サーバー関数、ミドルウェアを計測し、アプリケーションコードを変更することなく分散トレースとメトリクスを発行します。
+
+OpenTelemetryの依存関係はすべて**オプション**であり、遅延読み込みされます。テレメトリが無効化されている場合（デフォルト）、**実行時のオーバーヘッドはゼロ**です。すべての計測はノーオペレーションオブジェクトに解決されます。
+
+<Link name="getting-started">
+## はじめる
+</Link>
+
+### OpenTelemetryパッケージをインストールする
+
+```bash
+pnpm add @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http @opentelemetry/exporter-metrics-otlp-http @opentelemetry/sdk-metrics @opentelemetry/core @opentelemetry/resources @opentelemetry/semantic-conventions
+```
+
+### テレメトリを有効にする
+
+テレメトリは次のいずれかの方法で有効にできます。
+
+**1. 設定ファイル** — `react-server.config.mjs` に `telemetry` セクションを追加する
+
+```js
+export default {
+  telemetry: {
+    enabled: true,
+    serviceName: "my-app",
+  },
+};
+```
+
+**2. 環境変数** — 標準のOpenTelemetryエンドポイントを設定する
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+
+**3. ランタイム固有の環境変数**
+
+```bash
+REACT_SERVER_TELEMETRY=true
+```
+
+有効にするとランタイムはサーバー起動時にOpenTelemetry SDKを初期化し、サーバー終了時には適切にシャットダウンします。
+
+<Link name="configuration">
+## 構成
+</Link>
+
+すべてのテレメトリ設定は設定ファイル内の `telemetry` キー配下に存在します。
+
+```js
+export default {
+  telemetry: {
+    // テレメトリを有効/無効にする (デフォルト: false)
+    enabled: true,
+
+    // バックエンドに報告されるサービス名（デフォルト：パッケージ名または"@lazarv/react-server"）
+    serviceName: "my-app",
+
+    // OTLPエンドポイント (default: "http://localhost:4318")
+    endpoint: "http://localhost:4318",
+
+    // Exporterタイプ: "otlp" | "console" | "dev-console" (default: auto-detected)
+    exporter: "otlp",
+
+    // サンプリングレート 0.0–1.0 (default: 1.0 — sample everything)
+    sampleRate: 1.0,
+
+    // メトリクス構成
+    metrics: {
+      // メトリクスの収集を有効化/無効化 (default: テレメトリが有効な場合true)
+      enabled: true,
+
+      // エクスポート間隔 ミリ秒単位 (default: 30000)
+      interval: 30000,
+    },
+  },
+};
+```
+
+### 環境変数
+
+以下の環境変数が有効です。
+
+| 変数 | 説明 |
+| --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLPコレクターエンドポイント。これを設定するとテレメトリも有効になります。 |
+| `OTEL_SERVICE_NAME` | サービス名のオーバライド |
+| `REACT_SERVER_TELEMETRY` | テレメトリを有効にするには `"true"` に設定してください。 |
+
+標準のOpenTelemetry環境変数（`OTEL_*`）はSDKに渡されます。
+
+<Link name="built-in-spans">
+## 組み込みスパン
+</Link>
+
+テレメトリが有効化されている場合、ランタイムは自動的に以下のトレーススパンを作成します。
+
+### HTTPリクエストスパン
+
+**`HTTPリクエスト`** — 受信するすべてのHTTPリクエストのルートスパン。受信ヘッダーからW3C TraceContextを抽出し、レスポンスヘッダーにトレースコンテキストを挿入します。
+
+| 属性 | 説明 |
+| --- | --- |
+| `http.method` | HTTPメソッド (GET, POST, etc.) |
+| `http.url` | 完全なリクエストURL |
+| `http.target` | リクエストパス |
+| `http.host` | ホストヘッダー |
+| `http.scheme` | プロトコル (http/https) |
+| `http.user_agent` | User-Agentヘッダー |
+| `http.status_code` | レスポンスステータスコード（レスポンス後に設定される） |
+| `http.response_content_type` |  レスポンスContent-Type (レスポンス後に設定される) |
+| `net.peer.ip` | クライアントIPアドレス |
+
+### ミドルウェアスパン
+
+**`ミドルウェア: {displayName}`** — コンポーズチェーン内の各ミドルウェアごとに1つのスパンを生成します。各スパンは当該ミドルウェア自身の処理のみを計測します — `next()`を呼び出すと、次のミドルウェアが実行される前にスパンが終了します。
+
+| 属性 | 説明 |
+| --- | --- |
+| `react_server.middleware.index` | ミドルウェアチェーン内の位置（0ベース） |
+| `react_server.middleware.name` | ミドルウェア関数名 |
+| `react_server.middleware.display_name` | 人間が読みやすい名前（例: "CORS"、"静的ファイル"、"SSRハンドラー"） |
+
+### レンダリングスパン
+
+レンダラーはリクエストごとに2つのネストされた**`Render`**スパンを作成します。
+
+1. **RSCレンダー** — RSC → SSRパイプライン全体を覆う外側のスパン
+2. **SSRレンダー** — HTMLストリームレンダリングのための内部スパン（RSCの子要素）
+
+| 属性 | 説明 |
+| --- | --- |
+| `react_server.render_type` | `"RSC"` or `"SSR"` |
+| `react_server.outlet` | アウトレット名 or `"PAGE_ROOT"` |
+| `http.url` | リクエストURL |
+
+### サーバ関数スパン
+
+**`サーバ関数`** — 各サーバ関数呼び出しの期間
+
+| 属性 | 説明 |
+| --- | --- |
+| `react_server.server_function.id` | 関数識別子 |
+| `react_server.server_function.is_form` | フォーム送信によって呼び出されるかどうか |
+| `react_server.server_function.has_error` | 関数がエラーを生成したかどうか（実行後に設定される） |
+
+### キャッシュスパン
+
+**`キャッシュ検索`** — 各 `useCache()` 呼び出しに対するスパン。結果に基づいて動的に **`キャッシュヒット`** または **`キャッシュミス → 再計算`** に名前が変更されます。
+
+| 属性 | 説明 |
+| --- | --- |
+| `react_server.cache.provider` | キャッシュプロバイダー名 (or `"default"`) |
+| `react_server.cache.ttl` | TTL値 (or `"Infinity"`) |
+| `react_server.cache.force` | キャッシュが強制的に更新されたかどうか |
+| `react_server.cache.hit` | ヒット時は`true`、ミス時は`false`（ルックアップ後に設定） |
+
+### サーバー起動スパン
+
+**`サーバー起動`** — サーバーの初期化（開発環境と本番環境の両方）をカバーするスパン。
+
+| 属性 | 説明 |
+| --- | --- |
+| `react_server.mode` | `"development"` or `"production"` |
+| `react_server.root` | アプリケーションルート or `"file-router"` |
+
+### Vite開発サーバー初期化スパン
+
+**`Vite Dev Server Init`** — Vite開発サーバー作成の処理時間（開発時のみ）。
+
+| 属性 | 説明 |
+| --- | --- |
+| `react_server.vite.mode` | Viteモード |
+| `react_server.vite.force` | 依存性最適化が強制されたかどうか |
+
+### Viteプラグインフックスパン
+
+**`Vite plugin [{pluginName}].{hookName}`** — 開発中、すべてのViteプラグインフック（`resolveId`、`load`、`transform`、`buildStart`、`buildEnd`、`handleHotUpdate`）は自動的に計測されます。
+
+| 属性 | 説明 |
+| --- | --- |
+| `react_server.vite.plugin` | プラグイン名 |
+| `react_server.vite.hook` | フック名 |
+| `react_server.vite.module_id` | 処理中のモジュール（`resolveId`、`load`、`transform` 用） |
+
+<Link name="built-in-metrics">
+## 組み込みメトリクス
+</Link>
+
+以下のメトリクスは自動的に記録されます。
+
+| メトリック | タイプ | 説明 |
+| --- | --- | --- |
+| `http.server.request.duration` | ヒストグラム (ms) | HTTPリクエストの実行時間 |
+| `http.server.active_requests` | アップダウンカウンター | フライト中のHTTPリクエスト数 |
+| `react_server.server_function.duration` | ヒストグラム (ms) | サーバ関数の実行時間 |
+| `react_server.rsc.render.duration` | ヒストグラム (ms) | RSCレンダリングの実行時間 |
+| `react_server.dom.render.duration` | ヒストグラム (ms) | SSR DOMレンダリングの継続時間 |
+| `react_server.cache.hits` | Counter | キャッシュヒット数 |
+| `react_server.cache.misses` | Counter | キャッシュミス数 |
+
+<Link name="user-api">
+## テレメトリーAPI
+</Link>
+
+`@lazarv/react-server/telemetry` をインポートして、サーバーコンポーネント、サーバ関数、またはミドルウェア内でカスタムスパンとメトリクスを用いて組み込みテレメトリを拡張します。
+
+### `withSpan(name, attributes?, fn)`
+
+子スパン内で関数を実行する。
+
+```js
+import { withSpan } from "@lazarv/react-server/telemetry";
+
+export async function fetchProducts() {
+  return withSpan("db.query", { "db.system": "postgres" }, async (span) => {
+    const rows = await db.query("SELECT * FROM products");
+    span.setAttribute("db.row_count", rows.length);
+    return rows;
+  });
+}
+```
+
+### `getSpan()`
+
+現在のリクエストスパンを取得し、属性やイベントを追加する。
+
+```js
+import { getSpan } from "@lazarv/react-server/telemetry";
+
+export function MyComponent() {
+  const span = getSpan();
+  span.addEvent("component.render", { component: "MyComponent" });
+  // ...
+}
+```
+
+### `getTracer()`
+
+手動でスパンを作成するためのアクティブなOpenTelemetryトレーサーを取得します。
+
+```js
+import { getTracer } from "@lazarv/react-server/telemetry";
+
+const tracer = getTracer();
+const span = tracer.startSpan("custom.operation");
+try {
+  // ... your code
+} finally {
+  span.end();
+}
+```
+
+### `getMeter()`
+
+カスタムメトリクス用のアクティブなOpenTelemetryメーターを取得する。
+
+```js
+import { getMeter } from "@lazarv/react-server/telemetry";
+
+const meter = getMeter();
+const counter = meter.createCounter("my_app.api_calls", {
+  description: "Number of external API calls",
+});
+counter.add(1, { "api.name": "stripe" });
+```
+
+### `getOtelContext()`
+
+現在のリクエストのOTelコンテキストを取得します。高度な伝播シナリオで有用です。
+
+```js
+import { getOtelContext } from "@lazarv/react-server/telemetry";
+
+const ctx = getOtelContext();
+```
+
+### `injectTraceContext(headers)`
+
+サービス間分散トレーシングのため、送信ヘッダーにW3Cトレースコンテキストを挿入する。
+
+```js
+import { injectTraceContext } from "@lazarv/react-server/telemetry";
+
+const headers = new Headers();
+await injectTraceContext(headers);
+const res = await fetch("https://api.example.com/data", { headers });
+```
+
+<Link name="trace-propagation">
+## トレース伝播
+</Link>
+
+ランタイムは自動的に行われる。
+
+1. **抽出** 受信リクエストから W3C TraceContext ヘッダー（`traceparent`、`tracestate`）を取得
+2. **伝播** ミドルウェアチェーン、SSR ハンドラー、サーバー関数を通じてコンテキストを伝播
+3. **挿入** 送信レスポンスヘッダーにトレースコンテキストを挿入
+
+これは上流サービス（APIゲートウェイ、ロードバランサー）からのトレースが自動的にreact-serverトレースと相関付けられ、下流サービスがトレースを引き継げることを意味します。
+
+<Link name="dev-console-exporter">
+## 開発者コンソールエクスポーター
+</Link>
+
+開発時、OTLPエンドポイントを設定せずにテレメトリを有効にすると、ランタイムはコンソールエクスポーターを使用します。このエクスポーターはターミナルにコンパクトなトレースツリーを表示します。
+
+```
+  GET  /about  200  45.2ms
+  ├─ Middleware: CORS ░ 0.3ms
+  ├─ Middleware: Cookies ░ 0.1ms
+  ├─ Middleware: SSR Handler ░░░░░░ 42.1ms
+  │ ├─ Render RSC ░░░░ 18.3ms
+  │ └─ Render SSR ░░░░░ 22.4ms
+  ├─ Vite plugin [vite:resolve].resolveId:  ×47 ░ 3.2ms
+  ├─ Vite plugin [vite:css].transform:  ×12 ░ 1.1ms
+  └─ 8 spans (<1ms)
+```
+
+特徴
+- **色分けされた実行時間**: 緑色 (< 20ms)、黄色 (20–100ms)、赤色 (> 100ms)
+- **比例タイミングバー**：各トレース内の相対的な持続時間を表示
+- **階層ツリー**：スパンの親子関係を使用
+- **グループ化されたViteスパン**：高速（緑）なViteプラグインフックスパンは名前とカウントでグループ化され、低速またはエラー発生スパンは個別に表示
+- **折り畳まれたマイクロスパン**：1ms未満のスパンは1行にまとめられる
+
+開発者コンソールエクスポーターを明示的に使用するには、
+
+```js
+export default {
+  telemetry: {
+    enabled: true,
+    exporter: "dev-console",
+  },
+};
+```
+
+<Link name="production-setup">
+## プロダクションセットアップ
+</Link>
+
+### Jaeger
+
+OTLPサポートでJaegerをローカルで実行する。
+
+```bash
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+```
+
+次にテレメトリを有効にします。
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm react-server start
+```
+
+`http://localhost:16686` を開いてトレースを表示します。
+
+### Grafana / Tempo
+
+設定ファイルでOTLPエンドポイントを構成してください。
+
+```js
+export default {
+  telemetry: {
+    enabled: true,
+    endpoint: "https://tempo.grafana.net/otlp",
+    serviceName: "my-production-app",
+  },
+};
+```
+
+### Honeycomb / Datadog / New Relic
+
+ほとんどの可観測性プラットフォームはOTLP取り込みをサポートしています。環境変数を使用して、エンドポイントと必要なヘッダーを設定してください。
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io
+OTEL_EXPORTER_OTLP_HEADERS="x-honeycomb-team=your-api-key"
+```
+
+<Link name="edge-runtime">
+## Edge Runtime
+</Link>
+
+エッジランタイム（Cloudflare Workers、Netlify Edge Functionsなど）でも軽量トレーサーによるテレメトリがサポートされています。プラットフォームの制約により、エッジではトレースのみがサポートされ、メトリクスは利用できません。
+
+エッジ向けにビルドする場合、バンドラーは自動的にOpenTelemetryパッケージを処理します。
+- **インストール済みパッケージ** → ワーカーにバンドル、OTLPエクスポートまたはコンソールフォールバック
+- **未インストールパッケージ** → 空のモジュールに解決、オーバーヘッドゼロ
+
+エッジテレメトリは`BasicTracerProvider`と`SimpleSpanProcessor`を使用し、OTLP HTTPエクスポーターの利用を試みます。利用できない場合はコンソール出力にフォールバックします。
+
+<Link name="zero-overhead">
+## 無効化時のオーバーヘッドゼロ
+</Link>
+
+テレメトリが有効になっていない場合、
+
+- OpenTelemetryパッケージは一切読み込まれない
+- すべてのスパンおよびメトリック操作はノーオペレーションオブジェクトに解決される
+- `withSpan()`ヘルパーは単にあなたの関数を直接呼び出すだけである
+- `getTracer()`および`getMeter()`はすべてのデータを破棄するノーオペレーションインスタンスを返す
+
+これによりテレメトリを使用しないアプリケーションのパフォーマンスへの影響がなくなります。

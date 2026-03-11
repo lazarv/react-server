@@ -152,7 +152,7 @@ article ~ .root {
     background: transparent;
 
     & a {
-      white-space: nowrap;
+      white-space: normal;
       float: left;
       clear: left;
       margin-right: auto;

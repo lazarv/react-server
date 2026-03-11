@@ -99,6 +99,141 @@ export default async function MyServerComponent() {
 }
 ```
 
+<Link name="inline-client-components">
+## Inline client components
+</Link>
+
+Instead of creating a separate file for each client component, you can use the `"use client"` directive inside a function body. This allows you to define client components inline, right next to the server component that uses them.
+
+```jsx
+import { useState } from "react";
+
+function Counter() {
+  "use client";
+  const [count, setCount] = useState(0);
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <div>
+      <h1>My App</h1>
+      <Counter />
+    </div>
+  );
+}
+```
+
+The `Counter` function above will be automatically extracted into a separate client component module. The server component `App` will render a client reference to `Counter` instead of the function itself.
+
+You can also use inline client components inside other functions. The framework will automatically detect any variables captured from the parent scope and pass them as props to the extracted client component.
+
+```jsx
+import { useState } from "react";
+
+export default function App() {
+  const label = "clicks";
+  const Counter = () => {
+    "use client";
+    const [count, setCount] = useState(0);
+    return (
+      <div>
+        <p>{label}: {count}</p>
+        <button onClick={() => setCount(count + 1)}>Increment</button>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h1>My App</h1>
+      <Counter />
+    </div>
+  );
+}
+```
+
+In this example, the `label` variable is captured from `App`'s scope and automatically forwarded as a prop to the client component. Module-level imports and top-level declarations used by the inline component are included in the extracted module directly.
+
+> **Note:** All captured variables must be serializable, just like regular client component props. Functions, class instances, and other non-serializable values cannot be captured.
+
+<Link name="inline-server-functions-in-client-components">
+## Inline server functions in client components
+</Link>
+
+You can define `"use server"` functions directly inside an inline `"use client"` component. This lets you keep the server logic and the client UI that calls it in a single file, without creating separate modules for either.
+
+```jsx
+import { useState, useTransition } from "react";
+
+export default function App() {
+  function Counter() {
+    "use client";
+
+    const [count, setCount] = useState(0);
+    const [, startTransition] = useTransition();
+
+    async function increment(n) {
+      "use server";
+      return n + 1;
+    }
+
+    return (
+      <div>
+        <p>Count: {count}</p>
+        <button
+          onClick={() =>
+            startTransition(async () => {
+              setCount(await increment(count));
+            })
+          }
+        >
+          Increment
+        </button>
+      </div>
+    );
+  }
+
+  return <Counter />;
+}
+```
+
+The framework extracts each directive into its own module automatically. The `Counter` component becomes a client module, and `increment` becomes a server function — no extra files needed.
+
+<Link name="inline-client-components-in-use-server-files">
+## Inline client components in "use server" files
+</Link>
+
+You can define inline `"use client"` components inside a file that already has a top-level `"use server"` directive. This lets a server function define and return interactive client components without needing a separate file.
+
+```jsx
+"use server";
+
+import { useState } from "react";
+
+export async function createBadge(label) {
+  function Badge({ text }) {
+    "use client";
+
+    const [clicked, setClicked] = useState(false);
+    return (
+      <span onClick={() => setClicked(true)} style={{ cursor: "pointer" }}>
+        {clicked ? `clicked:${text}` : text}
+      </span>
+    );
+  }
+
+  return <Badge text={label} />;
+}
+```
+
+The file is treated as a server function module because of the top-level `"use server"` directive, but the `Badge` component is extracted into a separate client module. When `createBadge` is called, it renders the `Badge` with the given props and returns it through the RSC protocol. The client component is fully interactive after hydration — `useState`, event handlers, and other client-side features all work as expected.
+
 <Link name="client-only-components">
 ## Client-only components
 </Link>

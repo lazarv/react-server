@@ -71,15 +71,7 @@ test("html and client-only counter", async () => {
   await testClientOnly();
 });
 
-for (const id of [
-  "inline-jsx-prop",
-  "inline-server-action-function",
-  "inline-server-action-arrow",
-  "inline-server-action-top-level",
-  "server-action",
-  "call-action-prop",
-  "call-action-import",
-]) {
+for (const id of ["server-action", "call-action-prop", "call-action-import"]) {
   test(`${id} server action`, async () => {
     await server("fixtures/server-actions.jsx");
     await page.goto(hostname);

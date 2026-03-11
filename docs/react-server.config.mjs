@@ -1,6 +1,8 @@
 import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import rehypeMdxCodeProps from "rehype-mdx-code-props";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 
 export default {
   root: "src/pages",
@@ -12,8 +14,12 @@ export default {
     },
   ],
   mdx: {
-    remarkPlugins: [remarkGfm],
-    rehypePlugins: [[rehypeHighlight, { detect: true }], rehypeMdxCodeProps],
+    remarkPlugins: [remarkGfm, remarkMath],
+    rehypePlugins: [
+      [rehypeHighlight, { detect: true }],
+      rehypeMdxCodeProps,
+      rehypeKatex,
+    ],
     components: "./src/mdx-components.jsx",
   },
   prerender: false,
@@ -25,6 +31,7 @@ export default {
     return [
       ...paths.map(({ path }) => ({
         path: path.replace(/^\/en/, ""),
+        filename: path === "/" ? "index.html" : `${path.slice(1)}.html`,
         rsc: false,
       })),
       // Markdown versions of all docs pages for AI usage

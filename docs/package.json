@@ -10,6 +10,7 @@
     "start": "react-server start"
   },
   "dependencies": {
+    "@docsearch/css": "^3.6.0",
     "@docsearch/react": "3",
     "@lazarv/react-server": "workspace:^",
     "@opentelemetry/api": "^1.9.0",
@@ -24,10 +25,13 @@
     "@uidotdev/usehooks": "^2.4.1",
     "algoliasearch": "^4.24.0",
     "highlight.js": "^11.9.0",
+    "katex": "^0.16.38",
     "lucide-react": "^0.408.0",
     "rehype-highlight": "^7.0.0",
+    "rehype-katex": "^7.0.1",
     "rehype-mdx-code-props": "^3.0.1",
     "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
     "three": "^0.183.1",
     "vite-plugin-svgr": "^4.5.0"
   },

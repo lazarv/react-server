@@ -135,7 +135,7 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
     },
     transform: {
       filter: {
-        id: /\.m?[jt]sx?$/,
+        id: /\.m?[jt]sx?(\?.*)?$/,
       },
       async handler(code, id) {
         const viteEnv = this.environment.name;
@@ -169,7 +169,9 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
           // Get real path - this is the canonical path after resolving symlinks
           // pnpm uses symlinks, so the same file can be accessed via multiple paths
           // Normalize to forward slashes so generated import() paths work on Windows
-          const realId = sys.normalizePath(await realpath(id));
+          const filePath = id.split("?")[0];
+          const query = id.includes("?") ? id.slice(id.indexOf("?")) : "";
+          const realId = sys.normalizePath(await realpath(filePath)) + query;
 
           // DEDUPLICATION: If we've already processed this real path, return cached result
           // This prevents duplicate module graphs when Rolldown calls transform
@@ -197,8 +199,9 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
 
           // Use realId (canonical path after symlink resolution) for consistent naming
           const specifier = sys.normalizePath(relative(cwd, realId));
+          const specifierBase = specifier.split("?")[0];
           const name = workspacePath(specifier)
-            .replace(extname(specifier), "")
+            .replace(extname(specifierBase), "")
             .replace(/[^@/\-a-zA-Z0-9]/g, "_")
             .replace(
               sys.normalizePath(relative(cwd, sys.rootDir)),
@@ -218,6 +221,43 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
               // Use realId (canonical path) for emit
               id: `virtual:${type}:react-client-reference:${realId}`,
               name,
+            });
+          }
+
+          // Populate clientManifest for both RSC and SSR so SSR's
+          // manifestGenerator can find the entry without racing the RSC build
+          if (manifest && enforce === "pre") {
+            const exportNames = new Set();
+            if (
+              ast.body.some(
+                (node) =>
+                  node.type === "ExportDefaultDeclaration" ||
+                  (node.type === "ExportNamedDeclaration" &&
+                    node.specifiers?.find(
+                      ({ exported }) => exported?.name === "default"
+                    ))
+              )
+            ) {
+              exportNames.add("default");
+            }
+            for (const node of ast.body) {
+              if (node.type === "ExportNamedDeclaration") {
+                const names = [
+                  ...(node.declaration?.id?.name
+                    ? [node.declaration.id.name]
+                    : []),
+                  ...(node.declaration?.declarations?.map(
+                    ({ id }) => id.name
+                  ) || []),
+                  ...node.specifiers.map(({ exported }) => exported.name),
+                ];
+                names.forEach((n) => exportNames.add(n));
+              }
+            }
+            manifest.set(name, {
+              id: realId,
+              name,
+              exports: Array.from(exportNames),
             });
           }
 

@@ -6,6 +6,7 @@
   "category_router": "ルーター",
   "category_deploy": "デプロイ",
   "category_tutorials": "チュートリアル",
+  "category_advanced": "高度な",
   "category_team": "チーム",
   "algolia_placeholder": "ドキュメントを検索",
   "algolia_buttonText": "検索",

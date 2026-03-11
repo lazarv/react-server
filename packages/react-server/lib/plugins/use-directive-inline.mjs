@@ -324,6 +324,10 @@ function buildExtractedModule(
  */
 export default function useDirectiveInline(configs) {
   const moduleCache = new Map();
+  // Track which virtual module IDs originate from each source file.
+  // Keys are absolute file paths; values are Sets of resolved virtual IDs
+  // (which may be root-relative in client env or absolute in rsc/ssr env).
+  const sourceToVirtualIds = new Map();
   let root = "";
 
   // Build lookup maps
@@ -365,7 +369,9 @@ export default function useDirectiveInline(configs) {
     },
 
     async resolveId(source, importer) {
-      if (matchQueryKey(source)) return source;
+      if (matchQueryKey(source)) {
+        return source;
+      }
 
       // Resolve relative imports from our extracted virtual modules.
       // Vite can't determine the correct directory for virtual module IDs
@@ -384,8 +390,6 @@ export default function useDirectiveInline(configs) {
       const match = matchQueryKey(id);
       if (!match) return;
 
-      const cached = moduleCache.get(id);
-      if (cached) return cached;
       const { cfg, marker } = match;
       const qIdx = id.indexOf(marker);
       const rawPath = id.slice(0, qIdx);
@@ -396,6 +400,20 @@ export default function useDirectiveInline(configs) {
         ? rawPath.slice(0, rawPath.indexOf("?"))
         : rawPath;
       const filePath = basePath.startsWith(root) ? basePath : root + basePath;
+
+      // Track this virtual module ID so our hotUpdate hook can find it
+      if (!sourceToVirtualIds.has(filePath)) {
+        sourceToVirtualIds.set(filePath, new Set());
+      }
+      sourceToVirtualIds.get(filePath).add(id);
+
+      // Check if transform already built this module during its pass
+      const cached = moduleCache.get(id);
+      if (cached) {
+        moduleCache.delete(id);
+        return cached;
+      }
+
       const sourceCode = await readFile(filePath, "utf-8");
       const ast = await parse(sourceCode, filePath);
       if (!ast) return;
@@ -427,7 +445,6 @@ export default function useDirectiveInline(configs) {
         cfg.injectCapturedParams,
         rawPath
       );
-      moduleCache.set(id, extractedCode);
       return extractedCode;
     },
 
@@ -743,6 +760,39 @@ export default function useDirectiveInline(configs) {
 
         return modifiedCode;
       },
+    },
+
+    // When a source file changes, find any virtual modules derived from it
+    // in this environment and include them in the HMR update.
+    // Vite's built-in mechanism misses client-env virtual modules because
+    // their fileToModulesMap keys are root-relative while the file watcher
+    // reports absolute paths.
+    hotUpdate(options) {
+      const virtualIds = sourceToVirtualIds.get(options.file);
+      if (!virtualIds || virtualIds.size === 0) return;
+
+      const graph = this.environment.moduleGraph;
+      const additionalModules = [];
+
+      for (const vid of virtualIds) {
+        const mod = graph.getModuleById(vid);
+        if (mod) {
+          // Clear any stale one-shot cache entry so the load hook
+          // re-reads from disk and re-parses.
+          moduleCache.delete(vid);
+          // Eagerly invalidate the module so its cached transform result
+          // is cleared.  A downstream plugin (e.g. use-client) may remove
+          // the module from the HMR list, which would prevent Vite's
+          // updateModules from invalidating it.  Without invalidation the
+          // browser would receive stale code on the next request.
+          graph.invalidateModule(mod);
+          additionalModules.push(mod);
+        }
+      }
+
+      if (additionalModules.length > 0) {
+        return [...options.modules, ...additionalModules];
+      }
     },
   };
 }

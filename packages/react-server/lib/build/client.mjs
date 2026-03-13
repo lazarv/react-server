@@ -228,7 +228,7 @@ export default async function clientBuild(
         },
         {
           find: /^@lazarv\/react-server\/router$/,
-          replacement: join(sys.rootDir, "server/router.jsx"),
+          replacement: join(sys.rootDir, "client/route.mjs"),
         },
         {
           find: /^@lazarv\/react-server\/prerender$/,
@@ -339,6 +339,9 @@ export default async function clientBuild(
         input: {
           index: __require.resolve(
             "@lazarv/react-server/client/entry.client.jsx"
+          ),
+          "scroll-restoration-init": __require.resolve(
+            "@lazarv/react-server/client/scroll-restoration-init.mjs"
           ),
           ...Object.entries(chunks).reduce((input, [src, mod]) => {
             if (

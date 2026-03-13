@@ -1,0 +1,21 @@
+{
+  "name": "@lazarv/react-server-example-typed-router",
+  "private": true,
+  "description": "@lazarv/react-server typed routing example",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "dev": "react-server ./App.tsx",
+    "build": "react-server build ./App.tsx",
+    "start": "react-server start"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
+}

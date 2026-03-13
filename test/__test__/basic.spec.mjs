@@ -180,8 +180,9 @@ test("suspense client", async () => {
 
   if (process.env.NODE_ENV === "production") {
     const scripts = await page.$$("script[src]");
-    expect(scripts.length).toBe(1);
-    expect(await scripts[0].getAttribute("src")).toContain("/client/index");
+    expect(scripts.length).toBeGreaterThanOrEqual(1);
+    const srcs = await Promise.all(scripts.map((s) => s.getAttribute("src")));
+    expect(srcs.some((src) => src.includes("/client/index"))).toBe(true);
   } else {
     const button = await page.getByRole("button");
     await button.click();
@@ -193,9 +194,10 @@ test("suspense client", async () => {
     const scripts = await page.$$("script[src]");
     // this is flaky and needs a stable solution
     expect(scripts.length).toBeGreaterThanOrEqual(3);
-    expect(await scripts[0].getAttribute("src")).toBe("/@vite/client");
-    expect(await scripts[1].getAttribute("src")).toBe("/@hmr");
-    expect(await scripts[2].getAttribute("src")).toBe("/@__webpack_require__");
+    const srcs = await Promise.all(scripts.map((s) => s.getAttribute("src")));
+    expect(srcs).toContain("/@vite/client");
+    expect(srcs).toContain("/@hmr");
+    expect(srcs).toContain("/@__webpack_require__");
   }
 });
 

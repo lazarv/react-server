@@ -945,6 +945,20 @@ export interface ReactServerConfig {
   cookies?: Record<string, unknown>;
 
   /**
+   * Enable automatic scroll restoration for client-side navigations.
+   *
+   * When `true`, the framework injects the early scroll-restoration script
+   * and auto-renders the `<ScrollRestoration>` component with default settings.
+   *
+   * Pass an object to configure the component props (e.g. scroll behavior).
+   *
+   * @default false
+   * @example `scrollRestoration: true`
+   * @example `scrollRestoration: { behavior: "smooth" }`
+   */
+  scrollRestoration?: boolean | { behavior?: "auto" | "smooth" | "instant" };
+
+  /**
    * Host to listen on.
    * @example `host: "0.0.0.0"` or `host: true` (all interfaces)
    */

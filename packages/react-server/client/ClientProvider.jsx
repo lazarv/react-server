@@ -9,6 +9,9 @@ import {
   PAGE_ROOT as _PAGE_ROOT_,
 } from "./context.mjs";
 
+import { canNavigateClientOnly } from "./client-route-store.mjs";
+import { runNavigationGuards } from "./client-navigation.mjs";
+
 if (typeof ReadableByteStreamController === "undefined") {
   await import("web-streams-polyfill/polyfill");
 }
@@ -252,7 +255,44 @@ const navigateOutlet = (
   to,
   { outlet = PAGE_ROOT, push, rollback = 0, revalidate, noCache, ...options }
 ) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    // Check if navigation can be handled entirely on the client
+    const targetUrl = new URL(to, location.origin);
+    const fromPathname = decodeURIComponent(location.pathname);
+    const toPathname = decodeURIComponent(targetUrl.pathname);
+
+    // Run navigation guards before proceeding
+    if (outlet === PAGE_ROOT) {
+      const guardResult = await runNavigationGuards(fromPathname, toPathname);
+      if (!guardResult.allowed) {
+        if (guardResult.redirect) {
+          // Guard requested a redirect — navigate there instead
+          resolve(navigate(guardResult.redirect, { replace: true }));
+          return;
+        }
+        // Guard blocked navigation
+        resolve();
+        return;
+      }
+    }
+
+    if (
+      outlet === PAGE_ROOT &&
+      canNavigateClientOnly(fromPathname, toPathname)
+    ) {
+      // Client-only route: just update the URL, ClientRouteRegistration
+      // components will re-match and update themselves
+      outlets.set(outlet, to);
+      if (push !== false) {
+        history.pushState(Object.fromEntries(outlets.entries()), "", to);
+      } else {
+        history.replaceState(Object.fromEntries(outlets.entries()), "", to);
+      }
+      prevLocation = new URL(location);
+      resolve();
+      return;
+    }
+
     if (typeof rollback === "number" && rollback > 0) {
       const key = `${outlet}:${outlets.get(outlet) || location.href}`;
       if (!flightCache.has(key)) {
@@ -281,6 +321,7 @@ const navigateOutlet = (
       }
       prevLocation = new URL(location);
     }
+
     const key = `${outlet}:${to}`;
     if (flightCache.has(key)) {
       cache.set(outlet, flightCache.get(key));
@@ -374,7 +415,7 @@ const invalidate = (outlet, options = {}) => {
   });
 };
 
-window.addEventListener("popstate", () => {
+window.addEventListener("popstate", async () => {
   const newLocation = new URL(location);
   if (
     prevLocation.pathname === newLocation.pathname &&
@@ -384,7 +425,28 @@ window.addEventListener("popstate", () => {
   ) {
     return;
   }
+
+  const fromPathname = decodeURIComponent(prevLocation.pathname);
+  const toPathname = decodeURIComponent(newLocation.pathname);
+
+  // Run navigation guards for back/forward navigation
+  const guardResult = await runNavigationGuards(fromPathname, toPathname);
+  if (!guardResult.allowed) {
+    // Guard blocked — push the old URL back to undo the popstate
+    history.pushState(history.state, "", prevLocation.href);
+    if (guardResult.redirect) {
+      navigate(guardResult.redirect, { replace: true });
+    }
+    return;
+  }
+
   prevLocation = newLocation;
+
+  // Check if the navigation can be handled entirely on the client.
+  // All server route boundaries must remain stable.
+  if (canNavigateClientOnly(fromPathname, toPathname)) {
+    return;
+  }
 
   const rootKey = `${PAGE_ROOT}:${location.href}`;
   if (flightCache.has(rootKey)) {

@@ -66,3 +66,6 @@ export const OTEL_METER = Symbol.for("OTEL_METER");
 export const OTEL_SPAN = Symbol.for("OTEL_SPAN");
 export const OTEL_CONTEXT = Symbol.for("OTEL_CONTEXT");
 export const OTEL_SDK = Symbol.for("OTEL_SDK");
+export const SCROLL_RESTORATION_MODULE = Symbol.for(
+  "SCROLL_RESTORATION_MODULE"
+);

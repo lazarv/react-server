@@ -425,7 +425,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
         },
         {
           find: /^@lazarv\/react-server\/navigation$/,
-          replacement: join(sys.rootDir, "client/navigation.jsx"),
+          replacement: join(sys.rootDir, "server/navigation.mjs"),
         },
         {
           find: /^@lazarv\/react-server\/http-context$/,
@@ -859,6 +859,14 @@ export default async function serverBuild(root, options, clientManifestBus) {
           find: /^@lazarv\/react-server\/http-context$/,
           replacement: join(sys.rootDir, "server/http-context.mjs"),
         },
+        {
+          find: /^@lazarv\/react-server\/router$/,
+          replacement: join(sys.rootDir, "client/route.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/navigation$/,
+          replacement: join(sys.rootDir, "client/navigation.jsx"),
+        },
         // Only use client cache for non-edge builds (edge bundles server code that needs full cache API)
         ...(!options.edge
           ? [
@@ -900,6 +908,8 @@ export default async function serverBuild(root, options, clientManifestBus) {
               "react-server/client/http-context.jsx"
             ) &&
             !alias.replacement.endsWith("react-server/cache/index.mjs") &&
+            !alias.replacement.endsWith("react-server/server/router.jsx") &&
+            !alias.replacement.endsWith("react-server/server/navigation.mjs") &&
             // In edge mode, filter out react-server versions of react packages
             !(
               options.edge &&

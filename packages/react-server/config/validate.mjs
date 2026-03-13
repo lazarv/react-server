@@ -201,6 +201,14 @@ const REACT_SERVER_SCHEMA = {
   inspect: optional(oneOf(is.boolean, is.object)),
   runtime: optional(oneOf(is.function, is.object)),
   cookies: optional(is.object),
+  scrollRestoration: optional(
+    oneOf(
+      is.boolean,
+      objectShape({
+        behavior: optional(enumOf("auto", "smooth", "instant")),
+      })
+    )
+  ),
   host: optional(oneOf(is.string, (v) => v === true)),
   port: optional(is.number),
 

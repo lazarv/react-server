@@ -16,13 +16,19 @@ export function useLocation(target) {
   useEffect(() => {
     const abortController = new AbortController();
 
+    // Create a new URL each time so React sees a new reference and re-renders.
+    // window.location is a live singleton — passing it directly to setState
+    // would always be the same reference and React would skip the update.
     const listener = () => {
-      setLocation(window.location);
+      setLocation(new URL(window.location.href));
     };
     window.addEventListener("popstate", listener, {
       signal: abortController.signal,
     });
     window.addEventListener("pushstate", listener, {
+      signal: abortController.signal,
+    });
+    window.addEventListener("replacestate", listener, {
       signal: abortController.signal,
     });
 

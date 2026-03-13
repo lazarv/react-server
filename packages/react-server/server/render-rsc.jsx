@@ -45,6 +45,7 @@ import {
   RENDER_STREAM,
   RENDER_TEMPORARY_REFERENCES,
   RENDER_WAIT,
+  SCROLL_RESTORATION_MODULE,
   STYLES_CONTEXT,
   SERVER_FUNCTION_NOT_FOUND,
 } from "@lazarv/react-server/server/symbols.mjs";
@@ -59,6 +60,7 @@ import { cwd } from "../lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-reference-map";
 import { serverReferenceMap as _serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
 import { decryptActionId, wrapServerReferenceMap } from "./action-crypto.mjs";
+import { ScrollRestoration } from "../client/ScrollRestoration.jsx";
 
 const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
 
@@ -459,6 +461,13 @@ export async function render(Component, props = {}, options = {}) {
             )}
             <Styles />
             <ModulePreloads />
+            {config.scrollRestoration && !remote && !remoteRSC && (
+              <ScrollRestoration
+                {...(typeof config.scrollRestoration === "object"
+                  ? config.scrollRestoration
+                  : {})}
+              />
+            )}
             <Component {...props} />
           </>
         );
@@ -794,10 +803,15 @@ export async function render(Component, props = {}, options = {}) {
           const prelude = getContext(PRELUDE_HTML);
           const postponed = getContext(POSTPONE_STATE);
           const importMap = getContext(IMPORT_MAP);
+          const scrollRestorationModule = getContext(SCROLL_RESTORATION_MODULE);
           let isStarted = false;
 
           const stream = await renderStream({
             stream: flight,
+            headScripts: scrollRestorationModule
+              ? [scrollRestorationModule]
+              : [],
+            nonce: config.html?.cspNonce,
             bootstrapModules:
               renderContext.flags.isRSC || renderContext.flags.isRemote
                 ? []

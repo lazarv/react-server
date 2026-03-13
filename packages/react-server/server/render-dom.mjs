@@ -80,6 +80,8 @@ export const createRenderer = ({
     remote,
     origin,
     importMap,
+    headScripts,
+    nonce,
     defer,
     body,
     httpContext,
@@ -134,6 +136,7 @@ export const createRenderer = ({
 
     let started = false;
     let error = null;
+    let redirectUrl = null;
 
     const context = {
       moduleCacheStorage: getContext(MODULE_CACHE) ?? moduleCacheStorage,
@@ -201,28 +204,49 @@ export const createRenderer = ({
                         prerenderController.abort(new Postponed());
                       }, prerenderConfig?.timeout ?? PRERENDER_TIMEOUT);
 
-                      const { postponed, prelude } = await prerender(tree, {
-                        signal: prerenderController.signal,
-                        formState,
-                        onError(e) {
-                          if (!e.digest?.startsWith("REACT_SERVER_POSTPONED")) {
-                            error = e;
-                          } else {
-                            prerenderController.abort(e);
-                          }
-                        },
-                      });
-
-                      clearTimeout(prerenderTimeoutId);
-
-                      html = prelude;
-                      if (postponed) {
-                        parentPort.postMessage({
-                          id,
-                          postponed,
+                      try {
+                        const { postponed, prelude } = await prerender(tree, {
+                          signal: prerenderController.signal,
+                          formState,
+                          onError(e) {
+                            if (
+                              e.name === "RedirectError" &&
+                              typeof e.url === "string"
+                            ) {
+                              redirectUrl = e.url;
+                            } else if (
+                              !e.digest?.startsWith("REACT_SERVER_POSTPONED")
+                            ) {
+                              error = e;
+                            } else {
+                              prerenderController.abort(e);
+                            }
+                          },
                         });
-                      } else {
-                        isPrerender = false;
+
+                        clearTimeout(prerenderTimeoutId);
+
+                        html = prelude;
+                        if (postponed) {
+                          parentPort.postMessage({
+                            id,
+                            postponed,
+                          });
+                        } else {
+                          isPrerender = false;
+                        }
+                      } catch (e) {
+                        clearTimeout(prerenderTimeoutId);
+                        if (redirectUrl) {
+                          html = new ReadableStream({
+                            start(c) {
+                              c.close();
+                            },
+                          });
+                          isPrerender = false;
+                        } else {
+                          throw e;
+                        }
                       }
                     } else if (postponed) {
                       if (prelude) {
@@ -230,19 +254,61 @@ export const createRenderer = ({
                           controller.enqueue(chunk);
                         }
                       }
-                      html = await resume(tree, postponed, {
-                        formState,
-                        onError(e) {
-                          error = e;
-                        },
-                      });
+                      try {
+                        html = await resume(tree, postponed, {
+                          formState,
+                          onError(e) {
+                            if (
+                              e.name === "RedirectError" &&
+                              typeof e.url === "string"
+                            ) {
+                              redirectUrl = e.url;
+                            } else {
+                              error = e;
+                            }
+                          },
+                        });
+                      } catch (e) {
+                        if (redirectUrl) {
+                          html = new ReadableStream({
+                            start(c) {
+                              c.close();
+                            },
+                          });
+                        } else {
+                          throw e;
+                        }
+                      }
                     } else {
-                      html = await renderToReadableStream(tree, {
-                        formState,
-                        onError(e) {
-                          error = e;
-                        },
-                      });
+                      try {
+                        html = await renderToReadableStream(tree, {
+                          formState,
+                          onError(e) {
+                            if (
+                              e.name === "RedirectError" &&
+                              typeof e.url === "string"
+                            ) {
+                              redirectUrl = e.url;
+                            } else {
+                              error = e;
+                            }
+                          },
+                        });
+                      } catch (e) {
+                        // Shell errors reject the promise. If a RedirectError
+                        // caused the rejection, we already have redirectUrl from
+                        // onError. Create a minimal empty stream so the worker
+                        // can inject the redirect <script>.
+                        if (redirectUrl) {
+                          html = new ReadableStream({
+                            start(c) {
+                              c.close();
+                            },
+                          });
+                        } else {
+                          throw e;
+                        }
+                      }
                     }
 
                     const htmlReader = html.getReader();
@@ -460,29 +526,40 @@ export const createRenderer = ({
                     let process;
                     const passThrough = (value) => value;
 
-                    const importMapScript = `<script type="importmap">${JSON.stringify(importMap)}</script>`;
-                    const injectImportMap = (value) => {
+                    // Build HTML to inject into <head>: import map + head scripts
+                    let headInject = "";
+                    const nonceAttr = nonce ? ` nonce="${nonce}"` : "";
+                    if (typeof importMap === "object" && importMap !== null) {
+                      headInject += `<script type="importmap"${nonceAttr}>${JSON.stringify(importMap)}</script>`;
+                    }
+                    if (Array.isArray(headScripts) && headScripts.length > 0) {
+                      headInject += headScripts
+                        .map(
+                          (src) =>
+                            `<script type="module" src="${src}"${nonceAttr} async></script>`
+                        )
+                        .join("");
+                    }
+
+                    const injectHead = (value) => {
                       const chunk = decoder.decode(value);
                       if (chunk.includes("<head")) {
                         process = passThrough;
                         return encoder.encode(
                           chunk.replace(
                             /<head([^<>]*)>/,
-                            `<head$1>${importMapScript}`
+                            `<head$1>${headInject}`
                           )
                         );
                       } else if (chunk.startsWith("<!DOCTYPE")) {
                         return value;
                       } else {
                         process = passThrough;
-                        return encoder.encode(importMapScript + chunk);
+                        return encoder.encode(headInject + chunk);
                       }
                     };
 
-                    process =
-                      typeof importMap === "object" && importMap !== null
-                        ? injectImportMap
-                        : passThrough;
+                    process = headInject ? injectHead : passThrough;
 
                     const worker = async function* () {
                       while (!(forwardDone && htmlDone)) {
@@ -510,6 +587,16 @@ export const createRenderer = ({
                         }
 
                         if (!started) {
+                          // If a client-side redirect() was thrown during SSR,
+                          // inject a <script> that redirects the browser immediately.
+                          // The throw already prevented the protected content from
+                          // rendering, so no private data is sent.
+                          if (redirectUrl) {
+                            yield encoder.encode(
+                              `<script>window.location.replace(${JSON.stringify(redirectUrl)})</script>`
+                            );
+                          }
+
                           started = true;
                           parentPort.postMessage({
                             id,
@@ -577,6 +664,12 @@ export const createRenderer = ({
                         }
 
                         if (!started) {
+                          if (redirectUrl) {
+                            parser.tokenizer.write(
+                              `<script>window.location.replace(${JSON.stringify(redirectUrl)})</script>`
+                            );
+                          }
+
                           started = true;
                           parentPort.postMessage({
                             id,

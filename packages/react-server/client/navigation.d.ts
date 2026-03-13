@@ -225,12 +225,15 @@ export function ReactServerComponent(
 export function useLocation(outlet?: string): Location | null;
 
 /**
- * A hook that returns the current search parameters.
+ * A hook that returns the current search parameters as a plain object.
+ * Multi-value keys are returned as arrays.
  *
  * @param outlet - which outlet to watch (optional, defaults to root)
- * @returns The current search parameters
+ * @returns The current search parameters as `{ [key]: string | string[] }`, or `null`
  */
-export function useSearchParams(outlet?: string): URLSearchParams | null;
+export function useSearchParams(
+  outlet?: string
+): Record<string, string | string[]> | null;
 
 /**
  * A hook that returns the current pathname.
@@ -239,3 +242,469 @@ export function useSearchParams(outlet?: string): URLSearchParams | null;
  * @returns The current pathname
  */
 export function usePathname(outlet?: string): string | null;
+
+/**
+ * Options for the client-side useMatch hook.
+ */
+export type ClientMatchOptions = {
+  exact?: boolean;
+};
+
+/**
+ * A client-side hook that matches a route path pattern against the current pathname.
+ * Returns the matched params or null if no match.
+ *
+ * This is the isomorphic counterpart to the server-side `useMatch` from `@lazarv/react-server/router`.
+ * Works in "use client" components.
+ *
+ * @param path - Route path pattern (e.g. "/users/[id]")
+ * @param options - Match options
+ * @returns The matched route params, or null
+ *
+ * @example
+ *
+ * ```tsx
+ * "use client";
+ * import { useMatch } from '@lazarv/react-server/navigation';
+ *
+ * export default function UserProfile() {
+ *   const params = useMatch('/users/[id]');
+ *   if (!params) return null;
+ *   return <p>User: {params.id}</p>;
+ * }
+ * ```
+ */
+export function useMatch<T = Record<string, string>>(
+  path: string,
+  options?: ClientMatchOptions
+): T | null;
+
+/**
+ * The result type returned by a navigation guard callback.
+ * - `true` or `undefined`: allow navigation
+ * - `false`: block navigation
+ * - `string`: redirect to that URL instead
+ */
+export type NavigationGuardResult = boolean | string | undefined;
+
+/**
+ * A navigation guard callback function.
+ * Called before every client-side navigation.
+ *
+ * @param from - The current pathname
+ * @param to - The target pathname
+ * @returns Whether to allow the navigation, block it, or redirect
+ */
+export type NavigationGuard = (
+  from: string,
+  to: string
+) => NavigationGuardResult | Promise<NavigationGuardResult>;
+
+/**
+ * Options for `useNavigationGuard`.
+ */
+export interface NavigationGuardOptions {
+  /**
+   * When truthy, also registers a `beforeunload` event listener that shows
+   * the browser's native "Leave site?" confirmation dialog when the user
+   * tries to close the tab or navigate away externally.
+   *
+   * Pass a reactive boolean (e.g. a `dirty` state) so the listener is only
+   * active when there are actually unsaved changes.
+   *
+   * @default false
+   */
+  beforeUnload?: boolean;
+}
+
+/**
+ * React hook to register a navigation guard for the lifetime of the component.
+ *
+ * The guard callback is called before every client-side navigation.
+ * Return `false` to block navigation, a `string` to redirect, or `true`/`undefined` to allow.
+ *
+ * Use the `beforeUnload` option to also show the browser's native "Leave site?" dialog
+ * when the user tries to close the tab or navigate away externally.
+ *
+ * For pattern matching, use `useMatch()` inside the guard handler rather than a
+ * pattern parameter — this is more composable.
+ *
+ * @param guard - The guard callback
+ * @param options - Options for the guard
+ *
+ * @example
+ *
+ * ```tsx
+ * "use client";
+ * import { useNavigationGuard } from '@lazarv/react-server/navigation';
+ *
+ * // Leave guard with beforeunload support
+ * export default function Editor() {
+ *   const [dirty, setDirty] = useState(false);
+ *
+ *   useNavigationGuard(
+ *     (from, to) => {
+ *       if (dirty) {
+ *         return confirm("You have unsaved changes. Leave?");
+ *       }
+ *     },
+ *     { beforeUnload: dirty }
+ *   );
+ *
+ *   return <textarea onChange={() => setDirty(true)} />;
+ * }
+ * ```
+ *
+ * @example
+ *
+ * ```tsx
+ * // Enter guard — redirect unauthenticated users
+ * useNavigationGuard((from, to) => {
+ *   if (!isAuthenticated && to.startsWith("/dashboard")) {
+ *     return "/login";
+ *   }
+ * });
+ * ```
+ */
+export function useNavigationGuard(
+  guard: NavigationGuard,
+  options?: NavigationGuardOptions
+): void;
+
+/**
+ * Error class thrown by client-side `redirect()`.
+ * Caught by `RedirectBoundary` which uses the proper navigation system
+ * to perform the redirect.
+ */
+export class RedirectError extends Error {
+  /** The URL to redirect to */
+  url: string;
+  /** Whether to replace the current history entry (default: true) */
+  replace: boolean;
+
+  constructor(url: string, options?: { replace?: boolean });
+}
+
+/**
+ * Perform a client-side redirect by throwing a `RedirectError`.
+ * Must be called during render inside a component wrapped by a `Route`
+ * (which automatically includes a `RedirectBoundary`).
+ *
+ * The `RedirectBoundary` catches the error and uses the full navigation
+ * system to perform the redirect, supporting both client-only and server routes.
+ *
+ * @param url - The URL to redirect to
+ * @param options - Options. `replace` defaults to `true`.
+ * @throws {RedirectError}
+ *
+ * @example
+ *
+ * ```tsx
+ * "use client";
+ * import { redirect } from '@lazarv/react-server/navigation';
+ *
+ * export default function ProtectedPage() {
+ *   if (!isAuthenticated) {
+ *     redirect("/login");
+ *   }
+ *   return <div>Secret content</div>;
+ * }
+ * ```
+ */
+export function redirect(url: string, options?: { replace?: boolean }): never;
+
+/**
+ * Error boundary that catches `RedirectError` thrown by client-side `redirect()`.
+ * Uses the proper navigation system to perform the redirect.
+ *
+ * Automatically wrapped around route content by `Route` — you typically
+ * don't need to use this directly.
+ *
+ * @example
+ *
+ * ```tsx
+ * import { RedirectBoundary } from '@lazarv/react-server/navigation';
+ *
+ * <RedirectBoundary>
+ *   <ProtectedContent />
+ * </RedirectBoundary>
+ * ```
+ */
+export class RedirectBoundary extends React.Component<React.PropsWithChildren> {}
+
+export interface ScrollRestorationProps {
+  /**
+   * The scroll behavior to use when restoring or resetting scroll position.
+   * Passed directly to `window.scrollTo({ behavior })`.
+   *
+   * - `"auto"` — instant scroll (default browser behavior)
+   * - `"instant"` — instant scroll (explicit)
+   * - `"smooth"` — animated smooth scroll (automatically falls back to `"auto"` when user prefers reduced motion)
+   *
+   * @default undefined (uses browser default, equivalent to `"auto"`)
+   */
+  behavior?: ScrollBehavior;
+}
+
+/**
+ * Provides automatic scroll restoration for client-side navigations.
+ *
+ * - On **forward navigation** (link clicks): scrolls to top
+ * - On **back/forward** (popstate): restores the saved scroll position
+ * - Saves scroll positions to `sessionStorage` so they survive page reloads
+ * - Automatically respects `prefers-reduced-motion` when `behavior="smooth"`
+ *
+ * Place this component once at the top level of your app.
+ *
+ * @example
+ *
+ * ```tsx
+ * "use client";
+ * import { ScrollRestoration } from '@lazarv/react-server/navigation';
+ *
+ * export default function App() {
+ *   return (
+ *     <>
+ *       <ScrollRestoration />
+ *       <nav>...</nav>
+ *       <main>...</main>
+ *     </>
+ *   );
+ * }
+ * ```
+ *
+ * @example Smooth scrolling
+ * ```tsx
+ * <ScrollRestoration behavior="smooth" />
+ * ```
+ */
+export function ScrollRestoration(props?: ScrollRestorationProps): null;
+
+/**
+ * The position passed to or returned from a scroll position handler.
+ */
+export interface ScrollPosition {
+  x: number;
+  y: number;
+}
+
+/**
+ * Parameters passed to the `useScrollPosition` handler callback.
+ */
+export interface ScrollPositionParams {
+  /** The URL path + search being navigated **to** (e.g. `"/products?sort=price"`). */
+  to: string;
+  /** The URL path + search being navigated **from**, or `null` on initial page load. */
+  from: string | null;
+  /**
+   * The saved scroll position for the target route (back/forward navigation),
+   * or `null` on forward navigation.
+   */
+  savedPosition: ScrollPosition | null;
+}
+
+/**
+ * Register a per-route scroll position handler.
+ *
+ * The handler is called on every navigation with `{ to, from, savedPosition }`.
+ * Return `{ x, y }` to scroll to a custom position, `false` to skip scrolling
+ * entirely (useful for modal routes), or `undefined`/`null` to fall back to the
+ * default behavior.
+ *
+ * Call this hook from any client component — only the most recently registered
+ * handler is active. The handler is automatically unregistered on unmount.
+ *
+ * @example
+ * ```tsx
+ * "use client";
+ * import { useScrollPosition } from "@lazarv/react-server/navigation";
+ *
+ * export function ScrollConfig() {
+ *   useScrollPosition(({ to }) => {
+ *     if (to.startsWith("/modal")) return false;
+ *     return undefined; // default behavior
+ *   });
+ *   return null;
+ * }
+ * ```
+ */
+export function useScrollPosition(
+  handler: (
+    params: ScrollPositionParams
+  ) => ScrollPosition | false | undefined | null
+): void;
+
+/**
+ * Register a scrollable container element for automatic scroll position
+ * save/restore alongside the window scroll.
+ *
+ * @param id - A unique, stable identifier for this container (e.g. `"sidebar"`).
+ * @param element - The scrollable DOM element.
+ */
+export function registerScrollContainer(id: string, element: HTMLElement): void;
+
+/**
+ * Unregister a scrollable container previously registered with
+ * `registerScrollContainer`.
+ */
+export function unregisterScrollContainer(id: string): void;
+
+/**
+ * Hook that registers a scrollable container element for automatic scroll
+ * position save/restore. Handles registration on mount and cleanup on unmount.
+ *
+ * @param id - A unique, stable identifier for this container (e.g. `"sidebar"`).
+ * @param ref - A React ref pointing to the scrollable container element.
+ *
+ * @example
+ * ```tsx
+ * "use client";
+ * import { useRef } from "react";
+ * import { useScrollContainer } from "@lazarv/react-server/navigation";
+ *
+ * export function Sidebar() {
+ *   const ref = useRef<HTMLElement>(null);
+ *   useScrollContainer("sidebar", ref);
+ *   return <nav ref={ref} style={{ overflow: "auto", height: "100vh" }}>...</nav>;
+ * }
+ * ```
+ */
+export function useScrollContainer(
+  id: string,
+  ref: React.RefObject<HTMLElement>
+): void;
+
+// ── Typed route definitions & hooks ──
+
+import type {
+  RouteDescriptor,
+  RouteValidate,
+  ExtractParams,
+} from "../server/router";
+
+// ── Client-safe createRoute (no element, no .Route) ──
+
+interface ClientRouteOptions<TParams = any, TSearch = Record<string, string>> {
+  exact?: boolean;
+  validate?: RouteValidate<TParams, TSearch>;
+}
+
+/**
+ * Client-safe route factory — returns a `RouteDescriptor` with `path`,
+ * `validate`, `href()`, `.Link`, `.useParams()`, and `.useSearchParams()`
+ * — but no `.Route`.
+ *
+ * Use this in shared route definition files that are imported by
+ * both server components and client components.
+ *
+ * @example
+ * ```ts
+ * // routes.ts (shared)
+ * import { createRoute } from "@lazarv/react-server/navigation";
+ * import { z } from "zod";
+ *
+ * export const user = createRoute("/user/[id]", {
+ *   validate: { params: z.object({ id: z.string() }) },
+ * });
+ *
+ * // Client component:
+ * const params = user.useParams();        // typed!
+ * user.href({ id: "42" });               // → "/user/42"
+ * <user.Link params={{ id: "42" }}>User 42</user.Link>
+ * ```
+ */
+export function createRoute<
+  TPath extends string,
+  TParams = ExtractParams<TPath>,
+  TSearch = Record<string, string>,
+>(
+  path: TPath,
+  options?: ClientRouteOptions<TParams, TSearch>
+): RouteDescriptor<TPath, TParams, TSearch>;
+
+export function createRoute(
+  path: "*",
+  options?: Omit<ClientRouteOptions, "exact">
+): RouteDescriptor<"*", {}, {}>;
+
+export function createRoute(
+  options?: Omit<ClientRouteOptions, "exact">
+): RouteDescriptor<"*", {}, {}>;
+
+export function createRoute(): RouteDescriptor<"*", {}, {}>;
+
+/**
+ * Read typed, validated params for a route.
+ * Uses the route's `validate.params` schema (if provided) to parse the raw match.
+ *
+ * @param route - A route created by `createRoute`.
+ * @returns Parsed params, or `null` if the route doesn't match / validation fails.
+ *
+ * @example
+ * ```tsx
+ * import { useRouteParams } from "@lazarv/react-server/navigation";
+ * import { user } from "./routes";
+ *
+ * const { id } = useRouteParams(user);  // id: string
+ * ```
+ */
+export function useRouteParams<TPath extends string, TParams, TSearch>(
+  route: RouteDescriptor<TPath, TParams, TSearch>
+): TParams | null;
+
+/**
+ * Test if a route matches the current pathname and return typed params (or null).
+ *
+ * @param route - A route created by `createRoute`.
+ * @returns Matched params or null.
+ *
+ * @example
+ * ```tsx
+ * import { useRouteMatch } from "@lazarv/react-server/navigation";
+ * import { user } from "./routes";
+ *
+ * const match = useRouteMatch(user);
+ * if (match) console.log(match.id);
+ * ```
+ */
+export function useRouteMatch<TPath extends string, TParams, TSearch>(
+  route: RouteDescriptor<TPath, TParams, TSearch>
+): TParams | null;
+
+/**
+ * Read typed, validated search params for a route.
+ * Uses the route's `validate.search` schema (if provided) to parse query params.
+ *
+ * @param route - A route created by `createRoute` with `validate.search`.
+ * @returns Parsed search params.
+ *
+ * @example
+ * ```tsx
+ * import { useRouteSearchParams } from "@lazarv/react-server/navigation";
+ * import { products } from "./routes";
+ *
+ * const { sort, page } = useRouteSearchParams(products);
+ * ```
+ */
+export function useRouteSearchParams<TPath extends string, TParams, TSearch>(
+  route: RouteDescriptor<TPath, TParams, TSearch>
+): TSearch;
+
+/**
+ * Returns the `navigate` function from the client context.
+ *
+ * A convenience wrapper around `useClient().navigate` for cleaner imports.
+ *
+ * @returns A function that navigates to the given URL.
+ *
+ * @example
+ * ```tsx
+ * import { useNavigate } from '@lazarv/react-server/navigation';
+ *
+ * function MyComponent() {
+ *   const navigate = useNavigate();
+ *   return <button onClick={() => navigate('/about')}>Go</button>;
+ * }
+ * ```
+ */
+export function useNavigate(): import("./index").ReactServerClientContext["navigate"];

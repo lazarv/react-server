@@ -403,7 +403,21 @@ export default async function createServer(root, options) {
       client: {
         dev: {
           createEnvironment: (name, config, context) =>
-            new DevEnvironment(name, config, context),
+            new DevEnvironment(name, config, {
+              ...context,
+              options: {
+                resolve: {
+                  alias: [
+                    {
+                      find: /^@lazarv\/react-server\/router$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/route.mjs")
+                      ),
+                    },
+                  ],
+                },
+              },
+            }),
         },
       },
       ssr: {
@@ -416,6 +430,12 @@ export default async function createServer(root, options) {
                   dedupe: ["picocolors"],
                   external: ["picocolors", /^bun:/],
                   alias: [
+                    {
+                      find: /^@lazarv\/react-server\/router$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/route.mjs")
+                      ),
+                    },
                     {
                       find: /^@lazarv\/react-server\/http-context$/,
                       replacement: sys.normalizePath(
@@ -497,6 +517,12 @@ export default async function createServer(root, options) {
                       find: /^@lazarv\/react-server\/rsc$/,
                       replacement: sys.normalizePath(
                         join(sys.rootDir, "cache/rsc.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/navigation$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "server/navigation.mjs")
                       ),
                     },
                   ],

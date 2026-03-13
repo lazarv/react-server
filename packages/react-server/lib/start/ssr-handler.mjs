@@ -43,6 +43,7 @@ import {
   RENDER,
   RENDER_CONTEXT,
   RENDER_STREAM,
+  SCROLL_RESTORATION_MODULE,
   SERVER_CONTEXT,
   SOURCEMAP_SUPPORT,
   STYLES_CONTEXT,
@@ -133,6 +134,12 @@ export default async function ssrHandler(root, options = {}) {
         `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")
       )
     : [];
+  const scrollRestorationModule = getRuntime(SCROLL_RESTORATION_MODULE)
+    ? `${configRoot.base || "/"}/${getRuntime(SCROLL_RESTORATION_MODULE)}`.replace(
+        /\/+/g,
+        "/"
+      )
+    : null;
   const moduleLoader = getRuntime(MODULE_LOADER);
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const moduleCacheStorage = new AsyncLocalStorage();
@@ -247,6 +254,7 @@ export default async function ssrHandler(root, options = {}) {
               [ERROR_CONTEXT]: errorHandler,
               [LOGGER_CONTEXT]: logger,
               [MAIN_MODULE]: mainModule,
+              [SCROLL_RESTORATION_MODULE]: scrollRestorationModule,
               [MODULE_LOADER]: moduleLoader,
               [IMPORT_MAP]: importMap,
               [MEMORY_CACHE_CONTEXT]: memoryCache,

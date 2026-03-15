@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, createElement, useEffect, useMemo, useRef } from "react";
+import { Activity, createElement, useEffect, useMemo } from "react";
 
 import { match } from "../lib/route-match.mjs";
 import { registerServerRoute } from "./client-route-store.mjs";
@@ -15,8 +15,6 @@ export default function ClientRouteGuard({
   loadingElement,
   children,
 }) {
-  const hydrated = useRef(false);
-
   // Memoize the loading fallback element so it's referentially stable
   const loading = useMemo(
     () =>
@@ -27,14 +25,24 @@ export default function ClientRouteGuard({
   );
 
   useEffect(() => {
-    hydrated.current = true;
     return registerServerRoute(path, { exact });
   }, [path, exact]);
 
-  // During SSR and hydration, use the pathname from the server.
-  // After hydration (effect has run), use the client-side pathname.
+  // Determine which pathname to trust for visibility.
+  // During a server navigation transition, pushStateSilent updates the
+  // browser URL but usePathname() hasn't caught up yet (emitLocationChange
+  // fires after the transition commits). When they differ we're mid-
+  // transition, so trust the serverPathname prop from the RSC tree —
+  // it's always correct for the tree being rendered.
+  // For client-only navigation, pushState fires emitLocationChange
+  // synchronously, so clientPathname is always in sync.
   const clientPathname = usePathname();
-  const pathname = hydrated.current ? clientPathname : serverPathname;
+  const browserPathname =
+    typeof window !== "undefined"
+      ? decodeURIComponent(window.location.pathname)
+      : serverPathname;
+  const pathname =
+    clientPathname !== browserPathname ? serverPathname : clientPathname;
   // Fallback routes have no path — they're active when no other route matches.
   // On the client, treat them as always active (server already determined the match).
   const active = !path || !!match(path, pathname, { exact });

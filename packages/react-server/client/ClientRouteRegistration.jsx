@@ -28,10 +28,15 @@ export default function ClientRouteRegistration({
     return registerClientRoute(path, { exact, component, fallback });
   }, [path, exact, component, fallback]);
 
-  // During SSR and hydration, use the pathname from the server.
-  // After hydration (effect has run), use the client-side pathname.
+  // Determine which pathname to trust for visibility (same logic as
+  // ClientRouteGuard — see comments there for full explanation).
   const clientPathname = usePathname();
-  const pathname = hydrated.current ? clientPathname : serverPathname;
+  const browserPathname =
+    typeof window !== "undefined"
+      ? decodeURIComponent(window.location.pathname)
+      : serverPathname;
+  const pathname =
+    clientPathname !== browserPathname ? serverPathname : clientPathname;
 
   // Fallback routes are active only after hydration (when route maps are
   // populated by effects). During SSR the maps are empty, so we skip.

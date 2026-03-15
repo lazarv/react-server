@@ -11,6 +11,7 @@ import {
 
 import { canNavigateClientOnly } from "./client-route-store.mjs";
 import { runNavigationGuards } from "./client-navigation.mjs";
+import { pushStateSilent, replaceStateSilent } from "./client-location.mjs";
 
 if (typeof ReadableByteStreamController === "undefined") {
   await import("web-streams-polyfill/polyfill");
@@ -251,48 +252,44 @@ const refresh = async (outlet = PAGE_ROOT, options = {}) => {
 };
 
 let prevLocation = new URL(location);
-const navigateOutlet = (
+const navigateOutlet = async (
   to,
   { outlet = PAGE_ROOT, push, rollback = 0, revalidate, noCache, ...options }
 ) => {
-  return new Promise(async (resolve, reject) => {
-    // Check if navigation can be handled entirely on the client
-    const targetUrl = new URL(to, location.origin);
-    const fromPathname = decodeURIComponent(location.pathname);
-    const toPathname = decodeURIComponent(targetUrl.pathname);
+  // Check if navigation can be handled entirely on the client
+  const targetUrl = new URL(to, location.origin);
+  const fromPathname = decodeURIComponent(location.pathname);
+  const toPathname = decodeURIComponent(targetUrl.pathname);
 
-    // Run navigation guards before proceeding
-    if (outlet === PAGE_ROOT) {
-      const guardResult = await runNavigationGuards(fromPathname, toPathname);
-      if (!guardResult.allowed) {
-        if (guardResult.redirect) {
-          // Guard requested a redirect — navigate there instead
-          resolve(navigate(guardResult.redirect, { replace: true }));
-          return;
-        }
-        // Guard blocked navigation
-        resolve();
-        return;
+  // Run navigation guards before proceeding (awaited BEFORE we enter the
+  // synchronous Promise executor so that emit() fires inside the same
+  // startTransition scope the caller set up — React keeps the old page
+  // visible while the new one streams in).
+  if (outlet === PAGE_ROOT) {
+    const guardResult = await runNavigationGuards(fromPathname, toPathname);
+    if (!guardResult.allowed) {
+      if (guardResult.redirect) {
+        return navigate(guardResult.redirect, { replace: true });
       }
-    }
-
-    if (
-      outlet === PAGE_ROOT &&
-      canNavigateClientOnly(fromPathname, toPathname)
-    ) {
-      // Client-only route: just update the URL, ClientRouteRegistration
-      // components will re-match and update themselves
-      outlets.set(outlet, to);
-      if (push !== false) {
-        history.pushState(Object.fromEntries(outlets.entries()), "", to);
-      } else {
-        history.replaceState(Object.fromEntries(outlets.entries()), "", to);
-      }
-      prevLocation = new URL(location);
-      resolve();
+      // Guard blocked navigation
       return;
     }
+  }
 
+  if (outlet === PAGE_ROOT && canNavigateClientOnly(fromPathname, toPathname)) {
+    // Client-only route: just update the URL, ClientRouteRegistration
+    // components will re-match and update themselves
+    outlets.set(outlet, to);
+    if (push !== false) {
+      history.pushState(Object.fromEntries(outlets.entries()), "", to);
+    } else {
+      history.replaceState(Object.fromEntries(outlets.entries()), "", to);
+    }
+    prevLocation = new URL(location);
+    return;
+  }
+
+  return new Promise((resolve, reject) => {
     if (typeof rollback === "number" && rollback > 0) {
       const key = `${outlet}:${outlets.get(outlet) || location.href}`;
       if (!flightCache.has(key)) {
@@ -313,14 +310,6 @@ const navigateOutlet = (
       }
     }
     outlets.set(outlet, to);
-    if (outlet === PAGE_ROOT) {
-      if (push !== false) {
-        history.pushState(Object.fromEntries(outlets.entries()), "", to);
-      } else {
-        history.replaceState(Object.fromEntries(outlets.entries()), "", to);
-      }
-      prevLocation = new URL(location);
-    }
 
     const key = `${outlet}:${to}`;
     if (flightCache.has(key)) {
@@ -354,6 +343,21 @@ const navigateOutlet = (
       (err) => {
         if (err) reject(err);
         else {
+          // Update the URL silently (without notifying useSyncExternalStore)
+          // so that ClientRouteGuard doesn't hide the old page during the
+          // startTransition in ReactServerComponent.  The location store is
+          // synced by a useLayoutEffect in ReactServerComponent after the
+          // transition commits (before paint).
+          if (outlet === PAGE_ROOT) {
+            const state = Object.fromEntries(outlets.entries());
+            if (push !== false) {
+              pushStateSilent(state, "", to);
+            } else {
+              replaceStateSilent(state, "", to);
+            }
+            prevLocation = new URL(location);
+          }
+
           activeChunk.set(outlet, cache.get(outlet));
 
           if (!isStale(revalidate, { outlet, url: to })) {

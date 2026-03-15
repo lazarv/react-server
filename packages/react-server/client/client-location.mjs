@@ -23,13 +23,16 @@ function emitLocationChange() {
   }
 }
 
+let origPushState;
+let origReplaceState;
+
 if (typeof window !== "undefined") {
   window.addEventListener("popstate", emitLocationChange);
 
   // Patch history.pushState/replaceState to notify subscribers and dispatch
   // custom events so useLocation (and any external listener) picks up changes.
-  const origPushState = history.pushState.bind(history);
-  const origReplaceState = history.replaceState.bind(history);
+  origPushState = history.pushState.bind(history);
+  origReplaceState = history.replaceState.bind(history);
 
   history.pushState = function (...args) {
     const prevHref = location.href;
@@ -49,6 +52,22 @@ if (typeof window !== "undefined") {
     emitLocationChange();
   };
 }
+
+/**
+ * Push/replace history state WITHOUT triggering useSyncExternalStore
+ * subscribers. Use during server navigation inside startTransition to
+ * prevent ClientRouteGuard from hiding the old page before the new
+ * tree commits.
+ */
+export function pushStateSilent(...args) {
+  origPushState?.(...args);
+}
+
+export function replaceStateSilent(...args) {
+  origReplaceState?.(...args);
+}
+
+export { emitLocationChange };
 
 function subscribe(callback) {
   locationListeners.add(callback);

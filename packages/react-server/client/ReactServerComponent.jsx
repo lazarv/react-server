@@ -18,6 +18,7 @@ import {
   PAGE_ROOT,
   useClient,
 } from "./context.mjs";
+import { emitLocationChange } from "./client-location.mjs";
 
 // Execute scripts stored as <template data-script-attrs> by dom-flight.mjs
 // to avoid React's "Encountered a script tag" warning during SSR/RSC rendering.
@@ -269,6 +270,15 @@ function FlightComponent({
 
     return () => abortController.abort();
   }, [outlet]);
+
+  // After every commit (including navigation tree-swaps), sync the location
+  // store so useSyncExternalStore consumers see the correct URL before the
+  // browser paints.  During a server navigation pushStateSilent updates the
+  // browser URL without notifying React; this layout effect bridges the gap
+  // so that usePathname() returns the new value once the transition commits.
+  useLayoutEffect(() => {
+    emitLocationChange();
+  });
 
   const [shadowRoot, setShadowRoot] = useState(null);
   useLayoutEffect(() => {

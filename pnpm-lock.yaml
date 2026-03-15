@@ -915,6 +915,22 @@ importers:
         specifier: ^3.4.3
         version: 3.4.4(ts-node@10.9.2(@swc/core@1.11.21)(@types/node@24.9.2)(typescript@5.9.3))
 
+  examples/typed-file-router:
+    dependencies:
+      '@lazarv/react-server':
+        specifier: workspace:^
+        version: link:../../packages/react-server
+      zod:
+        specifier: ^3.23.0
+        version: 3.23.8
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+
   examples/typed-router:
     dependencies:
       '@lazarv/react-server':
@@ -17053,7 +17069,7 @@ snapshots:
 
   '@types/react-dom@18.3.0':
     dependencies:
-      '@types/react': 18.3.5
+      '@types/react': 19.2.14
 
   '@types/react-dom@19.2.2(@types/react@19.2.2)':
     dependencies:
@@ -17069,7 +17085,7 @@ snapshots:
 
   '@types/react-transition-group@4.4.11':
     dependencies:
-      '@types/react': 18.3.5
+      '@types/react': 19.2.14
 
   '@types/react@18.3.5':
     dependencies:

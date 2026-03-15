@@ -1,3 +1,5 @@
+import type * as React from "react";
+
 /**
  * The props for the `Link` component.
  *
@@ -66,7 +68,7 @@ export type LinkProps<T> = React.PropsWithChildren<{
  * }
  * ```
  */
-export function Link<T extends string>(props: LinkProps<T>): JSX.Element;
+export function Link<T extends string>(props: LinkProps<T>): React.JSX.Element;
 
 /**
  * The props for the `Refresh` component.
@@ -129,7 +131,7 @@ export type RefreshProps = React.PropsWithChildren<{
  *  );
  * }
  */
-export function Refresh(props: RefreshProps): JSX.Element;
+export function Refresh(props: RefreshProps): React.JSX.Element;
 
 /**
  * The props for the `Form` component.
@@ -179,7 +181,7 @@ export type FormProps = Exclude<
  * }
  * ```
  */
-export function Form(props: FormProps): JSX.Element;
+export function Form(props: FormProps): React.JSX.Element;
 
 /**
  * The props for the `ReactServerComponent` component.
@@ -214,7 +216,7 @@ export type ReactServerComponentProps = React.PropsWithChildren<{
  */
 export function ReactServerComponent(
   props: ReactServerComponentProps
-): JSX.Element;
+): React.JSX.Element;
 
 /**
  * A hook that returns the current location.

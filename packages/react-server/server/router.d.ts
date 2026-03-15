@@ -1,3 +1,5 @@
+import type * as React from "react";
+
 export type RouteParams = Record<string, string>;
 export type RouteMatchers = Record<string, (value: string) => boolean>;
 

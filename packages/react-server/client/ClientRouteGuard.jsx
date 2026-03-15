@@ -1,10 +1,14 @@
 "use client";
 
-import { Activity, createElement, useEffect, useMemo } from "react";
+import { Activity, Suspense, createElement, useEffect, useMemo } from "react";
 
 import { match } from "../lib/route-match.mjs";
 import { registerServerRoute } from "./client-route-store.mjs";
-import { usePathname } from "./client-location.mjs";
+import {
+  usePathname,
+  usePendingNavigation,
+  getPendingHasLoading,
+} from "./client-location.mjs";
 import { RedirectBoundary } from "./RedirectBoundary.jsx";
 
 export default function ClientRouteGuard({
@@ -25,8 +29,11 @@ export default function ClientRouteGuard({
   );
 
   useEffect(() => {
-    return registerServerRoute(path, { exact });
-  }, [path, exact]);
+    return registerServerRoute(path, {
+      exact,
+      hasLoading: !!(loadingComponent || loadingElement),
+    });
+  }, [path, exact, loadingComponent, loadingElement]);
 
   // Determine which pathname to trust for visibility.
   // During a server navigation transition, pushStateSilent updates the
@@ -47,12 +54,50 @@ export default function ClientRouteGuard({
   // On the client, treat them as always active (server already determined the match).
   const active = !path || !!match(path, pathname, { exact });
 
-  // When active but children haven't arrived from the server yet, show loading
-  const showLoading = active && children == null && loading;
+  // While a server navigation is in-flight to a route with a loading skeleton,
+  // immediately show that skeleton and hide all other routes.  When the target
+  // route does NOT have loading, pendingHasLoading is false and the normal
+  // active-based visibility applies (startTransition keeps old page visible).
+  const pendingTarget = usePendingNavigation();
+  const pendingHasLoading = getPendingHasLoading();
 
-  return (
-    <Activity mode={active ? "visible" : "hidden"}>
-      <RedirectBoundary>{showLoading ? loading : children}</RedirectBoundary>
-    </Activity>
+  // Before the new RSC tree arrives (children still null from old tree),
+  // show the loading skeleton directly (outside Activity) for the target.
+  const pendingMatch =
+    pendingTarget &&
+    pendingHasLoading &&
+    loading &&
+    children == null &&
+    path &&
+    !!match(path, pendingTarget, { exact });
+
+  if (pendingMatch) {
+    return <RedirectBoundary>{loading}</RedirectBoundary>;
+  }
+
+  // While a loading skeleton is being shown for another route, hide this one.
+  const isPendingTarget =
+    pendingTarget && path && !!match(path, pendingTarget, { exact });
+  const hiddenByPending = !!(
+    pendingTarget &&
+    pendingHasLoading &&
+    !isPendingTarget
   );
+  const isVisible = active && !hiddenByPending;
+
+  // Wrap children in Suspense when a loading skeleton is configured.
+  // When the new RSC tree commits, children may be a lazy/pending React
+  // element (e.g. an async server component still streaming).  Suspense
+  // keeps the loading skeleton visible until the content fully resolves,
+  // bridging the gap between the pending-navigation skeleton and the
+  // final rendered content.
+  const content = loading ? (
+    <Suspense fallback={loading}>
+      <RedirectBoundary>{children}</RedirectBoundary>
+    </Suspense>
+  ) : (
+    <RedirectBoundary>{children}</RedirectBoundary>
+  );
+
+  return <Activity mode={isVisible ? "visible" : "hidden"}>{content}</Activity>;
 }

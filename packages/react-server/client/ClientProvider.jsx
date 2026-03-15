@@ -9,9 +9,17 @@ import {
   PAGE_ROOT as _PAGE_ROOT_,
 } from "./context.mjs";
 
-import { canNavigateClientOnly } from "./client-route-store.mjs";
+import {
+  canNavigateClientOnly,
+  hasLoadingForPath,
+} from "./client-route-store.mjs";
 import { runNavigationGuards } from "./client-navigation.mjs";
-import { pushStateSilent, replaceStateSilent } from "./client-location.mjs";
+import {
+  pushStateSilent,
+  replaceStateSilent,
+  setPendingNavigation,
+  clearPendingNavigation,
+} from "./client-location.mjs";
 
 if (typeof ReadableByteStreamController === "undefined") {
   await import("web-streams-polyfill/polyfill");
@@ -289,6 +297,19 @@ const navigateOutlet = async (
     return;
   }
 
+  // When the target route has a loading skeleton, signal pending navigation
+  // BEFORE creating the fetch Promise and yield to the event loop so React
+  // can flush the skeleton render.  Without this yield, emit() → subscriber
+  // → getFlightResponse resolves componentPromise synchronously → its
+  // microtask continuation calls startTransition(setComponent) before React
+  // ever processes the pending useSyncExternalStore update.
+  const targetHasLoading =
+    outlet === PAGE_ROOT && hasLoadingForPath(toPathname);
+  if (targetHasLoading) {
+    setPendingNavigation(toPathname, true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
   return new Promise((resolve, reject) => {
     if (typeof rollback === "number" && rollback > 0) {
       const key = `${outlet}:${outlets.get(outlet) || location.href}`;
@@ -332,6 +353,13 @@ const navigateOutlet = async (
       cache.delete(to);
       cache.delete(outlet);
     }
+
+    // For routes without loading, signal pending navigation here (no yield
+    // needed since startTransition in Link keeps old page visible).
+    if (outlet === PAGE_ROOT && !targetHasLoading) {
+      setPendingNavigation(toPathname, false);
+    }
+
     emit(
       outlet,
       to,
@@ -341,8 +369,10 @@ const navigateOutlet = async (
         fromCache: true,
       },
       (err) => {
-        if (err) reject(err);
-        else {
+        if (err) {
+          clearPendingNavigation();
+          reject(err);
+        } else {
           // Update the URL silently (without notifying useSyncExternalStore)
           // so that ClientRouteGuard doesn't hide the old page during the
           // startTransition in ReactServerComponent.  The location store is

@@ -69,6 +69,54 @@ export function replaceStateSilent(...args) {
 
 export { emitLocationChange };
 
+// ── Pending navigation store ────────────────────────────────────────────
+// Tracks the target pathname during server navigations so that
+// ClientRouteGuard can show its loading skeleton immediately (before the
+// server responds) via a normal sync-priority re-render.
+const pendingListeners = new Set();
+let pendingNavigationTarget = null;
+let pendingHasLoading = false;
+
+export function setPendingNavigation(pathname, hasLoading = false) {
+  pendingNavigationTarget = pathname;
+  pendingHasLoading = hasLoading;
+  for (const listener of pendingListeners) listener();
+}
+
+export function clearPendingNavigation() {
+  pendingNavigationTarget = null;
+  pendingHasLoading = false;
+  for (const listener of pendingListeners) listener();
+}
+
+function subscribePending(callback) {
+  pendingListeners.add(callback);
+  return () => pendingListeners.delete(callback);
+}
+
+function getPendingSnapshot() {
+  return pendingNavigationTarget;
+}
+
+/**
+ * Returns the target pathname of a server navigation that is currently
+ * in-flight, or null when idle.  Re-renders synchronously when the
+ * value changes so loading skeletons appear without waiting for the
+ * server.
+ */
+export function usePendingNavigation() {
+  return useSyncExternalStore(subscribePending, getPendingSnapshot, () => null);
+}
+
+/**
+ * Non-hook getter: returns whether the current pending navigation target
+ * has a loading skeleton.  Call during render after usePendingNavigation()
+ * ensures you're subscribed to changes.
+ */
+export function getPendingHasLoading() {
+  return pendingHasLoading;
+}
+
 function subscribe(callback) {
   locationListeners.add(callback);
   return () => locationListeners.delete(callback);

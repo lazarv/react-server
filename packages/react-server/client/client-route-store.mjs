@@ -17,8 +17,8 @@ export function registerClientRoute(path, { exact, component, fallback }) {
   return () => clientRoutes.delete(path);
 }
 
-export function registerServerRoute(path, { exact }) {
-  serverRoutes.set(path, { exact });
+export function registerServerRoute(path, { exact, hasLoading = false }) {
+  serverRoutes.set(path, { exact, hasLoading });
   return () => serverRoutes.delete(path);
 }
 
@@ -89,4 +89,19 @@ export function canNavigateClientOnly(fromPathname, toPathname) {
 
 export function getClientRoutes() {
   return clientRoutes;
+}
+
+/**
+ * Check if a server route that matches the given pathname has a loading
+ * skeleton configured.  Used by Link to decide whether to skip
+ * startTransition (so the skeleton renders immediately).
+ */
+export function hasLoadingForPath(pathname) {
+  for (const [path, route] of serverRoutes) {
+    if (!path) continue;
+    if (route.hasLoading && match(path, pathname, { exact: route.exact })) {
+      return true;
+    }
+  }
+  return false;
 }

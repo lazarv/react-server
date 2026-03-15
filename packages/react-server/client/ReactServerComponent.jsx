@@ -18,7 +18,10 @@ import {
   PAGE_ROOT,
   useClient,
 } from "./context.mjs";
-import { emitLocationChange } from "./client-location.mjs";
+import {
+  emitLocationChange,
+  clearPendingNavigation,
+} from "./client-location.mjs";
 
 // Execute scripts stored as <template data-script-attrs> by dom-flight.mjs
 // to avoid React's "Encountered a script tag" warning during SSR/RSC rendering.
@@ -94,6 +97,7 @@ function FlightComponent({
   const errorRef = useRef(null);
   const componentPromiseRef = useRef(null);
   const prevComponent = useRef(Component);
+  const committedResourceKey = useRef(resourceKey);
 
   useEffect(() => {
     let mounted = true;
@@ -276,7 +280,14 @@ function FlightComponent({
   // browser paints.  During a server navigation pushStateSilent updates the
   // browser URL without notifying React; this layout effect bridges the gap
   // so that usePathname() returns the new value once the transition commits.
+  // Only clear pendingNavigation when the RSC tree actually changed (new
+  // resourceKey); otherwise a sync re-render from useSyncExternalStore would
+  // immediately clear the pending state and hide the loading skeleton.
   useLayoutEffect(() => {
+    if (resourceKey !== committedResourceKey.current) {
+      committedResourceKey.current = resourceKey;
+      clearPendingNavigation();
+    }
     emitLocationChange();
   });
 

@@ -7,7 +7,11 @@ import {
   registerClientRoute,
   isFallbackActive,
 } from "./client-route-store.mjs";
-import { usePathname } from "./client-location.mjs";
+import {
+  usePathname,
+  usePendingNavigation,
+  getPendingHasLoading,
+} from "./client-location.mjs";
 import { RedirectBoundary } from "./RedirectBoundary.jsx";
 
 export default function ClientRouteRegistration({
@@ -44,11 +48,17 @@ export default function ClientRouteRegistration({
     ? hydrated.current && isFallbackActive(pathname)
     : !!match(path, pathname, { exact });
 
+  // When a server navigation with a loading skeleton is in-flight, hide all
+  // client routes so only the loading skeleton is visible.
+  const pendingTarget = usePendingNavigation();
+  const pendingHasLoading = getPendingHasLoading();
+  const hiddenByPending = !!(pendingTarget && pendingHasLoading);
+
   // Fallback routes always re-render when active (the UI depends on the
   // current pathname, so a cached instance would be stale). Skip Activity
   // state preservation and mount/unmount directly.
   if (fallback) {
-    if (!active) return null;
+    if (!active || hiddenByPending) return null;
     return <RedirectBoundary>{createElement(component)}</RedirectBoundary>;
   }
 
@@ -71,7 +81,7 @@ export default function ClientRouteRegistration({
   }
 
   return (
-    <Activity mode={active ? "visible" : "hidden"}>
+    <Activity mode={active && !hiddenByPending ? "visible" : "hidden"}>
       <RedirectBoundary>{content}</RedirectBoundary>
     </Activity>
   );

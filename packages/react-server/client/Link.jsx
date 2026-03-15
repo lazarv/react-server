@@ -3,6 +3,7 @@
 import { startTransition, useCallback, useContext } from "react";
 
 import { FlightContext, useClient } from "./context.mjs";
+import { hasLoadingForPath } from "./client-route-store.mjs";
 
 export default function Link({
   to,
@@ -73,13 +74,24 @@ export default function Link({
     async (e) => {
       e.preventDefault();
       onClick?.(e);
-      if (transition !== false && !fallback) {
+      // When navigating to a server route that has a loading skeleton,
+      // skip startTransition so the skeleton renders immediately via
+      // setPendingNavigation in navigateOutlet.  For routes without
+      // loading, startTransition keeps the old page visible while the
+      // server responds.
+      const resolvedHref = url ? new URL(to, url).href : to;
+      const targetPathname = decodeURIComponent(
+        new URL(resolvedHref, location.origin).pathname
+      );
+      const useTransition =
+        transition !== false && !fallback && !hasLoadingForPath(targetPathname);
+      if (useTransition) {
         startTransition(tryNavigate);
       } else {
         tryNavigate();
       }
     },
-    [transition, fallback, onClick, tryNavigate]
+    [transition, fallback, onClick, tryNavigate, to, url]
   );
 
   const handlePrefetch = (handler) => (e) => {

@@ -1,4 +1,11 @@
-import { index, about, user, dashboard } from "@lazarv/react-server/routes";
+import {
+  index,
+  about,
+  user,
+  dashboard,
+  counter,
+  clock,
+} from "@lazarv/react-server/routes";
 
 export default index.createLayout(({ children }) => {
   return (
@@ -20,6 +27,8 @@ export default index.createLayout(({ children }) => {
           <about.Link>About</about.Link>
           <user.Link params={{ id: "42" }}>User 42</user.Link>
           <dashboard.Link>Dashboard</dashboard.Link>
+          <counter.Link>Counter</counter.Link>
+          <clock.Link>Clock</clock.Link>
         </nav>
         {children}
       </body>

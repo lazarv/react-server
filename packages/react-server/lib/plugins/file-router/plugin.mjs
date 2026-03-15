@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { parse as parseAST } from "../../utils/ast.mjs";
 import { loadConfig } from "@lazarv/react-server/config";
 import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
@@ -19,11 +20,26 @@ import colors from "picocolors";
 const cwd = sys.cwd();
 const __require = createRequire(import.meta.url);
 
+function normalizeFileRouterConfig(config) {
+  if (!config || typeof config !== "object" || typeof config === "function")
+    return config;
+  const result = { ...config };
+  if ("include" in result) {
+    result.includes = result.include;
+    delete result.include;
+  }
+  if ("exclude" in result) {
+    result.excludes = result.exclude;
+    delete result.exclude;
+  }
+  return result;
+}
+
 function mergeOrApply(a, b = {}) {
   if (typeof b === "function") {
     return b(a);
   }
-  return merge(a, b);
+  return merge(a, normalizeFileRouterConfig(b));
 }
 
 function match(files, includes, excludes) {
@@ -74,6 +90,49 @@ const reactServerRouterDtsTemplate = await readFile(
   ),
   "utf8"
 );
+
+// Cache for "use client" directive detection: src → boolean
+const clientPageCache = new Map();
+
+/**
+ * Detect whether a source file is a client page: has a "use client" directive
+ * AND a default export (required for a renderable page component).
+ * Results are cached per source path.
+ */
+async function isClientPageSource(src) {
+  if (clientPageCache.has(src)) return clientPageCache.get(src);
+  try {
+    const content = await readFile(src, "utf8");
+    if (!content.includes("use client")) {
+      clientPageCache.set(src, false);
+      return false;
+    }
+    const ast = await parseAST(content, src);
+    if (!ast) {
+      clientPageCache.set(src, false);
+      return false;
+    }
+    const directives = ast.body
+      .filter((node) => node.type === "ExpressionStatement")
+      .map(({ directive }) => directive);
+    if (!directives.includes("use client")) {
+      clientPageCache.set(src, false);
+      return false;
+    }
+    // A client page must also have a default export to be renderable
+    const hasDefaultExport = ast.body.some(
+      (node) =>
+        node.type === "ExportDefaultDeclaration" ||
+        (node.type === "ExportNamedDeclaration" &&
+          node.specifiers?.some((s) => s.exported?.name === "default"))
+    );
+    clientPageCache.set(src, hasDefaultExport);
+    return hasDefaultExport;
+  } catch {
+    clientPageCache.set(src, false);
+    return false;
+  }
+}
 
 /**
  * Extract `export const route = "name"` and detect `export const validate` from a source file.
@@ -603,6 +662,7 @@ export default function viteReactServerRouter(options = {}) {
     // Invalidate route infos cache
     routeInfosCache = null;
     routeInfosPromise = null;
+    clientPageCache.clear();
 
     if (viteCommand === "serve" && viteServer) {
       const manifestModule = viteServer.moduleGraph.getModuleById(
@@ -1388,6 +1448,54 @@ ${lazyValidateLines.join("\n")}
           ([, loadingPath, , type]) =>
             type === "loading" && path.includes(loadingPath)
         );
+
+        // --- Client route siblings ---
+        // Find "use client" pages that share the same innermost layout
+        const innermostLayoutSrc =
+          layouts.length > 0 ? layouts[layouts.length - 1][0] : null;
+        const candidatePages = manifest.pages.filter(
+          ([candidateSrc, candidatePath, candidateOutlet, candidateType]) => {
+            if (candidateType !== "page" || candidateOutlet) return false;
+            if (candidateSrc === src) return false;
+            if (innermostLayoutSrc) {
+              const candidateLayouts = manifest.pages
+                .filter(
+                  ([layoutSrc, layoutPath, , layoutType]) =>
+                    layoutType === "layout" &&
+                    candidatePath.includes(layoutPath) &&
+                    `${dirname(candidateSrc)}/`.includes(
+                      `${dirname(layoutSrc)}/`
+                    )
+                )
+                .toSorted(
+                  ([a], [b]) =>
+                    a.split("/").length - b.split("/").length ||
+                    a.localeCompare(b)
+                );
+              const candidateInnermostSrc =
+                candidateLayouts.length > 0
+                  ? candidateLayouts[candidateLayouts.length - 1][0]
+                  : null;
+              return candidateInnermostSrc === innermostLayoutSrc;
+            } else {
+              const candidateLayouts = manifest.pages.filter(
+                ([layoutSrc, layoutPath, , layoutType]) =>
+                  layoutType === "layout" &&
+                  candidatePath.includes(layoutPath) &&
+                  `${dirname(candidateSrc)}/`.includes(`${dirname(layoutSrc)}/`)
+              );
+              return candidateLayouts.length === 0;
+            }
+          }
+        );
+        const clientSiblings = [];
+        for (const [candidateSrc, candidatePath] of candidatePages) {
+          if (await isClientPageSource(candidateSrc)) {
+            clientSiblings.push([candidateSrc, candidatePath]);
+          }
+        }
+        const hasClientRoutes = clientSiblings.length > 0;
+
         let errorBoundaryIndex = [];
         let loadingIndex = [];
         const code = `
@@ -1405,6 +1513,7 @@ ${lazyValidateLines.join("\n")}
             viteCommand === "build" ? "MANIFEST, " : ""
           }COLLECT_STYLESHEETS, STYLES_CONTEXT, COLLECT_CLIENT_MODULES, CLIENT_MODULES_CONTEXT, POSTPONE_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
           import { useMatch } from "@lazarv/react-server/router";
+          ${hasClientRoutes ? `import { Route } from "@lazarv/react-server/router";` : ""}
           ${
             errorBoundaries.length > 0
               ? `import ErrorBoundary from "@lazarv/react-server/error-boundary";
@@ -1423,6 +1532,7 @@ ${lazyValidateLines.join("\n")}
           ${fallbacks.map(([src], i) => `import __react_server_router_fallback_${i}__ from "${src}"; fallbackComponents.set("${src}", __react_server_router_fallback_${i}__);`).join("\n")}
           ${loadings.map(([src], i) => `import __react_server_router_loading_${i}__ from "${src}"; loadingComponents.set("${src}", __react_server_router_loading_${i}__);`).join("\n")}
           import * as __react_server_page__ from "${src}";
+          ${clientSiblings.map(([sibSrc], i) => `import __client_page_${i}__ from "${sibSrc}";`).join("\n          ")}
 
           const outletImports = {
             ${outlets.map(([src], i) => `"${src}": __react_server_router_outlet_${i}__`).join(",\n")}
@@ -1511,6 +1621,19 @@ ${lazyValidateLines.join("\n")}
                 pageStyles.unshift(...collectStylesheets?.(__react_server_router_module_${i}__));`
                   )
                   .join("\n")}
+
+                ${clientSiblings
+                  .map(([sibSrc], i) => {
+                    const sibModule = entry.pages.find(
+                      ({ src: entrySrc }) => entrySrc === sibSrc
+                    )?.module;
+                    return sibModule
+                      ? `const __client_page_build_module_${i}__ = Object.values(manifest.server).find((entry) => entry.src?.endsWith("${sibModule}") || (entry.src?.startsWith("virtual:") && entry.src?.includes("${sibModule}")))?.file;
+                clientModules.unshift(...collectClientModules?.(__client_page_build_module_${i}__));
+                pageStyles.unshift(...collectStylesheets?.(__client_page_build_module_${i}__));`
+                      : "";
+                  })
+                  .join("\n")}
               }`
                   : `const pageModule = __require.resolve("${src}", { paths: [cwd] });
               clientModules.unshift(...collectClientModules?.(pageModule));
@@ -1530,6 +1653,15 @@ ${lazyValidateLines.join("\n")}
                   ) => `const __react_server_router_module_${i}__ = __require.resolve("${src}", { paths: [cwd] });
               clientModules.unshift(...collectClientModules?.(__react_server_router_module_${i}__));
               pageStyles.unshift(...collectStylesheets?.(__react_server_router_module_${i}__));`
+                )
+                .join("\n")}
+
+              ${clientSiblings
+                .map(
+                  ([sibSrc], i) =>
+                    `const __client_page_dev_module_${i}__ = __require.resolve("${sibSrc}", { paths: [cwd] });
+              clientModules.unshift(...collectClientModules?.(__client_page_dev_module_${i}__));
+              pageStyles.unshift(...collectStylesheets?.(__client_page_dev_module_${i}__));`
                 )
                 .join("\n")}`
               }
@@ -1741,7 +1873,10 @@ ${lazyValidateLines.join("\n")}
                   }`;
                 })
                 .join("\n")}
+                ${hasClientRoutes ? `<Route path="${path}" exact={true}>` : ""}
                 <${loadingIndex.length > 0 || errorBoundaryIndex.length > 0 ? "PrerenderedPage" : "CachedPage"} {...pageProps} {...props} />
+                ${hasClientRoutes ? `</Route>` : ""}
+                ${clientSiblings.map(([, sibPath], i) => `<Route path="${sibPath}" exact={true} element={<__client_page_${i}__ />} />`).join("\n                ")}
               ${layouts
                 .map(
                   (_, i) =>

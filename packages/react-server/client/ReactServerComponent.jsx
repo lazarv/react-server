@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Component as ReactComponent,
   startTransition,
   useCallback,
   useContext,
@@ -15,6 +16,7 @@ import { createPortal } from "react-dom";
 import {
   FlightContext,
   FlightComponentContext,
+  FlightNavigationAbortError,
   PAGE_ROOT,
   useClient,
 } from "./context.mjs";
@@ -41,6 +43,46 @@ function activateScriptTemplates(root) {
     document.head.appendChild(script);
     script.remove();
   });
+}
+
+// Error boundary that catches rendering errors from aborted RSC streams.
+// When a navigation is aborted, controller.error() terminates the ReadableStream,
+// causing unresolved lazy refs in the old tree to throw.  React retries the
+// failed transition lane and the error propagates here, where we fall back
+// to the last successfully rendered component.
+// Only AbortError is handled; all other errors are re-thrown so that
+// user-defined error boundaries around the outlet can catch them.
+class FlightErrorBoundary extends ReactComponent {
+  state = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  static getDerivedStateFromProps(props, state) {
+    // Reset the error state when a new component tree is provided
+    // (resourceKey changes on every navigation).
+    if (state.hasError && props.resourceKey !== state.errorResourceKey) {
+      return { hasError: false, error: null, errorResourceKey: undefined };
+    }
+    if (state.hasError && state.errorResourceKey === undefined) {
+      return { errorResourceKey: props.resourceKey };
+    }
+    return null;
+  }
+
+  render() {
+    if (this.state.hasError) {
+      const { error } = this.state;
+      // Only swallow react-server navigation aborts.
+      // Re-throw everything else so user error boundaries can handle it.
+      if (error instanceof FlightNavigationAbortError) {
+        return this.props.fallback;
+      }
+      throw error;
+    }
+    return this.props.children;
+  }
 }
 
 function FlightComponent({
@@ -179,8 +221,17 @@ function FlightComponent({
               }));
               callback(null, nextComponent);
             });
-          } catch {
+          } catch (e) {
             componentPromiseRef.current = null;
+            // Settle the navigateOutlet Promise so Link's async
+            // startTransition scope can complete. Without this, the
+            // navigate() Promise hangs forever and React 19 keeps the
+            // transition "pending", blocking subsequent navigations.
+            callback?.(
+              e instanceof FlightNavigationAbortError
+                ? e
+                : new FlightNavigationAbortError()
+            );
           }
         }
       }
@@ -305,6 +356,13 @@ function FlightComponent({
     }
   }, [outlet, isolate]);
 
+  // Capture the fallback BEFORE the render logic mutates prevComponent.
+  // When a transition renders a dead lazy tree (aborted RSC stream),
+  // the error boundary needs the LAST GOOD component, not the dead one.
+  // If we capture it after updating prevComponent.current = Component,
+  // the fallback would be the dead tree itself.
+  const errorBoundaryFallback = prevComponent.current;
+
   let componentToRender = Component;
   if (error) {
     if (outlet === PAGE_ROOT) {
@@ -320,18 +378,25 @@ function FlightComponent({
     prevComponent.current = Component;
   }
 
+  const renderedContent = isolate ? (
+    <div id={`shadowroot_${outlet}`}>
+      {shadowRoot ? createPortal(componentToRender, shadowRoot) : null}
+      {typeof document === "undefined" ? (
+        <template shadowrootmode="open">{componentToRender}</template>
+      ) : null}
+    </div>
+  ) : (
+    componentToRender
+  );
+
   return (
     <FlightComponentContext.Provider value={{ resourceKey, error }}>
-      {isolate ? (
-        <div id={`shadowroot_${outlet}`}>
-          {shadowRoot ? createPortal(componentToRender, shadowRoot) : null}
-          {typeof document === "undefined" ? (
-            <template shadowrootmode="open">{componentToRender}</template>
-          ) : null}
-        </div>
-      ) : (
-        componentToRender
-      )}
+      <FlightErrorBoundary
+        resourceKey={resourceKey}
+        fallback={errorBoundaryFallback}
+      >
+        {renderedContent}
+      </FlightErrorBoundary>
     </FlightComponentContext.Provider>
   );
 }

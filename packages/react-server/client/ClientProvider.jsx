@@ -7,6 +7,7 @@ import {
 import {
   ClientContext as _ClientContext,
   PAGE_ROOT as _PAGE_ROOT_,
+  FlightNavigationAbortError,
 } from "./context.mjs";
 
 import {
@@ -268,7 +269,6 @@ const navigateOutlet = async (
   const targetUrl = new URL(to, location.origin);
   const fromPathname = decodeURIComponent(location.pathname);
   const toPathname = decodeURIComponent(targetUrl.pathname);
-
   // Run navigation guards before proceeding (awaited BEFORE we enter the
   // synchronous Promise executor so that emit() fires inside the same
   // startTransition scope the caller set up — React keeps the old page
@@ -286,7 +286,14 @@ const navigateOutlet = async (
 
   if (outlet === PAGE_ROOT && canNavigateClientOnly(fromPathname, toPathname)) {
     // Client-only route: just update the URL, ClientRouteRegistration
-    // components will re-match and update themselves
+    // components will re-match and update themselves.
+    // Abort any in-flight server request (e.g. user clicked a server route
+    // with a loading skeleton, then navigated to a client route before the
+    // server responded) and clear the pending navigation state so the
+    // loading skeleton is removed.
+    abort(PAGE_ROOT, new FlightNavigationAbortError());
+    clearPendingNavigation();
+
     outlets.set(outlet, to);
     if (push !== false) {
       history.pushState(Object.fromEntries(outlets.entries()), "", to);
@@ -479,6 +486,9 @@ window.addEventListener("popstate", async () => {
   // Check if the navigation can be handled entirely on the client.
   // All server route boundaries must remain stable.
   if (canNavigateClientOnly(fromPathname, toPathname)) {
+    // Abort any in-flight server request and clear loading skeleton
+    abort(PAGE_ROOT, new FlightNavigationAbortError());
+    clearPendingNavigation();
     return;
   }
 
@@ -680,10 +690,10 @@ export const streamOptions = ({
 };
 
 const abort = (outlet = PAGE_ROOT, reason, prefetch) => {
-  if (
-    outletAbortControllers.has(outlet) ||
-    (prefetch !== false && outletAbortControllers.has(`prefetch:${outlet}`))
-  ) {
+  const hasControllers = outletAbortControllers.has(outlet);
+  const hasPrefetchControllers =
+    prefetch !== false && outletAbortControllers.has(`prefetch:${outlet}`);
+  if (hasControllers || hasPrefetchControllers) {
     const abortControllers = outletAbortControllers.get(outlet);
     const prefetchAbortControllers = outletAbortControllers.get(
       `prefetch:${outlet}`
@@ -760,7 +770,7 @@ function getFlightResponse(url, options = {}) {
       if (!options.callServer) {
         abort(
           options.outlet || url,
-          new DOMException("navigation", "AbortError"),
+          new FlightNavigationAbortError(),
           !options.prefetch
         );
 
@@ -838,7 +848,8 @@ function getFlightResponse(url, options = {}) {
               options.onFetch?.(response);
 
               if (abortController?.signal.aborted) {
-                controller.error(abortController.signal.reason);
+                body.cancel();
+                controller.error(new FlightNavigationAbortError());
                 return;
               }
 
@@ -849,9 +860,7 @@ function getFlightResponse(url, options = {}) {
 
               abortController?.signal?.addEventListener(
                 "abort",
-                () => {
-                  reader.cancel();
-                },
+                () => reader.cancel(),
                 { once: true }
               );
 
@@ -879,6 +888,9 @@ function getFlightResponse(url, options = {}) {
               }
 
               if (abortController?.signal.aborted) {
+                cache.delete(options.outlet || url);
+                flightCache.delete(`${options.outlet || PAGE_ROOT}:${url}`);
+                controller.error(new FlightNavigationAbortError());
                 return;
               }
 
@@ -920,9 +932,18 @@ function getFlightResponse(url, options = {}) {
                 }
               }
             } catch (e) {
-              if (e instanceof DOMException && e.name === "AbortError") {
+              if (
+                e instanceof FlightNavigationAbortError ||
+                (e instanceof DOMException && e.name === "AbortError")
+              ) {
                 cache.delete(options.outlet || url);
                 flightCache.delete(`${options.outlet || PAGE_ROOT}:${url}`);
+                controller.error(
+                  e instanceof FlightNavigationAbortError
+                    ? e
+                    : new FlightNavigationAbortError()
+                );
+
                 return;
               }
 

@@ -32,7 +32,7 @@ export function createRouteFactory(useRouteParams, useRouteSearchParams) {
       options = pathOrOptions ?? {};
     }
 
-    const { exact = false, validate = null, ...rest } = options;
+    const { exact = false, validate = null, parse = null, ...rest } = options;
 
     // ── .Link component ──
     // Computes href from typed params + optional search, renders the client <Link>.
@@ -64,6 +64,7 @@ export function createRouteFactory(useRouteParams, useRouteSearchParams) {
       fallback,
       exact,
       validate,
+      parse,
       // Fallback routes are not addressable — no Link or href
       ...(fallback
         ? {}

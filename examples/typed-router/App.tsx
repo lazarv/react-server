@@ -6,6 +6,7 @@ import * as routes from "./routes";
 import Home from "./Home";
 import About from "./About";
 import UserPage from "./UserPage";
+import PostPage from "./PostPage";
 import ProductList from "./ProductList";
 import NotFound from "./NotFound";
 
@@ -18,6 +19,7 @@ const router = createRouter({
   home: createRoute(routes.home, <Home />),
   about: createRoute(routes.about, <About />),
   user: createRoute(routes.user, <UserPage />),
+  post: createRoute(routes.post, <PostPage />),
   products: createRoute(routes.products, <ProductList />),
   notFound: createRoute(routes.notFound, <NotFound />),
 });
@@ -37,7 +39,8 @@ export default function App() {
             Demonstrates <code>createRoute</code> / <code>createRouter</code>{" "}
             with both server and client routes, typed <code>.Link</code> and{" "}
             <code>.href()</code>, and bound hooks <code>.useParams()</code> /{" "}
-            <code>.useSearchParams()</code> with Zod validation.
+            <code>.useSearchParams()</code> with Zod <code>validate</code> and
+            lightweight <code>parse</code>.
           </p>
 
           <nav
@@ -59,6 +62,12 @@ export default function App() {
             <router.user.Link params={{ id: 99 }} style={{ color: "blue" }}>
               User 99
             </router.user.Link>
+            <router.post.Link
+              params={{ slug: "hello-world" }}
+              style={{ color: "blue" }}
+            >
+              Post
+            </router.post.Link>
             <router.products.Link style={{ color: "blue" }}>
               Products
             </router.products.Link>

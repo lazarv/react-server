@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { match } from "../lib/route-match.mjs";
+import { applyParsers } from "../lib/apply-parsers.mjs";
 import {
   useLocation,
   useSearchParams as useClientSearchParams,
@@ -33,6 +34,9 @@ export function useRouteParams(route) {
     if (route.validate?.params) {
       const result = route.validate.params.safeParse(raw);
       return result.success ? result.data : null;
+    }
+    if (route.parse?.params) {
+      return applyParsers(raw, route.parse.params);
     }
     return raw;
   }, [raw, route]);
@@ -78,6 +82,9 @@ export function useRouteSearchParams(route) {
     if (route.validate?.search) {
       const result = route.validate.search.safeParse(raw);
       return result.success ? result.data : {};
+    }
+    if (route.parse?.search) {
+      return applyParsers(raw, route.parse.search);
     }
     return raw;
   }, [raw, route]);

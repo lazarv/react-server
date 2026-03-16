@@ -11,6 +11,7 @@
 
 import { useMatch } from "./Route.jsx";
 import { useSearchParams } from "./request.mjs";
+import { applyParsers } from "../lib/apply-parsers.mjs";
 
 /**
  * Read typed, validated params for a route (server-side).
@@ -21,6 +22,9 @@ export function useRouteParams(route) {
   if (route.validate?.params) {
     const result = route.validate.params.safeParse(raw);
     return result.success ? result.data : null;
+  }
+  if (route.parse?.params) {
+    return applyParsers(raw, route.parse.params);
   }
   return raw;
 }
@@ -41,6 +45,9 @@ export function useRouteSearchParams(route) {
   if (route.validate?.search) {
     const result = route.validate.search.safeParse(raw);
     return result.success ? result.data : {};
+  }
+  if (route.parse?.search) {
+    return applyParsers(raw, route.parse.search);
   }
   return raw;
 }

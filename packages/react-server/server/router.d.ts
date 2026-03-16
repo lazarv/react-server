@@ -46,6 +46,24 @@ export interface RouteValidate<TParams = any, TSearch = any> {
   search?: ValidateSchema<TSearch>;
 }
 
+/**
+ * Lightweight parser map for route params and search params.
+ * Each key maps to a function that converts the raw string to the desired type.
+ * Built-in constructors like `Number`, `Boolean`, and `Date` work directly.
+ *
+ * @example
+ * ```ts
+ * const user = createRoute("/user/[id]", {
+ *   parse: { params: { id: Number } }
+ * });
+ * // user.useParams() → { id: 42 } instead of { id: "42" }
+ * ```
+ */
+export interface RouteParse<TParams = any, TSearch = any> {
+  params?: { [K in keyof TParams]?: (value: string) => TParams[K] };
+  search?: { [K in keyof TSearch]?: (value: string) => TSearch[K] };
+}
+
 export interface RouteOptions<
   TPath extends string = string,
   TParams = ExtractParams<TPath>,
@@ -59,6 +77,7 @@ export interface RouteOptions<
   ) => React.ReactNode;
   children?: React.ReactNode;
   validate?: RouteValidate<TParams, TSearch>;
+  parse?: RouteParse<TParams, TSearch>;
 }
 
 // ── RouteDescriptor — minimal shape accepted by client hooks ──
@@ -77,6 +96,7 @@ export interface RouteDescriptor<
   readonly fallback: boolean;
   readonly exact: boolean;
   readonly validate: RouteValidate<TParams, TSearch> | null;
+  readonly parse: RouteParse<TParams, TSearch> | null;
 
   /** Typed Link — only available on addressable routes (not fallbacks) */
   Link: TPath extends "*"

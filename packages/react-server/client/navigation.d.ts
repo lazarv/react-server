@@ -581,6 +581,7 @@ export function useScrollContainer(
 import type {
   RouteDescriptor,
   RouteValidate,
+  RouteParse,
   ExtractParams,
 } from "../server/router";
 
@@ -589,6 +590,7 @@ import type {
 interface ClientRouteOptions<TParams = any, TSearch = Record<string, string>> {
   exact?: boolean;
   validate?: RouteValidate<TParams, TSearch>;
+  parse?: RouteParse<TParams, TSearch>;
 }
 
 /**

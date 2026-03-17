@@ -21,22 +21,38 @@ export const user = createRoute("/user/[id]", {
   },
 });
 
-// Lightweight `parse` — simple type coercion without a validation library.
-// Parser functions receive the raw string value and return the desired type.
+// Lightweight `parse` — custom coercion and validation without a library.
+// `tab` validates against an allowlist and falls back to "content" for unknown
+// values, showing that parse functions can enforce constraints, not just cast types.
 export const post = createRoute("/post/[slug]", {
   exact: true,
   parse: {
     params: { slug: String },
-    search: { comments: (v: string) => v === "true" },
+    search: {
+      tab: (v: string): "content" | "comments" | "related" =>
+        (["content", "comments", "related"] as const).includes(
+          v as "content" | "comments" | "related"
+        )
+          ? (v as "content" | "comments" | "related")
+          : "content",
+      q: String,
+    },
   },
 });
 
+// Zod `validate` + SearchParams decode/encode: the ?price=min-max URL format
+// is decoded to ?min_price=...&max_price=... before Zod sees it, and encoded
+// back to compact form when navigating. See StripTrackingParams.tsx.
 export const products = createRoute("/products", {
   exact: true,
   validate: {
     search: z.object({
-      sort: z.enum(["name", "price", "rating"]).default("name"),
-      page: z.coerce.number().int().positive().default(1),
+      sort: z.enum(["name", "price", "rating"]).catch("name"),
+      page: z.coerce.number().int().positive().catch(1),
+      // Decoded from ?price=min-max by the ProductPriceRange SearchParams transform.
+      // .catch() provides a safe default for any invalid or missing values.
+      min_price: z.coerce.number().min(0).max(10000).catch(0),
+      max_price: z.coerce.number().min(0).max(10000).catch(10000),
     }),
   },
 });

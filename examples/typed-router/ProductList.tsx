@@ -28,6 +28,14 @@ const SORT_OPTIONS = [
   { value: "rating", label: "Rating" },
 ] as const;
 
+const PRICE_PRESETS = [
+  { label: "All", min: 0, max: 10000 },
+  { label: "Under $50", min: 0, max: 50 },
+  { label: "$50–$100", min: 50, max: 100 },
+  { label: "$100–$150", min: 100, max: 150 },
+  { label: "Over $150", min: 150, max: 10000 },
+] as const;
+
 const PAGE_SIZE = 8;
 
 function sortItems(items: typeof ITEMS, sort: string) {
@@ -45,14 +53,19 @@ function sortItems(items: typeof ITEMS, sort: string) {
 
 export default function ProductList() {
   // products.useSearchParams() reads URL search params and validates them
-  // through the Zod schema defined in routes.ts — invalid values get defaults.
-  const { sort, page } = products.useSearchParams();
+  // through the Zod schema in routes.ts. min_price and max_price come from
+  // the decoded ?price=min-max — the ProductPriceRange SearchParams transform
+  // in App.tsx splits that into separate params before Zod sees them.
+  const { sort, page, min_price, max_price } = products.useSearchParams();
   const navigate = useNavigate();
 
   const sorted = sortItems(ITEMS, sort);
-  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
-  const safePage = Math.min(Math.max(page, 1), totalPages);
-  const pageItems = sorted.slice(
+  const priceFiltered = sorted.filter(
+    (item) => item.price >= min_price && item.price <= max_price
+  );
+  const totalPages = Math.ceil(priceFiltered.length / PAGE_SIZE);
+  const safePage = Math.min(Math.max(page, 1), totalPages || 1);
+  const pageItems = priceFiltered.slice(
     (safePage - 1) * PAGE_SIZE,
     safePage * PAGE_SIZE
   );
@@ -61,18 +74,16 @@ export default function ProductList() {
     <div>
       <h2>Products</h2>
       <p>
-        Search params are validated with <code>products.useSearchParams()</code>
-        .
-      </p>
-      <p>
-        <code>sort</code> defaults to <code>"name"</code>, <code>page</code>{" "}
-        defaults to <code>1</code>. Try <code>?sort=price&page=2</code> in the
-        URL.
+        Search params are validated with Zod via{" "}
+        <code>products.useSearchParams()</code>. The price filter is stored as{" "}
+        <code>?price=min-max</code> in the URL and decoded to{" "}
+        <code>min_price</code> / <code>max_price</code> by the route-scoped{" "}
+        <code>SearchParams</code> transform before validation runs.
       </p>
 
       {/* Sort controls */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-        <span>Sort by:</span>
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        <span>Sort:</span>
         {SORT_OPTIONS.map((opt) => (
           <button
             key={opt.value}
@@ -87,6 +98,31 @@ export default function ProductList() {
             {opt.label}
           </button>
         ))}
+      </div>
+
+      {/* Price range filter — navigate with min_price/max_price; the encode
+          transform converts them to ?price=min-max in the URL */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+        <span>Price:</span>
+        {PRICE_PRESETS.map((p) => {
+          const active = min_price === p.min && max_price === p.max;
+          return (
+            <button
+              key={p.label}
+              onClick={() =>
+                navigate(products, {
+                  search: { min_price: p.min, max_price: p.max, page: 1 },
+                })
+              }
+              style={{
+                fontWeight: active ? "bold" : "normal",
+                textDecoration: active ? "underline" : "none",
+              }}
+            >
+              {p.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Product table */}
@@ -110,18 +146,26 @@ export default function ProductList() {
           </tr>
         </thead>
         <tbody>
-          {pageItems.map((item) => (
-            <tr key={item.id}>
-              <td style={{ padding: "0.3rem 0.8rem" }}>{item.id}</td>
-              <td style={{ padding: "0.3rem 0.8rem" }}>{item.name}</td>
-              <td style={{ padding: "0.3rem 0.8rem" }}>
-                ${item.price.toFixed(2)}
-              </td>
-              <td style={{ padding: "0.3rem 0.8rem" }}>
-                {item.rating.toFixed(1)}★
+          {pageItems.length === 0 ? (
+            <tr>
+              <td colSpan={4} style={{ padding: "0.8rem", color: "gray" }}>
+                No products in this price range.
               </td>
             </tr>
-          ))}
+          ) : (
+            pageItems.map((item) => (
+              <tr key={item.id}>
+                <td style={{ padding: "0.3rem 0.8rem" }}>{item.id}</td>
+                <td style={{ padding: "0.3rem 0.8rem" }}>{item.name}</td>
+                <td style={{ padding: "0.3rem 0.8rem" }}>
+                  ${item.price.toFixed(2)}
+                </td>
+                <td style={{ padding: "0.3rem 0.8rem" }}>
+                  {item.rating.toFixed(1)}★
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
 
@@ -141,7 +185,7 @@ export default function ProductList() {
           ← Prev
         </button>
         <span>
-          Page {safePage} / {totalPages}
+          Page {safePage} / {totalPages || 1}
         </span>
         <button
           disabled={safePage >= totalPages}
@@ -152,8 +196,9 @@ export default function ProductList() {
       </div>
 
       <p style={{ color: "gray", fontSize: "0.85rem", marginTop: "1rem" }}>
-        Current search params: sort=<strong>{sort}</strong>, page=
-        <strong>{page}</strong>
+        Decoded params: sort=<strong>{sort}</strong>, page=
+        <strong>{page}</strong>, min_price=<strong>{min_price}</strong>,
+        max_price=<strong>{max_price}</strong> ({priceFiltered.length} items)
       </p>
     </div>
   );

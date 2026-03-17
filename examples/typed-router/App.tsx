@@ -9,7 +9,7 @@ import UserPage from "./UserPage";
 import PostPage from "./PostPage";
 import ProductList from "./ProductList";
 import NotFound from "./NotFound";
-import StripTrackingParams from "./StripTrackingParams";
+import ProductPriceRange from "./StripTrackingParams";
 
 // ── Create full typed routes from descriptors + elements ──
 // The server `createRoute(descriptor, element)` overload takes a route
@@ -34,18 +34,23 @@ export default function App() {
         <title>Typed Router Example</title>
       </head>
       <body>
-        {/* Global SearchParams transform: strip utm_* and fbclid before
-            any route validation/parsing sees them. */}
-        <StripTrackingParams>
+        {/* Route-scoped SearchParams transform: decodes ?price=min-max to
+            ?min_price=...&max_price=... before Zod validation, and encodes
+            back on navigation. Only active when on /products. */}
+        <ProductPriceRange>
           <div style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
             <h1>Typed Router Example</h1>
             <p style={{ color: "gray" }}>
               Demonstrates <code>createRoute</code> / <code>createRouter</code>{" "}
-              with both server and client routes, typed <code>.Link</code> and{" "}
-              <code>.href()</code>, and bound hooks <code>.useParams()</code> /{" "}
-              <code>.useSearchParams()</code> with Zod <code>validate</code>,
-              lightweight <code>parse</code>, and <code>SearchParams</code>{" "}
-              decode/encode transforms.
+              with typed <code>.Link</code>, <code>.useParams()</code>, and{" "}
+              <code>.useSearchParams()</code>. Zod <code>validate</code> rejects
+              invalid values with safe defaults. Lightweight <code>parse</code>{" "}
+              validates without Zod — <code>tab</code> falls back to{" "}
+              <code>"content"</code> for unknown values.{" "}
+              <code>SearchParams</code> decode/encode stores the product price
+              filter as compact <code>?price=min-max</code> in the URL while
+              exposing separate <code>min_price</code> / <code>max_price</code>{" "}
+              fields to Zod.
             </p>
 
             <nav
@@ -71,18 +76,26 @@ export default function App() {
               </router.user.Link>
               <router.post.Link
                 params={{ slug: "hello-world" }}
+                search={{ tab: "content" }}
                 style={{ color: "blue" }}
               >
                 Post
+              </router.post.Link>
+              <router.post.Link
+                params={{ slug: "react-server" }}
+                search={{ tab: "comments" }}
+                style={{ color: "blue" }}
+              >
+                Post (comments)
               </router.post.Link>
               <router.products.Link style={{ color: "blue" }}>
                 Products
               </router.products.Link>
               <router.products.Link
                 style={{ color: "blue" }}
-                search={{ sort: "price", page: 2 }}
+                search={{ sort: "rating", min_price: 50, max_price: 150 }}
               >
-                Products (sorted)
+                Products ($50–$150)
               </router.products.Link>
               <Link to="/nonexistent" style={{ color: "blue" }}>
                 404 Page
@@ -94,7 +107,7 @@ export default function App() {
             {/* Render all routes in declaration order */}
             <router.Routes />
           </div>
-        </StripTrackingParams>
+        </ProductPriceRange>
       </body>
     </html>
   );

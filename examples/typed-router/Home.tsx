@@ -20,10 +20,12 @@ export default function Home() {
           <code>.Link</code> builds <code>/user/42</code>
         </li>
         <li>
-          <products.Link search={{ sort: "price", page: 2 }}>
-            Products (price, page 2)
+          <products.Link
+            search={{ sort: "price", min_price: 50, max_price: 150 }}
+          >
+            Products (price-sorted, $50–$150)
           </products.Link>{" "}
-          — search params parsed by Zod
+          — Zod validate + SearchParams decode/encode
         </li>
       </ul>
     </div>

@@ -22,6 +22,7 @@ import type * as React from "react";
  */
 export type LinkProps<T> = React.PropsWithChildren<{
   to: T;
+  search?: Record<string, unknown>;
   target?: string;
   local?: boolean;
   root?: boolean;
@@ -582,6 +583,7 @@ import type {
   RouteDescriptor,
   RouteValidate,
   RouteParse,
+  SearchParamsProps,
   ExtractParams,
 } from "../server/router";
 
@@ -694,21 +696,68 @@ export function useRouteSearchParams<TPath extends string, TParams, TSearch>(
   route: RouteDescriptor<TPath, TParams, TSearch>
 ): TSearch;
 
+/** Options when navigating to a route descriptor */
+export interface RouteNavigateOptions<TParams = {}, TSearch = {}> {
+  /** Path params — required when the route has dynamic segments */
+  params?: TParams;
+  /** Search params — merged with the current URL search params */
+  search?: Partial<TSearch>;
+  outlet?: string;
+  push?: boolean;
+  rollback?: number;
+  signal?: AbortSignal;
+  fallback?: React.ReactNode;
+  Component?: React.ReactNode;
+}
+
+type NavigateToUrl = import("./index").ReactServerClientContext["navigate"];
+
 /**
- * Returns the `navigate` function from the client context.
+ * Navigate function returned by `useNavigate()`.
  *
- * A convenience wrapper around `useClient().navigate` for cleaner imports.
+ * Accepts either:
+ * - A URL string + optional nav options (classic mode)
+ * - A route descriptor + options with typed `params` and `search` (typed mode)
  *
- * @returns A function that navigates to the given URL.
+ * In typed mode, `search` is **merged** with the current URL search params.
+ *
+ * @example
+ * ```tsx
+ * const navigate = useNavigate();
+ *
+ * // Classic — plain URL
+ * navigate("/about");
+ *
+ * // Typed — route with search params (merged with current URL)
+ * navigate(products, { search: { sort: "price", page: 2 } });
+ *
+ * // Typed — route with path params + search
+ * navigate(user, { params: { id: "42" }, search: { tab: "posts" } });
+ * ```
+ */
+export interface NavigateFunction {
+  /** Navigate to a plain URL string */
+  (url: string, options?: Parameters<NavigateToUrl>[1]): Promise<void>;
+
+  /** Navigate to a typed route descriptor */
+  <TPath extends string, TParams, TSearch>(
+    route: RouteDescriptor<TPath, TParams, TSearch>,
+    options?: RouteNavigateOptions<TParams, TSearch>
+  ): Promise<void>;
+}
+
+/**
+ * Returns a `navigate` function that accepts a URL string or a route descriptor.
+ *
+ * @returns A navigate function.
  *
  * @example
  * ```tsx
  * import { useNavigate } from '@lazarv/react-server/navigation';
  *
- * function MyComponent() {
- *   const navigate = useNavigate();
- *   return <button onClick={() => navigate('/about')}>Go</button>;
- * }
+ * const navigate = useNavigate();
+ * navigate('/about');
+ * navigate(products, { search: { sort: 'price' } });
  * ```
  */
-export function useNavigate(): import("./index").ReactServerClientContext["navigate"];
+export function useNavigate(): NavigateFunction;

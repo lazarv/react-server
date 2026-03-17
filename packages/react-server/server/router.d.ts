@@ -64,6 +64,48 @@ export interface RouteParse<TParams = any, TSearch = any> {
   search?: { [K in keyof TSearch]?: (value: string) => TSearch[K] };
 }
 
+// ── SearchParams component ──
+
+/**
+ * Props for the `<SearchParams>` transform boundary.
+ *
+ * - `decode` — intercepts reading: receives raw `URLSearchParams` from the URL,
+ *   returns a cleaned `URLSearchParams` that hooks (`useSearchParams`, etc.) see.
+ * - `encode` — intercepts writing (typed Link merge mode): receives the merged
+ *   `URLSearchParams` and the current URL params, returns the final
+ *   `URLSearchParams` that goes into the URL.
+ *
+ * Both are optional. Nesting is supported — decode chains outer→inner,
+ * encode chains inner→outer.
+ */
+export interface SearchParamsProps {
+  decode?: (searchParams: URLSearchParams) => URLSearchParams;
+  encode?: (
+    searchParams: URLSearchParams,
+    current: URLSearchParams
+  ) => URLSearchParams;
+  children?: React.ReactNode;
+}
+
+/**
+ * Bidirectional search-param transform boundary.
+ *
+ * Wrap your routes (or the entire app) to intercept how search params are
+ * read from and written to the URL on the client.
+ *
+ * @example
+ * ```tsx
+ * import { SearchParams } from "@lazarv/react-server/router";
+ *
+ * <SearchParams
+ *   decode={(sp) => { sp.delete("utm_source"); return sp; }}
+ * >
+ *   {children}
+ * </SearchParams>
+ * ```
+ */
+export const SearchParams: React.FC<SearchParamsProps>;
+
 export interface RouteOptions<
   TPath extends string = string,
   TParams = ExtractParams<TPath>,
@@ -129,6 +171,9 @@ export interface RouteDescriptor<
 
   /** Hook: read typed, validated search params for this route */
   useSearchParams(): TSearch;
+
+  /** Route-scoped SearchParams — decode/encode only apply when this route matches */
+  SearchParams: React.FC<SearchParamsProps>;
 }
 
 // ── TypedRoute — the object returned by createRoute ──
@@ -222,6 +267,8 @@ export function createRoute<
 export type TypedRouter<T extends Record<string, TypedRoute<any, any, any>>> = {
   /** Render all routes in declaration order */
   Routes: React.FC;
+  /** Global (non-scoped) SearchParams transform boundary */
+  SearchParams: React.FC<SearchParamsProps>;
 } & {
   [K in keyof T]: T[K];
 };

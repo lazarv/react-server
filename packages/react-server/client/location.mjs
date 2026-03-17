@@ -5,6 +5,7 @@ import { useContext, useEffect, useState } from "react";
 import { getHttpContext } from "@lazarv/react-server/http-context";
 
 import { FlightContext, useClient } from "./context.mjs";
+import { SearchParamsTransformContext } from "./search-params-context.mjs";
 
 export function useLocation(target) {
   const [location, setLocation] = useState(
@@ -48,7 +49,15 @@ export function useLocation(target) {
 
 export function useSearchParams(outlet) {
   const location = useLocation(outlet);
-  const searchParams = location ? new URLSearchParams(location.search) : null;
+  const { decode } = useContext(SearchParamsTransformContext);
+
+  let searchParams = location ? new URLSearchParams(location.search) : null;
+
+  // Apply the decode transform chain (strips tracking params, etc.)
+  if (searchParams && decode) {
+    searchParams = decode(searchParams);
+  }
+
   return searchParams
     ? Array.from(searchParams.entries()).reduce((params, [key, value]) => {
         if (key in params) {

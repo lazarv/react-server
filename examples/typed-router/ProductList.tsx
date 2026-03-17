@@ -57,15 +57,6 @@ export default function ProductList() {
     safePage * PAGE_SIZE
   );
 
-  function updateSearch(updates: { sort?: string; page?: number }) {
-    const params = new URLSearchParams();
-    const next = { sort, page, ...updates };
-    if (next.sort !== "name") params.set("sort", next.sort);
-    if (next.page > 1) params.set("page", String(next.page));
-    const qs = params.toString();
-    navigate(`/products${qs ? `?${qs}` : ""}`);
-  }
-
   return (
     <div>
       <h2>Products</h2>
@@ -85,7 +76,9 @@ export default function ProductList() {
         {SORT_OPTIONS.map((opt) => (
           <button
             key={opt.value}
-            onClick={() => updateSearch({ sort: opt.value, page: 1 })}
+            onClick={() =>
+              navigate(products, { search: { sort: opt.value, page: 1 } })
+            }
             style={{
               fontWeight: sort === opt.value ? "bold" : "normal",
               textDecoration: sort === opt.value ? "underline" : "none",
@@ -143,7 +136,7 @@ export default function ProductList() {
       >
         <button
           disabled={safePage <= 1}
-          onClick={() => updateSearch({ page: safePage - 1 })}
+          onClick={() => navigate(products, { search: { page: safePage - 1 } })}
         >
           ← Prev
         </button>
@@ -152,7 +145,7 @@ export default function ProductList() {
         </span>
         <button
           disabled={safePage >= totalPages}
-          onClick={() => updateSearch({ page: safePage + 1 })}
+          onClick={() => navigate(products, { search: { page: safePage + 1 } })}
         >
           Next →
         </button>

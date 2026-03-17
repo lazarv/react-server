@@ -5,6 +5,8 @@
 // for environments where the server Route component is not available.
 import { useRouteParams, useRouteSearchParams } from "./typed-route-hooks.mjs";
 import { createRouteFactory } from "../lib/create-route.jsx";
+import SearchParamsComponent from "./SearchParams.jsx";
+export { default as SearchParams } from "./SearchParams.jsx";
 
 export const createRoute = createRouteFactory(
   useRouteParams,
@@ -12,5 +14,5 @@ export const createRoute = createRouteFactory(
 );
 
 export function createRouter(routes) {
-  return { ...routes };
+  return { SearchParams: SearchParamsComponent, ...routes };
 }

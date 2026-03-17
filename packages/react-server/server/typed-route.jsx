@@ -1,6 +1,7 @@
 import Route from "./Route.jsx";
 import { isRouteDescriptor, createRouteFactory } from "../lib/create-route.jsx";
 import { useRouteParams, useRouteSearchParams } from "./typed-route-hooks.mjs";
+import SearchParams from "../client/SearchParams.jsx";
 
 const createRouteDescriptor = createRouteFactory(
   useRouteParams,
@@ -225,8 +226,8 @@ export function createRouter(routes) {
     );
   }
 
-  // Build the router object: { Routes, home, about, user, ... }
-  const router = { Routes };
+  // Build the router object: { Routes, SearchParams, home, about, user, ... }
+  const router = { Routes, SearchParams };
   for (const [name, route] of Object.entries(routes)) {
     router[name] = route;
   }

@@ -1,5 +1,6 @@
 import { buildHref } from "./build-href.mjs";
 import Link from "../client/Link.jsx";
+import SearchParamsComponent from "../client/SearchParams.jsx";
 
 /**
  * Client-safe route descriptor tag.
@@ -35,27 +36,25 @@ export function createRouteFactory(useRouteParams, useRouteSearchParams) {
     const { exact = false, validate = null, parse = null, ...rest } = options;
 
     // ── .Link component ──
-    // Computes href from typed params + optional search, renders the client <Link>.
+    // Computes href from typed params, passes search to Link for merge mode.
     function TypedLink({
       params,
       search,
       children: linkChildren,
       ...linkRest
     }) {
-      let to = path ? buildHref(path, params) : "/";
-      if (search) {
-        const qs = new URLSearchParams();
-        for (const [k, v] of Object.entries(search)) {
-          if (v != null) qs.set(k, String(v));
-        }
-        const s = qs.toString();
-        if (s) to += "?" + s;
-      }
+      const to = path ? buildHref(path, params) : "/";
       return (
-        <Link to={to} {...linkRest}>
+        <Link to={to} search={search} {...linkRest}>
           {linkChildren}
         </Link>
       );
+    }
+
+    // ── .SearchParams component ──
+    // Route-scoped SearchParams — only applies decode/encode when this route matches.
+    function RouteSearchParams(spProps) {
+      return <SearchParamsComponent {...spProps} route={descriptor} />;
     }
 
     const descriptor = {
@@ -65,6 +64,7 @@ export function createRouteFactory(useRouteParams, useRouteSearchParams) {
       exact,
       validate,
       parse,
+      SearchParams: RouteSearchParams,
       // Fallback routes are not addressable — no Link or href
       ...(fallback
         ? {}

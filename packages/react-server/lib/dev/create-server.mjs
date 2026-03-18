@@ -45,6 +45,7 @@ import importRemote from "../plugins/import-remote.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import reactServerLive from "../plugins/live.mjs";
 import optimizeDeps from "../plugins/optimize-deps.mjs";
+import fixCjsExternalFacade from "../plugins/fix-cjs-external-facade.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
@@ -270,6 +271,7 @@ export default async function createServer(root, options) {
       ...filterOutVitePluginReact(config.plugins),
       asset(),
       optimizeDeps(),
+      fixCjsExternalFacade(),
       reactServerLive(options.httpServer, config),
       ...(telemetryConfig ? [telemetryHooks()] : []),
     ],

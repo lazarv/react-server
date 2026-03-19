@@ -181,47 +181,33 @@ export function createMiddleware(handler, options = {}) {
         res.end(Buffer.from(directBuffer));
       } else {
         // Convert the Web ReadableStream to a Node Readable and pipe into ServerResponse.
-        // Use AbortController to coordinate cleanup when client disconnects or stream completes.
         const nodeReadable = Readable.fromWeb(response.body);
 
-        // Destroy stream when aborted (client disconnect or error)
-        signal.addEventListener(
-          "abort",
-          () => {
+        // Handle client disconnect: abort the signal (for useSignal() consumers)
+        // and destroy the readable. Only fires on premature close — on successful
+        // completion the listener is removed before "close" fires, so no
+        // DOMException is constructed on the happy path.
+        const onClose = () => {
+          if (!res.writableFinished) {
+            abortController.abort();
             try {
               nodeReadable.destroy(new Error("aborted"));
             } catch {
               // no-op
             }
-          },
-          { once: true }
-        );
-
-        // Abort on client disconnect
-        const onDisconnect = () => abortController.abort();
-        res.once("close", onDisconnect);
-        req.once("aborted", onDisconnect);
+          }
+        };
+        res.once("close", onClose);
 
         try {
           await new Promise((resolve, reject) => {
-            // Use { once: true } for auto-cleanup
-            const onFinish = () => resolve();
-            const onReadableError = (err) => reject(err);
-            const onResError = (err) => reject(err);
-
-            nodeReadable.once("error", onReadableError);
-            res.once("error", onResError);
-            res.once("finish", onFinish);
-
-            // End dest when source ends (default true)
+            nodeReadable.once("error", reject);
+            res.once("error", reject);
+            res.once("finish", resolve);
             nodeReadable.pipe(res);
           });
         } finally {
-          // Trigger abort to clean up the signal listener
-          abortController.abort();
-          // Remove disconnect listeners
-          res.off("close", onDisconnect);
-          req.off("aborted", onDisconnect);
+          res.off("close", onClose);
         }
       }
 

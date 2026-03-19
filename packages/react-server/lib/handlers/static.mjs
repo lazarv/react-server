@@ -10,6 +10,7 @@ import {
   POSTPONE_STATE,
   PRELUDE_HTML,
   PRERENDER_CACHE_DATA,
+  RESPONSE_BUFFER,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 
@@ -160,7 +161,7 @@ export default async function staticHandler(dir, options = {}) {
             prerender$(PRELUDE_HTML, res);
             return;
           }
-          return new Response(res, {
+          const response = new Response(res, {
             headers: {
               "content-type":
                 file.mime.includes("text/") || file.mime === "application/json"
@@ -179,6 +180,10 @@ export default async function staticHandler(dir, options = {}) {
               ...(contentEncoding && { "content-encoding": contentEncoding }),
             },
           });
+          if (!(res instanceof ReadableStream)) {
+            response[RESPONSE_BUFFER] = res;
+          }
+          return response;
         }
       } catch (error) {
         if (error.code !== "ENOENT") {

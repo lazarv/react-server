@@ -103,6 +103,14 @@ async function otelApi() {
 // ─── Public helpers ──────────────────────────────────────────────────────────
 
 /**
+ * Returns true when a real (non-noop) tracer has been configured.
+ * Use this to skip span construction overhead on the hot path.
+ */
+export function isTracingEnabled() {
+  return getRuntime(OTEL_TRACER) != null;
+}
+
+/**
  * Returns the active tracer (or a no-op tracer when telemetry is disabled).
  */
 export function getTracer() {

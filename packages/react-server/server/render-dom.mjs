@@ -19,6 +19,115 @@ import { LINK_QUEUE, MODULE_CACHE } from "./symbols.mjs";
 const streamMap = new Map();
 const preludeMap = new Map();
 
+// ── Byte-level JS string escaping for inline <script> payloads ──────────────
+// Eliminates the decode → JSON.stringify → encode cycle in the hot render path.
+// All characters needing escaping in a JS string literal are single-byte ASCII,
+// so multi-byte UTF-8 sequences pass through untouched.
+
+const _enc = new TextEncoder();
+const toBytes = (s) => _enc.encode(s);
+
+// Lookup tables: NEEDS_ESC[byte] = 1 if the byte must be escaped.
+// ESCAPE_BYTES[byte] = Uint8Array replacement for escapable bytes.
+const NEEDS_ESC = new Uint8Array(256);
+const ESCAPE_BYTES = Array.from({ length: 256 });
+function _esc(byte, replacement) {
+  NEEDS_ESC[byte] = 1;
+  ESCAPE_BYTES[byte] = toBytes(replacement);
+}
+_esc(0x08, "\\b");
+_esc(0x09, "\\t");
+_esc(0x0a, "\\n");
+_esc(0x0c, "\\f");
+_esc(0x0d, "\\r");
+_esc(0x22, '\\"'); // "
+_esc(0x5c, "\\\\"); // \
+_esc(0x3c, "\\u003c"); // < — prevents </script> injection
+for (let i = 0; i < 0x20; i++) {
+  if (!NEEDS_ESC[i]) _esc(i, `\\u${i.toString(16).padStart(4, "0")}`);
+}
+
+/**
+ * Escape raw UTF-8 bytes for embedding in a JS double-quoted string literal
+ * inside a <script> tag. Returns input unchanged when no escaping is needed.
+ */
+function escapeJSStringBytes(input) {
+  let extra = 0;
+  for (let i = 0; i < input.length; i++) {
+    if (NEEDS_ESC[input[i]]) extra += ESCAPE_BYTES[input[i]].length - 1;
+  }
+  if (extra === 0) return input;
+
+  const out = new Uint8Array(input.length + extra);
+  let j = 0;
+  for (let i = 0; i < input.length; i++) {
+    const b = input[i];
+    if (NEEDS_ESC[b]) {
+      const rep = ESCAPE_BYTES[b];
+      out.set(rep, j);
+      j += rep.length;
+    } else {
+      out[j++] = b;
+    }
+  }
+  return out;
+}
+
+/**
+ * Concatenate Uint8Arrays using a plain Uint8Array allocation.
+ * Intentionally avoids Buffer.concat — the worker thread's Buffer pool
+ * can become detached when ReadableStreams are transferred via postMessage.
+ */
+function concatBytes(a, b, c) {
+  const out = new Uint8Array(a.length + b.length + c.length);
+  out.set(a, 0);
+  out.set(b, a.length);
+  out.set(c, a.length + b.length);
+  return out;
+}
+
+/** Check if a byte sequence appears anywhere in the haystack. */
+function bytesContain(haystack, needle) {
+  outer: for (let i = 0; i <= haystack.length - needle.length; i++) {
+    for (let j = 0; j < needle.length; j++) {
+      if (haystack[i + j] !== needle[j]) continue outer;
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Check if the haystack ends with the given suffix bytes. */
+function bytesEndWith(haystack, suffix) {
+  if (haystack.length < suffix.length) return false;
+  const off = haystack.length - suffix.length;
+  for (let i = 0; i < suffix.length; i++) {
+    if (haystack[off + i] !== suffix[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * Check if any line starts with "0:" (0x30 0x3A).
+ * A line start is position 0 or immediately after 0x0A.
+ */
+function bytesHasLine0Colon(bytes) {
+  if (bytes.length >= 2 && bytes[0] === 0x30 && bytes[1] === 0x3a) return true;
+  for (let i = 0; i < bytes.length - 2; i++) {
+    if (bytes[i] === 0x0a && bytes[i + 1] === 0x30 && bytes[i + 2] === 0x3a)
+      return true;
+  }
+  return false;
+}
+
+// Pre-encoded byte patterns for matching
+const SERVER_ACTION_MARKER = toBytes(':{"id":"');
+const SUSPENSE_END_BYTES = toBytes("<!--/$-->");
+const HTML_TAG_BYTES = toBytes("<html");
+
+// Pre-encoded static script suffix (module-level constant)
+const HYDRATED_SCRIPT_SUFFIX = toBytes('"));</script>');
+
 function detectSplitUTF8(chunk) {
   const bytes = new Uint8Array(chunk);
   let cutIndex = bytes.length;
@@ -253,6 +362,14 @@ export const createRenderer = ({
                     let forwardDone = false;
                     let forwardNext = null;
                     let splitBuffer = new Uint8Array(0);
+
+                    // Per-render pre-encoded prefix for hydrated inline scripts.
+                    // Computed once here (depends on `outlet`) to avoid repeated
+                    // string concat + TextEncoder.encode() on every flight chunk.
+                    const _hydratedScriptPrefix = toBytes(
+                      `<script>document.currentScript.parentNode.removeChild(document.currentScript);self.__flightWriter__${outlet}__.write(self.__flightEncoder__${outlet}__.encode("`
+                    );
+
                     const forwardWorker = async function* () {
                       await htmlReady;
 
@@ -292,6 +409,9 @@ export const createRenderer = ({
 
                         if (_value) {
                           let value = _value;
+
+                          // Merge any leftover bytes from a split multi-byte
+                          // UTF-8 char at the previous chunk boundary.
                           if (splitBuffer.byteLength > 0) {
                             const merged = new Uint8Array(
                               splitBuffer.byteLength + value.byteLength
@@ -301,6 +421,8 @@ export const createRenderer = ({
                             value = merged;
                           }
 
+                          // Trim incomplete UTF-8 tail — the bytes pass through
+                          // the browser's UTF-8 decoder so sequences must be whole.
                           const splitBytes = detectSplitUTF8(value);
                           if (splitBytes) {
                             splitBuffer = splitBytes;
@@ -309,35 +431,46 @@ export const createRenderer = ({
                             splitBuffer = new Uint8Array(0);
                           }
 
-                          const payload = decoder.decode(value, {
-                            stream: true,
-                          });
-                          const lines = payload.split("\n");
+                          // Byte-level checks — no decode needed
                           if (remote && !hasServerAction) {
-                            hasServerAction ||= lines.some((r) =>
-                              /^(.+):\{"id":"/.test(r)
+                            hasServerAction = bytesContain(
+                              value,
+                              SERVER_ACTION_MARKER
                             );
                           }
                           force = value[value.length - 1] !== 0x0a;
 
-                          if (lines.some((l) => l.startsWith("0:"))) {
-                            if (!bootstrapped) {
-                              bootstrapScripts.unshift(
-                                `self.__flightStream__${outlet}__=new TransformStream();self.__flightWriter__${outlet}__=self.__flightStream__${outlet}__.writable.getWriter();self.__flightEncoder__${outlet}__=new TextEncoder();`
-                              );
-                              bootstrapped = true;
-                            }
+                          if (!bootstrapped && bytesHasLine0Colon(value)) {
+                            bootstrapScripts.unshift(
+                              `self.__flightStream__${outlet}__=new TransformStream();self.__flightWriter__${outlet}__=self.__flightStream__${outlet}__.writable.getWriter();self.__flightEncoder__${outlet}__=new TextEncoder();`
+                            );
+                            bootstrapped = true;
                           }
 
-                          const chunk = `self.__flightWriter__${outlet}__.write(self.__flightEncoder__${outlet}__.encode(${JSON.stringify(
-                            payload
-                          )}));`;
                           if (hydrated && !remote) {
-                            const script = encoder.encode(
-                              `<script>document.currentScript.parentNode.removeChild(document.currentScript);${chunk}</script>`
+                            // ── HOT PATH ────────────────────────────────────
+                            // Byte-level JS string escaping: escape the raw
+                            // flight bytes directly, concatenate with
+                            // pre-encoded prefix/suffix. No decode, no
+                            // JSON.stringify, no re-encode.
+                            const escaped = escapeJSStringBytes(value);
+                            yield concatBytes(
+                              _hydratedScriptPrefix,
+                              escaped,
+                              HYDRATED_SCRIPT_SUFFIX
                             );
-                            yield script;
                           } else {
+                            // ── COLD PATH (pre-hydration / remote) ──────────
+                            // Runs only for the first few flight chunks before
+                            // the hydration script is emitted. Uses string
+                            // decode + JSON.stringify since bootstrapScripts
+                            // are accumulated as strings.
+                            const payload = decoder.decode(value, {
+                              stream: true,
+                            });
+                            const chunk = `self.__flightWriter__${outlet}__.write(self.__flightEncoder__${outlet}__.encode(${JSON.stringify(
+                              payload
+                            )}));`;
                             bootstrapScripts.push(chunk);
                           }
                         }
@@ -390,17 +523,18 @@ export const createRenderer = ({
                         if (value) {
                           contentLength += value.length;
                           force = value[value.length - 1] !== 0x3e;
-                          const chunk = decoder.decode(value);
+
+                          // Byte-level checks — no decode needed
                           if (firstChunk) {
                             firstChunk = false;
-                            if (!chunk.includes("<html")) {
+                            if (!bytesContain(value, HTML_TAG_BYTES)) {
                               hydrationContainer = "document.body";
                             }
                           }
 
                           yield value;
 
-                          if (chunk.endsWith("<!--/$-->")) {
+                          if (bytesEndWith(value, SUSPENSE_END_BYTES)) {
                             done = true;
                           }
                         }
@@ -418,7 +552,6 @@ export const createRenderer = ({
                             hydrationContainer = "document.body";
                           }
 
-                          // TODO: bootstrapScripts should be buffers instead of strings, fix script parts should be pre-encoded buffers then yield copy of those buffers
                           const script = encoder.encode(
                             `<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=()=>${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
                               ""

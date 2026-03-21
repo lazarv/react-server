@@ -911,45 +911,77 @@ export default function viteReactServerRouter(options = {}) {
     },
     load(id) {
       if (id === "virtual:@lazarv/react-server/file-router/manifest") {
-        const code = `
-          const middlewares = [
-            ${manifest.middlewares
-              .map(
-                ([src, path]) =>
-                  `["${path}", async () => { return import("${src}"); }]`
+        // Collect all unique import specifiers and generate cached import vars.
+        // Each dynamic import is called once and the module is reused on subsequent requests.
+        let importIndex = 0;
+        const importCacheMap = new Map();
+        function cachedImport(specifier) {
+          if (!importCacheMap.has(specifier)) {
+            importCacheMap.set(specifier, `__import_cache_${importIndex++}__`);
+          }
+          const varName = importCacheMap.get(specifier);
+          return `(${varName} ??= import("${specifier}"))`;
+        }
+
+        const middlewareEntries = manifest.middlewares
+          .map(
+            ([src, path]) =>
+              `["${path}", async () => { return ${cachedImport(src)}; }]`
+          )
+          .join(",\n");
+
+        const routeEntries = entry.api
+          .map(({ directory, filename, src }) => {
+            const normalized = filename
+              .replace(/^\+*/g, "")
+              .replace(/\.\.\./g, "_dot_dot_dot_")
+              .replace(/(\{)[^}]*(\})/g, (match) =>
+                match.replace(/\./g, "_dot_")
               )
-              .join(",\n")}
+              .split(".");
+            const [method, name, ext] = apiEndpointRegExp.test(filename)
+              ? normalized
+              : [
+                  "*",
+                  normalized[0] === "server" ? "" : normalized[0],
+                  normalized[0] === "server"
+                    ? ""
+                    : normalized.slice(1).join("."),
+                ];
+            const path = `/${directory}/${ext ? name : ""}`
+              .replace(/\/+$/g, "")
+              .replace(/_dot_dot_dot_/g, "...")
+              .replace(/_dot_/g, ".")
+              .replace(/(\{)([^}]*)(\})/g, "$2")
+              .replace(/^\/+/, "/");
+            return `["${method}", "${path}", async () => {
+                return ${cachedImport(src)};
+              }]`;
+          })
+          .join(",\n");
+
+        const pageEntries = manifest.pages
+          .map(([src, path, outlet, type]) => {
+            const pageSpecifier =
+              (type === "page" && !outlet) || (type === "default" && outlet)
+                ? `__react_server_router_page__${path}::${src}::.jsx`
+                : src;
+            return `["${path}", "${type}", ${outlet ? `"${outlet}"` : "null"}, async () => ${cachedImport(pageSpecifier)}, "${src}", async () => ${cachedImport(src)}]`;
+          })
+          .join(",\n");
+
+        // Generate cache variable declarations
+        const cacheVarDecls = Array.from(importCacheMap.values())
+          .map((v) => `let ${v};`)
+          .join("\n");
+
+        const code = `
+          ${cacheVarDecls}
+          const middlewares = [
+            ${middlewareEntries}
           ];
           const routes = [
-              ${entry.api
-                .map(({ directory, filename, src }) => {
-                  const normalized = filename
-                    .replace(/^\+*/g, "")
-                    .replace(/\.\.\./g, "_dot_dot_dot_")
-                    .replace(/(\{)[^}]*(\})/g, (match) =>
-                      match.replace(/\./g, "_dot_")
-                    )
-                    .split(".");
-                  const [method, name, ext] = apiEndpointRegExp.test(filename)
-                    ? normalized
-                    : [
-                        "*",
-                        normalized[0] === "server" ? "" : normalized[0],
-                        normalized[0] === "server"
-                          ? ""
-                          : normalized.slice(1).join("."),
-                      ];
-                  const path = `/${directory}/${ext ? name : ""}`
-                    .replace(/\/+$/g, "")
-                    .replace(/_dot_dot_dot_/g, "...")
-                    .replace(/_dot_/g, ".")
-                    .replace(/(\{)([^}]*)(\})/g, "$2")
-                    .replace(/^\/+/, "/");
-                  return `["${method}", "${path}", async () => {
-                return import("${src}");
-              }]`;
-                })
-                .join(",\n")}
+              ${routeEntries}
           ].toSorted(
             ([aMethod, aPath], [bMethod, bPath]) =>
               (aMethod === "*") - (bMethod === "*") ||
@@ -957,20 +989,16 @@ export default function viteReactServerRouter(options = {}) {
               aPath.localeCompare(bPath)
           );
           const pages = [
-            ${manifest.pages
-              .map(
-                ([src, path, outlet, type]) =>
-                  `["${path}", "${type}", ${outlet ? `"${outlet}"` : "null"}, async () => import("${
-                    (type === "page" && !outlet) ||
-                    (type === "default" && outlet)
-                      ? `__react_server_router_page__${path}::${src}::.jsx`
-                      : src
-                  }"), "${src}", async () => import("${src}")]`
-              )
-              .join(",\n")}
+            ${pageEntries}
           ];
 
-          export { middlewares, routes, pages };`;
+          function warmup$() {
+            return Promise.all([${Array.from(importCacheMap.keys())
+              .map((specifier) => `import("${specifier}")`)
+              .join(", ")}]);
+          }
+
+          export { middlewares, routes, pages, warmup$ };`;
         return code;
       } else if (id.startsWith("virtual:__react_server_router_page__")) {
         let [path, src] = id

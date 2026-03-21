@@ -13,6 +13,7 @@ import {
   middlewares,
   pages,
   routes,
+  warmup$ as warmupModules$,
 } from "@lazarv/react-server/file-router/manifest";
 import { useMatch } from "@lazarv/react-server/router";
 import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
@@ -302,3 +303,5 @@ export default async function App() {
 
   return <Page {...match} />;
 }
+
+export { warmupModules$ as warmup$ };

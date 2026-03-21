@@ -6,7 +6,11 @@ import { isDeno } from "../sys.mjs";
 import { compose } from "./middlewares/compose.mjs";
 import { ContextStorage } from "../../server/context.mjs";
 import { getRuntime } from "../../server/runtime.mjs";
-import { AFTER_CONTEXT, LOGGER_CONTEXT } from "../../server/symbols.mjs";
+import {
+  AFTER_CONTEXT,
+  LOGGER_CONTEXT,
+  RESPONSE_BUFFER,
+} from "../../server/symbols.mjs";
 import {
   getMetrics,
   startRequestSpan,
@@ -170,48 +174,41 @@ export function createMiddleware(handler, options = {}) {
         }
         return;
       }
-      // Convert the Web ReadableStream to a Node Readable and pipe into ServerResponse.
-      // Use AbortController to coordinate cleanup when client disconnects or stream completes.
-      const nodeReadable = Readable.fromWeb(response.body);
+      // Fast path: buffer-backed responses skip stream conversion entirely.
+      // Responses tagged with RESPONSE_BUFFER already have their full body in memory.
+      const directBuffer = response[RESPONSE_BUFFER];
+      if (directBuffer) {
+        res.end(Buffer.from(directBuffer));
+      } else {
+        // Convert the Web ReadableStream to a Node Readable and pipe into ServerResponse.
+        const nodeReadable = Readable.fromWeb(response.body);
 
-      // Destroy stream when aborted (client disconnect or error)
-      signal.addEventListener(
-        "abort",
-        () => {
-          try {
-            nodeReadable.destroy(new Error("aborted"));
-          } catch {
-            // no-op
+        // Handle client disconnect: abort the signal (for useSignal() consumers)
+        // and destroy the readable. Only fires on premature close — on successful
+        // completion the listener is removed before "close" fires, so no
+        // DOMException is constructed on the happy path.
+        const onClose = () => {
+          if (!res.writableFinished) {
+            abortController.abort();
+            try {
+              nodeReadable.destroy(new Error("aborted"));
+            } catch {
+              // no-op
+            }
           }
-        },
-        { once: true }
-      );
+        };
+        res.once("close", onClose);
 
-      // Abort on client disconnect
-      const onDisconnect = () => abortController.abort();
-      res.once("close", onDisconnect);
-      req.once("aborted", onDisconnect);
-
-      try {
-        await new Promise((resolve, reject) => {
-          // Use { once: true } for auto-cleanup
-          const onFinish = () => resolve();
-          const onReadableError = (err) => reject(err);
-          const onResError = (err) => reject(err);
-
-          nodeReadable.once("error", onReadableError);
-          res.once("error", onResError);
-          res.once("finish", onFinish);
-
-          // End dest when source ends (default true)
-          nodeReadable.pipe(res);
-        });
-      } finally {
-        // Trigger abort to clean up the signal listener
-        abortController.abort();
-        // Remove disconnect listeners
-        res.off("close", onDisconnect);
-        req.off("aborted", onDisconnect);
+        try {
+          await new Promise((resolve, reject) => {
+            nodeReadable.once("error", reject);
+            res.once("error", reject);
+            res.once("finish", resolve);
+            nodeReadable.pipe(res);
+          });
+        } finally {
+          res.off("close", onClose);
+        }
       }
 
       // ── Telemetry: finish root span and record metrics ──

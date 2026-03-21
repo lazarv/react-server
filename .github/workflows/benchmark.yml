@@ -1,0 +1,189 @@
+name: Benchmark ⏱️
+
+env:
+  NODE_OPTIONS: --max-old-space-size=6144
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/react-server/**"
+      - "packages/rsc/**"
+      - "examples/benchmark/**"
+      - ".github/workflows/benchmark.yml"
+  pull_request:
+    paths:
+      - "packages/react-server/**"
+      - "packages/rsc/**"
+      - "examples/benchmark/**"
+      - ".github/workflows/benchmark.yml"
+
+concurrency:
+  group: benchmark-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: Run benchmarks ⏱️
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+
+      - name: Build benchmark example
+        run: pnpm --filter @lazarv/react-server-example-benchmark build
+
+      - name: Run benchmark
+        working-directory: examples/benchmark
+        run: node bench.mjs --save current
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: examples/benchmark/results-current.json
+          retention-days: 90
+
+      # ── Main branch: save baseline to cache ──────────────────────────────
+      - name: Copy results to baseline path
+        if: github.ref == 'refs/heads/main'
+        run: cp examples/benchmark/results-current.json examples/benchmark/benchmark-baseline.json
+
+      - name: Save baseline to cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: examples/benchmark/benchmark-baseline.json
+          key: benchmark-baseline-${{ github.sha }}
+
+      # ── Pull request: compare against main baseline ──────────────────────
+      - name: Restore baseline from main
+        if: github.event_name == 'pull_request'
+        id: baseline
+        uses: actions/cache/restore@v4
+        with:
+          path: examples/benchmark/benchmark-baseline.json
+          key: benchmark-baseline-${{ github.event.pull_request.base.sha }}
+          restore-keys: benchmark-baseline-
+
+      - name: Generate comparison comment
+        if: github.event_name == 'pull_request'
+        working-directory: examples/benchmark
+        env:
+          HAS_BASELINE: ${{ steps.baseline.outputs.cache-matched-key != '' }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          BASELINE_KEY: ${{ steps.baseline.outputs.cache-matched-key }}
+        run: |
+          node --input-type=module << 'SCRIPT'
+          import { readFileSync, writeFileSync } from "node:fs";
+
+          const prSha = process.env.PR_SHA?.slice(0, 7) || "unknown";
+          const hasBaseline = process.env.HAS_BASELINE === "true";
+          const baselineKey = process.env.BASELINE_KEY || "";
+          const baselineSha = baselineKey.replace("benchmark-baseline-", "").slice(0, 7);
+
+          const current = JSON.parse(readFileSync("results-current.json", "utf8"));
+
+          let baseline = null;
+          if (hasBaseline) {
+            try {
+              baseline = JSON.parse(readFileSync("benchmark-baseline.json", "utf8"));
+            } catch {
+              // baseline file not found or invalid
+            }
+          }
+
+          const baselineMap = baseline
+            ? new Map(baseline.results.map((r) => [r.name, r]))
+            : null;
+
+          function fmtDelta(current, base, lowerIsBetter = false) {
+            if (base == null || base === 0) return "";
+            const pct = ((current - base) / base) * 100;
+            const sign = pct > 0 ? "+" : "";
+            const good = lowerIsBetter ? pct < -1 : pct > 1;
+            const bad = lowerIsBetter ? pct > 1 : pct < -1;
+            const icon = good ? "\u{1f7e2}" : bad ? "\u{1f534}" : "\u{26aa}";
+            return ` ${icon} ${sign}${pct.toFixed(1)}%`;
+          }
+
+          const lines = [];
+          lines.push("<!-- benchmark-results -->");
+          lines.push("## \u26a1 Benchmark Results");
+          lines.push("");
+
+          if (baselineMap) {
+            lines.push(`| | **PR** \`${prSha}\` | **main** \`${baselineSha}\` |`);
+            lines.push(`|---|---|---|`);
+            lines.push(`| **Config** | ${current.config.connections} connections, ${current.config.duration}s/test | ${baseline.config.connections} connections, ${baseline.config.duration}s/test |`);
+          } else {
+            lines.push(`**Commit:** \`${prSha}\` | **No baseline available** (will be created when this PR's target is next pushed to main)`);
+          }
+
+          lines.push("");
+
+          if (baselineMap) {
+            lines.push("| Benchmark | Req/s | vs main | Avg Latency | vs main | P99 Latency | Throughput |");
+            lines.push("|:----------|------:|--------:|------------:|--------:|------------:|-----------:|");
+
+            for (const r of current.results) {
+              const b = baselineMap.get(r.name);
+              const reqDelta = fmtDelta(r.reqSec, b?.reqSec);
+              const latDelta = fmtDelta(r.latencyAvg, b?.latencyAvg, true);
+              lines.push(
+                `| **${r.name}** | ${r.reqSec.toFixed(0)} | ${reqDelta} | ${r.latencyAvg} ms | ${latDelta} | ${r.latencyP99} ms | ${r.throughputMB} MB/s |`
+              );
+            }
+          } else {
+            lines.push("| Benchmark | Req/s | Avg Latency | P50 | P99 | Throughput |");
+            lines.push("|:----------|------:|------------:|----:|----:|-----------:|");
+
+            for (const r of current.results) {
+              lines.push(
+                `| **${r.name}** | ${r.reqSec.toFixed(0)} | ${r.latencyAvg} ms | ${r.latencyP50} ms | ${r.latencyP99} ms | ${r.throughputMB} MB/s |`
+              );
+            }
+          }
+
+          lines.push("");
+          lines.push("<details><summary>Legend</summary>");
+          lines.push("");
+          lines.push("\u{1f7e2} > 1% improvement | \u{1f534} > 1% regression | \u{26aa} within noise margin");
+          lines.push("");
+          lines.push("Benchmarks run on GitHub Actions runners (shared infrastructure) — expect ~5% variance between runs. Consistent directional changes across multiple routes are more meaningful than any single number.");
+          lines.push("");
+          lines.push("</details>");
+
+          writeFileSync("comment.md", lines.join("\n") + "\n");
+          console.log("Generated comment.md");
+          SCRIPT
+
+      - name: Post or update PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+
+          # Find existing benchmark comment by HTML marker
+          COMMENT_ID=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --paginate --jq '.[] | select(.body | contains("<!-- benchmark-results -->")) | .id' \
+            | head -1)
+
+          if [ -n "$COMMENT_ID" ]; then
+            echo "Updating existing comment ${COMMENT_ID}"
+            gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" \
+              -X PATCH \
+              -F "body=@examples/benchmark/comment.md"
+          else
+            echo "Creating new comment"
+            gh pr comment "$PR_NUMBER" --body-file examples/benchmark/comment.md
+          fi

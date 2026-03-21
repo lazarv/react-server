@@ -103,7 +103,7 @@ export default async function ssrHandler(root, options = {}) {
   );
   const [
     { render },
-    { default: Component, init$: root_init$ },
+    { default: Component, init$: root_init$, warmup$: root_warmup$ },
     { default: GlobalErrorComponent },
     { default: ErrorBoundary },
     { clientReferenceMap },
@@ -122,6 +122,12 @@ export default async function ssrHandler(root, options = {}) {
     import("@lazarv/react-server/dist/server/client-reference-map"),
     import("../../cache/rsc.mjs"),
   ]);
+
+  // Warm up all route module imports in the background.
+  // This populates the ESM module cache and the loader resolve cache
+  // so the first request doesn't pay the cold-import penalty.
+  // Intentionally not awaited — runs in parallel with remaining server setup.
+  root_warmup$?.()?.catch?.(() => {});
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const clientModules = getRuntime(COLLECT_CLIENT_MODULES)?.(rootModule) ?? [];

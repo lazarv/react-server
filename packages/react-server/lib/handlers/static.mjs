@@ -10,6 +10,7 @@ import {
   POSTPONE_STATE,
   PRELUDE_HTML,
   PRERENDER_CACHE_DATA,
+  RESPONSE_BUFFER,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 
@@ -17,10 +18,14 @@ const cwd = sys.cwd();
 
 export default async function staticHandler(dir, options = {}) {
   const files = new Map();
+  const misses = new Set();
 
   const exists = (path) => {
     if (files.has(path)) {
       return true;
+    }
+    if (misses.has(path)) {
+      return false;
     }
     try {
       const file = statSync(join(cwd, options.cwd ?? ".", path));
@@ -40,6 +45,7 @@ export default async function staticHandler(dir, options = {}) {
     } catch {
       // ignore
     }
+    misses.add(path);
     return false;
   };
 
@@ -53,14 +59,22 @@ export default async function staticHandler(dir, options = {}) {
     let { pathname } = context.url;
     let contentEncoding = undefined;
 
-    let prelude = null;
-    const acceptEncoding = context.request.headers.get("accept-encoding");
-    const isBrotli = acceptEncoding?.includes("br");
-    const isGzip = acceptEncoding?.includes("gzip");
+    // Resolve the file: try the path directly, then as /index.html
+    let basename;
+    if (exists(pathname)) {
+      basename = pathname;
+    } else {
+      const indexPath = `${pathname}/index.html`.replace(/^\/+/g, "/");
+      if (exists(indexPath)) {
+        basename = indexPath;
+      } else {
+        // Neither the path nor its index.html exist in this handler's directory.
+        // Bail out early — no point checking postponed/compressed variants.
+        return;
+      }
+    }
 
-    const basename = (
-      exists(pathname) ? pathname : `${pathname}/index.html`
-    ).replace(/^\/+/g, "/");
+    let prelude = null;
     if (exists(`${basename}.postponed.json`)) {
       prelude = basename;
       pathname = basename;
@@ -80,14 +94,20 @@ export default async function staticHandler(dir, options = {}) {
         ]);
       prerender$(POSTPONE_STATE, postponed);
       prerender$(PRERENDER_CACHE_DATA, cacheData);
-    } else if (isBrotli && exists(`${basename}.br`)) {
-      pathname = `${basename}.br`;
-      contentEncoding = "br";
-    } else if (isGzip && exists(`${basename}.gz`)) {
-      pathname = `${basename}.gz`;
-      contentEncoding = "gzip";
-    } else if (exists(basename)) {
-      pathname = basename;
+    } else {
+      const acceptEncoding = context.request.headers.get("accept-encoding");
+      const isBrotli = acceptEncoding?.includes("br");
+      const isGzip = acceptEncoding?.includes("gzip");
+
+      if (isBrotli && exists(`${basename}.br`)) {
+        pathname = `${basename}.br`;
+        contentEncoding = "br";
+      } else if (isGzip && exists(`${basename}.gz`)) {
+        pathname = `${basename}.gz`;
+        contentEncoding = "gzip";
+      } else {
+        pathname = basename;
+      }
     }
 
     if (pathname !== "/" && exists(pathname)) {
@@ -141,7 +161,7 @@ export default async function staticHandler(dir, options = {}) {
             prerender$(PRELUDE_HTML, res);
             return;
           }
-          return new Response(res, {
+          const response = new Response(res, {
             headers: {
               "content-type":
                 file.mime.includes("text/") || file.mime === "application/json"
@@ -160,6 +180,10 @@ export default async function staticHandler(dir, options = {}) {
               ...(contentEncoding && { "content-encoding": contentEncoding }),
             },
           });
+          if (!(res instanceof ReadableStream)) {
+            response[RESPONSE_BUFFER] = res;
+          }
+          return response;
         }
       } catch (error) {
         if (error.code !== "ENOENT") {

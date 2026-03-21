@@ -3,11 +3,12 @@
  *
  * Usage:
  *   1. pnpm --filter @lazarv/react-server-example-benchmark build
- *   2. node bench.mjs [--save <label>] [--compare <file>]
+ *   2. node bench.mjs [--save <label>] [--compare <file>] [--cluster <n>]
  *
  * Options:
  *   --save <label>     Save results to results-<label>.json
  *   --compare <file>   Compare against a previous results JSON file
+ *   --cluster <n>      Run in cluster mode with n workers (uses react-server start)
  *
  * Runs autocannon against each benchmark route and prints a summary table.
  */
@@ -28,24 +29,85 @@ const compareFile = args.includes("--compare")
   ? args[args.indexOf("--compare") + 1]
   : null;
 
+function parseCluster() {
+  const idx = args.findIndex((a) => a.startsWith("--cluster"));
+  if (idx === -1) return 0;
+  // --cluster=4 or --cluster 4
+  if (args[idx].includes("=")) return parseInt(args[idx].split("=")[1], 10);
+  return parseInt(args[idx + 1], 10);
+}
+const clusterSize = parseCluster();
+
 const PORT = 3210;
 const DURATION = 10; // seconds per test
 const CONNECTIONS = 50;
 
 // ── Boot production server ──────────────────────────────────────────────────
 
-const { reactServer } = await import("@lazarv/react-server/node");
-const { middlewares } = await reactServer({
-  origin: `http://localhost:${PORT}`,
-  host: "localhost",
-  port: PORT,
-  outDir: ".react-server",
-});
+let serverProcess = null;
 
-const server = createServer(middlewares);
-await new Promise((resolve) => server.listen(PORT, resolve));
+if (clusterSize > 0) {
+  // Cluster mode: spawn react-server start as a child process
+  serverProcess = await new Promise((resolve, reject) => {
+    const child = spawn(
+      "npx",
+      ["react-server", "start", "--port", String(PORT)],
+      {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          REACT_SERVER_CLUSTER: String(clusterSize),
+        },
+      }
+    );
 
-console.log(`\nBenchmark server on http://localhost:${PORT}`);
+    let ready = false;
+    const onData = (chunk) => {
+      const text = chunk.toString();
+      process.stderr.write(text);
+      // Workers log "listening on" when ready — wait for all of them
+      if (!ready && text.includes("listening on")) {
+        ready = true;
+        // Give a moment for remaining workers to bind
+        setTimeout(() => resolve(child), 500);
+      }
+    };
+
+    child.stdout.on("data", onData);
+    child.stderr.on("data", onData);
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (!ready)
+        reject(new Error(`react-server start exited with code ${code}`));
+    });
+
+    // Safety timeout
+    setTimeout(() => {
+      if (!ready) {
+        child.kill();
+        reject(new Error("Timed out waiting for cluster to start"));
+      }
+    }, 30000);
+  });
+} else {
+  // Single-process mode: use programmatic middleware API
+  const { reactServer } = await import("@lazarv/react-server/node");
+  const { middlewares } = await reactServer({
+    origin: `http://localhost:${PORT}`,
+    host: "localhost",
+    port: PORT,
+    outDir: ".react-server",
+  });
+
+  const server = createServer(middlewares);
+  await new Promise((resolve) => server.listen(PORT, resolve));
+  // Store for cleanup
+  serverProcess = server;
+}
+
+const mode =
+  clusterSize > 0 ? `cluster (${clusterSize} workers)` : "single-process";
+console.log(`\nBenchmark server on http://localhost:${PORT} [${mode}]`);
 console.log(`Running ${DURATION}s per test, ${CONNECTIONS} connections\n`);
 
 // ── Benchmark definitions ───────────────────────────────────────────────────
@@ -58,6 +120,36 @@ const BENCHMARKS = [
   { name: "deep", path: "/deep", desc: "Deep nesting (100 levels)" },
   { name: "wide", path: "/wide", desc: "Wide tree (1000 siblings)" },
   { name: "cached", path: "/cached", desc: "Cached medium page" },
+  {
+    name: "client-min",
+    path: "/client",
+    desc: "Client component minimal",
+  },
+  {
+    name: "client-small",
+    path: "/client/small",
+    desc: "Client component small",
+  },
+  {
+    name: "client-med",
+    path: "/client/medium",
+    desc: "Client component medium (50 products)",
+  },
+  {
+    name: "client-large",
+    path: "/client/large",
+    desc: "Client component large (500 rows)",
+  },
+  {
+    name: "client-deep",
+    path: "/client/deep",
+    desc: "Client component deep (100 levels)",
+  },
+  {
+    name: "client-wide",
+    path: "/client/wide",
+    desc: "Client component wide (1000 siblings)",
+  },
   {
     name: "static-json",
     path: "/data.json",
@@ -262,11 +354,13 @@ if (saveLabel) {
   } catch {
     // ignore
   }
+  const config = { duration: DURATION, connections: CONNECTIONS, port: PORT };
+  if (clusterSize > 0) config.cluster = clusterSize;
   const output = {
     description: saveLabel,
     date: new Date().toISOString().slice(0, 10),
     commit: gitCommit,
-    config: { duration: DURATION, connections: CONNECTIONS, port: PORT },
+    config,
     results,
   };
   const filename = `results-${saveLabel.replace(/[^a-zA-Z0-9_-]/g, "-")}.json`;
@@ -274,5 +368,11 @@ if (saveLabel) {
   console.log(`\nResults saved to ${filename}`);
 }
 
-server.close();
+if (serverProcess && typeof serverProcess.close === "function") {
+  // Single-process mode: HTTP server
+  serverProcess.close();
+} else if (serverProcess && typeof serverProcess.kill === "function") {
+  // Cluster mode: child process
+  serverProcess.kill("SIGTERM");
+}
 process.exit(0);

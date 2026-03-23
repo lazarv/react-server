@@ -17,7 +17,7 @@ import React from "react";
 import { beforeAll, describe, expect, test } from "vitest";
 
 // @lazarv/rsc imports
-import * as LazarvClient from "../client/shared.mjs";
+import * as RscClient from "../client/shared.mjs";
 
 // Try to import react-server-dom-webpack static - it may fail without --conditions=react-server
 let ReactStaticEdge;
@@ -83,8 +83,7 @@ describe("React Prerender to lazarv Client Cross-Compatibility", () => {
         })
       );
 
-      const result =
-        await LazarvClient.createFromReadableStream(forConsumption);
+      const result = await RscClient.createFromReadableStream(forConsumption);
 
       expect(result.type).toBe("div");
       expect(result.props.className).toBe("react-prerendered");
@@ -107,7 +106,7 @@ describe("React Prerender to lazarv Client Cross-Compatibility", () => {
         await ReactStaticEdge.prerender(element);
       const reactData = await streamToString(reactPrelude);
 
-      const { forConsumption: forLazarv } = teeStream(
+      const { forConsumption: forRsc } = teeStream(
         new ReadableStream({
           start(controller) {
             controller.enqueue(new TextEncoder().encode(reactData));
@@ -116,8 +115,7 @@ describe("React Prerender to lazarv Client Cross-Compatibility", () => {
         })
       );
 
-      const lazarvResult =
-        await LazarvClient.createFromReadableStream(forLazarv);
+      const lazarvResult = await RscClient.createFromReadableStream(forRsc);
 
       expect(lazarvResult.type).toBe("section");
       expect(lazarvResult.props.children).toHaveLength(2);
@@ -152,8 +150,7 @@ describe("React Prerender to lazarv Client Cross-Compatibility", () => {
         })
       );
 
-      const result =
-        await LazarvClient.createFromReadableStream(forConsumption);
+      const result = await RscClient.createFromReadableStream(forConsumption);
 
       expect(result.type).toBe("div");
       expect(result.props.className).toBe("complex");
@@ -188,8 +185,7 @@ describe("React Prerender to lazarv Client Cross-Compatibility", () => {
         })
       );
 
-      const result =
-        await LazarvClient.createFromReadableStream(forConsumption);
+      const result = await RscClient.createFromReadableStream(forConsumption);
 
       expect(result.date).toBeInstanceOf(Date);
       expect(result.date.toISOString()).toBe("2024-01-01T00:00:00.000Z");

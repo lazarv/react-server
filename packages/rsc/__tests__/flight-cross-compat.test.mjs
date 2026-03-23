@@ -15,8 +15,8 @@ import { describe, expect, test, beforeAll } from "vitest";
 import React from "react";
 
 // @lazarv/rsc imports
-import * as LazarvServer from "../server/shared.mjs";
-import * as LazarvClient from "../client/shared.mjs";
+import * as RscServer from "../server/shared.mjs";
+import * as RscClient from "../client/shared.mjs";
 
 // Try to import react-server-dom-webpack - it may fail without --conditions=react-server
 let ReactDomServer;
@@ -67,26 +67,26 @@ describeIf(
       test("should decode string from react-server-dom-webpack", async () => {
         const data = "Hello from React!";
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toBe(data);
       });
 
       test("should decode number from react-server-dom-webpack", async () => {
         const data = 42;
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toBe(data);
       });
 
       test("should decode boolean from react-server-dom-webpack", async () => {
         const stream = ReactDomServer.renderToReadableStream(true);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toBe(true);
       });
 
       test("should decode null from react-server-dom-webpack", async () => {
         const stream = ReactDomServer.renderToReadableStream(null);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toBeNull();
       });
     });
@@ -95,14 +95,14 @@ describeIf(
       test("should decode object from react-server-dom-webpack", async () => {
         const data = { name: "React", version: 19 };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toEqual(data);
       });
 
       test("should decode array from react-server-dom-webpack", async () => {
         const data = [1, 2, 3, "four", { five: 5 }];
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toEqual(data);
       });
 
@@ -118,7 +118,7 @@ describeIf(
           },
         };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toEqual(data);
       });
     });
@@ -127,7 +127,7 @@ describeIf(
       test("should decode Date from react-server-dom-webpack", async () => {
         const data = { date: new Date("2024-06-15T12:00:00Z") };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.date).toBeInstanceOf(Date);
         expect(result.date.toISOString()).toBe("2024-06-15T12:00:00.000Z");
       });
@@ -135,7 +135,7 @@ describeIf(
       test("should decode BigInt from react-server-dom-webpack", async () => {
         const data = { big: BigInt("12345678901234567890") };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.big).toBe(BigInt("12345678901234567890"));
       });
 
@@ -145,7 +145,7 @@ describeIf(
           ["key2", "value2"],
         ]);
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toBeInstanceOf(Map);
         expect(result.get("key1")).toBe("value1");
         expect(result.get("key2")).toBe("value2");
@@ -154,7 +154,7 @@ describeIf(
       test("should decode Set from react-server-dom-webpack", async () => {
         const data = new Set([1, 2, 3, "four"]);
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result).toBeInstanceOf(Set);
         expect(result.has(1)).toBe(true);
         expect(result.has("four")).toBe(true);
@@ -163,14 +163,14 @@ describeIf(
       test("should decode Symbol.for from react-server-dom-webpack", async () => {
         const data = { sym: Symbol.for("test.symbol") };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.sym).toBe(Symbol.for("test.symbol"));
       });
 
       test("should decode Infinity from react-server-dom-webpack", async () => {
         const data = { pos: Infinity, neg: -Infinity };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.pos).toBe(Infinity);
         expect(result.neg).toBe(-Infinity);
       });
@@ -178,14 +178,14 @@ describeIf(
       test("should decode NaN from react-server-dom-webpack", async () => {
         const data = { nan: NaN };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(Number.isNaN(result.nan)).toBe(true);
       });
 
       test("should decode undefined from react-server-dom-webpack", async () => {
         const data = { undef: undefined };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.undef).toBeUndefined();
       });
     });
@@ -194,7 +194,7 @@ describeIf(
       test("should decode Uint8Array from react-server-dom-webpack", async () => {
         const data = { bytes: new Uint8Array([1, 2, 3, 4, 5]) };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.bytes).toBeInstanceOf(Uint8Array);
         expect(Array.from(result.bytes)).toEqual([1, 2, 3, 4, 5]);
       });
@@ -202,7 +202,7 @@ describeIf(
       test("should decode Int32Array from react-server-dom-webpack", async () => {
         const data = { ints: new Int32Array([100, 200, 300]) };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.ints).toBeInstanceOf(Int32Array);
       });
 
@@ -212,7 +212,7 @@ describeIf(
         view.set([1, 2, 3, 4, 5, 6, 7, 8]);
         const data = { buffer };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.buffer).toBeInstanceOf(ArrayBuffer);
         expect(result.buffer.byteLength).toBe(8);
         expect(Array.from(new Uint8Array(result.buffer))).toEqual([
@@ -226,7 +226,7 @@ describeIf(
         dataView.setInt32(0, 12345, true);
         const data = { view: dataView };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
         expect(result.view).toBeInstanceOf(DataView);
         expect(result.view.getInt32(0, true)).toBe(12345);
       });
@@ -240,7 +240,7 @@ describeIf(
           "Hello"
         );
         const stream = ReactDomServer.renderToReadableStream(element);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
 
         expect(result.type).toBe("div");
         expect(result.props.className).toBe("test");
@@ -255,7 +255,7 @@ describeIf(
           React.createElement("span", null, "Child 2")
         );
         const stream = ReactDomServer.renderToReadableStream(element);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
 
         expect(result.type).toBe("div");
         expect(result.props.id).toBe("container");
@@ -269,7 +269,7 @@ describeIf(
           "content"
         );
         const stream = ReactDomServer.renderToReadableStream(element);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
 
         expect(result.type).toBe("div");
         expect(result.key).toBe("my-key");
@@ -282,7 +282,7 @@ describeIf(
       test("should decode resolved Promise from react-server-dom-webpack", async () => {
         const data = { promise: Promise.resolve({ value: 42 }) };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
 
         expect(result.promise).toBeDefined();
         const resolved = await result.promise;
@@ -296,7 +296,7 @@ describeIf(
           },
         };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
 
         const resolved = await result.outer.inner;
         expect(resolved.nested).toBe("value");
@@ -311,7 +311,7 @@ describeIf(
           ],
         };
         const stream = ReactDomServer.renderToReadableStream(data);
-        const result = await LazarvClient.createFromReadableStream(stream);
+        const result = await RscClient.createFromReadableStream(stream);
 
         expect(result.promises).toHaveLength(3);
         expect(await result.promises[0]).toBe("first");
@@ -328,7 +328,7 @@ describeIf(
     describe("Primitive values", () => {
       test("should decode string from @lazarv/rsc", async () => {
         const data = "Hello from lazarv!";
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toBe(data);
@@ -336,21 +336,21 @@ describeIf(
 
       test("should decode number from @lazarv/rsc", async () => {
         const data = 42;
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toBe(data);
       });
 
       test("should decode boolean from @lazarv/rsc", async () => {
-        const stream = LazarvServer.renderToReadableStream(false);
+        const stream = RscServer.renderToReadableStream(false);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toBe(false);
       });
 
       test("should decode null from @lazarv/rsc", async () => {
-        const stream = LazarvServer.renderToReadableStream(null);
+        const stream = RscServer.renderToReadableStream(null);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toBeNull();
@@ -360,7 +360,7 @@ describeIf(
     describe("Objects and arrays", () => {
       test("should decode object from @lazarv/rsc", async () => {
         const data = { framework: "lazarv/rsc", compatible: true };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toEqual(data);
@@ -368,7 +368,7 @@ describeIf(
 
       test("should decode array from @lazarv/rsc", async () => {
         const data = ["a", "b", "c", 1, 2, 3];
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toEqual(data);
@@ -384,7 +384,7 @@ describeIf(
             },
           },
         };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toEqual(data);
@@ -395,7 +395,7 @@ describeIf(
       test("should decode Date from @lazarv/rsc", async () => {
         const date = new Date("2024-01-01T00:00:00Z");
         const data = { created: date };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result.created).toBeInstanceOf(Date);
@@ -404,7 +404,7 @@ describeIf(
 
       test("should decode BigInt from @lazarv/rsc", async () => {
         const data = { bigNumber: BigInt(9007199254740993n) };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result.bigNumber).toBe(BigInt(9007199254740993n));
@@ -416,7 +416,7 @@ describeIf(
           ["a", 1],
           ["b", 2],
         ]);
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toBeInstanceOf(Map);
@@ -426,7 +426,7 @@ describeIf(
       // @lazarv/rsc now uses chunked format "$W<id>" compatible with React
       test("should decode Set from @lazarv/rsc", async () => {
         const data = new Set(["x", "y", "z"]);
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result).toBeInstanceOf(Set);
@@ -435,7 +435,7 @@ describeIf(
 
       test("should decode Symbol.for from @lazarv/rsc", async () => {
         const data = { symbol: Symbol.for("custom.key") };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result.symbol).toBe(Symbol.for("custom.key"));
@@ -443,7 +443,7 @@ describeIf(
 
       test("should decode Infinity from @lazarv/rsc", async () => {
         const data = { inf: Infinity, negInf: -Infinity };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result.inf).toBe(Infinity);
@@ -452,7 +452,7 @@ describeIf(
 
       test("should decode NaN from @lazarv/rsc", async () => {
         const data = { notANumber: NaN };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(Number.isNaN(result.notANumber)).toBe(true);
@@ -463,7 +463,7 @@ describeIf(
       // @lazarv/rsc now uses React-compatible binary row format
       test("should decode Uint8Array from @lazarv/rsc", async () => {
         const data = { buffer: new Uint8Array([10, 20, 30]) };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result.buffer).toBeInstanceOf(Uint8Array);
@@ -472,7 +472,7 @@ describeIf(
 
       test("should decode Float64Array from @lazarv/rsc", async () => {
         const data = { floats: new Float64Array([1.1, 2.2, 3.3]) };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result.floats).toBeInstanceOf(Float64Array);
@@ -483,7 +483,7 @@ describeIf(
         const view = new Uint8Array(buffer);
         view.set([1, 2, 3, 4, 5, 6, 7, 8]);
         const data = { buffer };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result.buffer).toBeInstanceOf(ArrayBuffer);
@@ -498,7 +498,7 @@ describeIf(
         const dataView = new DataView(buffer);
         dataView.setInt32(0, 12345, true);
         const data = { view: dataView };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
         expect(result.view).toBeInstanceOf(DataView);
@@ -509,7 +509,7 @@ describeIf(
     describe("React elements", () => {
       test("should decode simple React element from @lazarv/rsc", async () => {
         const element = React.createElement("p", { id: "para" }, "Paragraph");
-        const stream = LazarvServer.renderToReadableStream(element);
+        const stream = RscServer.renderToReadableStream(element);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -526,7 +526,7 @@ describeIf(
           React.createElement("span", null, "A"),
           React.createElement("span", null, "B")
         );
-        const stream = LazarvServer.renderToReadableStream(element);
+        const stream = RscServer.renderToReadableStream(element);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -543,7 +543,7 @@ describeIf(
           { key: "lazarv-key", className: "test" },
           "keyed content"
         );
-        const stream = LazarvServer.renderToReadableStream(element);
+        const stream = RscServer.renderToReadableStream(element);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -557,7 +557,7 @@ describeIf(
     describe("Promises", () => {
       test("should decode resolved Promise from @lazarv/rsc", async () => {
         const data = { promise: Promise.resolve({ value: 100 }) };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -572,7 +572,7 @@ describeIf(
             inner: Promise.resolve({ nested: "lazarv" }),
           },
         };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -588,7 +588,7 @@ describeIf(
             Promise.resolve("c"),
           ],
         };
-        const stream = LazarvServer.renderToReadableStream(data);
+        const stream = RscServer.renderToReadableStream(data);
         const result =
           await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -612,11 +612,10 @@ describeIf("Bidirectional Round-trip Tests", () => {
 
     // React server → lazarv client
     const reactStream = ReactDomServer.renderToReadableStream(original);
-    const lazarvDecoded =
-      await LazarvClient.createFromReadableStream(reactStream);
+    const lazarvDecoded = await RscClient.createFromReadableStream(reactStream);
 
     // lazarv server → React client
-    const lazarvStream = LazarvServer.renderToReadableStream(lazarvDecoded);
+    const lazarvStream = RscServer.renderToReadableStream(lazarvDecoded);
     const final =
       await ReactDomClientBrowser.createFromReadableStream(lazarvStream);
 
@@ -633,13 +632,13 @@ describeIf("Bidirectional Round-trip Tests", () => {
     };
 
     // lazarv server → React client
-    const lazarvStream = LazarvServer.renderToReadableStream(original);
+    const lazarvStream = RscServer.renderToReadableStream(original);
     const reactDecoded =
       await ReactDomClientBrowser.createFromReadableStream(lazarvStream);
 
     // React server → lazarv client
     const reactStream = ReactDomServer.renderToReadableStream(reactDecoded);
-    const final = await LazarvClient.createFromReadableStream(reactStream);
+    const final = await RscClient.createFromReadableStream(reactStream);
 
     expect(final.source).toBe(original.source);
     expect(final.timestamp.toISOString()).toBe(
@@ -677,10 +676,10 @@ describeIf("Bidirectional Round-trip Tests", () => {
     };
 
     // Round trip: lazarv → React → lazarv
-    const stream1 = LazarvServer.renderToReadableStream(complex);
+    const stream1 = RscServer.renderToReadableStream(complex);
     const mid = await ReactDomClientBrowser.createFromReadableStream(stream1);
     const stream2 = ReactDomServer.renderToReadableStream(mid);
-    const final = await LazarvClient.createFromReadableStream(stream2);
+    const final = await RscClient.createFromReadableStream(stream2);
 
     expect(final.users).toHaveLength(2);
     expect(final.users[0].name).toBe("Alice");
@@ -700,7 +699,7 @@ describeIf("Cross-Compatibility Object Identity", () => {
       nested: { inner: shared },
     };
 
-    const stream = LazarvServer.renderToReadableStream(data);
+    const stream = RscServer.renderToReadableStream(data);
     const result = await ReactDomClientBrowser.createFromReadableStream(stream);
 
     expect(result.first).toBe(result.second);
@@ -711,7 +710,7 @@ describeIf("Cross-Compatibility Object Identity", () => {
     const obj = { id: 1 };
     const arr = [obj, { ref: obj }, obj];
 
-    const stream = LazarvServer.renderToReadableStream(arr);
+    const stream = RscServer.renderToReadableStream(arr);
     const result = await ReactDomClientBrowser.createFromReadableStream(stream);
 
     expect(result[0]).toBe(result[2]);
@@ -722,7 +721,7 @@ describeIf("Cross-Compatibility Object Identity", () => {
     const self = { name: "self" };
     self.self = self;
 
-    const stream = LazarvServer.renderToReadableStream(self);
+    const stream = RscServer.renderToReadableStream(self);
     const result = await ReactDomClientBrowser.createFromReadableStream(stream);
 
     expect(result.self).toBe(result);
@@ -734,7 +733,7 @@ describeIf("Cross-Compatibility Object Identity", () => {
     a.ref = b;
     b.ref = a;
 
-    const stream = LazarvServer.renderToReadableStream({ a, b });
+    const stream = RscServer.renderToReadableStream({ a, b });
     const result = await ReactDomClientBrowser.createFromReadableStream(stream);
 
     expect(result.a.ref).toBe(result.b);
@@ -747,7 +746,7 @@ describeIf("Cross-Compatibility Object Identity", () => {
     const data = { value: "test", nested: { value: "test" } };
 
     const stream = ReactDomServer.renderToReadableStream(data);
-    const result = await LazarvClient.createFromReadableStream(stream);
+    const result = await RscClient.createFromReadableStream(stream);
 
     expect(result.value).toBe("test");
     expect(result.nested.value).toBe("test");
@@ -762,7 +761,7 @@ describeIf("Protocol Wire Format Comparison", () => {
       ReactDomServer.renderToReadableStream(data)
     );
     const { forInspection: lazarvInspect } = teeStream(
-      LazarvServer.renderToReadableStream(data)
+      RscServer.renderToReadableStream(data)
     );
 
     const reactWire = await streamToString(reactInspect);
@@ -789,15 +788,14 @@ describeIf("Protocol Wire Format Comparison", () => {
     };
 
     const reactStream = ReactDomServer.renderToReadableStream(data);
-    const lazarvStream = LazarvServer.renderToReadableStream(data);
+    const lazarvStream = RscServer.renderToReadableStream(data);
 
     // Both should be decodable by each other's client
-    const reactByLazarv =
-      await LazarvClient.createFromReadableStream(reactStream);
+    const reactByRsc = await RscClient.createFromReadableStream(reactStream);
     const lazarvByReact =
       await ReactDomClientBrowser.createFromReadableStream(lazarvStream);
 
-    expect(reactByLazarv.inf).toBe(Infinity);
+    expect(reactByRsc.inf).toBe(Infinity);
     expect(lazarvByReact.inf).toBe(Infinity);
   });
 });
@@ -817,9 +815,7 @@ describeIf("React Path-Based Reference Format", () => {
     test("should parse simple path reference ($0:first)", async () => {
       // React format: object with shared nested object using path ref
       const wire = '0:{"first":{"value":42},"second":"$0:first"}';
-      const result = await LazarvClient.createFromReadableStream(
-        toStream(wire)
-      );
+      const result = await RscClient.createFromReadableStream(toStream(wire));
 
       expect(result.first).toBe(result.second);
       expect(result.first.value).toBe(42);
@@ -828,9 +824,7 @@ describeIf("React Path-Based Reference Format", () => {
     test("should parse self-reference using chunk ref ($0)", async () => {
       // React format for self-reference: obj.self = obj
       const wire = '0:{"self":"$0"}';
-      const result = await LazarvClient.createFromReadableStream(
-        toStream(wire)
-      );
+      const result = await RscClient.createFromReadableStream(toStream(wire));
 
       expect(result.self).toBe(result);
     });
@@ -838,9 +832,7 @@ describeIf("React Path-Based Reference Format", () => {
     test("should parse array index path reference ($0:0)", async () => {
       // React format: array where second element references first
       const wire = '0:[{"v":1},"$0:0"]';
-      const result = await LazarvClient.createFromReadableStream(
-        toStream(wire)
-      );
+      const result = await RscClient.createFromReadableStream(toStream(wire));
 
       expect(result[0]).toBe(result[1]);
       expect(result[0].v).toBe(1);
@@ -849,9 +841,7 @@ describeIf("React Path-Based Reference Format", () => {
     test("should parse deep path reference ($0:outer:inner)", async () => {
       // React format: path navigates multiple levels
       const wire = '0:{"outer":{"inner":{"val":99}},"ref":"$0:outer:inner"}';
-      const result = await LazarvClient.createFromReadableStream(
-        toStream(wire)
-      );
+      const result = await RscClient.createFromReadableStream(toStream(wire));
 
       expect(result.ref).toBe(result.outer.inner);
       expect(result.ref.val).toBe(99);
@@ -861,9 +851,7 @@ describeIf("React Path-Based Reference Format", () => {
       // React's actual format for mutual references: { a, b } where a.ref = b and b.ref = a
       // React inlines `a` with `a.ref` (which is b) containing ref back to a via path
       const wire = '0:{"a":{"ref":{"ref":"$0:a"}},"b":"$0:a:ref"}';
-      const result = await LazarvClient.createFromReadableStream(
-        toStream(wire)
-      );
+      const result = await RscClient.createFromReadableStream(toStream(wire));
 
       // b is $0:a:ref (chunk 0, property a, property ref)
       // a.ref.ref is $0:a (chunk 0, property a)
@@ -874,9 +862,7 @@ describeIf("React Path-Based Reference Format", () => {
     test("should parse path ref within nested object", async () => {
       // Path ref inside a nested structure
       const wire = '0:{"data":{"items":[{"id":1},"$0:data:items:0"]}}';
-      const result = await LazarvClient.createFromReadableStream(
-        toStream(wire)
-      );
+      const result = await RscClient.createFromReadableStream(toStream(wire));
 
       expect(result.data.items[0]).toBe(result.data.items[1]);
       expect(result.data.items[0].id).toBe(1);
@@ -888,7 +874,7 @@ describeIf("React Path-Based Reference Format", () => {
       const shared = { value: 42 };
       const data = { first: shared, second: shared };
 
-      const stream = LazarvServer.renderToReadableStream(data);
+      const stream = RscServer.renderToReadableStream(data);
       const result =
         await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -899,7 +885,7 @@ describeIf("React Path-Based Reference Format", () => {
       const obj = { name: "circular" };
       obj.self = obj;
 
-      const stream = LazarvServer.renderToReadableStream(obj);
+      const stream = RscServer.renderToReadableStream(obj);
       const result =
         await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -912,7 +898,7 @@ describeIf("React Path-Based Reference Format", () => {
       a.ref = b;
       b.ref = a;
 
-      const stream = LazarvServer.renderToReadableStream({ a, b });
+      const stream = RscServer.renderToReadableStream({ a, b });
       const result =
         await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -931,7 +917,7 @@ describeIf("React Path-Based Reference Format", () => {
         ref: inner,
       };
 
-      const stream = LazarvServer.renderToReadableStream(data);
+      const stream = RscServer.renderToReadableStream(data);
       const result =
         await ReactDomClientBrowser.createFromReadableStream(stream);
 
@@ -946,7 +932,7 @@ describeIf("React Path-Based Reference Format", () => {
 
       // Render with React, decode with @lazarv/rsc
       const stream = ReactDomServer.renderToReadableStream(data);
-      const result = await LazarvClient.createFromReadableStream(stream);
+      const result = await RscClient.createFromReadableStream(stream);
 
       // React may or may not preserve identity, but @lazarv/rsc should decode correctly
       expect(result.first.value).toBe(42);
@@ -963,7 +949,7 @@ describeIf("React Path-Based Reference Format", () => {
 
       // Render with React, decode with @lazarv/rsc
       const stream = ReactDomServer.renderToReadableStream(obj);
-      const result = await LazarvClient.createFromReadableStream(stream);
+      const result = await RscClient.createFromReadableStream(stream);
 
       expect(result.self).toBe(result);
     });
@@ -976,7 +962,7 @@ describeIf("React Path-Based Reference Format", () => {
 
       // Render with React, decode with @lazarv/rsc
       const stream = ReactDomServer.renderToReadableStream({ a, b });
-      const result = await LazarvClient.createFromReadableStream(stream);
+      const result = await RscClient.createFromReadableStream(stream);
 
       expect(result.a.ref).toBe(result.b);
       expect(result.b.ref).toBe(result.a);
@@ -1025,7 +1011,7 @@ describeIf("Cross-Compatibility: Client References", () => {
   }
 
   // Create a moduleResolver for lazarv server
-  function createLazarvModuleResolver(entries) {
+  function createRscModuleResolver(entries) {
     const refMap = new Map();
     for (const entry of entries) {
       refMap.set(entry.moduleId + "#" + entry.exportName, {
@@ -1046,7 +1032,7 @@ describeIf("Cross-Compatibility: Client References", () => {
   }
 
   // Create a moduleLoader for lazarv client
-  function createLazarvModuleLoader() {
+  function createRscModuleLoader() {
     return {
       preloadModule(_metadata) {
         // No real chunk loading in tests
@@ -1162,7 +1148,7 @@ describeIf("Cross-Compatibility: Client References", () => {
           default: ClientButton,
         });
 
-        const ref = LazarvServer.registerClientReference(
+        const ref = RscServer.registerClientReference(
           ClientButton,
           moduleId,
           exportName
@@ -1170,10 +1156,10 @@ describeIf("Cross-Compatibility: Client References", () => {
 
         const element = React.createElement(ref, { label: "Click me" });
 
-        const moduleResolver = createLazarvModuleResolver([
+        const moduleResolver = createRscModuleResolver([
           { moduleId, exportName },
         ]);
-        const stream = LazarvServer.renderToReadableStream(element, {
+        const stream = RscServer.renderToReadableStream(element, {
           moduleResolver,
         });
 
@@ -1199,12 +1185,12 @@ describeIf("Cross-Compatibility: Client References", () => {
           default: Button,
         });
 
-        const CardRef = LazarvServer.registerClientReference(
+        const CardRef = RscServer.registerClientReference(
           Card,
           "Card.js",
           "default"
         );
-        const ButtonRef = LazarvServer.registerClientReference(
+        const ButtonRef = RscServer.registerClientReference(
           Button,
           "Button.js",
           "default"
@@ -1216,12 +1202,12 @@ describeIf("Cross-Compatibility: Client References", () => {
           React.createElement(ButtonRef, { onClick: "handler" }, "Click")
         );
 
-        const moduleResolver = createLazarvModuleResolver([
+        const moduleResolver = createRscModuleResolver([
           { moduleId: "Card.js", exportName: "default" },
           { moduleId: "Button.js", exportName: "default" },
         ]);
 
-        const stream = LazarvServer.renderToReadableStream(element, {
+        const stream = RscServer.renderToReadableStream(element, {
           moduleResolver,
         });
 
@@ -1242,7 +1228,7 @@ describeIf("Cross-Compatibility: Client References", () => {
 
         registerMockModule("utils.js", { NamedExport });
 
-        const ref = LazarvServer.registerClientReference(
+        const ref = RscServer.registerClientReference(
           NamedExport,
           "utils.js",
           "NamedExport"
@@ -1250,11 +1236,11 @@ describeIf("Cross-Compatibility: Client References", () => {
 
         const element = React.createElement(ref, { data: "test" });
 
-        const moduleResolver = createLazarvModuleResolver([
+        const moduleResolver = createRscModuleResolver([
           { moduleId: "utils.js", exportName: "NamedExport" },
         ]);
 
-        const stream = LazarvServer.renderToReadableStream(element, {
+        const stream = RscServer.renderToReadableStream(element, {
           moduleResolver,
         });
 
@@ -1269,7 +1255,7 @@ describeIf("Cross-Compatibility: Client References", () => {
     test("should emit I row in array wire format", async () => {
       function TestComp() {}
 
-      const ref = LazarvServer.registerClientReference(
+      const ref = RscServer.registerClientReference(
         TestComp,
         "test.js",
         "default"
@@ -1277,7 +1263,7 @@ describeIf("Cross-Compatibility: Client References", () => {
 
       const element = React.createElement(ref, { value: 42 });
 
-      const moduleResolver = createLazarvModuleResolver([
+      const moduleResolver = createRscModuleResolver([
         {
           moduleId: "test.js",
           exportName: "default",
@@ -1285,7 +1271,7 @@ describeIf("Cross-Compatibility: Client References", () => {
         },
       ]);
 
-      const stream = LazarvServer.renderToReadableStream(element, {
+      const stream = RscServer.renderToReadableStream(element, {
         moduleResolver,
       });
 
@@ -1312,7 +1298,7 @@ describeIf("Cross-Compatibility: Client References", () => {
           default: LazyComponent,
         });
 
-        const ref = LazarvServer.registerClientReference(
+        const ref = RscServer.registerClientReference(
           LazyComponent,
           "lazy.js",
           "default"
@@ -1320,7 +1306,7 @@ describeIf("Cross-Compatibility: Client References", () => {
 
         const element = React.createElement(ref, { loaded: true });
 
-        const moduleResolver = createLazarvModuleResolver([
+        const moduleResolver = createRscModuleResolver([
           {
             moduleId: "lazy.js",
             exportName: "default",
@@ -1328,7 +1314,7 @@ describeIf("Cross-Compatibility: Client References", () => {
           },
         ]);
 
-        const stream = LazarvServer.renderToReadableStream(element, {
+        const stream = RscServer.renderToReadableStream(element, {
           moduleResolver,
         });
 
@@ -1374,8 +1360,8 @@ describeIf("Cross-Compatibility: Client References", () => {
       const stream = ReactDomServer.renderToReadableStream(element, webpackMap);
 
       // Decode with lazarv client
-      const moduleLoader = createLazarvModuleLoader();
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const moduleLoader = createRscModuleLoader();
+      const result = await RscClient.createFromReadableStream(stream, {
         moduleLoader,
       });
 
@@ -1418,8 +1404,8 @@ describeIf("Cross-Compatibility: Client References", () => {
 
       const stream = ReactDomServer.renderToReadableStream(element, webpackMap);
 
-      const moduleLoader = createLazarvModuleLoader();
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const moduleLoader = createRscModuleLoader();
+      const result = await RscClient.createFromReadableStream(stream, {
         moduleLoader,
       });
 
@@ -1449,8 +1435,8 @@ describeIf("Cross-Compatibility: Client References", () => {
 
       const stream = ReactDomServer.renderToReadableStream(element, webpackMap);
 
-      const moduleLoader = createLazarvModuleLoader();
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const moduleLoader = createRscModuleLoader();
+      const result = await RscClient.createFromReadableStream(stream, {
         moduleLoader,
       });
 
@@ -1501,7 +1487,7 @@ describeIf("Cross-Compatibility: Client References", () => {
       function Comp() {}
 
       // Register with both servers
-      const lazarvRef = LazarvServer.registerClientReference(
+      const lazarvRef = RscServer.registerClientReference(
         Comp,
         "shared.js",
         "default"
@@ -1513,14 +1499,14 @@ describeIf("Cross-Compatibility: Client References", () => {
       );
 
       // Serialize with lazarv
-      const lazarvResolver = createLazarvModuleResolver([
+      const lazarvResolver = createRscModuleResolver([
         {
           moduleId: "shared.js",
           exportName: "default",
           chunks: ["c0", "c0.js"],
         },
       ]);
-      const lazarvStream = LazarvServer.renderToReadableStream(
+      const lazarvStream = RscServer.renderToReadableStream(
         React.createElement(lazarvRef, {}),
         { moduleResolver: lazarvResolver }
       );
@@ -1573,7 +1559,7 @@ describeIf("Cross-Compatibility: Client References", () => {
         default: MyModule,
       });
 
-      const moduleLoader = createLazarvModuleLoader();
+      const moduleLoader = createRscModuleLoader();
 
       const stream = new ReadableStream({
         start(controller) {
@@ -1582,7 +1568,7 @@ describeIf("Cross-Compatibility: Client References", () => {
         },
       });
 
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         moduleLoader,
       });
 
@@ -1612,18 +1598,18 @@ describeIf("Cross-Compatibility: Client References", () => {
         });
 
         // First trip: lazarv server → React client
-        const ref1 = LazarvServer.registerClientReference(
+        const ref1 = RscServer.registerClientReference(
           RoundTripComp,
           "rt.js",
           "default"
         );
 
         const element1 = React.createElement(ref1, { count: 1 });
-        const resolver1 = createLazarvModuleResolver([
+        const resolver1 = createRscModuleResolver([
           { moduleId: "rt.js", exportName: "default" },
         ]);
 
-        const stream1 = LazarvServer.renderToReadableStream(element1, {
+        const stream1 = RscServer.renderToReadableStream(element1, {
           moduleResolver: resolver1,
         });
         const result1 =
@@ -1658,8 +1644,8 @@ describeIf("Cross-Compatibility: Client References", () => {
 
       const stream = ReactDomServer.renderToReadableStream(element, webpackMap);
 
-      const moduleLoader = createLazarvModuleLoader();
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const moduleLoader = createRscModuleLoader();
+      const result = await RscClient.createFromReadableStream(stream, {
         moduleLoader,
       });
 
@@ -1679,7 +1665,7 @@ describeIf("Cross-Compatibility: Client References", () => {
 
         registerMockModule("actions.js", { __esModule: true, default: Action });
 
-        const ref = LazarvServer.registerClientReference(
+        const ref = RscServer.registerClientReference(
           Action,
           "actions.js",
           "default"
@@ -1691,11 +1677,11 @@ describeIf("Cross-Compatibility: Client References", () => {
           config: { timeout: 5000 },
         };
 
-        const resolver = createLazarvModuleResolver([
+        const resolver = createRscModuleResolver([
           { moduleId: "actions.js", exportName: "default" },
         ]);
 
-        const stream = LazarvServer.renderToReadableStream(data, {
+        const stream = RscServer.renderToReadableStream(data, {
           moduleResolver: resolver,
         });
 
@@ -1733,8 +1719,8 @@ describeIf("Cross-Compatibility: Client References", () => {
 
       const stream = ReactDomServer.renderToReadableStream(data, webpackMap);
 
-      const moduleLoader = createLazarvModuleLoader();
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const moduleLoader = createRscModuleLoader();
+      const result = await RscClient.createFromReadableStream(stream, {
         moduleLoader,
       });
 
@@ -1823,7 +1809,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         return "webpack";
       }
 
-      const lazarvRef = LazarvServer.registerServerReference(
+      const lazarvRef = RscServer.registerServerReference(
         lazarvAction,
         "actions.mjs",
         "doStuff"
@@ -1843,7 +1829,7 @@ describeIf("Cross-Compatibility: Server References", () => {
       async function lazarvAction() {}
       async function webpackAction() {}
 
-      const lazarvRef = LazarvServer.registerServerReference(
+      const lazarvRef = RscServer.registerServerReference(
         lazarvAction,
         "module.js",
         "myExport"
@@ -1862,7 +1848,7 @@ describeIf("Cross-Compatibility: Server References", () => {
       async function lazarvAction() {}
       async function webpackAction() {}
 
-      const lazarvRef = LazarvServer.registerServerReference(
+      const lazarvRef = RscServer.registerServerReference(
         lazarvAction,
         "mod.js",
         "fn"
@@ -1885,7 +1871,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         return a + b;
       }
 
-      const lazarvRef = LazarvServer.registerServerReference(
+      const lazarvRef = RscServer.registerServerReference(
         lazarvAction,
         "calc.js",
         "add"
@@ -1917,11 +1903,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         return [a, b, c];
       }
 
-      const ref = LazarvServer.registerServerReference(
-        action,
-        "multi.js",
-        "fn"
-      );
+      const ref = RscServer.registerServerReference(action, "multi.js", "fn");
       const bound1 = ref.bind(null, "first");
       const bound2 = bound1.bind(null, "second");
 
@@ -1935,7 +1917,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         return `Hello, ${name}!`;
       }
 
-      const ref = LazarvServer.registerServerReference(
+      const ref = RscServer.registerServerReference(
         greet,
         "greet.js",
         "default"
@@ -1951,14 +1933,14 @@ describeIf("Cross-Compatibility: Server References", () => {
   describe("Wire format inspection", () => {
     test("lazarv server serializes server ref with $h prefix (outlined)", async () => {
       async function myAction() {}
-      const ref = LazarvServer.registerServerReference(
+      const ref = RscServer.registerServerReference(
         myAction,
         "actions.js",
         "submit"
       );
 
       const model = { handler: ref };
-      const stream = LazarvServer.renderToReadableStream(model, {});
+      const stream = RscServer.renderToReadableStream(model, {});
       const wire = await streamToString(stream);
 
       // Should contain $h followed by a chunk id (outlined format, same as React)
@@ -1969,7 +1951,7 @@ describeIf("Cross-Compatibility: Server References", () => {
 
     test("lazarv server serializes bound server ref with $h (outlined)", async () => {
       async function myAction(_pre, _val) {}
-      const ref = LazarvServer.registerServerReference(
+      const ref = RscServer.registerServerReference(
         myAction,
         "actions.js",
         "save"
@@ -1977,7 +1959,7 @@ describeIf("Cross-Compatibility: Server References", () => {
       const bound = ref.bind(null, "prefix");
 
       const model = { handler: bound };
-      const stream = LazarvServer.renderToReadableStream(model, {});
+      const stream = RscServer.renderToReadableStream(model, {});
       const wire = await streamToString(stream);
 
       // Should use $h outlined format (same as React)
@@ -1989,14 +1971,14 @@ describeIf("Cross-Compatibility: Server References", () => {
 
     test("lazarv server serializes server ref with moduleResolver metadata", async () => {
       async function myAction() {}
-      const ref = LazarvServer.registerServerReference(
+      const ref = RscServer.registerServerReference(
         myAction,
         "actions.js",
         "run"
       );
 
       const model = { handler: ref };
-      const stream = LazarvServer.renderToReadableStream(model, {
+      const stream = RscServer.renderToReadableStream(model, {
         moduleResolver: {
           resolveServerReference(value) {
             if (value && value.$$id === "actions.js#run") {
@@ -2042,7 +2024,7 @@ describeIf("Cross-Compatibility: Server References", () => {
       async function lazarvAction() {}
       async function webpackAction() {}
 
-      const lazarvRef = LazarvServer.registerServerReference(
+      const lazarvRef = RscServer.registerServerReference(
         lazarvAction,
         "shared/actions.js",
         "doWork"
@@ -2053,7 +2035,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         "doWork"
       );
 
-      const lazarvStream = LazarvServer.renderToReadableStream(
+      const lazarvStream = RscServer.renderToReadableStream(
         { fn: lazarvRef },
         {}
       );
@@ -2074,7 +2056,7 @@ describeIf("Cross-Compatibility: Server References", () => {
       async function lazarvAction() {}
       async function webpackAction() {}
 
-      const lazarvRef = LazarvServer.registerServerReference(
+      const lazarvRef = RscServer.registerServerReference(
         lazarvAction,
         "actions.js",
         "submit"
@@ -2085,7 +2067,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         "submit"
       );
 
-      const lazarvStream = LazarvServer.renderToReadableStream(
+      const lazarvStream = RscServer.renderToReadableStream(
         { handler: lazarvRef },
         {}
       );
@@ -2125,14 +2107,14 @@ describeIf("Cross-Compatibility: Server References", () => {
         };
 
         async function myAction(_input) {}
-        const ref = LazarvServer.registerServerReference(
+        const ref = RscServer.registerServerReference(
           myAction,
           "actions.js",
           "submit"
         );
 
         const model = { handler: ref, label: "go" };
-        const stream = LazarvServer.renderToReadableStream(model, {});
+        const stream = RscServer.renderToReadableStream(model, {});
         const result = await ReactDomClientBrowser.createFromReadableStream(
           stream,
           {
@@ -2162,7 +2144,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         };
 
         async function myAction(_pre, _val) {}
-        const ref = LazarvServer.registerServerReference(
+        const ref = RscServer.registerServerReference(
           myAction,
           "actions.js",
           "save"
@@ -2170,7 +2152,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         const bound = ref.bind(null, "prefix");
 
         const model = { handler: bound };
-        const stream = LazarvServer.renderToReadableStream(model, {});
+        const stream = RscServer.renderToReadableStream(model, {});
         const result = await ReactDomClientBrowser.createFromReadableStream(
           stream,
           {
@@ -2208,7 +2190,7 @@ describeIf("Cross-Compatibility: Server References", () => {
 
       const model = { handler: ref, label: "click" };
       const stream = ReactDomServer.renderToReadableStream(model, {});
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2243,7 +2225,7 @@ describeIf("Cross-Compatibility: Server References", () => {
 
       const model = { handler: bound };
       const stream = ReactDomServer.renderToReadableStream(model, {});
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2282,7 +2264,7 @@ describeIf("Cross-Compatibility: Server References", () => {
 
       const model = { actions: [refA, refB] };
       const stream = ReactDomServer.renderToReadableStream(model, {});
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2313,15 +2295,15 @@ describeIf("Cross-Compatibility: Server References", () => {
       async function myAction(input) {
         return input;
       }
-      const ref = LazarvServer.registerServerReference(
+      const ref = RscServer.registerServerReference(
         myAction,
         "actions.js",
         "submit"
       );
 
       const model = { action: ref, label: "Submit" };
-      const stream = LazarvServer.renderToReadableStream(model, {});
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const stream = RscServer.renderToReadableStream(model, {});
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2352,7 +2334,7 @@ describeIf("Cross-Compatibility: Server References", () => {
       async function myAction(pre, val) {
         return [pre, val];
       }
-      const ref = LazarvServer.registerServerReference(
+      const ref = RscServer.registerServerReference(
         myAction,
         "actions.js",
         "save"
@@ -2360,8 +2342,8 @@ describeIf("Cross-Compatibility: Server References", () => {
       const bound = ref.bind(null, "pre-arg");
 
       const model = { action: bound };
-      const stream = LazarvServer.renderToReadableStream(model, {});
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const stream = RscServer.renderToReadableStream(model, {});
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2384,15 +2366,15 @@ describeIf("Cross-Compatibility: Server References", () => {
       };
 
       async function handleClick() {}
-      const ref = LazarvServer.registerServerReference(
+      const ref = RscServer.registerServerReference(
         handleClick,
         "handlers.js",
         "onClick"
       );
 
       const element = React.createElement("div", { onClick: ref });
-      const stream = LazarvServer.renderToReadableStream(element, {});
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const stream = RscServer.renderToReadableStream(element, {});
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2412,12 +2394,12 @@ describeIf("Cross-Compatibility: Server References", () => {
       async function actionA() {}
       async function actionB() {}
 
-      const refA = LazarvServer.registerServerReference(actionA, "a.js", "run");
-      const refB = LazarvServer.registerServerReference(actionB, "b.js", "run");
+      const refA = RscServer.registerServerReference(actionA, "a.js", "run");
+      const refB = RscServer.registerServerReference(actionB, "b.js", "run");
 
       const model = { actions: [refA, refB], count: 2 };
-      const stream = LazarvServer.renderToReadableStream(model, {});
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const stream = RscServer.renderToReadableStream(model, {});
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2441,15 +2423,11 @@ describeIf("Cross-Compatibility: Server References", () => {
       };
 
       async function myAction() {}
-      const ref = LazarvServer.registerServerReference(
-        myAction,
-        "bind.js",
-        "fn"
-      );
+      const ref = RscServer.registerServerReference(myAction, "bind.js", "fn");
 
       const model = { action: ref };
-      const stream = LazarvServer.renderToReadableStream(model, {});
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const stream = RscServer.renderToReadableStream(model, {});
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2471,7 +2449,7 @@ describeIf("Cross-Compatibility: Server References", () => {
   describe("createServerReference client API compatibility", () => {
     test("lazarv createServerReference creates proxy with correct properties", () => {
       const mockCallServer = async () => {};
-      const ref = LazarvClient.createServerReference(
+      const ref = RscClient.createServerReference(
         "module.js#action",
         mockCallServer
       );
@@ -2489,7 +2467,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         return "result";
       };
 
-      const ref = LazarvClient.createServerReference(
+      const ref = RscClient.createServerReference(
         "api.js#fetch",
         mockCallServer
       );
@@ -2505,7 +2483,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         callLog.push({ id, args });
       };
 
-      const ref = LazarvClient.createServerReference(
+      const ref = RscClient.createServerReference(
         "api.js#update",
         mockCallServer
       );
@@ -2533,7 +2511,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         return "webpack";
       };
 
-      const lazarvRef = LazarvClient.createServerReference(
+      const lazarvRef = RscClient.createServerReference(
         "shared.js#action",
         lazarvCallServer
       );
@@ -2582,7 +2560,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         },
       });
 
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2615,7 +2593,7 @@ describeIf("Cross-Compatibility: Server References", () => {
         },
       });
 
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer: mockCallServer,
       });
 
@@ -2665,12 +2643,9 @@ describe("Debug Info Cross-Compatibility", () => {
       );
 
       const debugInfos = [];
-      const result = await LazarvClient.createFromReadableStream(
-        forConsumption,
-        {
-          onDebugInfo: (id, info) => debugInfos.push({ id, info }),
-        }
-      );
+      const result = await RscClient.createFromReadableStream(forConsumption, {
+        onDebugInfo: (id, info) => debugInfos.push({ id, info }),
+      });
 
       // Result should be valid element
       expect(result.type).toBe("div");
@@ -2691,7 +2666,7 @@ describe("Debug Info Cross-Compatibility", () => {
         { className: "test" },
         "Hello"
       );
-      const stream = LazarvServer.renderToReadableStream(element, {
+      const stream = RscServer.renderToReadableStream(element, {
         debug: true,
       });
       const rawData = await streamToString(stream);
@@ -2731,7 +2706,7 @@ describe("Debug Info Cross-Compatibility", () => {
         { className: "prod" },
         "Production"
       );
-      const stream = LazarvServer.renderToReadableStream(element);
+      const stream = RscServer.renderToReadableStream(element);
       const rawData = await streamToString(stream);
 
       // Verify no D rows without debug option
@@ -2747,8 +2722,7 @@ describe("Debug Info Cross-Compatibility", () => {
         })
       );
 
-      const result =
-        await LazarvClient.createFromReadableStream(forConsumption);
+      const result = await RscClient.createFromReadableStream(forConsumption);
 
       expect(result.type).toBe("div");
       expect(result.props.className).toBe("prod");
@@ -2765,7 +2739,7 @@ describe("Debug Info Cross-Compatibility", () => {
       const element = React.createElement(TestComponent, { name: "test" });
 
       // Get lazarv output with debug mode enabled
-      const lazarvStream = LazarvServer.renderToReadableStream(element, {
+      const lazarvStream = RscServer.renderToReadableStream(element, {
         debug: true,
       });
       const lazarvData = await streamToString(lazarvStream);
@@ -2823,7 +2797,7 @@ describe("Prerender Cross-Compatibility", () => {
         );
 
         // Prerender with lazarv
-        const { prelude } = await LazarvServer.prerender(element);
+        const { prelude } = await RscServer.prerender(element);
         const rawData = await streamToString(prelude);
 
         // Parse with React client
@@ -2860,8 +2834,7 @@ describe("Prerender Cross-Compatibility", () => {
         );
 
         // Prerender with lazarv, decode with React
-        const { prelude: lazarvPrelude } =
-          await LazarvServer.prerender(element);
+        const { prelude: lazarvPrelude } = await RscServer.prerender(element);
         const lazarvData = await streamToString(lazarvPrelude);
 
         const { forConsumption: forReact } = teeStream(
@@ -2894,7 +2867,7 @@ describe("Prerender Cross-Compatibility", () => {
         };
 
         // Prerender with lazarv (waits for all promises)
-        const { prelude: lazarvPrelude } = await LazarvServer.prerender(data);
+        const { prelude: lazarvPrelude } = await RscServer.prerender(data);
         const lazarvData = await streamToString(lazarvPrelude);
 
         // Parse with React client
@@ -2930,7 +2903,7 @@ describe("Prerender Cross-Compatibility", () => {
         );
 
         // Prerender with lazarv
-        const { prelude } = await LazarvServer.prerender(element);
+        const { prelude } = await RscServer.prerender(element);
         const rawData = await streamToString(prelude);
 
         // Parse with lazarv client
@@ -2943,8 +2916,7 @@ describe("Prerender Cross-Compatibility", () => {
           })
         );
 
-        const result =
-          await LazarvClient.createFromReadableStream(forConsumption);
+        const result = await RscClient.createFromReadableStream(forConsumption);
 
         expect(result.type).toBe("div");
         expect(result.props.className).toBe("self-prerendered");
@@ -2963,7 +2935,7 @@ describe("Prerender Cross-Compatibility", () => {
         );
 
         // Prerender with lazarv, decode with lazarv
-        const { prelude } = await LazarvServer.prerender(element);
+        const { prelude } = await RscServer.prerender(element);
         const data = await streamToString(prelude);
 
         const { forConsumption } = teeStream(
@@ -2975,8 +2947,7 @@ describe("Prerender Cross-Compatibility", () => {
           })
         );
 
-        const result =
-          await LazarvClient.createFromReadableStream(forConsumption);
+        const result = await RscClient.createFromReadableStream(forConsumption);
 
         expect(result.type).toBe("section");
         expect(result.props.children).toHaveLength(2);

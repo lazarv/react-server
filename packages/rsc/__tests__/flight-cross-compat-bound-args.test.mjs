@@ -23,8 +23,8 @@
 import { describe, expect, test } from "vitest";
 
 // @lazarv/rsc imports
-import * as LazarvServer from "../server/shared.mjs";
-import * as LazarvClient from "../client/shared.mjs";
+import * as RscServer from "../server/shared.mjs";
+import * as RscClient from "../client/shared.mjs";
 
 // Try to import react-server-dom-webpack
 let ReactDomServer;
@@ -51,14 +51,14 @@ const describeIf = skipTests ? describe.skip : describe;
 const REACT_SERVER_REFERENCE = Symbol.for("react.server.reference");
 
 // Helper: create a lazarv-style server ref with optional bound args (for encodeReply tests)
-function makeLazarvServerRef(id, boundArgs) {
+function makeRscServerRef(id, boundArgs) {
   const fn = async (...args) => ({ id, args });
   fn.$$typeof = REACT_SERVER_REFERENCE;
   fn.$$id = id;
   fn.$$bound = boundArgs || null;
   fn.bind = function (_, ...newArgs) {
     const newBound = (boundArgs || []).concat(newArgs);
-    return makeLazarvServerRef(id, newBound);
+    return makeRscServerRef(id, newBound);
   };
   return fn;
 }
@@ -74,7 +74,7 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
         "actions.js",
         "doStuff"
       );
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         () => {},
         "actions.js",
         "doStuff"
@@ -105,7 +105,7 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       expect(typeof reactFn.bind).toBe("function");
 
       // lazarv client uses createServerReference which sets $$typeof directly
-      const lazarvRef = LazarvClient.createServerReference(
+      const lazarvRef = RscClient.createServerReference(
         "actions.js#run",
         () => {}
       );
@@ -125,7 +125,7 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
         "act.js",
         "fn"
       );
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         () => {},
         "act.js",
         "fn"
@@ -154,7 +154,7 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
         "chain.js",
         "fn"
       );
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         () => {},
         "chain.js",
         "fn"
@@ -181,7 +181,7 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
         "keep.js",
         "fn"
       );
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         () => {},
         "keep.js",
         "fn"
@@ -228,17 +228,17 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
     });
 
     test("lazarv: .bind() with bound args → render → client prepends args", async () => {
-      const fn = LazarvServer.registerServerReference(
+      const fn = RscServer.registerServerReference(
         async () => {},
         "lz-act.js",
         "run"
       );
       const boundFn = fn.bind(null, "pre1", 42);
 
-      const stream = LazarvServer.renderToReadableStream({ action: boundFn });
+      const stream = RscServer.renderToReadableStream({ action: boundFn });
 
       let capturedId, capturedArgs;
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         callServer(id, args) {
           capturedId = id;
           capturedArgs = args;
@@ -279,19 +279,19 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await reactResult.action("tail");
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "cmp.js",
         "fn"
       );
       const lazarvBound = lazarvFn.bind(null, "hello", 99, true);
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvBound,
       });
 
       let lazarvCallArgs;
-      const lazarvResult = await LazarvClient.createFromReadableStream(
+      const lazarvResult = await RscClient.createFromReadableStream(
         lazarvStream,
         {
           callServer(id, args) {
@@ -332,18 +332,18 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await reactResult.action("arg1");
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "plain.js",
         "fn"
       );
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvFn,
       });
 
       let lazarvCallArgs;
-      const lazarvResult = await LazarvClient.createFromReadableStream(
+      const lazarvResult = await RscClient.createFromReadableStream(
         lazarvStream,
         {
           callServer(id, args) {
@@ -385,18 +385,18 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await reactBound("arg1");
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "bind-test.js",
         "fn"
       );
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvFn,
       });
 
       let lazarvCallArgs;
-      const lazarvResult = await LazarvClient.createFromReadableStream(
+      const lazarvResult = await RscClient.createFromReadableStream(
         lazarvStream,
         {
           callServer(id, args) {
@@ -440,19 +440,19 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await reactClientBound("call-arg");
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "dbl.js",
         "fn"
       );
       const lazarvServerBound = lazarvFn.bind(null, "server-bound");
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvServerBound,
       });
 
       let lazarvCallArgs;
-      const lazarvResult = await LazarvClient.createFromReadableStream(
+      const lazarvResult = await RscClient.createFromReadableStream(
         lazarvStream,
         {
           callServer(id, args) {
@@ -513,8 +513,8 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       expect(reactMainPart).toContain("$h");
 
       // lazarv: use helper that sets $$typeof
-      const lazarvRef = makeLazarvServerRef("enc.js#fn", ["arg1"]);
-      const lazarvEncoded = await LazarvClient.encodeReply(lazarvRef);
+      const lazarvRef = makeRscServerRef("enc.js#fn", ["arg1"]);
+      const lazarvEncoded = await RscClient.encodeReply(lazarvRef);
 
       // lazarv should also produce FormData with $h reference (matching React)
       expect(lazarvEncoded).toBeInstanceOf(FormData);
@@ -535,8 +535,8 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       expect(reactEncoded).toBeInstanceOf(FormData);
 
       // lazarv
-      const lazarvRef = makeLazarvServerRef("simple.js#fn");
-      const lazarvEncoded = await LazarvClient.encodeReply(lazarvRef);
+      const lazarvRef = makeRscServerRef("simple.js#fn");
+      const lazarvEncoded = await RscClient.encodeReply(lazarvRef);
 
       // lazarv also produces FormData with $h for unbound refs (matching React)
       expect(lazarvEncoded).toBeInstanceOf(FormData);
@@ -556,8 +556,8 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       expect(reactEncoded).toBeInstanceOf(FormData);
 
       // lazarv also encodes Date via FormData parts
-      const lazarvRef = makeLazarvServerRef("date.js#fn", [date]);
-      const lazarvEncoded = await LazarvClient.encodeReply(lazarvRef);
+      const lazarvRef = makeRscServerRef("date.js#fn", [date]);
+      const lazarvEncoded = await RscClient.encodeReply(lazarvRef);
       expect(lazarvEncoded).toBeInstanceOf(FormData);
 
       // Verify Date appears somewhere in the FormData parts
@@ -592,8 +592,8 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       expect(foundBigInt).toBe(true);
 
       // lazarv also uses $n for BigInt in FormData parts
-      const lazarvRef = makeLazarvServerRef("big.js#fn", [big]);
-      const lazarvEncoded = await LazarvClient.encodeReply(lazarvRef);
+      const lazarvRef = makeRscServerRef("big.js#fn", [big]);
+      const lazarvEncoded = await RscClient.encodeReply(lazarvRef);
       expect(lazarvEncoded).toBeInstanceOf(FormData);
 
       let lazarvFoundBigInt = false;
@@ -640,12 +640,12 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
     });
 
     test("lazarv: encodeReply bound ref → decodeReply restores bound args", async () => {
-      const ref = makeLazarvServerRef("rt.js#fn", ["a", 42]);
+      const ref = makeRscServerRef("rt.js#fn", ["a", 42]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
 
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction(id) {
             return (...args) => {
@@ -689,11 +689,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
     });
 
     test("lazarv: encodeReply unbound ref → decodeReply produces function", async () => {
-      const ref = makeLazarvServerRef("ub.js#fn");
+      const ref = makeRscServerRef("ub.js#fn");
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
 
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction(id) {
             expect(id).toBe("ub.js#fn");
@@ -736,18 +736,18 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await rr.action("end");
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "dt.js",
         "fn"
       );
       const lazarvBound = lazarvFn.bind(null, date);
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvBound,
       });
       let lazarvCallArgs;
-      const lr = await LazarvClient.createFromReadableStream(lazarvStream, {
+      const lr = await RscClient.createFromReadableStream(lazarvStream, {
         callServer(id, args) {
           lazarvCallArgs = args;
           return Promise.resolve("ok");
@@ -789,18 +789,18 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await rr.action();
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "bi.js",
         "fn"
       );
       const lazarvBound = lazarvFn.bind(null, bigVal);
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvBound,
       });
       let lazarvCallArgs;
-      const lr = await LazarvClient.createFromReadableStream(lazarvStream, {
+      const lr = await RscClient.createFromReadableStream(lazarvStream, {
         callServer(id, args) {
           lazarvCallArgs = args;
           return Promise.resolve("ok");
@@ -840,18 +840,18 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await rr.action();
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "map.js",
         "fn"
       );
       const lazarvBound = lazarvFn.bind(null, map);
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvBound,
       });
       let lazarvCallArgs;
-      const lr = await LazarvClient.createFromReadableStream(lazarvStream, {
+      const lr = await RscClient.createFromReadableStream(lazarvStream, {
         callServer(id, args) {
           lazarvCallArgs = args;
           return Promise.resolve("ok");
@@ -892,18 +892,18 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await rr.action();
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "set.js",
         "fn"
       );
       const lazarvBound = lazarvFn.bind(null, set);
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvBound,
       });
       let lazarvCallArgs;
-      const lr = await LazarvClient.createFromReadableStream(lazarvStream, {
+      const lr = await RscClient.createFromReadableStream(lazarvStream, {
         callServer(id, args) {
           lazarvCallArgs = args;
           return Promise.resolve("ok");
@@ -943,7 +943,7 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       await rr.action("tail");
 
       // lazarv
-      const lazarvFn = LazarvServer.registerServerReference(
+      const lazarvFn = RscServer.registerServerReference(
         async () => {},
         "mix.js",
         "fn"
@@ -958,11 +958,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
         100n
       );
 
-      const lazarvStream = LazarvServer.renderToReadableStream({
+      const lazarvStream = RscServer.renderToReadableStream({
         action: lazarvBound,
       });
       let lazarvCallArgs;
-      const lr = await LazarvClient.createFromReadableStream(lazarvStream, {
+      const lr = await RscClient.createFromReadableStream(lazarvStream, {
         callServer(id, args) {
           lazarvCallArgs = args;
           return Promise.resolve("ok");
@@ -999,11 +999,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
   describe("encodeReply → decodeReply exotic bound arg types", () => {
     test("lazarv: Date in bound arg survives encodeReply → decodeReply", async () => {
       const date = new Date("2025-06-15T12:00:00Z");
-      const ref = makeLazarvServerRef("exotic.js#fn", [date]);
+      const ref = makeRscServerRef("exotic.js#fn", [date]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction() {
             return (...args) => {
@@ -1020,11 +1020,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
     });
 
     test("lazarv: BigInt in bound arg survives encodeReply → decodeReply", async () => {
-      const ref = makeLazarvServerRef("exotic.js#fn", [999999999999999999n]);
+      const ref = makeRscServerRef("exotic.js#fn", [999999999999999999n]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction() {
             return (...args) => {
@@ -1043,11 +1043,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
         ["x", 1],
         ["y", 2],
       ]);
-      const ref = makeLazarvServerRef("exotic.js#fn", [map]);
+      const ref = makeRscServerRef("exotic.js#fn", [map]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction() {
             return (...args) => {
@@ -1065,11 +1065,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
 
     test("lazarv: Set in bound arg survives encodeReply → decodeReply", async () => {
       const set = new Set(["a", "b", "c"]);
-      const ref = makeLazarvServerRef("exotic.js#fn", [set]);
+      const ref = makeRscServerRef("exotic.js#fn", [set]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction() {
             return (...args) => {
@@ -1089,11 +1089,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
     test("lazarv: ArrayBuffer in bound arg survives encodeReply → decodeReply", async () => {
       const buf = new ArrayBuffer(4);
       new Uint8Array(buf).set([0xde, 0xad, 0xbe, 0xef]);
-      const ref = makeLazarvServerRef("exotic.js#fn", [buf]);
+      const ref = makeRscServerRef("exotic.js#fn", [buf]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction() {
             return (...args) => {
@@ -1112,11 +1112,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
 
     test("lazarv: Uint8Array in bound arg survives encodeReply → decodeReply", async () => {
       const arr = new Uint8Array([10, 20, 30]);
-      const ref = makeLazarvServerRef("exotic.js#fn", [arr]);
+      const ref = makeRscServerRef("exotic.js#fn", [arr]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction() {
             return (...args) => {
@@ -1133,11 +1133,11 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
 
     test("lazarv: RegExp in bound arg survives encodeReply → decodeReply", async () => {
       const regex = /test\d+/gi;
-      const ref = makeLazarvServerRef("exotic.js#fn", [regex]);
+      const ref = makeRscServerRef("exotic.js#fn", [regex]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction() {
             return (...args) => {
@@ -1157,7 +1157,7 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
       const date = new Date("2025-01-01");
       const buf = new Uint8Array([1, 2]);
       const regex = /hello/;
-      const ref = makeLazarvServerRef("exotic.js#fn", [
+      const ref = makeRscServerRef("exotic.js#fn", [
         date,
         buf,
         regex,
@@ -1166,9 +1166,9 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
         new Set([1]),
       ]);
 
-      const encoded = await LazarvClient.encodeReply(ref);
+      const encoded = await RscClient.encodeReply(ref);
       let invokedWith;
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         moduleLoader: {
           loadServerAction() {
             return (...args) => {
@@ -1197,19 +1197,19 @@ describeIf("Bound Server Action Args Cross-Compatibility", () => {
   // ─────────────────────────────────────────────────────────────────────
   describe("full pipeline: render → decode → callServer", () => {
     test("lazarv: full pipeline preserves server-bound + call args", async () => {
-      const original = LazarvServer.registerServerReference(
+      const original = RscServer.registerServerReference(
         async () => {},
         "pipeline.js",
         "run"
       );
       const serverBound = original.bind(null, "user-42", "delete");
 
-      const stream = LazarvServer.renderToReadableStream({
+      const stream = RscServer.renderToReadableStream({
         handler: serverBound,
       });
 
       let capturedId, capturedArgs;
-      const clientResult = await LazarvClient.createFromReadableStream(stream, {
+      const clientResult = await RscClient.createFromReadableStream(stream, {
         callServer(id, args) {
           capturedId = id;
           capturedArgs = args;

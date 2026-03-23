@@ -18,6 +18,10 @@ const REACT_SUSPENSE_TYPE = Symbol.for("react.suspense");
 const REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
 const REACT_SERVER_REFERENCE = Symbol.for("react.server.reference");
 
+// Shared encoder/decoder instances — avoids per-call allocation overhead
+const _decoder = new TextDecoder();
+const _encoder = new TextEncoder();
+
 // Dev mode detection: __DEV__ (bundler/React global), process.env.NODE_ENV (Node.js),
 // default to false (production) when neither is available
 const __IS_DEV__ =
@@ -33,6 +37,324 @@ const __IS_DEV__ =
 const PENDING = 0;
 const RESOLVED = 1;
 const REJECTED = 2;
+
+/**
+ * Stamp development-mode properties onto a React element.
+ * React's dev server expects elements to have _owner, _store, _debugStack,
+ * _debugTask, and _debugInfo.  Without these, dev-mode rendering crashes
+ * ("Cannot set properties of undefined (setting 'validated')") or warns
+ * ("Attempted to render without development properties").
+ * In production this is a no-op identity function.
+ */
+const _devElement = __IS_DEV__
+  ? (el) => {
+      el._owner = null;
+      el._store = { validated: 1 };
+      el._debugStack = new Error("react-stack-top-frame");
+      el._debugTask = null;
+      el._debugInfo = null;
+      return el;
+    }
+  : (el) => el;
+
+/**
+ * Skip a single JSON value in `str` starting at position `i`.
+ * Returns the position immediately after the value, or -1 on error.
+ * Only handles the small header values (strings, null, numbers, booleans)
+ * — does NOT recurse into objects/arrays (not needed for element headers).
+ */
+function _skipJsonValue(str, i) {
+  const len = str.length;
+  if (i >= len) return -1;
+  const ch = str.charCodeAt(i);
+  if (ch === 0x22) {
+    // String — scan for unescaped closing quote
+    i++;
+    while (i < len) {
+      const c = str.charCodeAt(i);
+      if (c === 0x5c) {
+        i += 2;
+        continue;
+      } // backslash escape
+      if (c === 0x22) return i + 1;
+      i++;
+    }
+    return -1;
+  }
+  // Number, true, false, null — scan to delimiter
+  while (i < len) {
+    const c = str.charCodeAt(i);
+    if (c === 0x2c || c === 0x5d || c === 0x7d || c <= 0x20) return i;
+    i++;
+  }
+  return i;
+}
+
+/**
+ * Skip a JSON value of any type (including nested objects/arrays) starting
+ * at position `i`.  Returns the position immediately after the value.
+ * Uses depth tracking — scans through nested content character by character
+ * but doesn't allocate anything.
+ */
+function _skipJsonValueFull(str, i) {
+  const len = str.length;
+  if (i >= len) return -1;
+  const ch = str.charCodeAt(i);
+
+  // String
+  if (ch === 0x22) {
+    i++;
+    while (i < len) {
+      const c = str.charCodeAt(i);
+      if (c === 0x5c) {
+        i += 2;
+        continue;
+      }
+      if (c === 0x22) return i + 1;
+      i++;
+    }
+    return -1;
+  }
+
+  // Object or array — track depth
+  if (ch === 0x7b || ch === 0x5b) {
+    let depth = 1;
+    let inStr = false;
+    i++;
+    while (i < len && depth > 0) {
+      const c = str.charCodeAt(i);
+      if (inStr) {
+        if (c === 0x5c) {
+          i += 2;
+          continue;
+        }
+        if (c === 0x22) inStr = false;
+        i++;
+        continue;
+      }
+      if (c === 0x22) {
+        inStr = true;
+        i++;
+        continue;
+      }
+      if (c === 0x7b || c === 0x5b) {
+        depth++;
+      } else if (c === 0x7d || c === 0x5d) {
+        depth--;
+      }
+      i++;
+    }
+    return i;
+  }
+
+  // Primitive (number, true, false, null)
+  while (i < len) {
+    const c = str.charCodeAt(i);
+    if (c === 0x2c || c === 0x5d || c === 0x7d || c <= 0x20) return i;
+    i++;
+  }
+  return i;
+}
+
+/**
+ * Scan a top-level JSON object string to extract key→value-substring pairs
+ * WITHOUT parsing large nested values.
+ *
+ * Returns an array of { key, valueStart, valueEnd, small } entries, or null
+ * if the string can't be scanned (caller falls back to full JSON.parse).
+ *
+ * Values smaller than `threshold` characters are flagged `small: true` so the
+ * caller can JSON.parse and deserialize them eagerly.  Larger values are kept
+ * as raw substrings for lazy on-demand parsing.
+ */
+function _scanObjectRow(str, threshold) {
+  const len = str.length;
+  if (str.charCodeAt(0) !== 0x7b || str.charCodeAt(len - 1) !== 0x7d)
+    return null;
+
+  const fields = [];
+  let i = 1; // skip opening '{'
+
+  while (i < len) {
+    // Skip whitespace
+    while (i < len && str.charCodeAt(i) <= 0x20) i++;
+
+    // End of object?
+    if (str.charCodeAt(i) === 0x7d) break;
+
+    // Expect a string key
+    if (str.charCodeAt(i) !== 0x22) return null;
+    const keyStart = i;
+    i = _skipJsonValue(str, i); // reuse the fast string skipper
+    if (i === -1) return null;
+    const key = str.slice(keyStart + 1, i - 1); // strip quotes (no escapes in typical keys)
+
+    // Skip colon + whitespace
+    while (i < len && str.charCodeAt(i) <= 0x20) i++;
+    if (str.charCodeAt(i) !== 0x3a) return null; // ':'
+    i++;
+    while (i < len && str.charCodeAt(i) <= 0x20) i++;
+
+    // Value starts here
+    const valueStart = i;
+    i = _skipJsonValueFull(str, i);
+    if (i === -1) return null;
+    const valueEnd = i;
+    const size = valueEnd - valueStart;
+
+    fields.push({ key, valueStart, valueEnd, small: size <= threshold });
+
+    // Skip comma + whitespace
+    while (i < len && str.charCodeAt(i) <= 0x20) i++;
+    if (str.charCodeAt(i) === 0x2c) {
+      i++;
+    }
+  }
+
+  return fields.length > 0 ? fields : null;
+}
+
+/**
+ * Scan an element tuple JSON string to extract field boundaries without
+ * parsing the (potentially huge) props object.
+ *
+ * Element tuples: ["$", type, key, props]        (React 19 production)
+ *                 ["$", type, key, ref, props]    (Legacy)
+ *                 ["$", type, key, props, ...]    (React 19 dev — extra fields)
+ *
+ * Key insight: the row string always ends with ']' (the outer array close).
+ * We only need to scan the HEADER fields ("$", type, key) which are tiny
+ * (~30–50 chars), then everything from the 3rd comma to the closing ']' is
+ * the remaining field(s).  This makes the scanner O(header_size) ≈ O(1),
+ * independent of the props size — critical for 200KB+ rows.
+ *
+ * Returns { type, key, rawPropsStr, rawRefStr } or null on failure.
+ */
+function _scanElementTuple(str) {
+  const len = str.length;
+  // Outer array must close with ']'
+  if (str.charCodeAt(len - 1) !== 0x5d) return null;
+
+  // Caller already verified str starts with '["$",' so skip to after it.
+  let i = 5; // past '["$",'
+
+  // Skip whitespace
+  while (i < len && str.charCodeAt(i) <= 0x20) i++;
+
+  // Field 1: type (usually a short string like "div" or "$L1")
+  const typeStart = i;
+  i = _skipJsonValue(str, i);
+  if (i === -1) return null;
+  const typeEnd = i;
+
+  // Expect comma after type
+  while (i < len && str.charCodeAt(i) <= 0x20) i++;
+  if (str.charCodeAt(i) !== 0x2c) return null;
+  i++;
+  while (i < len && str.charCodeAt(i) <= 0x20) i++;
+
+  // Field 2: key (usually null, a string, or a number)
+  const keyStart = i;
+  i = _skipJsonValue(str, i);
+  if (i === -1) return null;
+  const keyEnd = i;
+
+  // Expect comma after key
+  while (i < len && str.charCodeAt(i) <= 0x20) i++;
+  if (str.charCodeAt(i) !== 0x2c) return null;
+  i++;
+  while (i < len && str.charCodeAt(i) <= 0x20) i++;
+
+  // Parse type and key — these are tiny, JSON.parse is fast
+  const type = JSON.parse(str.slice(typeStart, typeEnd));
+  const key = JSON.parse(str.slice(keyStart, keyEnd));
+
+  // Everything from position i to len-1 (before closing ']') is field 3+.
+  // The closing ']' at len-1 belongs to the outer array, not to props.
+  const restEnd = len - 1;
+
+  // Peek at the first character to determine format
+  const firstChar = str.charCodeAt(i);
+
+  if (firstChar === 0x7b) {
+    // '{' → React 19 format: 4th element is the props object.
+    // In production there are no extra fields after props, so
+    // everything from i to restEnd is the props JSON.
+    // In dev mode there may be owner/debug fields after props,
+    // but those trailing fields don't affect JSON.parse of the
+    // props object — they just become garbage after the first
+    // top-level '}'. We need to find where the props object ends.
+    // For production (no extra fields): props = str[i..restEnd)
+    // For dev (extra fields): need to skip the object to find its end.
+    //
+    // Optimization: check if the last non-whitespace char before ']'
+    // is '}' — if so, props is the only remaining field.
+    let j = restEnd - 1;
+    while (j > i && str.charCodeAt(j) <= 0x20) j--;
+    if (str.charCodeAt(j) === 0x7d) {
+      // Props is the only remaining field (production path)
+      return { type, key, rawPropsStr: str.slice(i, j + 1), rawRefStr: null };
+    }
+    // Dev mode with extra fields — fall back to full parse
+    return null;
+  }
+
+  // Not an object — legacy format: 4th element is ref, 5th is props.
+  // Ref is small (usually `null`), so skip it cheaply.
+  const refStart = i;
+  i = _skipJsonValue(str, i);
+  if (i === -1) return null;
+  const refEnd = i;
+
+  // Expect comma after ref
+  while (i < len && str.charCodeAt(i) <= 0x20) i++;
+  if (i >= restEnd || str.charCodeAt(i) !== 0x2c) return null;
+  i++;
+  while (i < len && str.charCodeAt(i) <= 0x20) i++;
+
+  // 5th element is props — everything from i to restEnd
+  // Same optimization: verify last non-ws char before ']' closes the props
+  let j = restEnd - 1;
+  while (j > i && str.charCodeAt(j) <= 0x20) j--;
+  const lastChar = str.charCodeAt(j);
+  if (
+    lastChar === 0x7d ||
+    lastChar === 0x5d ||
+    lastChar === 0x22 ||
+    (lastChar >= 0x30 && lastChar <= 0x39) ||
+    lastChar === 0x65 ||
+    lastChar === 0x6c
+  ) {
+    // Ends with }, ], ", digit, 'e' (true/false), 'l' (null) — plausible JSON value end
+    return {
+      type,
+      key,
+      rawPropsStr: str.slice(i, j + 1),
+      rawRefStr: str.slice(refStart, refEnd),
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Binary row tag byte → TypedArray constructor (module-level, allocated once).
+ * Covers tags that need alignment-safe copy: Int8Array through BigUint64Array.
+ * Uint8Array (0x6f), ArrayBuffer (0x41), DataView (0x56), Text (0x54) are
+ * handled as special cases in processBinaryRow.
+ */
+const _binaryTagConstructors = {
+  0x4f: Int8Array, // O
+  0x55: Uint8ClampedArray, // U
+  0x53: Int16Array, // S
+  0x73: Uint16Array, // s
+  0x4c: Int32Array, // L
+  0x6c: Uint32Array, // l
+  0x47: Float32Array, // G
+  0x67: Float64Array, // g
+  0x4d: BigInt64Array, // M
+  0x6d: BigUint64Array, // m
+};
 
 /**
  * Create a TypedArray from a constructor name and buffer
@@ -105,30 +427,57 @@ class FlightResponse {
   }
 
   /**
-   * Create a new pending chunk
+   * Create a new pending chunk.
+   *
+   * Chunks start without a Promise — one is created lazily via
+   * _ensurePromise() only when async code actually needs to await
+   * the chunk.  For the common synchronous-resolve path this avoids
+   * a Promise + two closure allocations per chunk.
    */
   createChunk(id) {
-    let resolve, reject;
-    const promise = new Promise((res, rej) => {
-      resolve = res;
-      reject = rej;
-    });
-
     const chunk = {
       id,
       status: PENDING,
       value: undefined,
-      promise,
-      resolve,
-      reject,
+      _promise: null,
+      _resolve: null,
+      _reject: null,
     };
-
-    // Make the chunk thenable
-    promise.status = "pending";
-    promise.value = undefined;
-
     this.chunks.set(id, chunk);
     return chunk;
+  }
+
+  /**
+   * Lazily create a Promise for a chunk.
+   * - If already resolved/rejected synchronously, returns an already-settled promise.
+   * - If still pending, allocates the real Promise with resolve/reject captures.
+   */
+  _ensurePromise(chunk) {
+    if (chunk._promise !== null) return chunk._promise;
+
+    if (chunk.status === RESOLVED) {
+      const p = Promise.resolve(chunk.value);
+      p.status = "fulfilled";
+      p.value = chunk.value;
+      chunk._promise = p;
+    } else if (chunk.status === REJECTED) {
+      const err = chunk.type === "streaming" ? chunk.error : chunk.value;
+      const p = Promise.reject(err);
+      p.catch(() => {}); // suppress unhandled rejection
+      p.status = "rejected";
+      p.value = err;
+      chunk._promise = p;
+    } else {
+      // Still pending — allocate a real promise
+      const p = new Promise((res, rej) => {
+        chunk._resolve = res;
+        chunk._reject = rej;
+      });
+      p.status = "pending";
+      p.value = undefined;
+      chunk._promise = p;
+    }
+    return chunk._promise;
   }
 
   /**
@@ -144,7 +493,9 @@ class FlightResponse {
 
   /**
    * Get or create a streaming chunk (for async iterables, ReadableStream)
-   * These chunks accumulate values instead of being resolved once
+   * These chunks accumulate values instead of being resolved once.
+   * Streaming chunks always allocate a real Promise because they are
+   * consumed via async iteration / ReadableStream readers.
    */
   getOrCreateStreamingChunk(id) {
     let chunk = this.chunks.get(id);
@@ -155,20 +506,17 @@ class FlightResponse {
         reject = rej;
       });
 
-      // Streaming chunks are consumed via wrapper status polling, not via
-      // promise awaiting.  Suppress unhandled-rejection warnings so that
-      // rejecting a streaming chunk (e.g. on transport error) doesn't crash
-      // the process in Node.js v24+ where unhandled rejections throw.
+      // Suppress unhandled-rejection warnings (Node.js v24+)
       promise.catch(() => {});
 
       chunk = {
         id,
         status: PENDING,
-        value: [], // Array to accumulate streamed values
+        value: [],
         type: "streaming",
-        promise,
-        resolve,
-        reject,
+        _promise: promise,
+        _resolve: resolve,
+        _reject: reject,
       };
 
       promise.status = "pending";
@@ -185,14 +533,18 @@ class FlightResponse {
   resolveChunk(id, value) {
     const chunk = this.getChunk(id);
     if (chunk.status !== PENDING) {
-      return; // Already resolved
+      return;
     }
 
     chunk.status = RESOLVED;
     chunk.value = value;
-    chunk.promise.status = "fulfilled";
-    chunk.promise.value = value;
-    chunk.resolve(value);
+
+    // If a Promise was already created (someone awaited it), fulfill it
+    if (chunk._promise !== null) {
+      chunk._promise.status = "fulfilled";
+      chunk._promise.value = value;
+      chunk._resolve(value);
+    }
   }
 
   /**
@@ -201,19 +553,15 @@ class FlightResponse {
   rejectChunk(id, error) {
     const chunk = this.getChunk(id);
     if (chunk.status !== PENDING) {
-      return; // Already resolved
+      return;
     }
 
     chunk.status = REJECTED;
-    // For streaming chunks, preserve the accumulated values and store error separately
     if (chunk.type === "streaming" && Array.isArray(chunk.value)) {
       chunk.error = error;
     } else {
       chunk.value = error;
     }
-    // If the chunk has a ReadableStream controller, error it so that
-    // any reader (e.g. an outer renderToReadableStream re-serializing
-    // this stream) is unblocked and receives the error.
     if (chunk._controller && !chunk._controllerClosed) {
       try {
         chunk._controller.error(error);
@@ -222,15 +570,18 @@ class FlightResponse {
       }
       chunk._controllerClosed = true;
     }
-    chunk.promise.status = "rejected";
-    chunk.promise.value = error;
-    chunk.reject(error);
+
+    if (chunk._promise !== null) {
+      chunk._promise.status = "rejected";
+      chunk._promise.value = error;
+      chunk._reject(error);
+    }
   }
 
   /**
    * Process a line of Flight protocol
    */
-  processLine(line) {
+  processLine(line, hasSpecialBytes = true) {
     if (!line) return;
 
     // Parse the line: "id:tag{json}" or "id:{json}" or ":tag{data}" (global rows)
@@ -303,6 +654,51 @@ class FlightResponse {
     } else {
       // Model row - JSON data
       try {
+        // Fast path for element tuples: scan the raw JSON string to extract
+        // header fields (type, key) without parsing the potentially huge props
+        // object.  Props is kept as a raw JSON string and only parsed lazily
+        // when first accessed via the self-replacing getter.
+        //
+        // Element tuples start with '["$",' — check the first 5 chars.
+        // Only use the scanner for rows > 128 bytes — for tiny elements
+        // (e.g., `["$","div",null,{}]`), V8's native JSON.parse is faster
+        // than our character-level scanner.  The scanner wins on large rows
+        // (200KB+) where it avoids parsing the dominant props object.
+        if (
+          rest.length > 128 &&
+          rest.charCodeAt(0) === 0x5b &&
+          rest.charCodeAt(1) === 0x22 &&
+          rest.charCodeAt(2) === 0x24 &&
+          rest.charCodeAt(3) === 0x22 &&
+          rest.charCodeAt(4) === 0x2c
+        ) {
+          const scan = _scanElementTuple(rest);
+          if (scan) {
+            const value = this.deserializeElementFromScan(scan);
+            this.resolveChunk(id, value);
+            return;
+          }
+          // Scanner failed (unusual tuple shape) — fall through to full parse
+        }
+
+        // Fast path for wrapper objects: scan the top-level JSON object to
+        // find key→value boundaries.  Large values (> 128 chars) are kept as
+        // raw JSON substrings and attached as lazy getters — their JSON.parse
+        // + deserializeValue cost is deferred until first property access.
+        // Small values are parsed eagerly.  This is particularly effective for
+        // mixed payloads like {tree: <huge element>, data: [...], date: "$D..."}.
+        if (rest.length > 256 && rest.charCodeAt(0) === 0x7b) {
+          const fields = _scanObjectRow(rest, 128);
+          if (fields) {
+            const obj = this._buildLazyObject(rest, fields);
+            if (obj) {
+              this.resolveChunk(id, obj);
+              return;
+            }
+          }
+          // Scanner failed — fall through to full parse
+        }
+
         const json = JSON.parse(rest);
 
         // Check if this is a streaming completion marker
@@ -320,39 +716,57 @@ class FlightResponse {
           return;
         }
 
-        // For object/array values, pre-create the placeholder and defer property resolution
-        // This allows forward references to work - all chunks get placeholders first,
-        // then properties are filled in after all chunks are parsed
+        // Try to resolve the model row immediately.  Only fall back to
+        // deferred resolution when the JSON contains chunk references ($N)
+        // that haven't been resolved yet — which requires placeholders so
+        // other chunks can reference this one before its properties are filled.
+        //
+        // For the common case (data payloads, inlined values), this avoids:
+        //  • _areDepsResolved — recursive dependency scan
+        //  • deferred placeholder + property-copy pass
+        //  • collectPathRefSentinels — recursive sentinel scan
         const chunk = this.getChunk(id);
         let value;
-        if (json && typeof json === "object" && !Array.isArray(json)) {
-          // Create object placeholder - properties will be filled later
-          value = {};
-          chunk.status = RESOLVED;
-          chunk.value = value;
-          chunk._rawJson = json; // Store raw json for immediate access if needed
-          chunk.promise.status = "fulfilled";
-          chunk.promise.value = value;
-          chunk.resolve(value);
-          // Defer property resolution until all chunks are parsed
-          this.deferredChunks.push({ type: "object", value, json, chunk });
-        } else if (Array.isArray(json)) {
-          // Check for element tuple: ["$", type, key, ref, props]
-          // These shouldn't have circular refs, so process normally
-          if (json[0] === "$" && json.length >= 3) {
+        if (Array.isArray(json) && json[0] === "$" && json.length >= 3) {
+          // React element tuple — always resolved immediately (scanner missed this one)
+          value = this.deserializeValue(json);
+          this.resolveChunk(id, value);
+        } else if (json && typeof json === "object") {
+          // Object or array — try immediate resolution.
+          //
+          // Fast path: hasSpecialBytes is pre-computed from raw bytes in
+          // processData using single-byte memchr (~5x faster than 2-char
+          // string indexOf on large payloads).  When no '$' or '@' bytes
+          // exist, the JSON.parse result needs zero transformation — skip
+          // the entire deserializeValue tree walk.  This turns a 10K-element
+          // array from O(n) walk to O(1).
+          if (!hasSpecialBytes) {
+            // Pure data — JSON.parse result is the final value.
+            // Mark chunk so Map/Set builders can skip deserializeValue.
+            const chunk = this.getChunk(id);
+            chunk._plainData = true;
+            this.resolveChunk(id, json);
+          } else if (this._areDepsResolved(json)) {
             value = this.deserializeValue(json);
             this.resolveChunk(id, value);
           } else {
-            // Regular array - Create array placeholder, defer element resolution
-            value = Array.from({ length: json.length });
+            // Forward/circular references exist — use deferred path
+            const isArray = Array.isArray(json);
+            value = isArray ? Array.from({ length: json.length }) : {};
             chunk.status = RESOLVED;
             chunk.value = value;
-            chunk._rawJson = json; // Store raw json for immediate access if needed
-            chunk.promise.status = "fulfilled";
-            chunk.promise.value = value;
-            chunk.resolve(value);
-            // Defer element resolution until all chunks are parsed
-            this.deferredChunks.push({ type: "array", value, json, chunk });
+            chunk._rawJson = json;
+            if (chunk._promise !== null) {
+              chunk._promise.status = "fulfilled";
+              chunk._promise.value = value;
+              chunk._resolve(value);
+            }
+            this.deferredChunks.push({
+              type: isArray ? "array" : "object",
+              value,
+              json,
+              chunk,
+            });
           }
         } else {
           value = this.deserializeValue(json);
@@ -375,14 +789,11 @@ class FlightResponse {
         status: PENDING,
         value: [],
         type: "text",
-        promise: null,
-        resolve: null,
-        reject: null,
+        _promise: null,
+        _resolve: null,
+        _reject: null,
       };
-      chunk.promise = new Promise((resolve, reject) => {
-        chunk.resolve = resolve;
-        chunk.reject = reject;
-      });
+      this._ensurePromise(chunk);
       this.chunks.set(id, chunk);
     } else if (!chunk.type) {
       // Existing chunk that wasn't marked as text - upgrade it
@@ -398,7 +809,7 @@ class FlightResponse {
       // If this chunk has a stream controller, push data
       if (chunk._controller) {
         try {
-          chunk._controller.enqueue(new TextEncoder().encode(textContent));
+          chunk._controller.enqueue(_encoder.encode(textContent));
         } catch {
           // Controller may be closed
         }
@@ -413,19 +824,15 @@ class FlightResponse {
   appendBinaryChunk(id, base64Content) {
     let chunk = this.chunks.get(id);
     if (!chunk) {
-      // Create a streaming binary chunk
       chunk = {
         status: PENDING,
         value: [],
         type: "binary",
-        promise: null,
-        resolve: null,
-        reject: null,
+        _promise: null,
+        _resolve: null,
+        _reject: null,
       };
-      chunk.promise = new Promise((resolve, reject) => {
-        chunk.resolve = resolve;
-        chunk.reject = reject;
-      });
+      this._ensurePromise(chunk);
       this.chunks.set(id, chunk);
     } else if (!chunk.type) {
       // Existing chunk that wasn't marked as binary - upgrade it
@@ -478,20 +885,18 @@ class FlightResponse {
           // Controller may already be closed
         }
       }
-      chunk.resolve(chunk.value);
+      chunk._resolve(chunk.value);
       return;
     }
 
     if (chunk.type === "text") {
-      // Concatenate all text chunks
       const fullText = chunk.value.join("");
       chunk.status = RESOLVED;
       chunk.value = fullText;
-      chunk.promise.status = "fulfilled";
-      chunk.promise.value = fullText;
-      chunk.resolve(fullText);
+      chunk._promise.status = "fulfilled";
+      chunk._promise.value = fullText;
+      chunk._resolve(fullText);
     } else if (chunk.type === "binary") {
-      // Concatenate all binary chunks
       const totalLength = chunk.value.reduce(
         (sum, arr) => sum + arr.byteLength,
         0
@@ -503,14 +908,12 @@ class FlightResponse {
         offset += arr.byteLength;
       }
 
-      // Create the appropriate type based on metadata
       let finalValue;
       if (metadata.type === "ArrayBuffer") {
         finalValue = result.buffer;
       } else if (metadata.type === "Blob") {
         finalValue = new Blob([result], { type: metadata.mimeType || "" });
       } else {
-        // TypedArray - need to construct the right type
         finalValue = createTypedArray(
           metadata.type,
           result.buffer,
@@ -520,9 +923,9 @@ class FlightResponse {
 
       chunk.status = RESOLVED;
       chunk.value = finalValue;
-      chunk.promise.status = "fulfilled";
-      chunk.promise.value = finalValue;
-      chunk.resolve(finalValue);
+      chunk._promise.status = "fulfilled";
+      chunk._promise.value = finalValue;
+      chunk._resolve(finalValue);
     }
   }
 
@@ -615,7 +1018,12 @@ class FlightResponse {
   }
 
   /**
-   * Deserialize a value from Flight format
+   * Deserialize a value from Flight format.
+   *
+   * Uses copy-on-write: if no property in an object/array changes during
+   * deserialization, the original JSON-parsed object is returned directly —
+   * avoiding an allocation + property copy for the common case where values
+   * are plain primitives/strings with no protocol-special prefixes.
    */
   deserializeValue(value) {
     if (value === null || value === undefined) {
@@ -640,7 +1048,22 @@ class FlightResponse {
       if (value[0] === "$" && value.length >= 3) {
         return this.deserializeElement(value);
       }
-      return value.map((item) => this.deserializeValue(item));
+      // Copy-on-write: only allocate a new array if an element changes
+      let result = value;
+      for (let i = 0; i < value.length; i++) {
+        const orig = value[i];
+        const deserialized = this.deserializeValue(orig);
+        if (deserialized !== orig) {
+          if (result === value) {
+            // First change — shallow-copy elements seen so far
+            result = value.slice(0, i);
+          }
+        }
+        if (result !== value) {
+          result.push(deserialized);
+        }
+      }
+      return result;
     }
 
     if (typeof value === "object") {
@@ -654,9 +1077,23 @@ class FlightResponse {
       ) {
         return value;
       }
-      const result = {};
-      for (const key of Object.keys(value)) {
-        result[key] = this.deserializeValue(value[key]);
+      // Copy-on-write: only allocate a new object if a property value changes
+      const keys = Object.keys(value);
+      let result = value;
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        const orig = value[key];
+        const deserialized = this.deserializeValue(orig);
+        if (deserialized !== orig) {
+          if (result === value) {
+            // First change — copy properties seen so far
+            result = {};
+            for (let j = 0; j < i; j++) result[keys[j]] = value[keys[j]];
+          }
+        }
+        if (result !== value) {
+          result[key] = deserialized;
+        }
       }
       return result;
     }
@@ -668,27 +1105,32 @@ class FlightResponse {
    * Deserialize a string value
    */
   deserializeString(value) {
-    // Handle @@ escaped strings first (literal @ prefix)
-    if (value.startsWith("@@")) {
-      return value.slice(1); // Remove the escape @
+    // Fast exit for the overwhelmingly common case: plain strings with no
+    // protocol prefix.  Checking the first char code avoids the cost of
+    // multiple startsWith calls on every string in the payload.
+    const ch = value.charCodeAt(0);
+    // 0x24 = '$', 0x40 = '@'
+    if (ch !== 0x24 && ch !== 0x40) {
+      return value;
+    }
+
+    // Handle @ prefixes
+    if (ch === 0x40) {
+      // @@ escaped strings (literal @ prefix)
+      if (value.charCodeAt(1) === 0x40) {
+        return value.slice(1);
+      }
+      // @ or $@ references (Promise references)
+      const id = parseInt(value.slice(1), 10);
+      const chunk = this.getChunk(id);
+      return this._ensurePromise(chunk);
     }
 
     // Handle $@ references (Promise references - React format)
-    if (value.startsWith("$@")) {
+    if (value.charCodeAt(1) === 0x40) {
       const id = parseInt(value.slice(2), 10);
       const chunk = this.getChunk(id);
-      return chunk.promise;
-    }
-
-    // Handle @ references (Promise references - legacy format for backward compatibility)
-    if (value.startsWith("@")) {
-      const id = parseInt(value.slice(1), 10);
-      const chunk = this.getChunk(id);
-      return chunk.promise;
-    }
-
-    if (!value.startsWith("$")) {
-      return value;
+      return this._ensurePromise(chunk);
     }
 
     if (value === "$undefined") {
@@ -763,65 +1205,42 @@ class FlightResponse {
     }
 
     if (value.startsWith("$Q")) {
-      // Map - either $Q with JSON entries or $Q with row reference
+      // Map — $Q followed by a chunk id (digit) or inline JSON
       const rest = value.slice(2);
-      // Check if it's a row reference (just a number)
-      if (/^\d+$/.test(rest)) {
-        // Row reference to map entries
+      const ch2 = rest.charCodeAt(0);
+      if (ch2 >= 0x30 && ch2 <= 0x39) {
+        // Row reference ($Q<digits>)
         const id = parseInt(rest, 10);
         const chunk = this.getChunk(id);
         if (chunk.status === RESOLVED) {
-          // Use raw json if available (deferred resolution case), otherwise use value
           const entries = chunk._rawJson || chunk.value;
-          return new Map(
-            entries.map(([k, v]) => [
-              this.deserializeValue(k),
-              this.deserializeValue(v),
-            ])
-          );
+          // If the entries chunk was pure data (no $ or @ in its row),
+          // all keys/values are plain — skip per-entry deserializeValue.
+          return this._buildMap(entries, !!chunk._plainData);
         }
-        // Return a promise that resolves to the map
-        return chunk.promise.then(
-          (entries) =>
-            new Map(
-              entries.map(([k, v]) => [
-                this.deserializeValue(k),
-                this.deserializeValue(v),
-              ])
-            )
+        return this._ensurePromise(chunk).then((entries) =>
+          this._buildMap(entries)
         );
       }
-      // Inline JSON format
-      const entries = JSON.parse(rest);
-      return new Map(
-        entries.map(([k, v]) => [
-          this.deserializeValue(k),
-          this.deserializeValue(v),
-        ])
-      );
+      return this._buildMap(JSON.parse(rest));
     }
 
     if (value.startsWith("$W")) {
-      // Set - either $W with JSON items or $W with row reference
+      // Set — $W followed by a chunk id (digit) or inline JSON
       const rest = value.slice(2);
-      // Check if it's a row reference (just a number)
-      if (/^\d+$/.test(rest)) {
-        // Row reference to set items
+      const ch2 = rest.charCodeAt(0);
+      if (ch2 >= 0x30 && ch2 <= 0x39) {
         const id = parseInt(rest, 10);
         const chunk = this.getChunk(id);
         if (chunk.status === RESOLVED) {
-          // Use raw json if available (deferred resolution case), otherwise use value
           const items = chunk._rawJson || chunk.value;
-          return new Set(items.map((item) => this.deserializeValue(item)));
+          return this._buildSet(items, !!chunk._plainData);
         }
-        // Return a promise that resolves to the set
-        return chunk.promise.then(
-          (items) => new Set(items.map((item) => this.deserializeValue(item)))
+        return this._ensurePromise(chunk).then((items) =>
+          this._buildSet(items)
         );
       }
-      // Inline JSON format
-      const items = JSON.parse(rest);
-      return new Set(items.map((item) => this.deserializeValue(item)));
+      return this._buildSet(JSON.parse(rest));
     }
 
     if (value.startsWith("$Y")) {
@@ -955,7 +1374,7 @@ class FlightResponse {
       }
       // Chunk not yet resolved — shouldn't normally happen since outlined chunks
       // are emitted before the model row that references them
-      return chunk.promise.then((model) => {
+      return this._ensurePromise(chunk).then((model) => {
         const id = model.id;
         const bound = model.bound;
         if (bound && Array.isArray(bound) && bound.length > 0) {
@@ -1035,14 +1454,14 @@ class FlightResponse {
       // Binary stream reference (large TypedArray/ArrayBuffer)
       const id = parseInt(value.slice(2), 16);
       const chunk = this.getChunk(id);
-      return chunk.promise;
+      return this._ensurePromise(chunk);
     }
 
     if (value.startsWith("$B")) {
       // Blob stream reference
       const id = parseInt(value.slice(2), 16);
       const chunk = this.getChunk(id);
-      return chunk.promise;
+      return this._ensurePromise(chunk);
     }
 
     if (value.startsWith("$r")) {
@@ -1059,40 +1478,36 @@ class FlightResponse {
       return this.createAsyncIterableWrapper(chunk);
     }
 
-    // Handle generic chunk references ($1, $2, etc.) - React uses these for deferred values
-    // This must be after all specific $ handlers to avoid conflicts
-    if (/^\$\d+$/.test(value)) {
-      const id = parseInt(value.slice(1), 10);
-      const chunk = this.getChunk(id);
-      if (chunk.status === RESOLVED) {
-        // Return the resolved value directly (don't re-deserialize)
-        return chunk.value;
-      }
-      // Return a promise for async resolution
-      return chunk.promise.then((v) => v);
-    }
-
-    // Handle path-based references ($0:path:to:prop) - React uses these for object identity
-    // Format: $rowId:key1:key2:... where each key navigates into the object
-    if (/^\$\d+:/.test(value)) {
-      const colonIndex = value.indexOf(":");
-      const id = parseInt(value.slice(1, colonIndex), 10);
-      const path = value.slice(colonIndex + 1);
-      const chunk = this.getChunk(id);
-
-      if (chunk.status === RESOLVED) {
-        // During deferred resolution, all path refs should be deferred to a second pass.
-        // The path may reference properties that are still being filled in this pass.
-        if (this._resolvingDeferred) {
-          // Return a sentinel that will be resolved in second pass
-          const sentinel = { __pathRef: true, id, path };
-          return sentinel;
+    // Handle generic chunk references ($1, $2, etc.) and path references ($1:key:...)
+    // The second char must be a digit (0x30-0x39) to distinguish from named prefixes
+    // like $S, $D, $Q etc. that were already handled above.
+    {
+      const ch1 = value.charCodeAt(1);
+      if (ch1 >= 0x30 && ch1 <= 0x39) {
+        const colonIndex = value.indexOf(":");
+        if (colonIndex === -1) {
+          // Simple chunk ref: $N
+          const id = parseInt(value.slice(1), 10);
+          const chunk = this.getChunk(id);
+          if (chunk.status === RESOLVED) {
+            return chunk.value;
+          }
+          return this._ensurePromise(chunk).then((v) => v);
         }
-        // Navigate the path to find the referenced value
-        return this.resolvePath(chunk.value, path);
+        // Path ref: $N:path:to:prop
+        const id = parseInt(value.slice(1, colonIndex), 10);
+        const path = value.slice(colonIndex + 1);
+        const chunk = this.getChunk(id);
+        if (chunk.status === RESOLVED) {
+          if (this._resolvingDeferred) {
+            return { __pathRef: true, id, path };
+          }
+          return this.resolvePath(chunk.value, path);
+        }
+        return this._ensurePromise(chunk).then((v) =>
+          this.resolvePath(v, path)
+        );
       }
-      // Return a promise for async resolution
-      return chunk.promise.then((v) => this.resolvePath(v, path));
     }
 
     return value;
@@ -1128,7 +1543,7 @@ class FlightResponse {
           for (const item of chunk.value) {
             try {
               if (chunk.type === "text" || typeof item === "string") {
-                controller.enqueue(new TextEncoder().encode(item));
+                controller.enqueue(_encoder.encode(item));
               } else {
                 controller.enqueue(item);
               }
@@ -1155,7 +1570,7 @@ class FlightResponse {
             "The stream was cancelled",
             "AbortError"
           );
-          chunk.reject(chunk.error);
+          chunk._reject(chunk.error);
         }
       },
     });
@@ -1198,68 +1613,308 @@ class FlightResponse {
    * Deserialize a React element from tuple format
    */
   deserializeElement(tuple) {
-    // Multiple formats supported:
-    // React 19 (react-server-dom-webpack): ["$", type, key, props, owner?, debugInfo?, debugStack?]
-    // @lazarv/rsc: ["$", type, key, props] or ["$", type, key, ref, props]
-    let type, key, ref, props;
+    // Formats:
+    // React 19: ["$", type, key, props, owner?, debugInfo?, debugStack?]
+    // Legacy:   ["$", type, key, ref, props]
+    //
+    // Heuristic: if the 4th element is a non-array object (or undefined),
+    // it's props (React 19 format).  Otherwise it's a ref (legacy).
+    const rawType = tuple[1];
+    const rawKey = tuple[2];
 
-    if (tuple.length >= 4) {
-      // Try to determine format by examining the 4th element
-      const fourthElement = tuple[3];
+    // Deserialize type — usually a plain string (e.g., "div") which
+    // deserializeString returns unchanged via the fast charCode path.
+    const type =
+      typeof rawType === "string"
+        ? this.deserializeString(rawType)
+        : this.deserializeValue(rawType);
 
-      // If 4th element is an object and not null, it could be props (React 19) or ref
-      if (
-        typeof fourthElement === "object" &&
-        fourthElement !== null &&
-        !Array.isArray(fourthElement)
-      ) {
-        // React 19 format: ["$", type, key, props, ...]
-        [, type, key, props] = tuple;
-        const deserializedProps = props ? this.deserializeValue(props) : {};
-        ref = deserializedProps.ref;
-        props = deserializedProps;
-      } else if (
-        tuple.length === 5 ||
-        (tuple.length === 4 && typeof fourthElement !== "object")
-      ) {
-        // Legacy format: ["$", type, key, ref, props]
-        [, type, key, ref, props] = tuple;
-        ref = ref !== undefined ? this.deserializeValue(ref) : null;
-        props = props ? this.deserializeValue(props) : {};
-      } else {
-        // Fallback: treat as React 19 format
-        [, type, key, props] = tuple;
-        const deserializedProps = props ? this.deserializeValue(props) : {};
-        ref = deserializedProps.ref;
-        props = deserializedProps;
+    const fourth = tuple[3];
+    const isLegacy =
+      tuple.length === 5 || (fourth === null && tuple[4] !== undefined);
+    const isReact19 =
+      !isLegacy &&
+      fourth !== undefined &&
+      fourth !== null &&
+      typeof fourth === "object" &&
+      !Array.isArray(fourth);
+
+    // For trivial cases (no props), resolve immediately — no getter overhead
+    if (!isLegacy && !isReact19) {
+      return _devElement({
+        $$typeof: REACT_TRANSITIONAL_ELEMENT_TYPE,
+        type,
+        key: rawKey !== undefined ? rawKey : null,
+        ref: null,
+        props: {},
+      });
+    }
+
+    // Determine raw props source for lazy deserialization
+    const rawProps = isLegacy ? tuple[4] : fourth;
+    const rawRef = isLegacy ? fourth : null;
+
+    // If rawProps is falsy (null/undefined), resolve immediately
+    if (!rawProps) {
+      return _devElement({
+        $$typeof: REACT_TRANSITIONAL_ELEMENT_TYPE,
+        type,
+        key: rawKey !== undefined ? rawKey : null,
+        ref:
+          rawRef !== null && rawRef !== undefined
+            ? this.deserializeValue(rawRef)
+            : null,
+        props: {},
+      });
+    }
+
+    // For small props objects without nested elements or references,
+    // eager resolution is faster (avoids Object.defineProperty + closure).
+    // Use lazy getter only when props is large enough to benefit.
+    const propKeys = Object.keys(rawProps);
+    let isSimpleProps = propKeys.length <= 4;
+    if (isSimpleProps) {
+      for (let k = 0; k < propKeys.length; k++) {
+        const v = rawProps[propKeys[k]];
+        if (
+          typeof v === "string" &&
+          v.length > 0 &&
+          (v.charCodeAt(0) === 0x24 || v.charCodeAt(0) === 0x40)
+        ) {
+          isSimpleProps = false;
+          break;
+        }
+        if (typeof v === "object" && v !== null) {
+          isSimpleProps = false;
+          break;
+        }
       }
-    } else {
-      [, type, key, ref, props] = tuple;
-      ref = ref !== undefined ? this.deserializeValue(ref) : null;
-      props = props ? this.deserializeValue(props) : {};
     }
 
-    const deserializedType = this.deserializeValue(type);
-    const deserializedKey = key !== undefined ? key : null;
+    if (isSimpleProps) {
+      // Eager path — deserialize props inline, no lazy getter overhead
+      const props = this.deserializeValue(rawProps);
+      const isR19 = !isLegacy;
+      return _devElement({
+        $$typeof: REACT_TRANSITIONAL_ELEMENT_TYPE,
+        type,
+        key: rawKey !== undefined ? rawKey : null,
+        ref: isR19
+          ? props.ref || null
+          : rawRef !== null && rawRef !== undefined
+            ? this.deserializeValue(rawRef)
+            : null,
+        props,
+      });
+    }
 
-    const element = {
+    // Lazy props deserialization via self-replacing getter.
+    // React elements in large trees are often only partially consumed
+    // (e.g., a list of 1000 items where only 50 are visible). Deferring
+    // props deserialization until first access avoids recursively walking
+    // the entire element tree upfront.
+    return this._makeElementWithLazyProps(
+      type,
+      rawKey,
+      rawRef,
+      rawProps,
+      false,
+      !isLegacy
+    );
+  }
+
+  /**
+   * Create an element from a scan result (partial JSON parse).
+   * Props are still a raw JSON string — JSON.parse is deferred to the lazy getter.
+   */
+  deserializeElementFromScan(scan) {
+    // Deserialize type — usually a plain string (e.g., "div")
+    const type =
+      typeof scan.type === "string"
+        ? this.deserializeString(scan.type)
+        : this.deserializeValue(scan.type);
+
+    const rawPropsStr = scan.rawPropsStr;
+
+    // Trivial: no props string or "null" / "{}"
+    if (!rawPropsStr || rawPropsStr === "null") {
+      return _devElement({
+        $$typeof: REACT_TRANSITIONAL_ELEMENT_TYPE,
+        type,
+        key: scan.key !== undefined ? scan.key : null,
+        ref: scan.rawRefStr
+          ? this.deserializeValue(JSON.parse(scan.rawRefStr))
+          : null,
+        props: {},
+      });
+    }
+
+    if (rawPropsStr === "{}") {
+      return _devElement({
+        $$typeof: REACT_TRANSITIONAL_ELEMENT_TYPE,
+        type,
+        key: scan.key !== undefined ? scan.key : null,
+        ref: scan.rawRefStr
+          ? this.deserializeValue(JSON.parse(scan.rawRefStr))
+          : null,
+        props: {},
+      });
+    }
+
+    // Determine if legacy (has rawRefStr) or React 19
+    const isLegacy = scan.rawRefStr !== null;
+    const rawRef = isLegacy && scan.rawRefStr ? scan.rawRefStr : null;
+
+    return this._makeElementWithLazyProps(
+      type,
+      scan.key,
+      rawRef,
+      rawPropsStr,
+      true,
+      !isLegacy
+    );
+  }
+
+  /**
+   * Shared implementation for creating elements with lazy props.
+   * @param {*} type - Already-deserialized element type
+   * @param {*} rawKey - Raw key value
+   * @param {*} rawRef - Raw ref (string for scan path, object for tuple path), or null
+   * @param {*} rawProps - Either a parsed object (tuple path) or a raw JSON string (scan path)
+   * @param {boolean} propsIsString - true if rawProps is a JSON string needing JSON.parse first
+   * @param {boolean} isReact19 - true if React 19 format (ref is inside props)
+   */
+  _makeElementWithLazyProps(
+    type,
+    rawKey,
+    rawRef,
+    rawProps,
+    propsIsString,
+    isReact19
+  ) {
+    const response = this;
+    const element = _devElement({
       $$typeof: REACT_TRANSITIONAL_ELEMENT_TYPE,
-      type: deserializedType,
-      key: deserializedKey,
-      ref: ref || null,
-      props: props,
-    };
+      type,
+      key: rawKey !== undefined ? rawKey : null,
+      ref:
+        !isReact19 && rawRef != null
+          ? propsIsString
+            ? response.deserializeValue(JSON.parse(rawRef))
+            : response.deserializeValue(rawRef)
+          : null,
+    });
 
-    // Add development properties expected by React's dev mode
-    if (__IS_DEV__) {
-      element._owner = null;
-      element._store = { validated: 1 };
-      element._debugStack = new Error("react-stack-top-frame");
-      element._debugTask = null;
-      element._debugInfo = null;
-    }
+    let _cachedProps;
+    Object.defineProperty(element, "props", {
+      get() {
+        if (_cachedProps === undefined) {
+          // If props is a raw JSON string, parse it first, then deserialize
+          const parsed = propsIsString ? JSON.parse(rawProps) : rawProps;
+          _cachedProps = response.deserializeValue(parsed);
+          if (isReact19) {
+            element.ref = _cachedProps.ref || null;
+          }
+          // Replace getter with plain data property for subsequent accesses
+          Object.defineProperty(element, "props", {
+            value: _cachedProps,
+            writable: true,
+            enumerable: true,
+            configurable: true,
+          });
+        }
+        return _cachedProps;
+      },
+      set(v) {
+        _cachedProps = v;
+        Object.defineProperty(element, "props", {
+          value: v,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      },
+      enumerable: true,
+      configurable: true,
+    });
 
     return element;
+  }
+
+  /**
+   * Build an object from scanned field descriptors, using lazy getters for
+   * large values and eager JSON.parse + deserializeValue for small ones.
+   *
+   * Returns the constructed object, or null if any field can't be handled
+   * (caller falls back to full JSON.parse).
+   */
+  _buildLazyObject(str, fields) {
+    const response = this;
+    const obj = {};
+
+    for (let f = 0; f < fields.length; f++) {
+      const { key, valueStart, valueEnd, small } = fields[f];
+
+      if (small) {
+        // Small value — parse and deserialize eagerly (cheap)
+        const raw = str.slice(valueStart, valueEnd);
+        const parsed = JSON.parse(raw);
+        obj[key] = response.deserializeValue(parsed);
+      } else {
+        // Large value — defer JSON.parse + deserializeValue to first access.
+        // Capture `valueStart` and `valueEnd` in the closure; `str` is shared
+        // across all fields (one allocation for the whole row string).
+        const vs = valueStart;
+        const ve = valueEnd;
+        let _cached;
+        Object.defineProperty(obj, key, {
+          get() {
+            if (_cached === undefined) {
+              const raw = str.slice(vs, ve);
+              // Check if this is an element tuple ["$",...
+              if (
+                raw.length > 5 &&
+                raw.charCodeAt(0) === 0x5b &&
+                raw.charCodeAt(1) === 0x22 &&
+                raw.charCodeAt(2) === 0x24 &&
+                raw.charCodeAt(3) === 0x22 &&
+                raw.charCodeAt(4) === 0x2c
+              ) {
+                const scan = _scanElementTuple(raw);
+                if (scan) {
+                  _cached = response.deserializeElementFromScan(scan);
+                } else {
+                  _cached = response.deserializeValue(JSON.parse(raw));
+                }
+              } else {
+                _cached = response.deserializeValue(JSON.parse(raw));
+              }
+              // Replace getter with plain property
+              Object.defineProperty(obj, key, {
+                value: _cached,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+              });
+            }
+            return _cached;
+          },
+          set(v) {
+            _cached = v;
+            Object.defineProperty(obj, key, {
+              value: v,
+              writable: true,
+              enumerable: true,
+              configurable: true,
+            });
+          },
+          enumerable: true,
+          configurable: true,
+        });
+      }
+    }
+
+    return obj;
   }
 
   /**
@@ -1267,7 +1922,7 @@ class FlightResponse {
    * Supports async module loading via moduleLoader.requireModule
    */
   createLazyWrapper(chunk) {
-    // Return a thenable that resolves to the chunk value
+    const response = this;
     const lazy = {
       $$typeof: Symbol.for("react.lazy"),
       _payload: chunk,
@@ -1341,7 +1996,7 @@ class FlightResponse {
         if (payload.status === REJECTED) {
           throw payload.value;
         }
-        throw payload.promise;
+        throw response._ensurePromise(payload);
       },
     };
     return lazy;
@@ -1387,7 +2042,37 @@ class FlightResponse {
     // G = Float32Array, g = Float64Array
     // M = BigInt64Array, m = BigUint64Array
     // V = DataView
-    return "AOoUSsLlGgMmV".includes(char);
+    // T = large text string (length-prefixed, same framing as typed arrays)
+    return "TAOoUSsLlGgMmV".includes(char);
+  }
+
+  /**
+   * Check if a byte value is a length-prefixed row tag (binary or text).
+   * Same set as isBinaryRowTag but operates on raw byte values for the
+   * fast path in processData that avoids decoding the full payload.
+   */
+  isBinaryRowByte(byte) {
+    // T=0x54 A=0x41 O=0x4f o=0x6f U=0x55 S=0x53 s=0x73 L=0x4c l=0x6c
+    // G=0x47 g=0x67 M=0x4d m=0x6d V=0x56
+    switch (byte) {
+      case 0x54:
+      case 0x41:
+      case 0x4f:
+      case 0x6f:
+      case 0x55:
+      case 0x53:
+      case 0x73:
+      case 0x4c:
+      case 0x6c:
+      case 0x47:
+      case 0x67:
+      case 0x4d:
+      case 0x6d:
+      case 0x56:
+        return true;
+      default:
+        return false;
+    }
   }
 
   /**
@@ -1399,7 +2084,7 @@ class FlightResponse {
     // Convert to bytes if string
     let bytes;
     if (typeof data === "string") {
-      bytes = new TextEncoder().encode(data);
+      bytes = _encoder.encode(data);
     } else {
       bytes = data;
     }
@@ -1422,58 +2107,65 @@ class FlightResponse {
     // Process bytes
     let offset = 0;
     while (offset < bytes.length) {
-      // Find the next newline
-      let newlineIndex = -1;
-      for (let i = offset; i < bytes.length; i++) {
-        if (bytes[i] === 0x0a) {
-          // \n
-          newlineIndex = i;
-          break;
-        }
-      }
+      // Fast path: detect length-prefixed binary/text rows directly from raw
+      // bytes. This avoids decoding the entire (potentially 100KB+) payload
+      // to a JS string just to read a small header.
+      // Format: id:TAG<hex_length>,<payload_bytes>
+      // The colon (0x3A) separates the numeric id from the tag byte.
+      const colonIdx = bytes.indexOf(0x3a, offset); // ':'
+      if (colonIdx !== -1 && colonIdx < bytes.length - 1) {
+        const tagByte = bytes[colonIdx + 1];
+        if (this.isBinaryRowByte(tagByte)) {
+          // Find the comma that terminates the hex length.
+          // Limit search to a small window — hex lengths are at most ~8 chars.
+          const searchEnd = Math.min(colonIdx + 20, bytes.length);
+          let commaIdx = -1;
+          for (let j = colonIdx + 2; j < searchEnd; j++) {
+            const b = bytes[j];
+            if (b === 0x2c) {
+              // ','
+              commaIdx = j;
+              break;
+            }
+            // Hex digit? 0-9 (0x30-0x39), a-f (0x61-0x66), A-F (0x41-0x46)
+            if (
+              (b >= 0x30 && b <= 0x39) ||
+              (b >= 0x61 && b <= 0x66) ||
+              (b >= 0x41 && b <= 0x46)
+            ) {
+              continue;
+            }
+            // Non-hex, non-comma → not a length-prefixed row (e.g. streaming T row)
+            break;
+          }
+          if (commaIdx !== -1) {
+            // Parse id from ASCII digits (byte arithmetic — avoids TextDecoder)
+            let id = 0;
+            for (let j = offset; j < colonIdx; j++) {
+              id = id * 10 + (bytes[j] - 0x30);
+            }
+            // Parse hex length from bytes (byte arithmetic)
+            let length = 0;
+            for (let j = colonIdx + 2; j < commaIdx; j++) {
+              const b = bytes[j];
+              length =
+                (length << 4) | (b <= 0x39 ? b - 0x30 : (b | 0x20) - 0x61 + 10);
+            }
+            const dataStart = commaIdx + 1;
+            const dataEnd = dataStart + length;
 
-      if (newlineIndex === -1) {
-        // No complete line, save to binary buffer
-        this.binaryBuffer = bytes.slice(offset);
-        break;
-      }
-
-      // Extract the line as text
-      const lineBytes = bytes.slice(offset, newlineIndex);
-      const line = new TextDecoder().decode(lineBytes);
-
-      // Check if this is a binary row (id:TAG<hex_length>,<data>)
-      // React always uses hex for binary lengths
-      const colonIndex = line.indexOf(":");
-      if (colonIndex !== -1 && colonIndex < line.length) {
-        const tag = line[colonIndex + 1];
-        if (this.isBinaryRowTag(tag)) {
-          // This is a binary row - parse the hex length
-          const afterTag = line.slice(colonIndex + 2);
-          const commaIndex = afterTag.indexOf(",");
-          if (commaIndex !== -1) {
-            const id = parseInt(line.slice(0, colonIndex), 10);
-            const lengthStr = afterTag.slice(0, commaIndex);
-            const length = parseInt(lengthStr, 16); // Always hex
-
-            // Calculate where binary data starts
-            const headerLength = colonIndex + 1 + 1 + commaIndex + 1; // id: + tag + length + ,
-            const binaryStart = offset + headerLength;
-            const binaryEnd = binaryStart + length;
-
-            if (binaryEnd <= bytes.length) {
-              // We have all the binary data
-              const binaryData = bytes.slice(binaryStart, binaryEnd);
-              this.processBinaryRow(id, tag, binaryData);
-              offset = binaryEnd;
+            if (dataEnd <= bytes.length) {
+              const binaryData = bytes.subarray(dataStart, dataEnd);
+              this.processBinaryRow(id, tagByte, binaryData);
+              offset = dataEnd;
               continue;
             } else {
-              // Need more data for binary row
+              // Need more data for this row
               this.pendingBinaryRow = {
                 id,
-                tag,
+                tag: tagByte,
                 length,
-                data: bytes.slice(binaryStart),
+                data: bytes.slice(dataStart),
               };
               return;
             }
@@ -1481,8 +2173,24 @@ class FlightResponse {
         }
       }
 
-      // Regular text line
-      this.processLine(line);
+      // Regular newline-delimited row
+      const newlineIndex = bytes.indexOf(0x0a, offset);
+
+      if (newlineIndex === -1) {
+        // No complete line, save to binary buffer
+        this.binaryBuffer = bytes.slice(offset);
+        break;
+      }
+
+      // Pre-check raw bytes for protocol prefix characters ($ = 0x24, @ = 0x40).
+      // Single-byte Uint8Array.includes uses native memchr — ~5x faster than
+      // 2-char String.indexOf on large payloads (e.g., 0.2ms vs 1.0ms on 452KB).
+      // For multi-line payloads this may over-scan past the current line, which
+      // is conservative (takes the slower-but-correct path).
+      const segment = bytes.subarray(offset, newlineIndex);
+      const hasSpecialBytes = segment.includes(0x24) || segment.includes(0x40);
+      const line = _decoder.decode(segment);
+      this.processLine(line, hasSpecialBytes);
       offset = newlineIndex + 1;
     }
   }
@@ -1515,50 +2223,64 @@ class FlightResponse {
   /**
    * Process a complete binary row
    */
-  processBinaryRow(id, tag, binaryData) {
-    // Map tag to TypedArray constructor (React's actual mapping)
-    const TypedArrayMap = {
-      A: ArrayBuffer,
-      O: Int8Array,
-      o: Uint8Array,
-      U: Uint8ClampedArray,
-      S: Int16Array,
-      s: Uint16Array,
-      L: Int32Array,
-      l: Uint32Array,
-      G: Float32Array,
-      g: Float64Array,
-      M: BigInt64Array,
-      m: BigUint64Array,
-      V: DataView,
-    };
-
-    const Constructor = TypedArrayMap[tag];
-    if (Constructor) {
-      let value;
-      if (Constructor === DataView) {
+  processBinaryRow(id, tagByte, binaryData) {
+    // Tag byte → typed array constructor.  Uses a switch instead of per-call
+    // object-literal lookup.  Tag is passed as a byte code, not a string.
+    let value;
+    switch (tagByte) {
+      // T (0x54) — Large text string: decode raw UTF-8 bytes to JS string
+      case 0x54:
+        this.resolveChunk(id, _decoder.decode(binaryData));
+        return;
+      // A (0x41) — ArrayBuffer
+      case 0x41:
+        value = binaryData.buffer.slice(
+          binaryData.byteOffset,
+          binaryData.byteOffset + binaryData.byteLength
+        );
+        break;
+      // V (0x56) — DataView
+      case 0x56:
         value = new DataView(
           binaryData.buffer.slice(
             binaryData.byteOffset,
             binaryData.byteOffset + binaryData.byteLength
           )
         );
-      } else if (Constructor === ArrayBuffer) {
-        value = binaryData.buffer.slice(
+        break;
+      // o (0x6f) — Uint8Array (1-byte aligned, always zero-copy view)
+      case 0x6f:
+        value = new Uint8Array(
+          binaryData.buffer,
           binaryData.byteOffset,
-          binaryData.byteOffset + binaryData.byteLength
+          binaryData.byteLength
         );
-      } else {
-        // Ensure proper alignment by copying to new buffer
-        const buffer = new ArrayBuffer(binaryData.length);
-        new Uint8Array(buffer).set(binaryData);
-        value = new Constructor(buffer);
+        break;
+      // All other typed arrays — zero-copy view when aligned, copy otherwise
+      default: {
+        const Constructor = _binaryTagConstructors[tagByte];
+        if (Constructor) {
+          const bpe = Constructor.BYTES_PER_ELEMENT;
+          if (binaryData.byteOffset % bpe === 0) {
+            // Data is already aligned — create a view without copying.
+            // Same optimization React's Flight client uses.
+            value = new Constructor(
+              binaryData.buffer,
+              binaryData.byteOffset,
+              binaryData.byteLength / bpe
+            );
+          } else {
+            // Unaligned — copy to a fresh buffer for proper alignment
+            const buffer = new ArrayBuffer(binaryData.length);
+            new Uint8Array(buffer).set(binaryData);
+            value = new Constructor(buffer);
+          }
+        } else {
+          value = new Uint8Array(binaryData);
+        }
       }
-      this.resolveChunk(id, value);
-    } else {
-      // Unknown binary type, store as Uint8Array
-      this.resolveChunk(id, new Uint8Array(binaryData));
     }
+    this.resolveChunk(id, value);
   }
 
   /**
@@ -1572,14 +2294,11 @@ class FlightResponse {
         status: PENDING,
         value: [],
         type: "binary",
-        promise: null,
-        resolve: null,
-        reject: null,
+        _promise: null,
+        _resolve: null,
+        _reject: null,
       };
-      chunk.promise = new Promise((resolve, reject) => {
-        chunk.resolve = resolve;
-        chunk.reject = reject;
-      });
+      this._ensurePromise(chunk);
       this.chunks.set(id, chunk);
     }
 
@@ -1599,6 +2318,9 @@ class FlightResponse {
    * queue for the next call.
    */
   resolveDeferredChunks() {
+    // Fast exit — called after every reader.read(), usually empty.
+    if (this.deferredChunks.length === 0) return;
+
     // Separate deferred chunks into ready (all deps resolved) and not-ready.
     const ready = [];
     const notReady = [];
@@ -1667,13 +2389,60 @@ class FlightResponse {
   }
 
   /**
+   * Build a Map from entries, deserializing keys/values only when needed.
+   * When plainData is true, entries are known to contain no protocol
+   * prefixes — skip deserializeValue entirely (avoids 400+ function calls
+   * for a 100-entry map).
+   */
+  _buildMap(entries, plainData = false) {
+    const map = new Map();
+    if (plainData) {
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        map.set(entry[0], entry[1]);
+      }
+    } else {
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        map.set(
+          this.deserializeValue(entry[0]),
+          this.deserializeValue(entry[1])
+        );
+      }
+    }
+    return map;
+  }
+
+  /**
+   * Build a Set from items, deserializing values only when needed.
+   */
+  _buildSet(items, plainData = false) {
+    const set = new Set();
+    if (plainData) {
+      for (let i = 0; i < items.length; i++) {
+        set.add(items[i]);
+      }
+    } else {
+      for (let i = 0; i < items.length; i++) {
+        set.add(this.deserializeValue(items[i]));
+      }
+    }
+    return set;
+  }
+
+  /**
    * Check whether all chunk references in a JSON value are resolved.
    * Returns false if any $N reference points to a still-pending chunk.
    */
   _areDepsResolved(json) {
     if (typeof json === "string") {
       // Check $N (chunk ref) and $N:path (path ref)
-      if (/^\$\d+/.test(json)) {
+      // Fast: first char must be '$' (0x24), second char must be a digit (0x30–0x39)
+      if (
+        json.charCodeAt(0) === 0x24 &&
+        json.charCodeAt(1) >= 0x30 &&
+        json.charCodeAt(1) <= 0x39
+      ) {
         const colonIndex = json.indexOf(":");
         const idStr =
           colonIndex === -1 ? json.slice(1) : json.slice(1, colonIndex);
@@ -1690,10 +2459,17 @@ class FlightResponse {
       if (json[0] === "$" && json.length >= 3) {
         return true;
       }
-      return json.every((item) => this._areDepsResolved(item));
+      for (let i = 0; i < json.length; i++) {
+        if (!this._areDepsResolved(json[i])) return false;
+      }
+      return true;
     }
     if (json && typeof json === "object") {
-      return Object.values(json).every((v) => this._areDepsResolved(v));
+      const vals = Object.values(json);
+      for (let i = 0; i < vals.length; i++) {
+        if (!this._areDepsResolved(vals[i])) return false;
+      }
+      return true;
     }
     return true;
   }
@@ -1706,6 +2482,10 @@ class FlightResponse {
       // Avoid infinite loops on circular references
       if (visited.has(value)) return;
       visited.add(value);
+
+      // Skip React elements — their props use lazy getters; traversing
+      // into them would trigger eager deserialization defeating the purpose.
+      if (value.$$typeof === REACT_TRANSITIONAL_ELEMENT_TYPE) return;
 
       if (value.__pathRef) {
         // Found a sentinel
@@ -1732,7 +2512,7 @@ class FlightResponse {
    * Get the root value (as a promise)
    */
   getRootValue() {
-    return this.rootChunk.promise;
+    return this._ensurePromise(this.rootChunk);
   }
 }
 
@@ -1772,8 +2552,14 @@ export function createFromReadableStream(stream, options = {}) {
 
       // Process any remaining binary buffer
       if (response.binaryBuffer && response.binaryBuffer.length > 0) {
-        const line = new TextDecoder().decode(response.binaryBuffer);
-        response.processLine(line);
+        // Append a newline so processData's newline-based parsing can handle
+        // both regular lines and length-prefixed rows in the remaining buffer.
+        const remaining = response.binaryBuffer;
+        response.binaryBuffer = null;
+        const withNewline = new Uint8Array(remaining.length + 1);
+        withNewline.set(remaining);
+        withNewline[remaining.length] = 0x0a;
+        response.processData(withNewline);
       }
     } finally {
       reader.releaseLock();

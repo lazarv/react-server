@@ -117,6 +117,83 @@ function isThenable(value) {
 }
 
 /**
+ * Pre-scan the model tree to count how many times each object/array
+ * is referenced. Objects with count > 1 must be emitted as separate
+ * chunks to preserve identity; count === 1 objects can be inlined.
+ *
+ * This walk is O(n) with the tree size and short-circuits on:
+ * - Primitives, strings, symbols, functions
+ * - Objects already visited (increments count and stops)
+ * - Special types handled as chunks anyway (Promises, ReadableStreams, etc.)
+ */
+function countReferences(model) {
+  const counts = new Map();
+  const stack = [model];
+
+  while (stack.length > 0) {
+    const value = stack.pop();
+
+    if (value === null || value === undefined) continue;
+    if (typeof value !== "object") continue;
+
+    // Skip types that are always emitted as separate chunks
+    if (
+      value instanceof Date ||
+      value instanceof RegExp ||
+      ArrayBuffer.isView(value) ||
+      value instanceof ArrayBuffer ||
+      (typeof ReadableStream !== "undefined" &&
+        value instanceof ReadableStream) ||
+      (typeof Blob !== "undefined" && value instanceof Blob) ||
+      (typeof FormData !== "undefined" && value instanceof FormData) ||
+      (typeof URL !== "undefined" && value instanceof URL) ||
+      (typeof URLSearchParams !== "undefined" &&
+        value instanceof URLSearchParams) ||
+      value instanceof Error
+    ) {
+      continue;
+    }
+
+    // Skip Promises/thenables
+    if (typeof value.then === "function") continue;
+
+    const count = (counts.get(value) || 0) + 1;
+    counts.set(value, count);
+    if (count > 1) continue; // Already walked children on first visit
+
+    if (Array.isArray(value)) {
+      for (let i = value.length - 1; i >= 0; i--) {
+        stack.push(value[i]);
+      }
+    } else if (value instanceof Map) {
+      for (const [k, v] of value) {
+        stack.push(k);
+        stack.push(v);
+      }
+    } else if (value instanceof Set) {
+      for (const item of value) {
+        stack.push(item);
+      }
+    } else if (isReactElement(value)) {
+      // Walk into props (including children)
+      if (value.props) stack.push(value.props);
+    } else {
+      // Plain object
+      const keys = Object.keys(value);
+      for (let i = keys.length - 1; i >= 0; i--) {
+        try {
+          stack.push(value[keys[i]]);
+        } catch {
+          /* skip throwing getters */
+        }
+      }
+    }
+  }
+
+  return counts;
+}
+
+/**
  * Internal request state for serialization
  * @internal Exported for testing purposes only
  */
@@ -138,6 +215,12 @@ export class FlightRequest {
 
     // Map of serialized objects to their IDs (for deduplication)
     this.objectMap = new WeakMap();
+
+    // Reference counts for shared object detection.
+    // Objects that appear more than once in the model tree must be
+    // emitted as separate chunks to preserve identity on the client.
+    // Objects that appear exactly once can be inlined in the parent JSON.
+    this.refCounts = countReferences(model);
 
     // Map of serialized server references to their chunk IDs (for deduplication)
     this.writtenServerReferences = new Map();
@@ -222,8 +305,9 @@ export class FlightRequest {
    * Flush completed chunks to destination
    */
   flushChunks() {
-    while (this.completedChunks.length > 0) {
-      const chunk = this.completedChunks.shift();
+    const chunks = this.completedChunks;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
       if (!this.writtenChunks.has(chunk)) {
         this.writtenChunks.add(chunk);
         if (this.destination && !this.aborted) {
@@ -240,6 +324,7 @@ export class FlightRequest {
         }
       }
     }
+    this.completedChunks = [];
   }
 
   /**
@@ -901,6 +986,22 @@ function serializeValue(request, value, _parentObject, _parentKey) {
   }
 
   if (typeof value === "string") {
+    // Large strings: emit as a length-prefixed TEXT row to avoid
+    // JSON.stringify overhead (quoting, escaping, extra allocations).
+    // Format: id:T<hex_byteLength>,<raw_utf8_bytes> — same length-prefix
+    // scheme used for binary/TypedArray rows.
+    if (value.length >= TEXT_CHUNK_SIZE) {
+      const id = request.getNextChunkId();
+      const textBytes = encoder.encode(value);
+      const hexLength = textBytes.byteLength.toString(16);
+      const headerStr = `${id}:T${hexLength},`;
+      const headerBytes = encoder.encode(headerStr);
+      const row = new Uint8Array(headerBytes.length + textBytes.length);
+      row.set(headerBytes, 0);
+      row.set(textBytes, headerBytes.length);
+      request.writeBinaryChunk(row);
+      return "$" + id;
+    }
     // Escape special characters that have special meaning in the protocol
     if (value.startsWith("$")) {
       return "$" + value;
@@ -1042,21 +1143,35 @@ function serializeValue(request, value, _parentObject, _parentKey) {
       return "$" + existing.id;
     }
 
-    // Always emit arrays as separate chunks to preserve object identity
-    const arrayId = request.getNextChunkId();
-    const entry = { id: arrayId };
-    request.objectMap.set(value, entry);
+    // Shared (refCount > 1) or circular-capable: must outline as a chunk
+    // so all references resolve to the same identity on the client.
+    const isShared = (request.refCounts.get(value) || 0) > 1;
+    if (isShared) {
+      const arrayId = request.getNextChunkId();
+      request.objectMap.set(value, { id: arrayId });
+      const result = value.map((item, index) =>
+        serializeValue(request, item, value, index)
+      );
+      const row = request.serializeModelRow(arrayId, result);
+      request.writeChunk(row);
+      return "$" + arrayId;
+    }
 
-    // Serialize array contents (may encounter circular refs back to this array)
+    // Unique (refCount === 1): inline directly in the parent JSON.
+    // Register temporarily for circular reference detection, then clean up.
+    const entry = { id: null };
+    request.objectMap.set(value, entry);
     const result = value.map((item, index) =>
       serializeValue(request, item, value, index)
     );
-
-    // Emit the array as a chunk
-    const row = request.serializeModelRow(arrayId, result);
-    request.writeChunk(row);
-
-    return "$" + arrayId;
+    if (entry.id !== null) {
+      // Circular reference was detected during serialization — emit as chunk.
+      const row = request.serializeModelRow(entry.id, result);
+      request.writeChunk(row);
+      return "$" + entry.id;
+    }
+    request.objectMap.delete(value);
+    return result;
   }
 
   // Handle React elements
@@ -1174,26 +1289,37 @@ function serializeValue(request, value, _parentObject, _parentKey) {
     // Check for deduplication / circular reference
     const existing = request.objectMap.get(value);
     if (existing !== undefined) {
-      // Already processed - return reference to existing chunk
       return "$" + existing.id;
     }
 
-    // Always emit objects as separate chunks to preserve object identity
-    const objectId = request.getNextChunkId();
-    const entry = { id: objectId };
-    request.objectMap.set(value, entry);
+    // Shared (refCount > 1): must outline to preserve identity.
+    const isShared = (request.refCounts.get(value) || 0) > 1;
+    if (isShared) {
+      const objectId = request.getNextChunkId();
+      request.objectMap.set(value, { id: objectId });
+      const result = {};
+      for (const key of Object.keys(value)) {
+        result[key] = serializeValue(request, value[key], value, key);
+      }
+      const row = request.serializeModelRow(objectId, result);
+      request.writeChunk(row);
+      return "$" + objectId;
+    }
 
-    // Serialize object properties (may encounter circular refs back to this object)
+    // Unique: inline directly in the parent JSON.
+    const entry = { id: null };
+    request.objectMap.set(value, entry);
     const result = {};
     for (const key of Object.keys(value)) {
       result[key] = serializeValue(request, value[key], value, key);
     }
-
-    // Emit the object as a chunk
-    const row = request.serializeModelRow(objectId, result);
-    request.writeChunk(row);
-
-    return "$" + objectId;
+    if (entry.id !== null) {
+      const row = request.serializeModelRow(entry.id, result);
+      request.writeChunk(row);
+      return "$" + entry.id;
+    }
+    request.objectMap.delete(value);
+    return result;
   }
 
   // Should never reach here - all types handled above

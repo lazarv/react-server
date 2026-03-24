@@ -1,0 +1,102 @@
+---
+title: Claude Code
+category: Integrations
+order: 7
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Claude Code
+
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) is Anthropic's official CLI tool for AI-assisted coding. `@lazarv/react-server` provides an installable Claude Code skill that gives Claude deep knowledge of the runtime's APIs, conventions, and patterns — so you can build react-server applications using agentic coding.
+
+<Link name="install-skill">
+## Install the skill
+</Link>
+
+Install the skill into your project using `npx skills`:
+
+```sh
+npx skills add lazarv/react-server
+```
+
+This installs the `react-server` skill from the repository's `skills/` directory into your project's `.claude/skills/` folder. Once installed, the `/react-server` slash command becomes available in Claude Code.
+
+To install it globally so it's available across all your projects:
+
+```sh
+npx skills add lazarv/react-server --global
+```
+
+<Link name="usage">
+## Usage
+</Link>
+
+Start Claude Code in your project directory and use the `/react-server` slash command to give Claude the full context of the runtime. You can pass additional instructions as arguments:
+
+```sh
+# General react-server context
+/react-server
+
+# With specific instructions
+/react-server add a new /api/users route that returns a list of users from the database
+
+# Scaffold a new feature
+/react-server create a live component that streams stock prices
+```
+
+The skill loads all core patterns, file-system router conventions, use directives, import paths, and component patterns into Claude's context automatically.
+
+<Link name="docs-as-context">
+## Using docs as context
+</Link>
+
+Every page on this documentation site is also available as plain markdown. You can paste these URLs directly in a Claude Code conversation for detailed, up-to-date reference on specific features:
+
+| Topic | URL |
+|---|---|
+| Server Components | `https://react-server.dev/guide/server-components.md` |
+| Client Components | `https://react-server.dev/guide/client-components.md` |
+| Server Functions | `https://react-server.dev/guide/server-functions.md` |
+| File Router | `https://react-server.dev/router/file-router.md` |
+| Configuration | `https://react-server.dev/features/configuration.md` |
+| Caching | `https://react-server.dev/features/caching.md` |
+| HTTP | `https://react-server.dev/features/http.md` |
+| Live Components | `https://react-server.dev/features/live-components.md` |
+| Workers | `https://react-server.dev/features/workers.md` |
+| MCP | `https://react-server.dev/features/mcp.md` |
+| Error Handling | `https://react-server.dev/features/error-handling.md` |
+| API Routes | `https://react-server.dev/router/api-routes.md` |
+| Middlewares | `https://react-server.dev/router/middlewares.md` |
+| Outlets | `https://react-server.dev/router/outlets.md` |
+| CLI | `https://react-server.dev/features/cli.md` |
+
+<Link name="whats-included">
+## What's included
+</Link>
+
+The skill provides Claude Code with comprehensive knowledge of:
+
+- **Use directives** — `"use client"`, `"use server"`, `"use live"`, `"use worker"`, `"use cache"`, `"use dynamic"`, `"use static"` and their semantics including inline (lexically scoped) usage
+- **File-system router** — page, layout, dynamic route, catch-all, outlet, middleware, API route, and MCP endpoint conventions
+- **Import paths** — all `@lazarv/react-server/*` subpath exports and their key APIs
+- **Component patterns** — server components, client components, server functions, live components, workers, and lexically scoped RSC with arbitrary server/client nesting
+- **HTTP hooks** — `useUrl`, `usePathname`, `headers`, `cookie`, `redirect`, `rewrite`, `status`, `after`, and more
+- **Caching** — response cache, in-memory cache, cache directive with TTL/tags/profiles, revalidation
+- **Configuration** — `defineConfig`, extension configs, mode-specific configs, JSON schema, env variables
+- **Navigation** — `Link`, `Refresh`, `ReactServerComponent`, programmatic navigation via `useClient`
+- **Error handling** — `ErrorBoundary` component and file-router error/loading conventions
+- **Deployment** — all 11 adapter targets (Vercel, Netlify, Cloudflare, AWS, Azure, Bun, Deno, Docker, Firebase, etc.)
+- **Advanced features** — micro-frontends with `RemoteComponent`, MCP server with `createServer`/`createTool`/`createResource`/`createPrompt`, MDX support
+
+<Link name="updating">
+## Updating the skill
+</Link>
+
+To update to the latest version of the skill:
+
+```sh
+npx skills add lazarv/react-server
+```
+
+The skill is maintained alongside the documentation and updated with each release.

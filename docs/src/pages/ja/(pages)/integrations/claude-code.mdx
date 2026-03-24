@@ -1,0 +1,102 @@
+---
+title: Claude Code
+category: Integrations
+order: 7
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Claude Code
+
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code)はAnthropicが提供するAIコーディング支援の公式CLIツールです。`@lazarv/react-server`はインストール可能なClaude Codeスキルを提供しており、ランタイムのAPI、規約、パターンに関する深い知識をClaudeに与えることで、エージェントコーディングによるreact-serverアプリケーションの構築を支援します。
+
+<Link name="install-skill">
+## スキルのインストール
+</Link>
+
+`npx skills`を使用してプロジェクトにスキルをインストールします：
+
+```sh
+npx skills add lazarv/react-server
+```
+
+これにより、リポジトリの`skills/`ディレクトリから`react-server`スキルがプロジェクトの`.claude/skills/`フォルダにインストールされます。インストール後、Claude Codeで`/react-server`スラッシュコマンドが利用可能になります。
+
+すべてのプロジェクトで利用できるようにグローバルにインストールする場合：
+
+```sh
+npx skills add lazarv/react-server --global
+```
+
+<Link name="usage">
+## 使い方
+</Link>
+
+プロジェクトディレクトリでClaude Codeを起動し、`/react-server`スラッシュコマンドを使用してClaudeにランタイムの完全なコンテキストを提供します。引数として追加の指示を渡すことができます：
+
+```sh
+# react-serverの一般的なコンテキスト
+/react-server
+
+# 具体的な指示を付けて
+/react-server データベースからユーザー一覧を返す /api/users ルートを追加して
+
+# 新機能のスキャフォールド
+/react-server 株価をストリーミングするライブコンポーネントを作成して
+```
+
+スキルはすべてのコアパターン、ファイルシステムルーターの規約、useディレクティブ、インポートパス、コンポーネントパターンをClaudeのコンテキストに自動的に読み込みます。
+
+<Link name="docs-as-context">
+## ドキュメントをコンテキストとして使用
+</Link>
+
+このドキュメントサイトのすべてのページは、プレーンマークダウンとしても利用できます。特定の機能に関する詳細で最新のリファレンスとして、これらのURLをClaude Codeの会話に直接貼り付けることができます：
+
+| トピック | URL |
+|---|---|
+| サーバーコンポーネント | `https://react-server.dev/guide/server-components.md` |
+| クライアントコンポーネント | `https://react-server.dev/guide/client-components.md` |
+| サーバー関数 | `https://react-server.dev/guide/server-functions.md` |
+| ファイルルーター | `https://react-server.dev/router/file-router.md` |
+| 設定 | `https://react-server.dev/features/configuration.md` |
+| キャッシュ | `https://react-server.dev/features/caching.md` |
+| HTTP | `https://react-server.dev/features/http.md` |
+| ライブコンポーネント | `https://react-server.dev/features/live-components.md` |
+| ワーカー | `https://react-server.dev/features/workers.md` |
+| MCP | `https://react-server.dev/features/mcp.md` |
+| エラーハンドリング | `https://react-server.dev/features/error-handling.md` |
+| APIルート | `https://react-server.dev/router/api-routes.md` |
+| ミドルウェア | `https://react-server.dev/router/middlewares.md` |
+| アウトレット | `https://react-server.dev/router/outlets.md` |
+| CLI | `https://react-server.dev/features/cli.md` |
+
+<Link name="whats-included">
+## 含まれる内容
+</Link>
+
+このスキルはClaude Codeに以下の包括的な知識を提供します：
+
+- **useディレクティブ** — `"use client"`、`"use server"`、`"use live"`、`"use worker"`、`"use cache"`、`"use dynamic"`、`"use static"`のセマンティクスとインライン（レキシカルスコープ）での使用方法
+- **ファイルシステムルーター** — ページ、レイアウト、動的ルート、キャッチオール、アウトレット、ミドルウェア、APIルート、MCPエンドポイントの規約
+- **インポートパス** — すべての`@lazarv/react-server/*`サブパスエクスポートとその主要API
+- **コンポーネントパターン** — サーバーコンポーネント、クライアントコンポーネント、サーバー関数、ライブコンポーネント、ワーカー、およびサーバー/クライアントの任意のネストが可能なレキシカルスコープRSC
+- **HTTPフック** — `useUrl`、`usePathname`、`headers`、`cookie`、`redirect`、`rewrite`、`status`、`after`など
+- **キャッシュ** — レスポンスキャッシュ、インメモリキャッシュ、TTL/タグ/プロファイル付きキャッシュディレクティブ、再検証
+- **設定** — `defineConfig`、拡張設定、モード別設定、JSONスキーマ、環境変数
+- **ナビゲーション** — `Link`、`Refresh`、`ReactServerComponent`、`useClient`によるプログラムナビゲーション
+- **エラーハンドリング** — `ErrorBoundary`コンポーネントとファイルルーターのerror/loading規約
+- **デプロイ** — 全11アダプターターゲット（Vercel、Netlify、Cloudflare、AWS、Azure、Bun、Deno、Docker、Firebaseなど）
+- **高度な機能** — `RemoteComponent`によるマイクロフロントエンド、`createServer`/`createTool`/`createResource`/`createPrompt`によるMCPサーバー、MDXサポート
+
+<Link name="updating">
+## スキルの更新
+</Link>
+
+最新バージョンのスキルに更新するには：
+
+```sh
+npx skills add lazarv/react-server
+```
+
+スキルはドキュメントと同時にメンテナンスされ、各リリースで更新されます。

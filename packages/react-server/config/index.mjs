@@ -175,6 +175,9 @@ export async function loadConfig(initialConfig, options = {}) {
     config[root]
   );
 
+  // Remove $schema (JSON Schema reference for IDE validation, not a runtime option)
+  delete config[CONFIG_ROOT].$schema;
+
   for (const key of configKeys) {
     if (key === CONFIG_ROOT || key === root) continue;
     merge(

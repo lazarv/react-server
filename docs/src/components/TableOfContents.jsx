@@ -10,7 +10,7 @@ export default function TableOfContents({ title }) {
 
   useEffect(() => {
     const tableOfContents = Array.from(
-      document.querySelectorAll("article h1, article a[href^='#']")
+      document.querySelectorAll("article h1, article a[data-toc]")
     ).map((element) => ({
       label:
         element.tagName === "H1"

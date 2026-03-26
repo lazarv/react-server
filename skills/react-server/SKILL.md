@@ -42,7 +42,7 @@ These directives go at the top of a file or inside a function body (lexically sc
 - `"use server"` — Server function (callable from client, receives FormData as first arg)
 - `"use live"` — Live component (async generator that yields JSX, streams updates via WebSocket)
 - `"use worker"` — Worker module (offloads to Worker Thread on server, Web Worker on client)
-- `"use cache"` — Cached function with options: `"use cache; ttl=200; tags=todos"` or `"use cache; profile=todos"` or `"use cache: file; tags=todos"`
+- `"use cache"` — Cached function with options: `"use cache; ttl=200; tags=todos"` or `"use cache; profile=todos"` or `"use cache: file; tags=todos"` or `"use cache: request"` (per-request dedup) or `"use cache: request; no-hydrate"` (no browser hydration)
 - `"use dynamic"` — Force dynamic rendering (opt out of static/prerender)
 - `"use static"` — Force static rendering at build time
 
@@ -317,6 +317,48 @@ export async function getPosts() {
 import { invalidate } from "@lazarv/react-server";
 await invalidate(getPosts);
 ```
+
+### Built-in cache providers
+
+- `memory` — default in-memory cache
+- `request` — per-request deduplication, shared across RSC and SSR (see below)
+- `null` — no-op cache (useful with aliases to disable caching)
+- `local` — browser localStorage
+- `session` — browser sessionStorage
+
+### Request-scoped caching
+
+The `request` provider deduplicates calls within a single HTTP request. The function body runs once — all subsequent calls (including across RSC and SSR environments) return the cached result. Values are automatically dehydrated into the HTML and rehydrated in the browser during React hydration.
+
+```jsx
+async function getPageData() {
+  "use cache: request";
+  return await fetchExpensiveData();
+}
+
+// Server component — awaits the cached value
+async function ServerPart() {
+  const data = await getPageData();
+  return <div>{data.title}</div>;
+}
+
+// Client component — uses React's use() with the cached value
+"use client";
+import { use } from "react";
+function ClientPart() {
+  const data = use(getPageData());
+  return <div>{data.title}</div>;
+}
+```
+
+Disable hydration (don't embed value in HTML) with either syntax:
+```jsx
+"use cache: request; hydrate=false";
+// or equivalently:
+"use cache: request; no-hydrate";
+```
+
+When `hydrate=false` / `no-hydrate` is set, SSR deduplication still works but the value is not embedded in the HTML — the client component recomputes it in the browser.
 
 ## Configuration
 

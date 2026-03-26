@@ -95,7 +95,8 @@ export default function useCacheInline(profiles, providers = {}, type) {
           type !== "server" &&
           (this.environment?.name === "client" ||
             this.environment?.name === "ssr" ||
-            type === "client");
+            type === "client" ||
+            type === "ssr");
 
         const serverProvider = {
           driver: "unstorage/drivers/memory",
@@ -165,8 +166,15 @@ export default function useCacheInline(profiles, providers = {}, type) {
                 .split(";")
                 .slice(1)
                 .reduce((acc, param) => {
-                  const [key, value] = param.split("=");
-                  acc[key.trim()] = value.trim();
+                  const eq = param.indexOf("=");
+                  if (eq === -1) {
+                    // Bare flag: "no-hydrate" → { "no-hydrate": true }
+                    const flag = param.trim();
+                    if (flag) acc[flag] = true;
+                  } else {
+                    const key = param.slice(0, eq).trim();
+                    acc[key] = param.slice(eq + 1).trim();
+                  }
                   return acc;
                 }, {});
               useCacheNode = node;
@@ -533,7 +541,7 @@ export default function useCacheInline(profiles, providers = {}, type) {
                         ? [
                             {
                               type: "Literal",
-                              value: id,
+                              value: hash,
                             },
                           ]
                         : []),
@@ -543,7 +551,9 @@ export default function useCacheInline(profiles, providers = {}, type) {
                     type: "FunctionExpression",
                     id: null,
                     generator: false,
-                    async: true,
+                    async:
+                      !!cache.node.async ||
+                      !(cache.provider === "request" && isClient),
                     params: [],
                     body: {
                       type: "BlockStatement",
@@ -643,6 +653,28 @@ export default function useCacheInline(profiles, providers = {}, type) {
                                   },
                                 ]
                               : []),
+                            ...(cache.hydrate !== undefined ||
+                            cache["no-hydrate"] !== undefined
+                              ? [
+                                  {
+                                    type: "Property",
+                                    kind: "init",
+                                    key: {
+                                      type: "Identifier",
+                                      name: "hydrate",
+                                    },
+                                    value: {
+                                      type: "Literal",
+                                      // "no-hydrate" flag → hydrate: false
+                                      // "hydrate=false" → hydrate: false
+                                      // "hydrate=true" → hydrate: true
+                                      value: cache["no-hydrate"]
+                                        ? false
+                                        : cache.hydrate !== "false",
+                                    },
+                                  },
+                                ]
+                              : []),
                           ],
                         },
                       ]
@@ -654,7 +686,7 @@ export default function useCacheInline(profiles, providers = {}, type) {
           ast.body.push(
             {
               type: "FunctionDeclaration",
-              async: true,
+              async: !(cache.provider === "request" && isClient),
               id: {
                 type: "Identifier",
                 name: cache.name,

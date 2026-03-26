@@ -31,6 +31,8 @@ import {
   RENDER_CONTEXT,
   RENDER_HANDLER,
   RENDER_STREAM,
+  REQUEST_CACHE_CONTEXT,
+  REQUEST_CACHE_SHARED,
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
@@ -52,13 +54,31 @@ export default async function ssrHandler(root) {
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const renderStream = createWorker();
+  const hasWorkerThread = !!getRuntime(Symbol.for("WORKER_THREAD"));
   const moduleCacheStorage = new AsyncLocalStorage();
 
   return async function ssr(httpContext) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
         const noCache =
           httpContext.request.headers.get("cache-control") === "no-cache";
+
+        // Create per-request cache for "use cache: request"
+        const [
+          { default: memoryDriver },
+          { default: StorageCache },
+          { createSharedRequestCache, createInProcessRequestCache },
+        ] = await Promise.all([
+          ssrLoadModule("unstorage/drivers/memory"),
+          ssrLoadModule("@lazarv/react-server/storage-cache"),
+          ssrLoadModule("@lazarv/react-server/cache/request-cache-shared.mjs"),
+        ]);
+        const requestCache = new StorageCache(memoryDriver, { type: "raw" });
+
+        // Create shared cache for cross-environment access (RSC → SSR)
+        const sharedRequestCache = hasWorkerThread
+          ? createSharedRequestCache()
+          : createInProcessRequestCache();
 
         ContextStorage.run(
           {
@@ -78,6 +98,8 @@ export default async function ssrHandler(root) {
                 )
             ),
             [MEMORY_CACHE_CONTEXT]: noCache ? null : memoryCacheContext,
+            [REQUEST_CACHE_CONTEXT]: requestCache,
+            [REQUEST_CACHE_SHARED]: sharedRequestCache,
             [REDIRECT_CONTEXT]: {},
             [COLLECT_CLIENT_MODULES]: collectClientModules,
             [COLLECT_STYLESHEETS]: collectStylesheets,

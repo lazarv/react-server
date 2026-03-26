@@ -202,6 +202,15 @@ test.skipIf(process.env.EDGE_ENTRY)(
   }
 );
 
+test("react-server export condition", async () => {
+  await server("fixtures/react-server-condition.jsx");
+  await page.goto(hostname);
+  expect(await page.textContent("#message")).toBe(
+    "from react-server condition"
+  );
+  expect(await page.textContent("#source")).toBe("server");
+});
+
 test("navigation location", async () => {
   await server("fixtures/navigation-location.jsx");
   await page.goto(`${hostname}/pathname?foo=bar`);

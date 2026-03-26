@@ -50,6 +50,61 @@ function decodeBytes(str, encoding = "base64") {
   return textEncoder.encode(str);
 }
 
+export function serializedTag(tag) {
+  if (typeof tag === "string") return tag;
+  if (typeof tag !== "object") return String(tag);
+  if (
+    typeof tag.toString === "function" &&
+    tag.toString !== Object.prototype.toString &&
+    tag.toString !== Array.prototype.toString
+  ) {
+    // URL, Date, etc.
+    return tag.toString();
+  }
+  // sorted keys
+  const normalize = (obj) => {
+    if (obj === null || typeof obj !== "object") return obj;
+    if (Array.isArray(obj)) return obj.map(normalize);
+    const sortedKeys = Reflect.ownKeys(obj).toSorted();
+    const result = {};
+    for (const key of sortedKeys) {
+      result[key] = normalize(obj[key]);
+    }
+    return result;
+  };
+  return JSON.stringify(normalize(tag));
+}
+
+export function rawCanonicalKey(tags) {
+  return tags.map(serializedTag).toSorted().join("|");
+}
+
+/**
+ * Fast synchronous FNV-1a-inspired hash producing a short hex string.
+ * Used to obfuscate raw cache keys in the HTML hydration payload so that
+ * source file paths and other sensitive information are not leaked to the
+ * browser.  NOT cryptographic — intended for key obfuscation only.
+ */
+export function syncHash(str) {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 =
+    Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
+    Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 =
+    Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
+    Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (
+    (h2 >>> 0).toString(16).padStart(8, "0") +
+    (h1 >>> 0).toString(16).padStart(8, "0")
+  );
+}
+
 export default class StorageCache {
   constructor(storageDriver, options, serializer) {
     this.index = new Map();
@@ -74,28 +129,7 @@ export default class StorageCache {
   }
 
   serializedTag(tag) {
-    if (typeof tag === "string") return tag;
-    if (typeof tag !== "object") return String(tag);
-    if (
-      typeof tag.toString === "function" &&
-      tag.toString !== Object.prototype.toString &&
-      tag.toString !== Array.prototype.toString
-    ) {
-      // URL, Date, etc.
-      return tag.toString();
-    }
-    // sorted keys
-    const normalize = (obj) => {
-      if (obj === null || typeof obj !== "object") return obj;
-      if (Array.isArray(obj)) return obj.map(normalize);
-      const sortedKeys = Reflect.ownKeys(obj).toSorted();
-      const result = {};
-      for (const key of sortedKeys) {
-        result[key] = normalize(obj[key]);
-      }
-      return result;
-    };
-    return JSON.stringify(normalize(tag));
+    return serializedTag(tag);
   }
 
   async hash(value) {
@@ -103,8 +137,7 @@ export default class StorageCache {
   }
 
   rawCanonicalKey(tags) {
-    const serializedTags = tags.map(this.serializedTag);
-    return serializedTags.toSorted().join("|");
+    return rawCanonicalKey(tags);
   }
 
   canonicalKey(tags) {

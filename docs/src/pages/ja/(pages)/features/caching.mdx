@@ -16,7 +16,7 @@ import Link from "../../../../components/Link.jsx";
 
 `withCache` ラッパーや `useResponseCache` フックを使用してサーバコンポーネントを使用する場合、レスポンスのキャッシュを有効にすることができます。ラップされたコンポーネントやキャッシュフックを使用したコンポーネントだけでなく、キャッシュが有効になっている HTTP レスポンス全体がキャッシュされます。
 
-レスポンスキャッシュは、キャッシュプロバイダとHTTP Cache-Control（stale-while-revalidate付き）の両方を使用しています。サーバ側のキャッシュは、キャッシュが無効になるまでリクエストに使用されます。クライアント側のキャッシュは、同じクライアントからのリクエストに使用されます。
+レスポンスキャッシュは、キャッシュプロバイダとHTTP `Cache-Control`（`stale-while-revalidate`付き）の両方を使用しています。サーバ側のキャッシュは、キャッシュが無効になるまでリクエストに使用されます。クライアント側のキャッシュは、同じクライアントからのリクエストに使用されます。
 
 ```jsx
 import { withCache } from "@lazarv/react-server";
@@ -40,7 +40,7 @@ export default async function App() {
 ## インメモリキャッシュ
 </Link>
 
-`@lazarv/react-server` から `useCache` ヘルパー関数をインポートすることで、インメモリキャッシュを使用することができます。このキャッシュを使用して、TTL が無効で複合キャッシュキーを持つ非同期の値をキャッシュすることができます。キャッシュは全てのサーバコンポーネントで共有されます。
+`@lazarv/react-server` から `useCache` ヘルパー関数をインポートすることで、インメモリキャッシュを使用することができます。このキャッシュを使用して、TTLと複合キャッシュキーを持つ非同期の値をキャッシュすることができます。キャッシュは全てのサーバコンポーネントで共有されます。
 
 ```jsx
 import { useCache } from "@lazarv/react-server";
@@ -88,9 +88,9 @@ export default async function App() {
 ## "use cache" ディレクティブ
 </Link>
 
-`use cache` ディレクティブを使うと、どの関数でもキャッシュを有効にすることができます。このディレクティブは `profile`、`ttl`、`tags` オプションを受け付けます。`profile` オプションは使用するキャッシュプロファイルを指定するために使用します。これはキャッシュプロファイルの `ttl` オプションよりも優先されます。`tags` オプションはキャッシュキーのタグを指定するために使用します。
+`"use cache"` ディレクティブを使うと、どの関数でもキャッシュを有効にすることができます。このディレクティブは `profile`、`ttl`、`tags` オプションを受け付けます。`profile` オプションは使用するキャッシュプロファイルを指定するために使用します。`ttl` オプションはキャッシュの有効期間をミリ秒単位で指定するために使用し、キャッシュプロファイルの `ttl` オプションよりも優先されます。`tags` オプションはキャッシュキーのタグを指定するために使用します。
 
-`tags` オプションを使用すると、特定のタググループのキャッシュを無効にするときに指定するタグのリストをカンマ区切りで指定することができます。例えば、todosを取得する関数があり、すべてのtodosのキャッシュを無効にしたい場合、`tags`オプションを使用して、`todos`タグをキャッシュキーに追加することができます。
+`tags` オプションを使用すると、特定のタググループのキャッシュを無効にするときに指定するタグのリストをカンマ区切りで指定することができます。例えば、todosを取得する関数があり、すべてのtodosのキャッシュを無効にしたい場合、`tags` オプションを使用して、`todos` タグをキャッシュキーに追加することができます。
 
 ```jsx filename="App.jsx"
 import { invalidate } from "@lazarv/react-server";
@@ -110,7 +110,7 @@ export default async function App() {
     <form
       action={async () => {
         "use server";
-        invalidate(getTodos);
+        await invalidate(getTodos);
       }}
     >
       <button type="submit">Refresh</button>
@@ -120,11 +120,7 @@ export default async function App() {
 }
 ```
 
-`use cache`ディレクティブと `use server`ディレクティブはどちらもサーバ専用なので、同じファイル内で使うことができます。
-
-`invalidate`は将来的にどのようなキャッシュの実装にも対応できるように非同期関数ですが、`use cache`ディレクティブは現在デフォルトでインメモリキャッシュを使用しており、インメモリキャッシュは同期的なので、`invalidate`関数を待つ必要はありません。
-
-キャッシュプロファイルはサーバの設定で定義します。キャッシュプロファイルはいくつでも指定することができ、`use cache` ディレクティブの中で名前を指定して参照することができます。キャッシュプロファイルには `ttl` と `tags` オプションを含めることができ、 `use cache` ディレクティブで指定しなかった場合に使用されます。
+キャッシュプロファイルはサーバの設定で定義します。キャッシュプロファイルはいくつでも指定することができ、`"use cache"` ディレクティブの中で名前を指定して参照することができます。キャッシュプロファイルには `ttl` と `tags` オプションを含めることができ、`"use cache"` ディレクティブで指定しなかった場合に使用されます。
 
 ```json filename="react-server.config.json"
 {
@@ -135,7 +131,8 @@ export default async function App() {
   }
 }
 ```
-キャッシュプロファイルを定義した後は、`use cache` ディレクティブでその名前を参照することができます。
+
+キャッシュプロファイルを定義した後は、`"use cache"` ディレクティブでその名前を参照することができます。
 
 ```jsx filename="App.jsx"
 async function getTodos() {
@@ -148,18 +145,303 @@ async function getTodos() {
 }
 ```
 
-`use cache` ディレクティブは現在のところインメモリキャッシュを使用します。カスタムキャッシュアダプタは `use cache` ディレクティブではまだサポートされていません。
-
-<Link name="キャッシュアダプタ">
-## キャッシュアダプタ
+<Link name="キャッシュプロバイダ">
+## キャッシュプロバイダ
 </Link>
 
-デフォルトのインメモリキャッシュの代わりに使用するキャッシュアダプタを指定することができます。デフォルトのキャッシュアダプタは `@lazarv/react-server/memory-cache` にあります。サーバ設定で `cache` オプションを使用することで、別のキャッシュアダプタを指定することができます  。キャッシュアダプタは、キャッシュインスタンスを返す `init$` 関数をエクスポートするモジュールでなければなりません。キャッシュは `@lazarv/react-server` の `ReactServerCache` インタフェースを実装しなければなりません。キャッシュアダプタの実装例は `@lazarv/react-server/memory-cache` モジュールで、[packages/react-server/memory-cache/index.mjs](https://github.com/lazarv/react-server/blob/main/packages/react-server/memory-cache/index.mjs) にあります。
+キャッシュデータの保存に異なるキャッシュプロバイダを使用することができます。デフォルトのキャッシュプロバイダはインメモリキャッシュですが、ファイルベースのキャッシュやその他のカスタムキャッシュプロバイダも使用できます。
 
-```mjs filename="react-server.config.json"
+`"use cache"` ディレクティブで特定のキャッシュプロバイダを使用するには、`"use cache: <provider>;"` 構文でプロバイダを指定します。これにより、アプリケーションの異なる部分に異なるキャッシュプロバイダを使用することができます。
+
+```jsx
+async function getTodos() {
+  "use cache: file; tags=todos";
+  const res = await fetch("https://jsonplaceholder.typicode.com/todos");
+  return {
+    timestamp: Date.now(),
+    data: await res.json(),
+  };
+}
+```
+
+`@lazarv/react-server` は [Unstorage](https://github.com/unstorage/unstorage) ライブラリを使用して、異なるストレージバックエンドに統一されたAPIを提供します。`fs`、`localStorage`、`memory`、またはカスタムドライバなど、利用可能な任意のドライバを使用できます。
+
+キャッシュプロバイダを使用すると、`"use client"` コンポーネントでも `"use cache"` ディレクティブを使用できます。これにより、クライアント側でデータをキャッシュし、クライアントコンポーネントで使用することができます。組み込みの `local` または `session` キャッシュプロバイダを使用してブラウザのローカルストレージやセッションストレージにキャッシュデータを保存することも、Unstorageの `indexedb` ドライバなど既存のカスタムキャッシュドライバを使用して別のストレージバックエンドにキャッシュデータを保存することもできます。
+
+キャッシュプロバイダを定義するには、サーバ設定の `cache.providers` オプションを使用します。`driver` オプションはモジュールパスでドライバを指定し、`options` オプションはドライバのオプションを指定します。
+
+```mjs
 export default {
   cache: {
-    module: "./src/custom-cache",
+    providers: {
+      file: {
+        driver: "unstorage/drivers/fs",
+        options: {
+          base: ".cache",
+        },
+      }
+    }
   },
 };
 ```
+
+プロバイダに `type` という特別なオプションを設定して、キャッシュプロバイダの種類を示すこともできます。これは `@lazarv/react-server` がキャッシュ値の処理方法を判断するために有用です。`type` を `"raw"` に設定すると、キャッシュ値の保存時にUnstorageの `setItemRaw` を使用します。これはLRUなどのインメモリキャッシュドライバを使用する場合に、Reactツリーのようなメモリ構造を文字列にエンコードせずにキャッシュするのに便利です。
+
+```mjs
+export default {
+  cache: {
+    providers: {
+      file: {
+        driver: "unstorage/drivers/lru",
+        options: {
+          type: "raw",
+        },
+      }
+    }
+  },
+};
+```
+
+`cache.provider` オプションを使用して、サーバのデフォルトキャッシュプロバイダを設定することもできます。`"use cache"` ディレクティブで特定のキャッシュプロバイダが指定されていない場合に使用されます。
+
+```mjs
+export default {
+  cache: {
+    provider: {
+      default: "unstorage/drivers/lru",
+    },
+  },
+};
+```
+
+サーバ設定でキャッシュプロバイダのエイリアスを指定することもできます。これにより、`"use cache"` ディレクティブで使用されるエイリアスに基づいて、キャッシュリクエストを異なるプロバイダにルーティングできます。特定のエイリアスのデフォルトキャッシュプロバイダをオーバーライドすることも可能です。
+
+```mjs
+export default {
+  cache: {
+    provider: {
+      default: "lru",
+      lru: "unstorage/drivers/lru",
+    },
+  },
+};
+```
+
+キャッシュプロバイダのエイリアスを使用すると、アプリケーションのコードを変更せずに異なるキャッシュプロバイダを簡単に切り替えることができます。これにより、インメモリキャッシュ、ファイルベースのキャッシュ、その他のカスタムキャッシュソリューションなど、異なるキャッシュ戦略を、キャッシュを使用するコードやキャッシュプロバイダの設定を変更せずに切り替えることができます。
+
+```mjs
+export default {
+  cache: {
+    provider: {
+      default: "smallLRU",
+      smallLRU: {
+        driver: "unstorage/drivers/lru",
+        options: {
+          maxSize: 1000, // このエイリアスには小さいサイズを設定
+          type: "raw",
+        },
+      },
+      largeLRU: {
+        driver: "unstorage/drivers/lru",
+        options: {
+          maxSize: 10000, // このエイリアスには大きいサイズを設定
+          type: "raw",
+        },
+      },
+    },
+  },
+};
+```
+
+<Link name="組み込みキャッシュプロバイダ">
+## 組み込みキャッシュプロバイダ
+</Link>
+
+`@lazarv/react-server` は、設定なしですぐに使用できるいくつかの組み込みキャッシュプロバイダを提供しています：
+
+- `memory`: シンプルなインメモリキャッシュプロバイダ。デフォルトのキャッシュプロバイダです。
+- `request`: リクエストの期間中のみ存在するキャッシュプロバイダ。単一リクエスト内での高コストな計算の重複排除に有用です。キャッシュされた値はRSCとSSRの両方の環境で共有されるため、いくつのコンポーネントが利用しても関数本体はリクエストごとに一度だけ実行されます。詳細は[リクエストスコープキャッシュ](#リクエストスコープキャッシュ)を参照してください。
+- `null`: データを保存しないキャッシュプロバイダ。アプリケーションの特定の部分でキャッシュを無効にするのに便利です。キャッシュプロバイダのエイリアスと組み合わせて使用すると有用です。
+- `local`: ブラウザのローカルストレージを使用するキャッシュプロバイダ。ページのリロード間でデータを永続化する必要がある場合に便利です。
+- `session`: ブラウザのセッションストレージを使用するキャッシュプロバイダ。ページのリロード間でデータを永続化する必要があるが、現在のセッションに限定したい場合に便利です。
+
+<Link name="リクエストスコープキャッシュ">
+## リクエストスコープキャッシュ
+</Link>
+
+`request` キャッシュプロバイダは、単一のHTTPリクエスト内で関数呼び出しを重複排除します。関数に `"use cache: request"` を付けると、その関数本体はリクエストごとに一度だけ実行されます。同じ引数での後続の呼び出しはすべて同じキャッシュ結果を返します。これはRSCとSSRのレンダリング環境をまたいで機能します。
+
+これは、同じページレンダリング内で複数のコンポーネントが依存する高コストな計算やデータ取得に有用です。
+
+### リクエストキャッシュ関数の定義
+
+任意の関数の先頭に `"use cache: request"` ディレクティブを使用します。関数は非同期にすることができ、`Date` オブジェクト、ネストされたオブジェクト、配列など、RSCシリアライズ可能な任意の値を返すことができます。
+
+```mjs filename="get-request-data.mjs"
+let computeCount = 0;
+
+export async function getRequestData() {
+  "use cache: request";
+  // 非同期操作のシミュレーション
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  computeCount++;
+  return {
+    timestamp: Date.now(),
+    random: Math.random(),
+    computeCount,
+    createdAt: new Date(),
+  };
+}
+```
+
+この例では、`getRequestData` はリクエストごとに一度だけ実行されます。同じリクエスト中にこの関数を呼び出すすべてのコンポーネントは、同一の `timestamp`、`random`、`computeCount` の値を受け取ります。
+
+### サーバコンポーネントでの使用
+
+サーバコンポーネントはリクエストキャッシュ関数を直接 `await` できます。同じ関数を呼び出す複数のサーバコンポーネントは結果を共有します。
+
+```jsx filename="App.jsx"
+import { getRequestData } from "./get-request-data.mjs";
+
+async function First() {
+  const data = await getRequestData();
+  return <div id="first">{JSON.stringify(data)}</div>;
+}
+
+async function Second() {
+  const data = await getRequestData();
+  return <div id="second">{JSON.stringify(data)}</div>;
+}
+
+export default async function App() {
+  return (
+    <div>
+      <First />
+      <Second />
+    </div>
+  );
+}
+```
+
+`<First />` と `<Second />` は同じデータをレンダリングします — 関数本体は一度だけ実行されます。
+
+### クライアントコンポーネントでの使用
+
+クライアントコンポーネントもReactの `use` フックを使用してリクエストキャッシュ関数を利用できます。キャッシュ値はRSCとSSR環境間で共有されるため、クライアントコンポーネントはサーバ上で既に計算された同じ結果を受け取ります。
+
+```jsx filename="ClientDisplay.jsx"
+"use client";
+
+import { use } from "react";
+import { getRequestData } from "./get-request-data.mjs";
+
+export default function ClientDisplay() {
+  const data = use(getRequestData());
+  return (
+    <div id="client">
+      <div>{data.timestamp}</div>
+      <div>{data.random}</div>
+    </div>
+  );
+}
+```
+
+### ハイドレーション
+
+デフォルトでは、リクエストキャッシュされた値は自動的にHTMLレスポンスにデハイドレートされ、Reactハイドレーション時にブラウザでリハイドレートされます。これにより、`use()` を介してリクエストキャッシュ関数を利用するクライアントコンポーネントは、サーバ上で計算されたのとまったく同じ値を受け取ります — 再計算なし、ハイドレーションミスマッチなし。
+
+キャッシュされた値は、ReactのRSC Flightプロトコルを使用してシリアライズされ、`Date`、`Map`、`Set`、`RegExp`、`URL` などすべてのRSCサポート型が保持されます。シリアライズされたデータはHTMLストリームの末尾にインラインの `<script>` タグとして埋め込まれます。
+
+### ハイドレーションの無効化
+
+キャッシュされた値をブラウザに送信するHTMLに公開したくない場合があります。例えば、キャッシュデータに機密情報が含まれている場合や、クライアントコンポーネントがデータを取得する独自の戦略を持っている場合です。`hydrate=false` オプションまたは `no-hydrate` フラグで自動ハイドレーションを無効にできます：
+
+```mjs filename="get-sensitive-data.mjs"
+export async function getSensitiveData() {
+  "use cache: request; hydrate=false";
+  // または同等の構文:
+  // "use cache: request; no-hydrate";
+
+  // この値はHTMLに埋め込まれません
+  const data = await fetchInternalAPI();
+  return {
+    publicField: data.publicField,
+    internalMetric: data.internalMetric,
+  };
+}
+```
+
+`hydrate=false`（または `no-hydrate`）が設定されている場合：
+- 関数はリクエストごとに一度だけ実行されます（重複排除は引き続き機能します）。
+- キャッシュされた値はサーバ上のRSCとSSRレンダリング間で引き続き共有されます。
+- 値はHTMLレスポンスに埋め込まれ**ません**。
+- クライアントコンポーネントはブラウザで値を再計算します。これにより異なる結果が生成され、ハイドレーションミスマッチが発生する可能性があります。クライアント側で別の戦略がある場合（例：APIエンドポイントからのフェッチ）に使用してください。
+
+### 仕組み
+
+- `request` プロバイダは、現在のHTTPリクエストにスコープされたインメモリキャッシュを作成します。
+- 最初の呼び出しで関数が実行され、結果がリクエストキャッシュに保存されます。
+- 同じリクエスト中の後続の呼び出しはすべて、キャッシュされた値を即座に返します。
+- キャッシュされた値はRSCとSSRレンダリング間で共有されるため、クライアントコンポーネントがサーバサイドレンダリングされる場合でも、RSCレンダリング中に計算されたのと同じデータを受け取ります。
+- `Date` などのRSCシリアライズ可能な型はキャッシュを通じて保持されます — 文字列ではなく、適切な `Date` インスタンスのままです。
+- キャッシュはリクエストの完了時に自動的に破棄されます。
+- キャッシュされた値はHTMLにデハイドレートされ、シームレスなハイドレーションのためにブラウザでリハイドレートされます（`hydrate=false` または `no-hydrate` が設定されていない限り）。
+
+> 他のキャッシュプロバイダとは異なり、`request` プロバイダは `ttl` や `tags` オプションをサポートしません。キャッシュは本質的に単一のリクエストライフサイクルにスコープされているためです。
+
+<Link name="RSCシリアライゼーション">
+## RSCシリアライゼーション
+</Link>
+
+インメモリでないキャッシュプロバイダにReactコンポーネントを保存する場合、コンポーネントをシリアライズする必要があります。RSCフォーマットを使用してコンポーネントの状態を保存することができます。キャッシュプロバイダでRSCシリアライゼーションを使用するには、キャッシュプロバイダの設定で `type` オプションを `rsc` に設定します。これにより、キャッシュにコンポーネントを保存する際にRSCシリアライゼーションフォーマットが使用されます。
+
+```mjs
+export default {
+  cache: {
+    providers: {
+      file: {
+        driver: "unstorage/drivers/fs",
+        options: {
+          base: ".cache",
+          type: "rsc",
+        },
+      }
+    }
+  },
+};
+```
+
+保存されるRSCデータのエンコーディングも指定できます。デフォルトは `base64` です。`utf8`、`hex`、`binary` など、標準的なNode.jsのバッファエンコーディングを設定できます。これはストレージバックエンドと互換性のある特定の形式でRSCデータを保存する場合に便利です。エンコーディングを指定するには、`type` オプションを `rsc;<encoding>` に設定するか、キャッシュプロバイダ設定の `encoding` オプションを使用します。キャッシュドライバが独自の `encoding` オプションをサポートしている場合は、`type` オプションで `encoding` を指定することで、キャッシュドライバの `encoding` オプションを使用することもできます。
+
+```mjs
+export default {
+  cache: {
+    providers: {
+      file: {
+        driver: "unstorage/drivers/fs",
+        options: {
+          base: ".cache",
+          type: "rsc;utf8",
+          // または
+          type: "rsc",
+          encoding: "utf8",
+        },
+      }
+    }
+  },
+};
+```
+
+RSCシリアライザは独自の用途にも利用できます。`@lazarv/react-server/rsc` モジュールを使用して、Reactツリーをバッファやストリームに変換したり、戻したりすることができます。バッファは `Uint8Array` インスタンスで、ストリームは `ReadableStream` インスタンスです。`toBuffer` と `fromBuffer` 関数でReactツリーをバッファに変換したり戻したり、`toStream` と `fromStream` 関数でReactツリーをストリームに変換したり戻したりできます。
+
+```jsx
+import { toBuffer, fromBuffer } from "@lazarv/react-server/rsc";
+
+const buffer = await toBuffer(<div>Hello world</div>);
+const tree = await fromBuffer(buffer);
+
+const stream = await toStream(<div>Hello world</div>);
+const tree = await fromStream(stream);
+```
+
+> RSCシリアライゼーションは現在サーバコンポーネントでのみ利用可能ですが、将来的にはブラウザ環境でも利用可能になる可能性があります。アップデートにご期待ください！

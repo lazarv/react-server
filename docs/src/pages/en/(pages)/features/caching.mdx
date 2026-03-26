@@ -260,10 +260,134 @@ export default {
 `@lazarv/react-server` provides a few built-in cache providers that you can use out of the box without any configuration. These are:
 
 - `memory`: A simple in-memory cache provider. This is the default cache provider.
-- `request`: A cache provider that only lives for the duration of the request. This is useful for caching data that is only needed for the current request.
+- `request`: A cache provider that only lives for the duration of the request. This is useful for deduplicating expensive computations within a single request. The cached value is shared across both RSC and SSR environments, so the function body runs only once per request regardless of how many components consume it. See [Request-scoped caching](#request-scoped-caching) for details.
 - `null`: A cache provider that does not store any data. This is useful for disabling caching in specific parts of your application. Useful with a cache provider alias.
 - `local`: A cache provider that uses the browser's local storage. This is useful for caching data that needs to persist across page reloads.
 - `session`: A cache provider that uses the browser's session storage. This is useful for caching data that needs to persist across page reloads, but only for the current session.
+
+<Link name="request-scoped-caching">
+## Request-scoped caching
+</Link>
+
+The `request` cache provider deduplicates function calls within a single HTTP request. When you mark a function with `"use cache: request"`, the function body executes only once per request — every subsequent call with the same arguments returns the same cached result, even across RSC and SSR rendering environments.
+
+This is useful for expensive computations or data fetching that multiple components depend on within the same page render.
+
+### Defining a request-cached function
+
+Use the `"use cache: request"` directive at the top of any function. The function can be async and can return any RSC-serializable value, including `Date` objects, nested objects, and arrays.
+
+```mjs filename="get-request-data.mjs"
+let computeCount = 0;
+
+export async function getRequestData() {
+  "use cache: request";
+  // Simulate an async operation
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  computeCount++;
+  return {
+    timestamp: Date.now(),
+    random: Math.random(),
+    computeCount,
+    createdAt: new Date(),
+  };
+}
+```
+
+In this example, `getRequestData` will only execute once per request. Every component that calls it during the same request receives identical `timestamp`, `random`, and `computeCount` values.
+
+### Using in server components
+
+Server components can `await` a request-cached function directly. Multiple server components calling the same function will share the result.
+
+```jsx filename="App.jsx"
+import { getRequestData } from "./get-request-data.mjs";
+
+async function First() {
+  const data = await getRequestData();
+  return <div id="first">{JSON.stringify(data)}</div>;
+}
+
+async function Second() {
+  const data = await getRequestData();
+  return <div id="second">{JSON.stringify(data)}</div>;
+}
+
+export default async function App() {
+  return (
+    <div>
+      <First />
+      <Second />
+    </div>
+  );
+}
+```
+
+Both `<First />` and `<Second />` will render the same data — the function body runs only once.
+
+### Using in client components
+
+Client components can also consume request-cached functions using React's `use` hook. The cached value is shared between RSC and SSR environments, so the client component receives the same result that was already computed on the server.
+
+```jsx filename="ClientDisplay.jsx"
+"use client";
+
+import { use } from "react";
+import { getRequestData } from "./get-request-data.mjs";
+
+export default function ClientDisplay() {
+  const data = use(getRequestData());
+  return (
+    <div id="client">
+      <div>{data.timestamp}</div>
+      <div>{data.random}</div>
+    </div>
+  );
+}
+```
+
+### Hydration
+
+By default, request-cached values are automatically dehydrated into the HTML response and rehydrated on the browser during React hydration. This means client components that consume a request-cached function via `use()` will receive the exact same value that was computed on the server — no recomputation, no hydration mismatch.
+
+The cached values are serialized using React's RSC Flight protocol, which preserves all RSC-supported types including `Date`, `Map`, `Set`, `RegExp`, `URL`, and more. The serialized data is embedded in an inline `<script>` tag at the end of the HTML stream.
+
+### Disabling hydration
+
+In some cases, you may not want to expose the cached value in the HTML sent to the browser. For example, if the cached data contains sensitive information or if the client component has its own strategy for obtaining the data. You can disable automatic hydration with the `hydrate=false` option or the `no-hydrate` flag:
+
+```mjs filename="get-sensitive-data.mjs"
+export async function getSensitiveData() {
+  "use cache: request; hydrate=false";
+  // or equivalently:
+  // "use cache: request; no-hydrate";
+
+  // This value will NOT be embedded in the HTML
+  const data = await fetchInternalAPI();
+  return {
+    publicField: data.publicField,
+    internalMetric: data.internalMetric,
+  };
+}
+```
+
+When `hydrate=false` (or `no-hydrate`) is set:
+- The function still executes only once per request (deduplication still works).
+- The cached value is still shared between RSC and SSR rendering on the server.
+- The value is **not** embedded in the HTML response.
+- Client components will recompute the value in the browser, which may produce a different result and cause a hydration mismatch. Use this when you have a different strategy for the client (e.g., fetching from an API endpoint).
+
+### How it works
+
+- The `request` provider creates an in-memory cache scoped to the current HTTP request.
+- On the first call, the function executes and the result is stored in the request cache.
+- All subsequent calls during the same request return the cached value immediately.
+- The cached value is shared between RSC and SSR rendering, so even when a client component is server-side rendered, it receives the same data that was computed during RSC rendering.
+- RSC-serializable types like `Date` are preserved through the cache — they remain proper `Date` instances, not strings.
+- The cache is automatically discarded when the request completes.
+- Cached values are dehydrated into the HTML and rehydrated in the browser for seamless hydration (unless `hydrate=false` or `no-hydrate` is set).
+
+> Unlike other cache providers, the `request` provider does not support `ttl` or `tags` options, since the cache is inherently scoped to a single request lifecycle.
 
 <Link name="rsc-serialization">
 ## RSC serialization

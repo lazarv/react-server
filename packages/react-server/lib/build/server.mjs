@@ -864,6 +864,10 @@ export default async function serverBuild(root, options, clientManifestBus) {
           find: /^@lazarv\/react-server\/http-context$/,
           replacement: join(sys.rootDir, "server/http-context.mjs"),
         },
+        {
+          find: /^@lazarv\/react-server\/memory-cache\/client$/,
+          replacement: join(sys.rootDir, "cache/ssr.mjs"),
+        },
         // Only use client cache for non-edge builds (edge bundles server code that needs full cache API)
         ...(!options.edge
           ? [

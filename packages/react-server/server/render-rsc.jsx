@@ -45,6 +45,7 @@ import {
   RENDER_STREAM,
   RENDER_TEMPORARY_REFERENCES,
   RENDER_WAIT,
+  REQUEST_CACHE_SHARED,
   RESPONSE_BUFFER,
   STYLES_CONTEXT,
   SERVER_FUNCTION_NOT_FOUND,
@@ -909,6 +910,10 @@ export async function render(Component, props = {}, options = {}) {
             origin,
             importMap,
             body,
+            requestCacheBuffer:
+              getContext(REQUEST_CACHE_SHARED)?.buffer ??
+              getContext(REQUEST_CACHE_SHARED) ??
+              null,
             httpContext: {
               request: {
                 method: context.request.method,

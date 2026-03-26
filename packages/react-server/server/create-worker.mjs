@@ -60,6 +60,7 @@ export function createWorker() {
     onPostponed,
     stream,
     prelude,
+    requestCacheBuffer,
     ...options
   }) => {
     const id = randomUUID();
@@ -69,19 +70,28 @@ export function createWorker() {
     try {
       if (prelude) {
         worker.postMessage(
-          { type: "render", id, stream, prelude, ...options },
+          {
+            type: "render",
+            id,
+            stream,
+            prelude,
+            requestCacheBuffer,
+            ...options,
+          },
           [stream, prelude]
         );
       } else {
-        worker.postMessage({ type: "render", id, stream, ...options }, [
-          stream,
-        ]);
+        worker.postMessage(
+          { type: "render", id, stream, requestCacheBuffer, ...options },
+          [stream]
+        );
       }
     } catch {
       worker.postMessage({
         type: "render",
         id,
         prelude: prelude ? "chunk" : undefined,
+        requestCacheBuffer,
         ...options,
       });
 

@@ -201,3 +201,143 @@ export default function App() {
   );
 }
 ```
+
+<Link name="inline-server-functions-with-inline-client-components">
+## Inline server functions with inline client components
+</Link>
+
+You can combine inline `"use server"` functions and inline `"use client"` components in the same file. This is useful when a server function and the client UI that consumes it are closely related.
+
+```jsx
+import { useState, useTransition } from "react";
+
+const greeting = "Hello";
+
+async function greet(name) {
+  "use server";
+  return `${greeting}, ${name}!`;
+}
+
+function Greeter() {
+  "use client";
+
+  const [message, setMessage] = useState("");
+  const [, startTransition] = useTransition();
+
+  return (
+    <div>
+      <button
+        onClick={() =>
+          startTransition(async () => {
+            setMessage(await greet("World"));
+          })
+        }
+      >
+        Greet
+      </button>
+      {message && <p>{message}</p>}
+    </div>
+  );
+}
+
+export default function App() {
+  return <Greeter />;
+}
+```
+
+Both the server function and the client component are extracted into separate modules automatically. The server function can capture variables from the module scope, and the client component can call the server function directly.
+
+<Link name="returning-client-components-from-server-functions">
+## Returning client components from server functions
+</Link>
+
+A server function can define an inline `"use client"` component and return it as rendered JSX. The client component will be serialized through the RSC protocol and hydrated on the client, making it fully interactive.
+
+```jsx
+import { useState, useTransition } from "react";
+
+async function createCounter(initialCount) {
+  "use server";
+
+  function Counter({ start }) {
+    "use client";
+    const [count, setCount] = useState(start);
+    return (
+      <div>
+        <p>Count: {count}</p>
+        <button onClick={() => setCount(count + 1)}>Increment</button>
+      </div>
+    );
+  }
+
+  return <Counter start={initialCount} />;
+}
+
+function Shell() {
+  "use client";
+
+  const [content, setContent] = useState(null);
+  const [, startTransition] = useTransition();
+
+  return (
+    <div>
+      <button onClick={() =>
+        startTransition(async () => setContent(await createCounter(0)))
+      }>
+        Create Counter
+      </button>
+      {content}
+    </div>
+  );
+}
+
+export default function App() {
+  return <Shell />;
+}
+```
+
+The `createCounter` server function defines a `Counter` client component, renders it with the given props, and returns the element. The framework extracts the nested directives into separate modules through a chain of virtual modules, so everything works from a single file.
+
+<Link name="inline-server-functions-in-use-client-files">
+## Inline server functions in "use client" files
+</Link>
+
+You can define inline `"use server"` functions inside a file that already has a top-level `"use client"` directive. The server functions are automatically extracted from the client module, so you can keep related server logic and client UI together in a single file.
+
+```jsx
+"use client";
+
+import { useState, useTransition } from "react";
+
+export default function TodoApp() {
+  const [items, setItems] = useState([]);
+  const [, startTransition] = useTransition();
+
+  async function addItem(text) {
+    "use server";
+    return { id: Date.now(), text };
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() =>
+          startTransition(async () => {
+            const item = await addItem(`item-${items.length}`);
+            setItems((prev) => [...prev, item]);
+          })
+        }
+      >
+        Add
+      </button>
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>{item.text}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+The file is treated as a client component because of the top-level `"use client"` directive, but the `addItem` function is extracted into a separate server module. This works the same way as defining the server function in a standalone `"use server"` file — the framework handles the extraction automatically.

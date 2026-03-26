@@ -2,6 +2,9 @@ import type { Driver } from "unstorage";
 
 import type { ReactServerCache } from "../server/index.d.ts";
 
+export function rawCanonicalKey(tags: unknown[]): string;
+export function syncHash(str: string): string;
+
 export default class StorageCache implements ReactServerCache {
   constructor(
     driver: Driver,

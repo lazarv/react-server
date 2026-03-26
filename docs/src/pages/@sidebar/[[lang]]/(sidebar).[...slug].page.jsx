@@ -4,7 +4,7 @@ import { usePathname } from "@lazarv/react-server";
 
 import Sidebar from "../../../components/Sidebar.jsx";
 import { defaultLanguage, defaultLanguageRE } from "../../../const.mjs";
-import { hasCategory, getPages } from "../../../pages.mjs";
+import { hasCategory, hasCategoryIndex, getPages } from "../../../pages.mjs";
 import { m } from "../../../i18n.mjs";
 
 export default function PageSidebar({ lang, slug: [category] }) {
@@ -23,7 +23,8 @@ export default function PageSidebar({ lang, slug: [category] }) {
           <div
             className={`text-md font-semibold mb-2${i > 0 ? " pt-4 dark:border-gray-800" : ""}`}
           >
-            {!pages.some(
+            {hasCategoryIndex(category, lang) &&
+            !pages.some(
               ({ frontmatter }) => frontmatter?.slug === category.toLowerCase()
             ) ? (
               <a
@@ -45,7 +46,7 @@ export default function PageSidebar({ lang, slug: [category] }) {
               <a
                 key={src}
                 href={langHref.replace(defaultLanguageRE, "")}
-                className={`block pb-1 last:pb-0 after:mb-1 last:after:mb-0 text-sm pl-3 border-l border-gray-300 dark:border-gray-600${isActive ? " text-indigo-500 dark:text-yellow-600 active" : ""}`}
+                className={`block pb-1 w-max max-w-[185px] line-clamp-2 last:pb-0 after:mb-1 last:after:mb-0 text-sm pl-6 -indent-3 border-l border-gray-300 dark:border-gray-600${isActive ? " text-indigo-500 dark:text-yellow-600 active" : ""}`}
               >
                 {frontmatter?.title ?? basename(src).replace(/\.mdx?$/, "")}
               </a>

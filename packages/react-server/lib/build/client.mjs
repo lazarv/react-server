@@ -11,6 +11,9 @@ import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import { generateClientComponentChunkGroups } from "../plugins/optimize-deps.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import rolldownUseClient from "../plugins/use-client.mjs";
+import { useClientInlineConfig } from "../plugins/use-client-inline.mjs";
+import { useServerInlineConfig } from "../plugins/use-server-inline.mjs";
+import rolldownUseDirectiveInline from "../plugins/use-directive-inline.mjs";
 import rolldownUseServer from "../plugins/use-server.mjs";
 import rolldownUseCacheInline from "../plugins/use-cache-inline.mjs";
 import rollupUseWorker, {
@@ -364,6 +367,10 @@ export default async function clientBuild(
               options.dev ? "development" : "production"
             ),
           }),
+          rolldownUseDirectiveInline([
+            useServerInlineConfig,
+            useClientInlineConfig,
+          ]),
           rolldownUseClient("client", undefined, "pre", clientManifestBus),
           rolldownUseClient("client"),
           rolldownUseServer("client"),

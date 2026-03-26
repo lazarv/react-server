@@ -1,0 +1,236 @@
+---
+title: Azure Static Web Apps
+category: Deploy
+order: 7
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Azure Static Web Apps
+
+Azure Static Web Apps（SWA）にデプロイするには、ビルトインの `azure-swa` アダプタを使用します。このアダプタは、SWAのマネージド関数とCDNバックの静的ホスティング向けにアプリをパッケージします。
+
+> **注意:** Azure Static Web Appsはレスポンスストリーミングを**サポートしていません**。すべてのレスポンスはクライアントに送信される前にバッファリングされます。ストリーミング（React Suspense、プログレッシブHTML）が必要な場合は、代わりに [Azure Functions](/deploy/azure) アダプタを使用してください。
+
+<Link name="installation">
+## インストール
+</Link>
+
+[Azure Static Web Apps CLI](https://azure.github.io/static-web-apps-cli/) がインストールされている必要があります：
+
+```sh
+npm install -g @azure/static-web-apps-cli
+```
+
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+`react-server.config.mjs` ファイルにアダプタを追加します：
+
+```mjs
+export default {
+  adapter: "azure-swa",
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+オプションを渡してアダプタをカスタマイズできます：
+
+```mjs
+export default {
+  adapter: [
+    "azure-swa",
+    {
+      host: {},            // Extra host.json properties
+      routes: [],          // Additional SWA route rules
+      platform: {          // Platform configuration overrides
+        apiRuntime: "node:20",
+      },
+      staticwebapp: {},    // Extra staticwebapp.config.json properties
+      env: {               // Extra environment variables
+        MY_API_KEY: "value",
+      },
+    },
+  ],
+};
+```
+
+### 設定オプション
+
+- `host`: 生成された `host.json` にマージする追加プロパティ。
+- `routes`: `staticwebapp.config.json` に追加するルートルール。デフォルトの `/`、`/assets/*`、`/client/*` ルールの後に配置されます。
+- `platform`: `staticwebapp.config.json` のプラットフォーム設定を上書きします（デフォルト: `{ apiRuntime: "node:20" }`）。
+- `staticwebapp`: `staticwebapp.config.json` にマージする追加のトップレベルプロパティ。
+- `env`: `local.settings.json` 用の追加の環境変数。
+
+<Link name="extending-config">
+## SWA設定の拡張
+</Link>
+
+生成された `staticwebapp.config.json` を拡張するには、プロジェクトルートに `react-server.azure.json` ファイルを作成します。アダプタはこれを生成された設定にマージします：
+
+```json filename="react-server.azure.json"
+{
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/api/server"
+    }
+  },
+  "globalHeaders": {
+    "X-Frame-Options": "DENY"
+  }
+}
+```
+
+<Link name="deploy">
+## デプロイ
+</Link>
+
+ビルドとデプロイを一度に行います：
+
+```sh
+pnpm react-server build --deploy
+```
+
+または、先にビルドしてから手動でデプロイします：
+
+```sh
+# Build
+pnpm react-server build
+
+# Deploy
+swa deploy .azure-swa/static \
+  --api-location .azure-swa/functions \
+  --api-language node \
+  --api-version 20
+```
+
+デプロイ前に、Azure Static Web Appsリソースが作成されていることを確認してください。[Azureポータル](https://portal.azure.com)またはAzure CLIを使用して作成できます：
+
+```sh
+az staticwebapp create \
+  --name my-app \
+  --resource-group my-rg \
+  --location "eastus2"
+```
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+アダプタは**エッジビルド**モードを使用し、サーバーを単一のファイルにバンドルします。ビルド時に以下を行います：
+
+1. サーバーを `.azure-swa/functions/server/.react-server/server/edge.mjs` にバンドル
+2. 静的アセットを `.azure-swa/static/` にコピー
+3. Azure Functions v3の `(context, req)` モデルを標準のfetchハンドラーにブリッジする `functions/server/index.mjs` ラッパーを生成
+4. `function.json`（HTTPトリガー）、`host.json`、`staticwebapp.config.json` を生成
+5. 静的ディレクトリにフォールバック `index.html` を作成（SWAが必要とする）
+
+### 静的ファイルルーティング
+
+静的ファイルはAzure SWAのビルトインCDNによって配信されます。`staticwebapp.config.json` は以下を設定します：
+
+- `/assets/*` と `/client/*` ルートにイミュータブルなキャッシュヘッダー
+- すべての非静的リクエストを `/api/server` 関数にリライトする `navigationFallback`
+- ルートパス `/` を `/api/server` にリライト
+
+これにより、静的アセットはサーバーレス関数を完全にバイパスし、SWAのエッジCDNから直接配信されます。
+
+<Link name="output-structure">
+## 出力構造
+</Link>
+
+```
+.azure-swa/
+├── staticwebapp.config.json  # SWA routing configuration
+├── functions/
+│   ├── host.json             # Azure Functions host config
+│   ├── local.settings.json   # Local dev settings
+│   ├── package.json          # ESM support
+│   └── server/
+│       ├── function.json     # HTTP trigger binding
+│       ├── index.mjs         # Request handler wrapper
+│       └── .react-server/    # Bundled server (edge.mjs, manifests)
+└── static/
+    ├── staticwebapp.config.json
+    ├── index.html            # Fallback (required by SWA)
+    ├── assets/               # Vite-built assets
+    ├── client/               # Client component bundles
+    └── ...                   # Other static files
+```
+
+<Link name="azure-vs-azure-swa">
+## Azure Functions vs. Azure SWA
+</Link>
+
+| 機能 | `azure`（Functions v4） | `azure-swa`（Static Web Apps） |
+|---|---|---|
+| **ストリーミング** | あり | なし（レスポンスはバッファリングされる） |
+| **静的ファイル** | 関数が配信 | CDNが配信 |
+| **自動プロビジョニング** | あり（Bicep経由） | 手動（ポータルまたはCLI） |
+| **コールドスタート** | Consumptionプランのレイテンシ | SWAが管理 |
+| **カスタムドメイン** | Function App設定から | SWA設定から |
+| **Functionsバージョン** | v4（プログラミングモデル） | v3（function.json） |
+
+ストリーミングが必要な場合やリソースの自動プロビジョニングが必要な場合は `azure` を選択してください。CDNバックのアセット配信がストリーミングよりも重要な、シンプルな静的中心のアプリには `azure-swa` を選択してください。
+
+<Link name="troubleshooting">
+## トラブルシューティング
+</Link>
+
+### SWA CLIが見つからない
+
+CLIをグローバルにインストールしてください：
+
+```sh
+npm install -g @azure/static-web-apps-cli
+```
+
+### レスポンスがバッファリングされる / ストリーミングなし
+
+これはAzure Static Web Appsの制限です。SWAはすべての関数レスポンスをクライアントに送信する前にバッファリングします。ストリーミングが必要な場合は、[Azure Functions](/deploy/azure) アダプタに切り替えてください。
+
+### ページナビゲーション時の404エラー
+
+`staticwebapp.config.json` で `navigationFallback` が設定されていることを確認してください。アダプタはこれを自動的に生成します。`react-server.azure.json` で設定をカスタマイズした場合は、`navigationFallback` セクションを上書きしていないことを確認してください。
+
+### ルートURLで空またはブロークンなページ
+
+`staticwebapp.config.json` に `/` ルートから `/api/server` へのリライトが存在することを確認してください。アダプタはデフォルトでこれを作成します。ページが読み込まれるが `<!doctype html>` のみが表示される場合、関数が実行されていない可能性があります — Azureポータルで関数ログを確認してください。
+
+### 関数がトリガーされない
+
+関数が正しくデプロイされたことを確認してください：
+
+```sh
+swa deploy .azure-swa/static \
+  --api-location .azure-swa/functions \
+  --api-language node \
+  --api-version 20 \
+  --verbose
+```
+
+`.azure-swa/functions/server/function.json` が存在し、HTTPトリガーバインディングが定義されていることを確認してください。
+
+### "x-ms-original-url" ヘッダーの問題
+
+Azure SWAは `navigationFallback` を使用してリクエストをAPI関数にリライトします。元のURLは `x-ms-original-url` ヘッダーを介して渡されます。アダプタのラッパーはこれを自動的に処理します。アプリで不正なURLが表示される場合は、SWA設定の `navigationFallback.exclude` パターンが関数に送られるべきルートにマッチしていないか確認してください。
+
+### ローカル開発
+
+SWA CLIを使用してローカルでテストできます：
+
+```sh
+swa start .azure-swa/static \
+  --api-location .azure-swa/functions \
+  --api-port 7071
+```
+
+または、Azure Functions Core Toolsを直接使用してAPIをテストできます：
+
+```sh
+cd .azure-swa/functions
+func start
+```

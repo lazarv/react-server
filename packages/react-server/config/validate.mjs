@@ -734,6 +734,9 @@ function validateObject(config, schema, prefix = "") {
     // Skip symbol keys (like CONFIG_ROOT, CONFIG_PARENT)
     if (typeof key === "symbol") continue;
 
+    // Skip $schema (JSON Schema reference for IDE validation)
+    if (key === "$schema") continue;
+
     const path = prefix ? `${prefix}.${key}` : key;
     const validator = schema[key];
 

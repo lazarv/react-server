@@ -1,0 +1,166 @@
+---
+title: 静的生成
+category: Router
+order: 10
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# 静的生成
+
+ページを静的としてマークすると、ファイルシステムベースのルーターがそのページを`@lazarv/react-server`のエクスポートに追加します。
+
+ページを静的としてマークするには、ページの一致するパスに`.static.{js,mjs,ts,mts,json}`拡張子のファイルを作成し、そのルートで使用可能なパラメータの配列、またはパラメータの配列を返す関数をデフォルトエクスポートします。関数は非同期関数にすることもできます。
+
+パラメータのないページの場合は、デフォルトで`true`をエクスポートします。
+
+```ts filename="users.static.ts"
+export default true;
+```
+
+ページを静的としてマークする最も簡単な方法は、`true`を定義した`.static.json`ファイルを作成することです。
+
+```json filename="users.static.json"
+true
+```
+
+> **警告:** パラメータを持つルートでは`true`を値として使用できません。使用可能なパラメータの配列、またはパラメータの配列を返す関数を定義する必要があります。パラメータを持つルートで`true`を使用すると、ビルドが失敗します。
+
+<Link name="dynamic-routes">
+## 動的ルート
+</Link>
+
+動的ルートの場合、`/users/:id`にページがある場合、`/users/[id].static.ts`に以下の内容のファイルを作成できます：
+
+```ts filename="users/[id].static.ts"
+export default [{ id: 1 }, { id: 2 }, { id: 3 }];
+```
+
+ルートパラメータの配列、またはルートパラメータの配列を返す非同期関数をエクスポートできます。
+
+```ts filename="users/[id].static.ts"
+export default async () => [{ id: 1 }, { id: 2 }, { id: 3 }];
+```
+
+関数はビルド時に実行され、その結果が静的ページの生成に使用されます。
+
+<Link name="static-json-data">
+## 静的JSONデータ
+</Link>
+
+`.static.json`拡張子のファイルを作成することで、静的ページに静的JSONデータを使用できます。
+
+たとえば、`/users/:id`にページがある場合、`/users/[id].static.json`に以下の内容のファイルを作成できます：
+
+```json filename="users/[id].static.json"
+[{ "id": 1 }, { "id": 2 }, { "id": 3 }]
+```
+
+> **注意:** 静的ルートはページコンポーネントとは独立して定義しています。これはルーティングとページレンダリングの関心事を分離するためです。この方法により、ルーターはビルド時にページコンポーネントを定義するコードをインポートする必要がなくなります。これは、ページコンポーネントの依存関係ツリーが大きい場合や、コードに副作用がある場合に便利です。
+
+<Link name="override-static-paths">
+## 静的パスのオーバーライド
+</Link>
+
+`@lazarv/react-server`の設定ファイルで`export()`関数を定義することで、すべての静的パスをオーバーライドできます。この関数はすべての静的パスの配列とともに呼び出され、デフォルトの静的パスをオーバーライドする新しいパスの配列を返すことができます。この例では、すべての静的パスから`/en`プレフィックスを削除しています。
+
+```js filename="react-server.config.mjs"
+export default {
+  export(paths) {
+    return paths.map(({ path }) => ({
+      path: path.replace(/^\/en/, ""),
+    }));
+  },
+};
+```
+
+この関数を使用して、新しい静的パスを追加したり、一部のパスを削除したりすることもできます。
+
+```js filename="react-server.config.mjs"
+export default {
+  export(paths) {
+    return [
+      ...paths,
+      { path: "/new-page" },
+    ];
+  },
+};
+```
+
+```js filename="react-server.config.mjs"
+export default {
+  export(paths) {
+    return paths.filter(({ path }) => path !== "/en");
+  },
+};
+```
+
+<Link name="static-export-api-routes">
+## APIルートの静的エクスポート
+</Link>
+
+APIルートを静的ルートとしてエクスポートすることもできます。これを行うには、静的パスを`path`、`filename`、`method`、`headers`プロパティを持つオブジェクトとして定義します。`path`はルートパス、`filename`は静的ファイルのファイル名、`method`はリクエストのHTTPメソッド、`headers`はリクエストのヘッダーを持つオブジェクトです。`method`と`headers`はオプションです。
+
+```js filename="react-server.config.mjs"
+export default {
+  export() {
+    return [
+      {
+        path: "/sitemap.xml",
+        filename: "sitemap.xml",
+        method: "GET",
+        headers: {
+          accept: "application/xml",
+        },
+      },
+    ];
+  },
+}
+```
+
+<Link name="remote">
+## マイクロフロントエンドルートの静的エクスポート
+</Link>
+
+マイクロフロントエンドルートを静的としてエクスポートすることもできます。これを行うには、静的パスを`path`と`remote`プロパティを持つオブジェクトとして定義します。`path`はルートパス、`remote`はそのルートがマイクロフロントエンドルートであり、ビルド時にリモートレスポンスペイロードを生成する必要があることを示すフラグです。マイクロフロントエンドの静的エクスポートを使用することで、ビルド時にマイクロフロントエンドのコンテンツを事前レンダリングし、アプリケーションのパフォーマンスを向上させることができます。
+
+```js filename="react-server.config.mjs"
+export default {
+  export() {
+    return [
+      {
+        path: "/",
+        remote: true,
+      }
+    ];
+  },
+};
+```
+
+<Link name="static-export-outlets">
+## アウトレットの静的エクスポート
+</Link>
+
+アウトレットを静的としてエクスポートすることもできます。これを行うには、静的パスを`path`と`outlet`プロパティを持つオブジェクトとして定義します。`path`はルートパス、`outlet`はアウトレットの名前です。アウトレットの静的エクスポートを使用することで、ビルド時にアウトレットのコンテンツを事前レンダリングし、アプリケーションのパフォーマンスを向上させることができます。エクスポートされたアウトレットはRSCコンポーネントとしてレンダリングされます。エクスポートされたアウトレットへのクライアントサイドナビゲーションでは、サーバーにリクエストを送信する代わりに、静的なアウトレットコンテンツが使用されます。
+
+```js filename="react-server.config.mjs"
+export default {
+  export() {
+    return [{ path: "/photos/1", outlet: "modal" }];
+  },
+};
+```
+
+<Link name="disable-static-export-for-rsc-routes">
+## RSCルートの静的エクスポートを無効化
+</Link>
+
+`rsc`プロパティを`false`に設定することで、RSCルートの静的エクスポートを無効にできます。これは、ページがRSCルートであるが、ビルド時に事前レンダリングしたくない場合や、そのルートのRSCペイロードを使用する予定がない場合に便利です。これにより、ビルド時にRSCペイロードが生成されなくなり、ルートは通常のHTMLページとしてのみレンダリングされ、デプロイメントサイズが削減されます。
+
+```js filename="react-server.config.mjs"
+export default {
+  export() {
+    return [{ path: "/photos/1", rsc: false }];
+  },
+};
+```

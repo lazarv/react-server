@@ -41,12 +41,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "@vitest/coverage-istanbul": "^4.1.0-beta.6",
-    "@vitest/coverage-v8": "^4.1.0-beta.6",
+    "@vitest/coverage-istanbul": "^4.1.1",
+    "@vitest/coverage-v8": "^4.1.1",
     "react": "0.0.0-experimental-ab18f33d-20260220",
     "react-dom": "0.0.0-experimental-ab18f33d-20260220",
     "react-server-dom-webpack": "0.0.0-experimental-ab18f33d-20260220",
-    "vitest": "^4.1.0-beta.6"
+    "vitest": "^4.1.1"
   },
   "peerDependencies": {
     "react": ">=19.0.0 || >=0.0.0-experimental"

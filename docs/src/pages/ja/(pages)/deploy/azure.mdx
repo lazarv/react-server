@@ -1,0 +1,229 @@
+---
+title: Azure
+category: Deploy
+order: 6
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Azure Functions
+
+Azure Functionsにデプロイするには、ビルトインの `azure` アダプタを使用します。このアダプタは、完全なレスポンスストリーミングをサポートするAzure Functions v4プログラミングモデルを使用します。
+
+<Link name="installation">
+## インストール
+</Link>
+
+以下のツールがインストールされている必要があります：
+
+- [Azure CLI](https://aka.ms/install-azure-cli) (`az`)
+- [Azure Functions Core Tools v4](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-tools?tabs=v4) (`func`)
+
+```sh
+# Install Azure Functions Core Tools
+npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
+# Install Azure CLI (macOS)
+brew install azure-cli
+
+# Login to Azure
+az login
+```
+
+追加のパッケージは不要です — アダプタは `@lazarv/react-server` に組み込まれています。
+
+`react-server.config.mjs` ファイルにアダプタを追加します：
+
+```mjs
+export default {
+  adapter: "azure",
+};
+```
+
+<Link name="configuration">
+## 設定
+</Link>
+
+オプションを渡してアダプタをカスタマイズできます：
+
+```mjs
+export default {
+  adapter: [
+    "azure",
+    {
+      appName: "my-app",           // Azure Function App name
+      resourceGroup: "my-rg",      // Azure resource group
+      location: "westus2",         // Azure region
+      storageName: "myappstorage", // Storage account name
+      host: {},                    // Extra host.json properties
+      env: {                       // Extra environment variables
+        MY_API_KEY: "value",
+      },
+    },
+  ],
+};
+```
+
+### 設定オプション
+
+- `appName`: Azure Function App名。`package.json` の name（スコーププレフィックスを除く）にフォールバックします。Azure全体でグローバルに一意である必要があります。
+- `resourceGroup`: Azureリソースグループ名（デフォルト: `<appName>-rg`）。
+- `location`: 新しいリソースのAzureリージョン（デフォルト: `"eastus"`）。新しいリソースをプロビジョニングする場合にのみ使用されます。
+- `storageName`: Azure Storageアカウント名（デフォルト: appNameから派生、小文字英数字のみ、最大24文字）。
+- `host`: 生成された `host.json` にマージする追加プロパティ。
+- `env`: `local.settings.json` に含める追加の環境変数。
+
+<Link name="deploy">
+## デプロイ
+</Link>
+
+ビルドとデプロイを一度に行います：
+
+```sh
+pnpm react-server build --deploy
+```
+
+または、先にビルドしてから手動でデプロイします：
+
+```sh
+# Build
+pnpm react-server build
+
+# Deploy using Azure Functions Core Tools
+func azure functionapp publish <app-name> --javascript
+```
+
+> **注意:** `func` を使って手動でデプロイする場合は、`.azure/` 出力ディレクトリからコマンドを実行する必要があります。
+
+<Link name="provisioning">
+## 自動プロビジョニング
+</Link>
+
+`--deploy` を使ってデプロイすると、アダプタは [Bicep](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview) テンプレートを使用して、必要なすべてのAzureリソースを自動的にプロビジョニングします：
+
+- **リソースグループ** — 存在しない場合に作成
+- **ストレージアカウント** — Standard_LRS、HTTPSのみ
+- **Consumptionプラン** — Y1 Dynamicティア（Linux）、実行ごとの課金
+- **Function App** — Node.js 20、Functions v4ランタイム
+
+Function Appが既に存在する場合（任意のリソースグループ内）、プロビジョニングは完全にスキップされます。アダプタはサブスクリプション内のすべてのリソースグループを検索して、既存のアプリを見つけます。
+
+生成された `main.bicep` テンプレートは `.azure/` ディレクトリに書き込まれます。手動でデプロイする前に、検査またはカスタマイズできます：
+
+```sh
+az deployment group create \
+  --resource-group <resource-group> \
+  --template-file .azure/main.bicep \
+  --parameters appName=<app-name> storageName=<storage-name> location=<region>
+```
+
+<Link name="streaming">
+## レスポンスストリーミング
+</Link>
+
+このアダプタはレスポンスストリーミングを完全にサポートしています。React Server Components、Suspenseバウンダリ、プログレッシブHTML配信はすべてそのまま動作します。Azure Functions v4プログラミングモデルの `app.http()` ハンドラーは `ReadableStream` ボディの返却をサポートしており、バッファリングなしの真のストリーミングを実現します。
+
+これはすべてのレスポンスをバッファリングするAzure Static Web Appsに対する主要な利点です。
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+アダプタは**エッジビルド**モードを使用し、サーバー全体を単一のファイルにバンドルします。ビルド時に以下を行います：
+
+1. サーバーを `.azure/server/.react-server/server/edge.mjs` にバンドル
+2. すべての静的アセットを `.azure/static/` にコピー
+3. 薄い `src/functions/server.mjs` ラッパーを生成：
+   - `@azure/functions` をインポート（外部として保持 — Azureランタイムが必要とする）
+   - `app.http()` を介してすべてのメソッドとパスに一致するHTTPトリガーを登録
+   - ビルド時のルートマップを使用して `readFileSync()` で静的ファイルを配信
+   - 動的リクエストをバンドルされたエッジハンドラーに委譲
+4. `host.json`、`package.json`、`local.settings.json`、`main.bicep` を生成
+5. `.azure/` で `npm install` を実行して `@azure/functions` をインストール
+
+> **重要:** `@azure/functions` パッケージはエッジビルドにバンドルできません。Azureランタイムはこのモジュールの独自のインスタンスを提供し、登録されたHTTPトリガーを検出するために使用します。バンドルすると、ランタイムは登録済み関数がゼロと認識します。
+
+<Link name="local-development">
+## ローカル開発
+</Link>
+
+ビルド後、Azure Functions Core Toolsを使用してローカルでテストできます：
+
+```sh
+cd .azure
+func start
+```
+
+生成された `local.settings.json` でローカルランタイムが設定されます。`--sourcemap` を付けてビルドした場合、`NODE_OPTIONS` を介してNode.jsのソースマップも有効になります。
+
+<Link name="output-structure">
+## 出力構造
+</Link>
+
+```
+.azure/
+├── host.json                 # Azure Functions host configuration
+├── local.settings.json       # Local development settings
+├── main.bicep                # Bicep IaC template for provisioning
+├── package.json              # Dependencies (@azure/functions)
+├── node_modules/             # Installed dependencies
+├── server/
+│   └── .react-server/        # Bundled server (edge.mjs, manifests)
+├── src/
+│   └── functions/
+│       └── server.mjs        # Azure Functions v4 HTTP trigger wrapper
+└── static/                   # Static assets (HTML, CSS, JS, images)
+```
+
+<Link name="troubleshooting">
+## トラブルシューティング
+</Link>
+
+### "SubscriptionIsOverQuotaForSku" エラー
+
+Azureサブスクリプションが選択したリージョンでDynamic（Consumption）VMのクォータを持っていないことを意味します。別のリージョンを試してください：
+
+```mjs
+export default {
+  adapter: ["azure", { location: "westus2" }],
+};
+```
+
+または、[Azureポータル](https://portal.azure.com/#blade/Microsoft_Azure_Capacity/QuotaMenuBlade/overview)でクォータの増加をリクエストしてください。
+
+### "Unable to find project root" (`func` のエラー)
+
+`func` CLIは `host.json` を含むディレクトリから実行する必要があります。手動でデプロイする場合は、まず `cd .azure` を実行してください。`--deploy` フラグはこれを自動的に処理します。
+
+### デプロイ後に関数リストが空
+
+`func publish` が成功しても関数が報告されない場合、通常 `@azure/functions` が外部として保持されずにバンドルされたことを意味します。`.azure/node_modules/@azure/functions/` が存在することを確認してください。アダプタはこれを自動的に処理しますが、ビルドをカスタマイズした場合は、パッケージが外部のままであることを確認してください。
+
+### `/api/...` で404レスポンス
+
+アダプタはデフォルトの `/api/` プレフィックスを削除するために `host.json` で `routePrefix: ""` を設定しています。`/api/server` のようなパスで404が表示される場合は、`host.json` が上書きされていないか、または `host` アダプタオプションがプレフィックスを再追加していないか確認してください。
+
+### Bicepデプロイの失敗
+
+完全なAzureエラーがビルド出力に表示されます。一般的な原因：
+
+- **リージョンクォータ**: サブスクリプションがデフォルトリージョンで容量を持っていない可能性があります。別の `location` を設定してください。
+- **名前の競合**: Function App名はグローバルに一意である必要があります。より具体的な `appName` を試してください。
+- **プロバイダー未登録**: 必要なリソースプロバイダーを登録してください：
+  ```sh
+  az provider register --namespace Microsoft.Web
+  az provider register --namespace Microsoft.Storage
+  ```
+
+### Azure CLIにログインしていない
+
+"Azure CLI is not installed or you are not logged in" と表示された場合、以下を実行してください：
+
+```sh
+az login
+az account show  # Verify you're logged in
+```
+
+### コールドスタートが遅い
+
+Consumptionプランの Azure Functions は数秒のコールドスタートが発生する場合があります。より低いレイテンシのためには、`.azure/main.bicep` のBicepテンプレートをカスタマイズしてPremiumプランへのアップグレードを検討してください。

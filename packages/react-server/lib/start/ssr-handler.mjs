@@ -3,7 +3,12 @@ import { join, relative } from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { fileURLToPath } from "node:url";
 
-import { init$ as cache_init$, useCache } from "../../cache/index.mjs";
+import {
+  init$ as cache_init$,
+  dispose$ as cache_dispose$,
+  useCache,
+  StorageCache,
+} from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
@@ -44,9 +49,12 @@ import {
   RENDER_CONTEXT,
   RENDER_STREAM,
   SCROLL_RESTORATION_MODULE,
+  REQUEST_CACHE_CONTEXT,
+  REQUEST_CACHE_SHARED,
   SERVER_CONTEXT,
   SOURCEMAP_SUPPORT,
   STYLES_CONTEXT,
+  WORKER_THREAD,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 
@@ -104,7 +112,7 @@ export default async function ssrHandler(root, options = {}) {
   );
   const [
     { render },
-    { default: Component, init$: root_init$ },
+    { default: Component, init$: root_init$, warmup$: root_warmup$ },
     { default: GlobalErrorComponent },
     { default: ErrorBoundary },
     { clientReferenceMap },
@@ -123,6 +131,12 @@ export default async function ssrHandler(root, options = {}) {
     import("@lazarv/react-server/dist/server/client-reference-map"),
     import("../../cache/rsc.mjs"),
   ]);
+
+  // Warm up all route module imports in the background.
+  // This populates the ESM module cache and the loader resolve cache
+  // so the first request doesn't pay the cold-import penalty.
+  // Intentionally not awaited — runs in parallel with remaining server setup.
+  root_warmup$?.()?.catch?.(() => {});
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const clientModules = getRuntime(COLLECT_CLIENT_MODULES)?.(rootModule) ?? [];
@@ -192,6 +206,7 @@ export default async function ssrHandler(root, options = {}) {
   runtime$(IMPORT_MAP, importMap);
 
   const renderStream = createWorker();
+  const hasWorkerThread = !!getRuntime(WORKER_THREAD);
   const errorHandler = async (e) => {
     const httpStatus = getContext(HTTP_STATUS) ?? {
       status: 500,
@@ -238,9 +253,30 @@ export default async function ssrHandler(root, options = {}) {
     });
   };
 
+  // Edge mode uses a same-thread channel pair instead of a real worker thread.
+  // Detect by checking for `threadId` (present only on real Worker instances).
+  const workerThread = getRuntime(WORKER_THREAD);
+  const hasRealWorkerThread =
+    hasWorkerThread && typeof workerThread?.threadId === "number";
+
+  // Load shared cache and memory driver modules in parallel
+  const [
+    { createSharedRequestCache, createInProcessRequestCache },
+    { default: memoryDriver },
+  ] = await Promise.all([
+    import("../../cache/request-cache-shared.mjs"),
+    import("unstorage/drivers/memory"),
+  ]);
+
   return async function ssr(httpContext) {
     const noCache =
       httpContext.request.headers.get("cache-control") === "no-cache";
+
+    // Create per-request cache for "use cache: request"
+    const requestCache = new StorageCache(memoryDriver, { type: "raw" });
+    const sharedRequestCache = hasRealWorkerThread
+      ? createSharedRequestCache()
+      : createInProcessRequestCache();
 
     return new Promise((resolve, reject) => {
       try {
@@ -259,6 +295,8 @@ export default async function ssrHandler(root, options = {}) {
               [IMPORT_MAP]: importMap,
               [MEMORY_CACHE_CONTEXT]: memoryCache,
               [MANIFEST]: manifest,
+              [REQUEST_CACHE_CONTEXT]: requestCache,
+              [REQUEST_CACHE_SHARED]: sharedRequestCache,
               [REDIRECT_CONTEXT]: {},
               [COLLECT_CLIENT_MODULES]: collectClientModules,
               [CLIENT_MODULES_CONTEXT]: clientModules,
@@ -279,6 +317,7 @@ export default async function ssrHandler(root, options = {}) {
               if (!noCache) {
                 await cache_init$?.();
               }
+              cache_dispose$("request");
 
               let expiredPrerenderCache = false;
               const prerenderCacheData = getPrerender(PRERENDER_CACHE_DATA);

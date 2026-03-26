@@ -1,0 +1,715 @@
+---
+title: Lexically Scoped React Server Components
+date: 2026-03-10
+author: Viktor Lázár
+github: lazarv
+category: Advanced
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+import Subtitle from "../../../../components/Subtitle.jsx";
+
+# Lexically Scoped React Server Components
+
+<Subtitle>Deep-Nesting Client and Server Islands in a Single File</Subtitle>
+
+*A technical deep-dive into how react-server extracts inline `"use client"` and `"use server"` directives from arbitrary nesting depths, enabling true server/client island composition without file boundaries.*
+
+<Link name="abstract">
+## Abstract
+</Link>
+
+React Server Components (RSC) introduced a module-level boundary between server and client code via the `"use client"` and `"use server"` directives. By specification, these directives apply to entire modules — a file is either a client component, a server function module, or a server component. This file-level granularity forces developers to split tightly-coupled server/client logic across multiple files, creating indirection that obscures intent.
+
+This paper presents a compile-time extraction algorithm implemented in `@lazarv/react-server` that eliminates the module boundary restriction of React Server Components, allowing `"use client"` and `"use server"` directives to appear inside individual function bodies at any nesting depth. A single Vite plugin performs multi-pass outermost-first extraction, generating virtual modules connected by query-parameterized import chains. The algorithm handles lexical scope capture, module-state sharing, deeply nested directive alternation (server → client → server → …), and transparent integration with the existing RSC bundler protocol — all while working across both development and production builds.
+
+No other React framework currently supports this capability.
+
+<Link name="the-problem">
+## The Problem: File Boundaries as Architectural Constraints
+</Link>
+
+In the standard RSC model, directives are module-level declarations:
+
+```jsx
+// counter.jsx — client module
+"use client";
+import { useState } from "react";
+export function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(c => c + 1)}>Count: {count}</button>;
+}
+```
+
+```jsx
+// page.jsx — server component
+import { Counter } from "./counter";
+export default function Page() {
+  return <Counter />;
+}
+```
+
+This separation has three structural costs:
+
+1. **File proliferation.** A server component that renders one client button requires two files. A page with N distinct client islands requires N+1 files minimum.
+2. **Artificial indirection.** The logical unit — "this server page contains this interactive widget" — is scattered across the filesystem. Code navigation and comprehension suffer.
+3. **Impossible compositions.** A server function that dynamically constructs and returns different client components (e.g., a factory pattern) cannot exist — the server function and the client component must live in separate modules, so the server function cannot lexically define the client component it returns.
+
+The third point is the most significant. RSC's serialization protocol (`react-server-dom-webpack`) already supports returning client component references from server functions. The limitation is entirely in the bundler — no existing tool can extract a `"use client"` component defined inside a `"use server"` function body.
+
+<Link name="design-goals">
+## Design Goals
+</Link>
+
+The inline directive system was designed with the following invariants:
+
+1. **Arbitrary nesting.** `"use server"` inside `"use client"` inside `"use server"` (and deeper) must work. Each alternation creates a new island boundary.
+2. **Lexical scope capture.** Variables from parent function scopes must be forwarded to extracted modules — as props for client components, as bound arguments for server functions.
+3. **Module state sharing.** Top-level declarations (constants, mutable variables, class instances) must NOT be duplicated into extracted modules. Extracted modules must import them from the original module to preserve identity and mutation semantics.
+4. **Transparent RSC protocol integration.** Extracted modules must be indistinguishable from hand-written separate files to the RSC serialization layer. Client references, server references, and the manifest must all work identically.
+5. **Single-file development.** The programmer writes one file. The compiler produces the correct module graph. No code generation artifacts appear in the source tree.
+6. **Idempotent re-extraction.** When an extracted virtual module itself contains directives for the opposite boundary (the nested case), the same plugin re-processes it, producing a deeper virtual module. This must converge.
+
+<Link name="architecture">
+## Architecture Overview
+</Link>
+
+The system consists of three components:
+
+| Component | Role |
+|---|---|
+| `use-directive-inline.mjs` | Single Vite plugin. Performs AST analysis, extraction, virtual module serving, and code transformation. Generic over directive type. |
+| `use-client-inline.mjs` | Configuration object for `"use client"`. Defines how captured variables become destructured props and how call sites become `createElement` wrappers. |
+| `use-server-inline.mjs` | Configuration object for `"use server"`. Defines how captured variables become `Function.prototype.bind` arguments and how call sites become direct references. |
+
+The plugin is instantiated once with both configs:
+
+```javascript
+import useDirectiveInline from "./use-directive-inline.mjs";
+import { useClientInlineConfig } from "./use-client-inline.mjs";
+import { useServerInlineConfig } from "./use-server-inline.mjs";
+
+useDirectiveInline([useClientInlineConfig, useServerInlineConfig]);
+```
+
+This single plugin handles all directive types in a unified pass. The two configs differ only in the strategy for scope capture injection and call-site replacement.
+
+<Link name="extraction-algorithm">
+## The Extraction Algorithm
+</Link>
+
+### Phase 1: Outermost-First Discovery
+
+Given a source file, the plugin finds all functions whose body begins with a directive string literal (`"use client"` or `"use server"`). It then filters to only **outermost** directive functions — those not contained within any other directive function:
+
+```
+findOutermostDirectiveFunctions(ast, ["use client", "use server"])
+```
+
+This is critical for correctness. Consider:
+
+```jsx
+function Outer() {
+  "use client";
+  async function Inner() {
+    "use server";
+    // ...
+  }
+  // ...
+}
+```
+
+Both `Outer` and `Inner` contain directives, but only `Outer` is outermost. The plugin extracts `Outer` first. When the extracted module for `Outer` is later processed by the same plugin (it will be — see Phase 3), `Inner` will be discovered as outermost *within that module* and extracted in turn.
+
+The outermost-first invariant ensures that:
+- No function is extracted twice
+- Nested directives are handled by recursive application, not special-cased logic
+- The algorithm converges for any finite nesting depth
+
+### Phase 2: Scope Analysis
+
+For each outermost directive function, the plugin performs lexical scope analysis to determine **captured variables** — identifiers that are:
+- Referenced inside the function body
+- Declared in an intermediate function scope (not module-level, not the function's own locals)
+- Not import bindings (those are included directly in the extracted module)
+- Not top-level declarations (those are shared via import from the original module)
+
+The algorithm walks the AST from the root, maintaining a stack of scope frames. Each frame records the variables declared by function parameters and local `let`/`const`/`var`/`function`/`class` declarations. When the target function is reached, the union of all intermediate scopes is intersected with the identifiers used inside the target function.
+
+```
+scopeStack:  [App's locals]  →  [Component's locals]  →  target function
+captured  =  (App.locals ∪ Component.locals) ∩ target.usedIdentifiers
+           − importBindings − topLevelDeclarations
+```
+
+This three-way partitioning is essential:
+
+| Category | Treatment in extracted module |
+|---|---|
+| **Import bindings** | Copied verbatim as import statements |
+| **Top-level declarations** | Imported from the original file (`import { x } from "./original"`) |
+| **Captured scope variables** | Injected into the function signature |
+
+### Phase 3: Virtual Module Generation
+
+Each extracted function produces a virtual module identified by a query-parameterized URL:
+
+```
+original.jsx?use-client-inline=Counter
+original.jsx?use-server-inline=increment
+```
+
+For nested extraction (a `"use server"` inside an already-extracted `"use client"` module), query parameters are chained with `&`:
+
+```
+original.jsx?use-client-inline=Counter&use-server-inline=increment
+```
+
+The virtual module contains:
+1. The directive string (`"use client";` or `"use server";`)
+2. All import statements used by the extracted function
+3. An `import { ... } from "./original"` for any referenced top-level declarations
+4. The function body itself, with captured variables injected into the parameter list
+5. A `default` export of the function
+
+The plugin's `load` hook serves this generated code for any ID matching the query pattern. The `resolveId` hook ensures the virtual module IDs are treated as resolved, and also handles relative imports from within virtual modules by stripping query parameters from the importer path before re-resolving.
+
+### Phase 4: Call-Site Rewriting
+
+The original file is transformed: each extracted function is replaced with a reference to the virtual module. The replacement strategy differs by directive type.
+
+**For `"use server"` functions:**
+
+Without captured variables — direct import:
+```javascript
+// Before:
+async function action(data) { "use server"; /* ... */ }
+// After:
+import __action from "./file?use-server-inline=action";
+const action = __action;
+```
+
+With captured variables — `bind`:
+```javascript
+// Before:
+async function action(data) { "use server"; /* ... */ }
+// After:
+import __action from "./file?use-server-inline=action";
+const action = __action.bind(null, capturedVar1, capturedVar2);
+```
+
+The extracted module's function signature is rewritten to prepend the captured variables:
+```javascript
+// Extracted module:
+"use server";
+export default async function action(capturedVar1, capturedVar2, data) { /* ... */ }
+```
+
+At runtime, `.bind(null, capturedVar1, capturedVar2)` creates a function where the first two arguments are pre-filled, so the call site's `action(data)` becomes `action(capturedVar1, capturedVar2, data)` on the server.
+
+**For `"use client"` components:**
+
+Without captured variables — direct import (handled by default Vite resolution):
+```javascript
+// Before:
+function Counter() { "use client"; /* ... */ }
+// After:
+import Counter from "./file?use-client-inline=Counter";
+```
+
+With captured variables — `createElement` wrapper with prop injection:
+```javascript
+// Before:
+function Counter() { "use client"; /* ... */ }
+// After:
+import { createElement as __useClientCreateElement } from "react";
+import __Counter from "./file?use-client-inline=Counter";
+const Counter = (__props) => __useClientCreateElement(__Counter, { ...__props, label });
+```
+
+The extracted module's function signature is rewritten to accept captured variables as destructured props:
+```javascript
+// Extracted module:
+"use client";
+export default function Counter({ label }) { /* ... */ }
+```
+
+This ensures that captured variables flow through the RSC serialization boundary as ordinary props — no runtime protocol extensions are needed.
+
+### Phase 5: Module State Export
+
+When extracted functions reference top-level declarations from the source file, those declarations must be importable. The plugin appends a synthetic `export { ... }` statement to the original module for any top-level declarations that are used by extracted functions but not already exported.
+
+This preserves **shared module state**: if a top-level variable is mutated by the original module and read by the extracted module (or vice versa), both see the same binding because they share the same module instance via ES module import semantics.
+
+<Link name="recursive-extraction">
+## Recursive Extraction and the Deep Nesting Problem
+</Link>
+
+The most novel aspect of this system is its handling of arbitrarily deep nesting. Consider:
+
+```jsx
+import { useState, useTransition } from "react";
+
+async function getGreeting(name) {
+  "use server";
+
+  function GreetingCard({ message }) {
+    "use client";
+    const [liked, setLiked] = useState(false);
+    return (
+      <div>
+        <p>{message}</p>
+        <button onClick={() => setLiked(!liked)}>
+          {liked ? "Unlike" : "Like"}
+        </button>
+      </div>
+    );
+  }
+
+  return <GreetingCard message={`Hello, ${name}!`} />;
+}
+```
+
+Here `getGreeting` is a server function that defines `GreetingCard` as a client component and returns it rendered. This is a two-level nesting: server → client.
+
+**Step 1:** The plugin processes the source file. `getGreeting` is the outermost directive function. It is extracted to:
+
+```
+file.jsx?use-server-inline=getGreeting
+```
+
+This virtual module contains:
+```jsx
+"use server";
+import { useState } from "react";
+export default async function getGreeting(name) {
+  function GreetingCard({ message }) {
+    "use client";
+    const [liked, setLiked] = useState(false);
+    // ...
+  }
+  return <GreetingCard message={`Hello, ${name}!`} />;
+}
+```
+
+**Step 2:** Vite processes this virtual module through the same plugin. Now `GreetingCard` is discovered as an outermost `"use client"` function within this module. It is extracted to:
+
+```
+file.jsx?use-server-inline=getGreeting&use-client-inline=GreetingCard
+```
+
+The `getGreeting` module is rewritten to import `GreetingCard`:
+```jsx
+"use server";
+import GreetingCard from "file.jsx?use-server-inline=getGreeting&use-client-inline=GreetingCard";
+export default async function getGreeting(name) {
+  return <GreetingCard message={`Hello, ${name}!`} />;
+}
+```
+
+**Step 3:** The `GreetingCard` virtual module is a `"use client"` module containing no further directives. Extraction terminates.
+
+The resulting module graph:
+
+```
+file.jsx                           (server component — original)
+  └─ ?use-server-inline=getGreeting    (server function — virtual)
+       └─ ?…&use-client-inline=GreetingCard  (client component — virtual)
+```
+
+Each edge in this graph represents a boundary crossing: server ↔ client. The RSC protocol handles each crossing through its existing serialization mechanism — the extraction simply produces the module graph that makes it possible.
+
+### Convergence Proof
+
+The algorithm terminates because:
+
+1. Each extraction pass strictly reduces the number of directive functions in the source by at least one (the outermost ones are removed).
+2. The extracted module contains strictly fewer directive functions than the combined set before extraction (only the nested ones remain).
+3. The total number of directive functions across the original source is finite.
+
+Therefore the recursive extraction process has at most $O(d)$ passes where $d$ is the maximum nesting depth. Extraction cost is linear in the number of directive functions.
+
+### The `skipIfModuleDirective` Guard
+
+A subtlety: when a file has a top-level `"use client"` directive, we must NOT re-extract inline `"use client"` functions from it — the entire file is already a client module. But we MUST still extract `"use server"` functions from it.
+
+Each config declares a `skipIfModuleDirective` list:
+
+```javascript
+// use-client-inline: skip "use client" extraction from files that are already "use client"
+{ skipIfModuleDirective: ["use client"] }
+
+// use-server-inline: never skip — "use server" inside "use client" must work
+{ skipIfModuleDirective: null }
+```
+
+This allows `"use server"` functions inside `"use client"` files (top-level or inline) while preventing nonsensical double-extraction of client components.
+
+<Link name="scope-capture">
+## Scope Capture Mechanics
+</Link>
+
+### The Three-Tier Binding Classification
+
+Every identifier referenced by an extracted function falls into exactly one of three categories:
+
+```
+┌─────────────────────────────────────────┐
+│  Module scope                           │
+│  ┌─────────────────────────────────┐    │
+│  │  Import bindings:               │    │
+│  │  import { useState } from "…"   │    │ → Copied to extracted module
+│  └─────────────────────────────────┘    │
+│  ┌─────────────────────────────────┐    │
+│  │  Top-level declarations:        │    │
+│  │  const PREFIX = "Hello";        │    │ → Imported from original module
+│  └─────────────────────────────────┘    │
+│                                         │
+│  ┌─────────────────────────────────┐    │
+│  │  Function scope (parent)        │    │
+│  │  ┌───────────────────────┐      │    │
+│  │  │  Captured variables:  │      │    │
+│  │  │  const factor = 5;    │      │    │ → Injected as params/props
+│  │  └───────────────────────┘      │    │
+│  │  ┌───────────────────────┐      │    │
+│  │  │  Target function      │      │    │
+│  │  │  "use server" / etc.  │      │    │
+│  │  └───────────────────────┘      │    │
+│  └─────────────────────────────────┘    │
+└─────────────────────────────────────────┘
+```
+
+Import bindings are copied because they are stateless references to external modules. Top-level declarations are imported rather than copied to preserve **module state identity** — if the original module mutates a variable, the extracted module sees the mutation. Captured scope variables cannot be imported (they are not module-level exports) and must cross the boundary at runtime.
+
+### Capture Injection Strategies
+
+The injection strategy must differ by directive because client components and server functions cross the network boundary differently:
+
+**Server functions** use `Function.prototype.bind`:
+
+```javascript
+// Call site:
+const action = __imported_action.bind(null, capturedA, capturedB);
+
+// Extracted function signature:
+export default async function action(capturedA, capturedB, userArg) { ... }
+```
+
+`bind` prepends the captured values to every invocation. When the RSC protocol calls the server function, the bound arguments arrive first, followed by the caller's arguments. This is transparent to the caller.
+
+**Client components** use prop injection:
+
+```javascript
+// Call site:
+const MyComp = (props) => createElement(__imported_MyComp, { ...props, capturedA, capturedB });
+
+// Extracted component signature:
+export default function MyComp({ capturedA, capturedB, ...rest }) { ... }
+```
+
+Props are the natural data channel for React components. The wrapper spreads any incoming props and adds the captured variables as additional props. This preserves the component's public API while silently forwarding scope captures.
+
+### Destructuring Pattern Handling
+
+The injection must handle existing parameter patterns:
+
+| Original signature | After injection (client) | After injection (server) |
+|---|---|---|
+| `()` | `({ x, y })` | `(x, y)` |
+| `(props)` | `({ x, y, ...props })` | `(x, y, props)` |
+| `({ a, b })` | `({ x, y, a, b })` | `(x, y, { a, b })` |
+
+This is implemented via string manipulation on the function source, using the AST node positions to locate the parameter list boundaries.
+
+<Link name="lambda-lifting">
+## Lambda Lifting Interpretation
+</Link>
+
+The extraction algorithm is a specialization of **lambda lifting** (also called **closure conversion**), a classical compiler transformation studied since Johnsson (1985). In the general formulation, lambda lifting converts a nested function (closure) into a top-level function by making all free variables into explicit parameters:
+
+$$
+\text{lift}: \quad \lambda_{\text{nested}}.\, \text{body}[v_1, \dots, v_n] \;\;\longrightarrow\;\; \Lambda_{\text{top}}(v_1, \dots, v_n).\, \text{body}
+$$
+
+Where $v_1, \dots, v_n$ are the free variables of the nested function — variables referenced in its body but defined in an enclosing scope. After lifting, every call site is rewritten to pass the captured variables explicitly:
+
+$$
+f(\text{args}) \;\;\longrightarrow\;\; F(v_1, \dots, v_n, \text{args})
+$$
+
+Traditional lambda lifting operates within a single compilation unit and a single runtime. What makes the RSC case novel is that **the lifted function and its call site execute in different runtimes** — the server and the client — connected only by the RSC serialization protocol. This imposes two constraints that standard lambda lifting does not face:
+
+### Constraint 1: The Parameter Channel Must Match the Boundary Type
+
+In classical lambda lifting, captured variables are always prepended as function parameters. In our system, the transport mechanism depends on the directive:
+
+| Boundary | Classical lifting | RSC lifting |
+|---|---|---|
+| `"use server"` | $F(v_1, \dots, v_n, \text{args})$ | `F.bind(null, v₁, …, vₙ)` — partial application creates a server reference whose bound arguments are serialized into the RSC wire format |
+| `"use client"` | $F(v_1, \dots, v_n, \text{args})$ | `createElement(F, { v₁, …, vₙ, ...props })` — captured values become React props, which are serialized as part of the RSC element tree |
+
+Both are semantically equivalent to parameter passing, but they use different runtime mechanisms because server functions are invoked via RPC while client components are instantiated via `createElement`.
+
+This can be formalized as:
+
+$$
+\text{lift}_{\text{server}}(f) = \lambda(\text{args}).\; F.\text{bind}(\text{null},\, \vec{v})(\text{args})
+$$
+
+$$
+\text{lift}_{\text{client}}(C) = \lambda(\text{props}).\; \text{createElement}(C,\, \{ \vec{v},\, \dots\text{props} \})
+$$
+
+### Constraint 2: Not All Free Variables Can Be Lifted
+
+Classical lambda lifting lifts *all* free variables indiscriminately. In the RSC context, only a subset — **intermediate scope captures** — needs parameter injection. The other free variables have alternative transport paths:
+
+$$
+\text{FreeVars}(f) = \underbrace{V_{\text{import}}}_{\text{static import}} \;\cup\; \underbrace{V_{\text{top}}}_{\text{module re-import}} \;\cup\; \underbrace{V_{\text{captured}}}_{\text{parameter injection}}
+$$
+
+- $V_{\text{import}}$ (import bindings): Available in any module via static `import` statements — replicated in the extracted module. Zero runtime cost.
+- $V_{\text{top}}$ (top-level declarations): Shared via ES module re-import from the original file. Preserves reference identity and mutation visibility. Zero serialization cost.
+- $V_{\text{captured}}$ (scope captures): Must cross the runtime boundary. These are the *only* variables that undergo parameter injection.
+
+This three-way partitioning minimizes the serialization surface. Only $V_{\text{captured}}$ — variables that exist ephemerally in a parent function's stack frame — require runtime data transfer across the network boundary.
+
+### Recursive Lifting as Iterated Closure Conversion
+
+When directives nest (server → client → server → …), each extraction pass performs one round of lambda lifting. A function nested $d$ levels deep undergoes $d$ successive lifts, each one eliminating one layer of closure:
+
+$$
+f^{(0)} \xrightarrow{\text{lift}_1} f^{(1)} \xrightarrow{\text{lift}_2} \cdots \xrightarrow{\text{lift}_d} f^{(d)}
+$$
+
+At each step, the captured variables from the immediately enclosing scope are converted to parameters. The process terminates when no closures remain — when every extracted module's free variables are resolvable via static imports or module re-imports alone, i.e., $V_{\text{captured}} = \emptyset$.
+
+This is precisely the classical fixed-point characterization of lambda lifting: iterate until all nested functions have been promoted to the top level of their respective modules.
+
+<Link name="virtual-module-resolution">
+## Virtual Module Resolution
+</Link>
+
+### Query Parameter Addressing
+
+Virtual module IDs use URL query parameters to encode the extraction chain:
+
+```
+file.jsx?use-client-inline=Counter
+file.jsx?use-client-inline=Counter&use-server-inline=increment
+```
+
+The `?` introduces the first parameter; `&` separates additional parameters. This follows standard URL query syntax and avoids the ambiguity of multiple `?` characters, which would break naive `split("?")` parsing in downstream tools.
+
+### The `matchQueryKey` Function
+
+The plugin must determine which config (client vs. server) a virtual module ID belongs to. For chained IDs like `file.jsx?use-client-inline=Counter&use-server-inline=increment`, the **last** parameter determines the module's identity — it is a `"use server"` module, not a `"use client"` module.
+
+```javascript
+function matchQueryKey(id) {
+  let lastMatch = null;
+  let lastPos = -1;
+  for (const cfg of configs) {
+    for (const sep of ["?", "&"]) {
+      const marker = `${sep}${cfg.queryKey}=`;
+      const pos = id.indexOf(marker);
+      if (pos !== -1 && pos > lastPos) {
+        lastPos = pos;
+        lastMatch = { cfg, marker };
+      }
+    }
+  }
+  return lastMatch;
+}
+```
+
+### Relative Import Resolution
+
+When an extracted virtual module contains relative imports (copied from the original source), Vite's resolver cannot determine the correct directory from the query-parameterized ID. The plugin's `resolveId` hook intercepts these cases:
+
+```javascript
+async resolveId(source, importer) {
+  if (matchQueryKey(source)) return source;
+
+  if (importer && matchQueryKey(importer) &&
+      (source.startsWith("./") || source.startsWith("../"))) {
+    const cleanImporter = importer.slice(0, importer.indexOf("?"));
+    return this.resolve(source, cleanImporter, { skipSelf: true });
+  }
+}
+```
+
+This strips the query parameters from the importer to recover the real filesystem path, then delegates to Vite's normal resolution. The `{ skipSelf: true }` flag prevents infinite recursion.
+
+<Link name="build-integration">
+## Production Build Integration
+</Link>
+
+### Manifest Generation
+
+The RSC protocol requires a **client manifest** mapping module IDs to their bundled output files. For inline-extracted modules, the manifest must include entries keyed by the full query-parameterized ID:
+
+```json
+{
+  "fixtures/app.jsx?use-server-inline=getGreeting&use-client-inline=GreetingCard#default": {
+    "id": "/client/app_use-server-inline_getGreeting_use-client-inline_GreetingCard.abc123.mjs",
+    "chunks": [],
+    "name": "default",
+    "async": true
+  }
+}
+```
+
+The manifest generator must split the `buildEntry.id` on only the first `?` to separate the filesystem path from the full query string, using `indexOf("?")` rather than `split("?")` to avoid truncating chained parameters.
+
+### Server Reference Registration
+
+Server functions extracted with the `:inline:` marker in their virtual reference ID use relative specifiers for manifest registration, ensuring the lookup key matches the entry ID. The `isInlineExtracted` detection uses `[?&]use-(?:server|client|cache)-inline=` to match both first-position and chained query parameters.
+
+### SSR and Edge Builds
+
+The extracted virtual modules participate in all build targets (server, client, SSR, edge) identically. The Vite plugin's `resolveId`/`load`/`transform` hooks fire in every build phase, and the virtual module cache is shared. Client components get bundled into the client output; server functions get bundled into the server output; the RSC serialization bridge connects them.
+
+<Link name="comparison">
+## Comparison with Prior Art
+</Link>
+
+| Feature | Next.js / Standard RSC | Astro Islands | Qwik | react-server (this work) |
+|---|---|---|---|---|
+| Module-level directives | ✓ | N/A | N/A | ✓ |
+| Inline `"use client"` | ✗ | N/A | N/A | ✓ |
+| Inline `"use server"` in server components | ✓ | N/A | N/A | ✓ |
+| Inline `"use server"` in `"use client"` modules | ✗ | N/A | N/A | ✓ |
+| Inline `"use client"` in `"use server"` functions | ✗ | N/A | N/A | ✓ |
+| Arbitrary server↔client nesting | ✗ | Different model (compile-time islands) | Partial | ✓ |
+| Captured scope forwarding | N/A | N/A | ✓ (resumability) | ✓ (bind/props) |
+| Single-file island composition | ✗ | ✗ | ✓ (different model) | ✓ |
+
+Next.js supports `"use server"` inside server component function bodies but does not support `"use client"` inside any function body, nor `"use server"` inside `"use client"` modules. The module boundary is absolute.
+
+Qwik's `$` sigil (`component$`, `server$`) provides function-level extraction with automatic scope capture via its resumability model. However, Qwik uses a fundamentally different architecture (fine-grained lazy loading, no RSC protocol).
+
+This work is the first to implement arbitrary nesting of standard RSC directives within the React ecosystem.
+
+In contrast to frameworks that treat `"use client"` as a module boundary, react-server treats directives as lexically scoped boundaries, allowing the compiler to synthesize the module graph from the component structure.
+
+<Link name="examples">
+## Pattern Catalog
+</Link>
+
+### Server Action Beside Its Client UI
+
+```jsx
+import { useState, useTransition } from "react";
+
+async function subscribe(email) {
+  "use server";
+  await db.subscriptions.insert({ email });
+  return { success: true };
+}
+
+function NewsletterForm() {
+  "use client";
+  const [status, setStatus] = useState(null);
+  const [, startTransition] = useTransition();
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      const email = new FormData(e.target).get("email");
+      startTransition(async () => setStatus(await subscribe(email)));
+    }}>
+      <input name="email" type="email" required />
+      <button type="submit">Subscribe</button>
+      {status?.success && <p>Subscribed!</p>}
+    </form>
+  );
+}
+
+export default function Page() {
+  return <NewsletterForm />;
+}
+```
+
+One file. Zero indirection. The server action and the client form are extracted into separate modules at build time.
+
+### Server Factory Returning Client Components
+
+```jsx
+import { useState } from "react";
+
+async function createWidget(config) {
+  "use server";
+
+  const data = await fetchWidgetData(config);
+
+  function Widget({ items }) {
+    "use client";
+    const [selected, setSelected] = useState(null);
+    return (
+      <ul>
+        {items.map(item => (
+          <li key={item.id} onClick={() => setSelected(item.id)}>
+            {item.name} {selected === item.id && "✓"}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return <Widget items={data.items} />;
+}
+```
+
+The server function fetches data, defines a client component, and returns it rendered with the data as props. The client component hydrates and becomes fully interactive. This pattern is impossible with module-level directives.
+
+### Top-Level `"use client"` File with Inline Server Actions
+
+```jsx
+"use client";
+
+import { useState, useTransition } from "react";
+
+export default function TodoApp() {
+  const [items, setItems] = useState([]);
+  const [, startTransition] = useTransition();
+
+  async function addItem(text) {
+    "use server";
+    return { id: Date.now(), text };
+  }
+
+  return (
+    <div>
+      <button onClick={() =>
+        startTransition(async () => {
+          const item = await addItem(`item-${items.length}`);
+          setItems(prev => [...prev, item]);
+        })
+      }>
+        Add
+      </button>
+      <ul>
+        {items.map(item => <li key={item.id}>{item.text}</li>)}
+      </ul>
+    </div>
+  );
+}
+```
+
+The file-level `"use client"` makes the entire module a client component, but the inline `"use server"` function is extracted into a server module. The `skipIfModuleDirective` configuration ensures `"use server"` extraction is never skipped, regardless of the file's own directive.
+
+<Link name="conclusion">
+## Conclusion
+</Link>
+
+The inline directive extraction system transforms React Server Components from a *module-level* architecture into a *function-level* one. Developers write colocated, lexically scoped code; the compiler generates the correct module graph. The key insights are:
+
+1. **Outermost-first extraction** with recursive re-processing naturally handles arbitrary nesting without special-casing depth.
+2. **Three-tier binding classification** (imports → copy, top-level declarations → import, scope captures → inject) correctly handles all variable access patterns while preserving module state identity.
+3. **Query-parameterized virtual modules** provide a stable, composable addressing scheme for extracted functions that integrates seamlessly with Vite's module graph and the RSC manifest protocol.
+4. **Directive-specific injection strategies** (`bind` for server functions, prop injection for client components) use the natural data channels of each boundary type, requiring no protocol extensions.
+
+The result is a system where the programmer's file structure reflects logical intent, not compiler requirements. A server function and its client UI live together. A factory function defines and returns the components it creates. Islands nest inside islands. The boundaries are explicit — the directives are still there — but the granularity is the function, not the file.

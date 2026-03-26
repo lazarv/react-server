@@ -2,6 +2,7 @@ import {
   getTracer,
   getOtelContext,
   makeSpanContext,
+  isTracingEnabled,
 } from "../../../server/telemetry.mjs";
 
 // ── Human-readable middleware display names ──
@@ -40,6 +41,13 @@ export function compose(middlewares) {
       const fn = middlewares[i];
       if (!fn) return undefined;
       context.next = () => dispatch(i + 1);
+
+      // Fast path: skip all span machinery when telemetry is disabled
+      if (!isTracingEnabled()) {
+        const result = await fn(context);
+        if (result === undefined) return context.next();
+        return result;
+      }
 
       // ── Telemetry: per-middleware span ──
       const tracer = getTracer();

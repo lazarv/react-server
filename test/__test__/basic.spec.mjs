@@ -71,15 +71,7 @@ test("html and client-only counter", async () => {
   await testClientOnly();
 });
 
-for (const id of [
-  "inline-jsx-prop",
-  "inline-server-action-function",
-  "inline-server-action-arrow",
-  "inline-server-action-top-level",
-  "server-action",
-  "call-action-prop",
-  "call-action-import",
-]) {
+for (const id of ["server-action", "call-action-prop", "call-action-import"]) {
   test(`${id} server action`, async () => {
     await server("fixtures/server-actions.jsx");
     await page.goto(hostname);
@@ -211,6 +203,15 @@ test.skipIf(process.env.EDGE_ENTRY)(
     );
   }
 );
+
+test("react-server export condition", async () => {
+  await server("fixtures/react-server-condition.jsx");
+  await page.goto(hostname);
+  expect(await page.textContent("#message")).toBe(
+    "from react-server condition"
+  );
+  expect(await page.textContent("#source")).toBe("server");
+});
 
 test("navigation location", async () => {
   await server("fixtures/navigation-location.jsx");

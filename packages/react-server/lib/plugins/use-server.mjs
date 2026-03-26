@@ -11,13 +11,15 @@ export default function useServer(type, manifest) {
     name: "react-server:use-server",
     transform: {
       filter: {
-        id: /\.m?[jt]sx?$/,
+        id: /\.m?[jt]sx?(\?.*)?$/,
       },
       async handler(code, id, options) {
         const mode = this.environment.mode;
         if (!code.includes("use server")) return null;
 
-        const ast = await parse(code, id);
+        // Strip query params so the parser can determine file type from extension
+        const parseId = id.includes("?") ? id.slice(0, id.indexOf("?")) : id;
+        const ast = await parse(code, parseId);
         if (!ast) return null;
 
         const directives = ast.body
@@ -30,9 +32,14 @@ export default function useServer(type, manifest) {
             "Cannot use both 'use client' and 'use server' in the same module."
           );
 
+        // Strip query params for path operations
+        const basePath = id.includes("?") ? id.slice(0, id.indexOf("?")) : id;
         const actionId =
           mode === "build"
-            ? sys.normalizePath(relative(cwd, id)).replace(/\.m?[jt]sx?$/, "")
+            ? sys
+                .normalizePath(relative(cwd, basePath))
+                .replace(/\.m?[jt]sx?$/, "") +
+              (id.includes("?") ? id.slice(id.indexOf("?")) : "")
             : id;
         const exportNames = new Set();
         const defaultExport = ast.body.find(
@@ -170,6 +177,18 @@ export default function useServer(type, manifest) {
                 },
               };
             }),
+            // Re-export _default as default export when present
+            ...(exports.includes("_default")
+              ? [
+                  {
+                    type: "ExportDefaultDeclaration",
+                    declaration: {
+                      type: "Identifier",
+                      name: "_default",
+                    },
+                  },
+                ]
+              : []),
           ];
         } else if (this.environment?.name === "client" || !options.ssr) {
           ast.body = [
@@ -299,8 +318,10 @@ export default function useServer(type, manifest) {
           });
         }
 
-        const specifier = sys.normalizePath(relative(cwd, id));
-        const name = specifier.replace(extname(specifier), "");
+        const specifier =
+          sys.normalizePath(relative(cwd, basePath)) +
+          (id.includes("?") ? id.slice(id.indexOf("?")) : "");
+        const name = specifier.replace(extname(basePath), "");
 
         if (manifest) {
           manifest.set(name, {
@@ -317,9 +338,15 @@ export default function useServer(type, manifest) {
           });
 
           if (type !== "client") {
+            // Inline-extracted modules (with query params like ?use-server-inline=fn)
+            // need `:inline:` marker so manifestGenerator uses join(cwd, refId)
+            // for the import path, and must use the relative specifier (not
+            // absolute id) so the lookup against manifest entry.id succeeds.
+            const isInlineExtracted =
+              /[?&]use-(?:server|client|cache)-inline=/.test(id);
             this.emitFile({
               type: "chunk",
-              id: `virtual:${type}:react-server-reference:${id}`,
+              id: `virtual:${type}:react-server-reference:${isInlineExtracted ? `inline:${specifier}` : id}`,
               name,
             });
           }

@@ -46,6 +46,8 @@ import {
   RENDER_TEMPORARY_REFERENCES,
   RENDER_WAIT,
   SCROLL_RESTORATION_MODULE,
+  REQUEST_CACHE_SHARED,
+  RESPONSE_BUFFER,
   STYLES_CONTEXT,
   SERVER_FUNCTION_NOT_FOUND,
 } from "@lazarv/react-server/server/symbols.mjs";
@@ -710,20 +712,14 @@ export async function render(Component, props = {}, options = {}) {
             )?.get([context.url, "text/html", outlet, HTML_CACHE]);
             if (responseFromCacheEntries !== CACHE_MISS) {
               const [responseFromCache] = responseFromCacheEntries;
-              const stream = new ReadableStream({
-                type: "bytes",
-                async start(controller) {
-                  controller.enqueue(new Uint8Array(responseFromCache.buffer));
-                  controller.close();
-                },
+              const buffer = new Uint8Array(responseFromCache.buffer);
+              const response = new Response(buffer, {
+                status: responseFromCache.status,
+                statusText: responseFromCache.statusText,
+                headers: responseFromCache.headers,
               });
-              return resolve(
-                new Response(stream, {
-                  status: responseFromCache.status,
-                  statusText: responseFromCache.statusText,
-                  headers: responseFromCache.headers,
-                })
-              );
+              response[RESPONSE_BUFFER] = buffer;
+              return resolve(response);
             }
           }
 
@@ -928,6 +924,10 @@ export async function render(Component, props = {}, options = {}) {
             origin,
             importMap,
             body,
+            requestCacheBuffer:
+              getContext(REQUEST_CACHE_SHARED)?.buffer ??
+              getContext(REQUEST_CACHE_SHARED) ??
+              null,
             httpContext: {
               request: {
                 method: context.request.method,

@@ -16,16 +16,17 @@
     "@lazarv/react-server": "workspace:*",
     "idb-keyval": "^6.2.2",
     "picomatch": "^4.0.2",
-    "rolldown": "1.0.0-rc.8",
+    "react-server-condition-pkg": "file:fixtures/react-server-condition-pkg",
+    "rolldown": "1.0.0-rc.12",
     "tinyglobby": "^0.2.13",
     "unstorage": "^1.16.0",
-    "vite": "8.0.0-beta.18"
+    "vite": "8.0.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.53.1",
-    "@vitest/ui": "^4.1.0-beta.6",
+    "@vitest/ui": "^4.1.1",
     "npm-run-all2": "^8.0.4",
     "playwright-chromium": "^1.53.1",
-    "vitest": "^4.1.0-beta.6"
+    "vitest": "^4.1.1"
   }
 }

@@ -235,7 +235,9 @@
   background: #1e1e2e;
   color: #cdd6f4;
   padding: 1rem 1.25rem;
-  font-family: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", "Menlo", "Consolas", monospace;
+  font-family:
+    "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", "Menlo",
+    "Consolas", monospace;
   font-size: 0.95rem;
   line-height: 1.6;
   white-space: nowrap;
@@ -263,6 +265,11 @@
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }

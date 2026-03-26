@@ -10,12 +10,23 @@ const alias = moduleAliases();
 
 const cwd = sys.cwd();
 let options, outDir;
+const resolveCache = new Map();
 export async function initialize(data) {
   options = data?.options || {};
   outDir = options.outDir || ".react-server";
 }
 
 export async function resolve(specifier, context, nextResolve) {
+  const cacheKey = specifier + "\0" + (context.parentURL ?? "");
+  const cached = resolveCache.get(cacheKey);
+  if (cached) return { ...cached, shortCircuit: true };
+
+  const result = await resolveUncached(specifier, context, nextResolve);
+  resolveCache.set(cacheKey, result);
+  return result;
+}
+
+async function resolveUncached(specifier, context, nextResolve) {
   switch (specifier) {
     case "@lazarv/react-server/dist/server/preload-manifest":
       return nextResolve(

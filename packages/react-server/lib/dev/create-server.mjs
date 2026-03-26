@@ -451,6 +451,9 @@ export default async function createServer(root, options) {
         },
       },
       rsc: {
+        resolve: {
+          conditions: ["react-server"],
+        },
         dev: {
           createEnvironment: (name, config) =>
             createRunnableDevEnvironment(name, config, {
@@ -540,6 +543,77 @@ export default async function createServer(root, options) {
   });
   const viteDevServer = await createViteDevServer(viteConfig);
   viteCreateSpan.end();
+
+  // Inject a Connect-level CORS middleware at the very front of the stack so
+  // that Vite-handled requests (module transforms, static assets, HMR) also
+  // receive proper CORS headers.  The react-server CORS middleware in the
+  // composed handler chain only covers requests that reach the SSR handler,
+  // but Vite's internal middlewares respond earlier and would otherwise send
+  // responses without any Access-Control-* headers.
+  if (corsEnabled) {
+    const _serverCors = serverCors || {};
+    const _originFn =
+      typeof _serverCors.origin === "function" ? _serverCors.origin : null;
+    const _staticOrigin = _originFn ? null : (_serverCors.origin ?? "*");
+    const _credentials = _serverCors.credentials ?? false;
+
+    // unshift onto Connect's stack so this runs before all Vite-internal
+    // middlewares (which are already registered by createViteDevServer).
+    viteDevServer.middlewares.stack.unshift({
+      route: "",
+      handle: function viteCorsShim(req, res, next) {
+        const requestOrigin = req.headers.origin;
+        if (!requestOrigin) return next();
+
+        let allowed;
+        if (_originFn) {
+          // The origin function expects a context-like object; build a minimal
+          // shim that matches what the react-server CORS middleware receives.
+          allowed = _originFn({
+            request: {
+              headers: {
+                get: (name) => req.headers[name.toLowerCase()],
+              },
+            },
+          });
+        } else {
+          allowed = _staticOrigin === true ? requestOrigin : _staticOrigin;
+        }
+
+        // allowed may be a promise when using the default dynamic origin
+        Promise.resolve(allowed).then((origin) => {
+          const effectiveOrigin =
+            origin === true ? requestOrigin : origin || requestOrigin;
+          res.setHeader("access-control-allow-origin", effectiveOrigin);
+          if (_credentials) {
+            res.setHeader("access-control-allow-credentials", "true");
+          }
+          if (req.method === "OPTIONS") {
+            res.setHeader(
+              "access-control-allow-methods",
+              _serverCors.allowMethods || "GET,HEAD,PUT,PATCH,POST,DELETE"
+            );
+            const allowHeaders =
+              _serverCors.allowHeaders ||
+              req.headers["access-control-request-headers"];
+            if (allowHeaders) {
+              res.setHeader("access-control-allow-headers", allowHeaders);
+            }
+            if (_serverCors.maxAge) {
+              res.setHeader(
+                "access-control-max-age",
+                String(_serverCors.maxAge)
+              );
+            }
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+          next();
+        });
+      },
+    });
+  }
 
   if (config.envDir !== false) {
     if (globalThis.__react_server_prev_env_keys__) {

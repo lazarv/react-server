@@ -1,0 +1,10 @@
+{
+  "name": "react-server-condition-pkg",
+  "type": "module",
+  "exports": {
+    ".": {
+      "react-server": "./server.mjs",
+      "default": "./default.mjs"
+    }
+  }
+}

@@ -1249,6 +1249,9 @@ importers:
       picomatch:
         specifier: ^4.0.2
         version: 4.0.2
+      react-server-condition-pkg:
+        specifier: file:fixtures/react-server-condition-pkg
+        version: file:test/fixtures/react-server-condition-pkg
       rolldown:
         specifier: 1.0.0-rc.12
         version: 1.0.0-rc.12
@@ -10092,6 +10095,9 @@ packages:
     engines: {node: '>=14.0.0'}
     peerDependencies:
       react: 0.0.0-experimental-46103596-20260305
+
+  react-server-condition-pkg@file:test/fixtures/react-server-condition-pkg:
+    resolution: {directory: test/fixtures/react-server-condition-pkg, type: directory}
 
   react-server-dom-webpack@0.0.0-experimental-46103596-20260305:
     resolution: {integrity: sha512-2SgiuhasLeadCbu5Ddaezp2epqnqqNa+/a0mYs4lZzp4nE6Po5TDmNIwb80pOuKVNKt2qaF1AKimgX/OB9auyA==}
@@ -22310,6 +22316,8 @@ snapshots:
     dependencies:
       '@remix-run/router': 1.17.0
       react: 0.0.0-experimental-46103596-20260305
+
+  react-server-condition-pkg@file:test/fixtures/react-server-condition-pkg: {}
 
   react-server-dom-webpack@0.0.0-experimental-46103596-20260305(react-dom@0.0.0-experimental-46103596-20260305(react@0.0.0-experimental-46103596-20260305))(react@0.0.0-experimental-46103596-20260305)(webpack@5.97.1(@swc/core@1.11.21)):
     dependencies:

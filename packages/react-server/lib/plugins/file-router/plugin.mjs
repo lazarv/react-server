@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { basename, dirname, join, relative } from "node:path";
+import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parse as parseAST } from "../../utils/ast.mjs";
@@ -56,6 +57,52 @@ function source(files, rootDir, root) {
     module: sys.normalizePath(relative(root, src)),
     src: sys.normalizePath(src),
   }));
+}
+
+/**
+ * Normalize virtual routes config (object shorthand or array format) into
+ * a uniform array of { path, file, type, method?, outlet? }.
+ */
+function normalizeVirtualRoutes(routes) {
+  if (!routes) return [];
+  if (Array.isArray(routes)) {
+    return routes.map((entry) => ({
+      path: entry.path,
+      file: join(cwd, entry.file),
+      type: entry.type ?? "page",
+      method: entry.method,
+      outlet: entry.outlet,
+    }));
+  }
+  // Object shorthand: { "/path": "./file.tsx" } → type defaults to "page"
+  return Object.entries(routes).map(([path, file]) => ({
+    path,
+    file: join(cwd, file),
+    type: "page",
+  }));
+}
+
+/**
+ * Create an entry object for a virtual route with _virtual* markers.
+ * The `directory` is derived from the route path (not file location) so
+ * layout nesting works correctly.
+ */
+function virtualSource(entry) {
+  const { path, file, type, method, outlet } = entry;
+  const src = sys.normalizePath(file);
+  // directory = route path without leading slash, e.g. "/admin/dashboard" → "admin/dashboard"
+  // For root path "/" → ""
+  const directory = path.replace(/^\//, "");
+  return {
+    directory,
+    filename: basename(file),
+    module: src,
+    src,
+    _virtualPath: path,
+    _virtualType: type,
+    _virtualOutlet: outlet,
+    _virtualMethod: method,
+  };
 }
 
 const HTTP_METHODS = [
@@ -209,6 +256,7 @@ export default function viteReactServerRouter(options = {}) {
   let config = {};
   let configRoot = {};
   let sourceWatcher;
+  let virtualWatcher;
   let viteCommand;
   let viteServer;
   let logger;
@@ -293,6 +341,50 @@ export default function viteReactServerRouter(options = {}) {
     return isTypeOf(entryConfig.api, src);
   }
 
+  /**
+   * Validate and inject virtual routes into the correct entry arrays.
+   */
+  function injectVirtualRoutes(virtualRoutes) {
+    for (const vr of virtualRoutes) {
+      if (!vr.path.startsWith("/")) {
+        logger.warn(
+          `Virtual route path "${vr.path}" must start with "/". Skipping.`
+        );
+        continue;
+      }
+      if (!existsSync(vr.file)) {
+        logger.warn(
+          `Virtual route file "${vr.file}" does not exist. Skipping.`
+        );
+        continue;
+      }
+      if (vr.type === "api" && !vr.method) {
+        logger.warn(
+          `Virtual API route "${vr.path}" has no method specified. It will match all methods.`
+        );
+      }
+      const src = virtualSource(vr);
+      switch (vr.type) {
+        case "layout":
+          entry.layouts.push(src);
+          break;
+        case "middleware":
+          entry.middlewares.push(src);
+          break;
+        case "api":
+          entry.api.push(src);
+          break;
+        default:
+          // page, error, loading, fallback, template, default, state, metadata, static
+          entry.pages.push(src);
+          break;
+      }
+      logger.info(
+        `Adding source file ${colors.cyan(sys.normalizePath(relative(cwd, vr.file)))} to router ${colors.magenta(`(virtual ${vr.type})`)} 📁`
+      );
+    }
+  }
+
   function getParamCount(path) {
     let paramCount = 0;
     let context = "";
@@ -310,85 +402,105 @@ export default function viteReactServerRouter(options = {}) {
 
   function getRoutes(routes) {
     return routes
-      .map(({ directory, filename, src }) => {
-        const normalized = [];
-        let current = "";
-        let context = "";
-        const normalizedFilename = filename.replace(/^\+*/g, "");
-        for (const char of normalizedFilename) {
-          if (!context && char === "(") {
-            context = "(";
-          } else if (context === "(" && char === ")") {
-            context = "";
-          } else if (!context && char === "{") {
-            current += char;
-            context = char;
-          } else if (context === "{" && char === "}") {
-            current += char;
-            context = "";
-          } else if (!context && char === "[") {
-            current += char;
-            context = "[";
-          } else if (context === "[" && char === "]") {
-            current += char;
-            context = "";
-          } else if (!context && char === ".") {
-            if (current) {
-              normalized.push(current);
-            }
-            current = "";
-          } else if (context !== "(") {
-            current += char;
+      .map(
+        ({
+          directory,
+          filename,
+          src,
+          _virtualPath,
+          _virtualType,
+          _virtualOutlet,
+        }) => {
+          // Virtual routes: skip all filename-based path derivation
+          if (_virtualPath !== undefined) {
+            const ext = extname(filename).slice(1) || "tsx";
+            return [
+              src,
+              _virtualPath,
+              _virtualOutlet ?? null,
+              _virtualType,
+              ext,
+            ];
           }
-        }
-        if (current) {
-          normalized.push(current);
-        }
+          const normalized = [];
+          let current = "";
+          let context = "";
+          const normalizedFilename = filename.replace(/^\+*/g, "");
+          for (const char of normalizedFilename) {
+            if (!context && char === "(") {
+              context = "(";
+            } else if (context === "(" && char === ")") {
+              context = "";
+            } else if (!context && char === "{") {
+              current += char;
+              context = char;
+            } else if (context === "{" && char === "}") {
+              current += char;
+              context = "";
+            } else if (!context && char === "[") {
+              current += char;
+              context = "[";
+            } else if (context === "[" && char === "]") {
+              current += char;
+              context = "";
+            } else if (!context && char === ".") {
+              if (current) {
+                normalized.push(current);
+              }
+              current = "";
+            } else if (context !== "(") {
+              current += char;
+            }
+          }
+          if (current) {
+            normalized.push(current);
+          }
 
-        const path =
-          `/${directory}${
-            normalized[Math.max(0, normalized.length - 3)] === "index" ||
-            normalized[Math.max(0, normalized.length - 3)] === "page" ||
-            (normalized[Math.max(0, normalized.length - 2)] !== "page" &&
-              PAGE_EXTENSION_TYPES.includes(
-                normalized[Math.max(0, normalized.length - 3)]
-              ))
-              ? ""
-              : `${directory ? "/" : ""}${normalized
-                  .slice(
-                    0,
-                    normalized.filter(
-                      (segment) => !PAGE_EXTENSION_TYPES.includes(segment)
-                    ).length > 2
-                      ? Math.max(1, normalized.length - 2)
-                      : 1
+          const path =
+            `/${directory}${
+              normalized[Math.max(0, normalized.length - 3)] === "index" ||
+              normalized[Math.max(0, normalized.length - 3)] === "page" ||
+              (normalized[Math.max(0, normalized.length - 2)] !== "page" &&
+                PAGE_EXTENSION_TYPES.includes(
+                  normalized[Math.max(0, normalized.length - 3)]
+                ))
+                ? ""
+                : `${directory ? "/" : ""}${normalized
+                    .slice(
+                      0,
+                      normalized.filter(
+                        (segment) => !PAGE_EXTENSION_TYPES.includes(segment)
+                      ).length > 2
+                        ? Math.max(1, normalized.length - 2)
+                        : 1
+                    )
+                    .join("/")}`
+            }`
+              .replace(/\/\([^)]+\)/g, "")
+              .replace(/\/@[^/]*/g, "")
+              .replace(/@[^/\]]*$/g, "") || "/";
+
+          const outlet =
+            (normalized[0][0] === "@"
+              ? normalized[0]
+              : directory
+                  .split("/")
+                  .toReversed()
+                  .find((segment) => segment[0] === "@")
+            )?.slice(1) ?? null;
+          const type =
+            normalized[0][0] === "@"
+              ? "outlet"
+              : normalized[Math.max(0, normalized.length - 2)] === "page" ||
+                  !PAGE_EXTENSION_TYPES.includes(
+                    normalized[Math.max(0, normalized.length - 2)]
                   )
-                  .join("/")}`
-          }`
-            .replace(/\/\([^)]+\)/g, "")
-            .replace(/\/@[^/]*/g, "")
-            .replace(/@[^/\]]*$/g, "") || "/";
-
-        const outlet =
-          (normalized[0][0] === "@"
-            ? normalized[0]
-            : directory
-                .split("/")
-                .toReversed()
-                .find((segment) => segment[0] === "@")
-          )?.slice(1) ?? null;
-        const type =
-          normalized[0][0] === "@"
-            ? "outlet"
-            : normalized[Math.max(0, normalized.length - 2)] === "page" ||
-                !PAGE_EXTENSION_TYPES.includes(
-                  normalized[Math.max(0, normalized.length - 2)]
-                )
-              ? "page"
-              : normalized[Math.max(0, normalized.length - 2)];
-        const ext = normalized[normalized.length - 1];
-        return [src, path, outlet, type, ext];
-      })
+                ? "page"
+                : normalized[Math.max(0, normalized.length - 2)];
+          const ext = normalized[normalized.length - 1];
+          return [src, path, outlet, type, ext];
+        }
+      )
       .toSorted(
         ([, aPath, , aType], [, bPath, , bType]) =>
           aPath.includes("...") - bPath.includes("...") ||
@@ -950,6 +1062,12 @@ export default function viteReactServerRouter(options = {}) {
           root
         );
 
+        // Inject virtual routes from config
+        const virtualRoutes = normalizeVirtualRoutes(configRoot.routes);
+        if (virtualRoutes.length > 0) {
+          injectVirtualRoutes(virtualRoutes);
+        }
+
         mdxCounter = entry.pages.filter(
           (page) => page.src.endsWith(".md") || page.src.endsWith(".mdx")
         ).length;
@@ -986,6 +1104,76 @@ export default function viteReactServerRouter(options = {}) {
         config_destroy.push(() => {
           sourceWatcher.close();
         });
+
+        // Inject virtual routes from config and set up dedicated watcher
+        const virtualRoutes = normalizeVirtualRoutes(configRoot.routes);
+        if (virtualRoutes.length > 0) {
+          injectVirtualRoutes(virtualRoutes);
+
+          const virtualFilePaths = virtualRoutes
+            .filter((vr) => existsSync(vr.file))
+            .map((vr) => sys.normalizePath(vr.file));
+
+          if (virtualFilePaths.length > 0) {
+            virtualWatcher = watch(virtualFilePaths, {
+              ignoreInitial: true,
+              ...(typeof Bun !== "undefined" && { useFsEvents: false }),
+            });
+
+            virtualWatcher.on("change", (rawSrc) => {
+              const src = sys.normalizePath(rawSrc);
+              clientPageCache.delete(src);
+
+              if (viteServer) {
+                // Invalidate manifest and routes virtual modules
+                for (const moduleId of [
+                  "virtual:@lazarv/react-server/file-router/manifest",
+                  "virtual:@lazarv/react-server/routes",
+                ]) {
+                  const mod =
+                    viteServer.environments.rsc.moduleGraph.getModuleById(
+                      moduleId
+                    );
+                  if (mod) {
+                    viteServer.environments.rsc.moduleGraph.invalidateModule(
+                      mod
+                    );
+                  }
+                }
+
+                // Invalidate page wrappers that reference this source
+                Array.from(
+                  viteServer.environments.rsc.moduleGraph.urlToModuleMap.entries()
+                ).forEach(([url, mod]) => {
+                  if (
+                    url.includes(src) ||
+                    url.includes("__react_server_router_page__")
+                  ) {
+                    viteServer.environments.rsc.moduleGraph.invalidateModule(
+                      mod
+                    );
+                  }
+                });
+              }
+
+              logger.info(
+                `Virtual route file changed: ${colors.cyan(relative(cwd, src))} 🔄`
+              );
+            });
+
+            virtualWatcher.on("unlink", (rawSrc) => {
+              const src = sys.normalizePath(rawSrc);
+              logger.warn(
+                `Virtual route file deleted: ${colors.yellow(relative(cwd, src))}. The route will not work until the file is restored or the config is updated.`
+              );
+            });
+
+            config_destroy.push(() => {
+              virtualWatcher.close();
+              virtualWatcher = null;
+            });
+          }
+        }
 
         let watcherTimeout = null;
         const debouncedWarning = () => {
@@ -1363,33 +1551,46 @@ ${lazyValidateLines.join("\n")}
           ];
           const routes = [
               ${entry.api
-                .map(({ directory, filename, src }) => {
-                  const normalized = filename
-                    .replace(/^\+*/g, "")
-                    .replace(/\.\.\./g, "_dot_dot_dot_")
-                    .replace(/(\{)[^}]*(\})/g, (match) =>
-                      match.replace(/\./g, "_dot_")
-                    )
-                    .split(".");
-                  const [method, name, ext] = apiEndpointRegExp.test(filename)
-                    ? normalized
-                    : [
-                        "*",
-                        normalized[0] === "server" ? "" : normalized[0],
-                        normalized[0] === "server"
-                          ? ""
-                          : normalized.slice(1).join("."),
-                      ];
-                  const path = `/${directory}/${ext ? name : ""}`
-                    .replace(/\/+$/g, "")
-                    .replace(/_dot_dot_dot_/g, "...")
-                    .replace(/_dot_/g, ".")
-                    .replace(/(\{)([^}]*)(\})/g, "$2")
-                    .replace(/^\/+/, "/");
-                  return `["${method}", "${path}", async () => {
+                .map(
+                  ({
+                    directory,
+                    filename,
+                    src,
+                    _virtualPath,
+                    _virtualMethod,
+                  }) => {
+                    if (_virtualPath !== undefined) {
+                      return `["${_virtualMethod ?? "*"}", "${_virtualPath}", async () => {
                 return import("${src}");
               }]`;
-                })
+                    }
+                    const normalized = filename
+                      .replace(/^\+*/g, "")
+                      .replace(/\.\.\./g, "_dot_dot_dot_")
+                      .replace(/(\{)[^}]*(\})/g, (match) =>
+                        match.replace(/\./g, "_dot_")
+                      )
+                      .split(".");
+                    const [method, name, ext] = apiEndpointRegExp.test(filename)
+                      ? normalized
+                      : [
+                          "*",
+                          normalized[0] === "server" ? "" : normalized[0],
+                          normalized[0] === "server"
+                            ? ""
+                            : normalized.slice(1).join("."),
+                        ];
+                    const path = `/${directory}/${ext ? name : ""}`
+                      .replace(/\/+$/g, "")
+                      .replace(/_dot_dot_dot_/g, "...")
+                      .replace(/_dot_/g, ".")
+                      .replace(/(\{)([^}]*)(\})/g, "$2")
+                      .replace(/^\/+/, "/");
+                    return `["${method}", "${path}", async () => {
+                return import("${src}");
+              }]`;
+                  }
+                )
                 .join(",\n")}
           ].toSorted(
             ([aMethod, aPath], [bMethod, bPath]) =>
@@ -1417,12 +1618,16 @@ ${lazyValidateLines.join("\n")}
         let [path, src] = id
           .replace("virtual:__react_server_router_page__", "")
           .split("::");
+        // Virtual route files live outside rootDir — match layouts by route
+        // path only, since filesystem directory containment doesn't apply.
+        const isVirtualRoute = !`${src}/`.startsWith(`${rootDir}/`);
         const layouts = manifest.pages
           .filter(
             ([layoutSrc, layoutPath, , type]) =>
               type === "layout" &&
               path.includes(layoutPath) &&
-              `${dirname(src)}/`.includes(`${dirname(layoutSrc)}/`)
+              (isVirtualRoute ||
+                `${dirname(src)}/`.includes(`${dirname(layoutSrc)}/`))
           )
           .toSorted(
             ([a], [b]) =>

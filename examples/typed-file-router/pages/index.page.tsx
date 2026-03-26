@@ -26,6 +26,10 @@ export default index.createPage(() => {
           Route descriptors with typed <code>.Link</code> and{" "}
           <code>.href()</code>
         </li>
+        <li>
+          <a href="/virtual">Virtual routes</a> — map URL paths to files outside
+          the <code>pages/</code> directory
+        </li>
       </ul>
     </div>
   );

@@ -119,9 +119,6 @@ function saveScrollWithKey(scrollKey, x, y) {
   }
 
   const storageKey = getStorageKey(scrollKey);
-  console.debug(
-    `[ScrollRestoration] save key=${scrollKey} x=${x} y=${y} containers=${Object.keys(containers).length}`
-  );
   try {
     sessionStorage.setItem(storageKey, JSON.stringify({ x, y, containers }));
   } catch {
@@ -151,9 +148,6 @@ function evictOldEntries() {
 function ensureScrollKey(pathname) {
   if (!history.state?.__scrollKey) {
     const key = `${pathname}-${Date.now()}-${scrollKeyCounter++}`;
-    console.debug(
-      `[ScrollRestoration] ensureScrollKey: creating new key=${key} for pathname=${pathname}`
-    );
     history.replaceState({ ...history.state, __scrollKey: key }, "");
   }
   return history.state.__scrollKey;
@@ -223,10 +217,6 @@ function restoreScroll(x, y, behavior, savedContainers, maxWaitMs = 500) {
     top: y,
     ...(resolved && { behavior: resolved }),
   };
-  console.debug(
-    `[ScrollRestoration] restoreScroll start: target=(${x}, ${y}) behavior=${resolved ?? "auto"}`
-  );
-
   // Restore container scroll positions (or stash as pending)
   restoreContainers(savedContainers, resolved);
 
@@ -237,9 +227,6 @@ function restoreScroll(x, y, behavior, savedContainers, maxWaitMs = 500) {
     const reachedTarget = y === 0 || Math.abs(window.scrollY - y) <= 1;
 
     if (reachedTarget) {
-      console.debug(
-        `[ScrollRestoration] restoreScroll success: reached (${window.scrollX}, ${window.scrollY}) in ${Date.now() - start}ms`
-      );
       if (pendingContainerRestores.size === 0) {
         isRestoring = false;
       }
@@ -251,9 +238,6 @@ function restoreScroll(x, y, behavior, savedContainers, maxWaitMs = 500) {
     if (Date.now() - start < maxWaitMs) {
       requestAnimationFrame(tryRestore);
     } else {
-      console.debug(
-        `[ScrollRestoration] restoreScroll timeout: at (${window.scrollX}, ${window.scrollY}), wanted (${x}, ${y})`
-      );
       if (pendingContainerRestores.size === 0) {
         isRestoring = false;
       }
@@ -364,12 +348,7 @@ export function ScrollRestoration({ behavior } = {}) {
     let lastY = window.scrollY;
 
     function save() {
-      if (isRestoring) {
-        console.debug(
-          `[ScrollRestoration] save skipped (restoring in progress) key=${scrollKey}`
-        );
-        return;
-      }
+      if (isRestoring) return;
       saveScrollWithKey(scrollKey);
     }
 
@@ -395,9 +374,6 @@ export function ScrollRestoration({ behavior } = {}) {
       cancelAnimationFrame(rafId);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("beforeunload", save);
-      console.debug(
-        `[ScrollRestoration] cleanup: isRestoring=${isRestoring}, cached position (${lastX}, ${lastY}) for key=${scrollKey}`
-      );
       if (!isRestoring) {
         saveScrollWithKey(scrollKey, lastX, lastY);
       }
@@ -413,24 +389,13 @@ export function ScrollRestoration({ behavior } = {}) {
     if (initialized.current) return;
     initialized.current = true;
 
-    console.debug(
-      `[ScrollRestoration] mount: pathname=${pathname}, hash=${location.hash}, history.state=`,
-      history.state
-    );
-
     if (location.hash && scrollToHash(location.hash)) {
-      console.debug(
-        `[ScrollRestoration] mount: scrolled to hash ${location.hash}`
-      );
       return;
     }
 
     try {
       const scrollKey = history.state?.__scrollKey ?? pathname;
       const saved = sessionStorage.getItem(getStorageKey(scrollKey));
-      console.debug(
-        `[ScrollRestoration] mount: scrollKey=${scrollKey}, saved=${saved}`
-      );
       if (saved) {
         const { x, y, containers: savedContainers } = JSON.parse(saved);
 
@@ -441,12 +406,7 @@ export function ScrollRestoration({ behavior } = {}) {
             from: null,
             savedPosition: { x, y },
           });
-          if (result === false) {
-            console.debug(
-              `[ScrollRestoration] mount: scrollPositionHandler returned false, skipping`
-            );
-            return;
-          }
+          if (result === false) return;
           if (result && typeof result === "object") {
             const resolved = resolveBehavior(behavior);
             isRestoring = true;
@@ -475,9 +435,6 @@ export function ScrollRestoration({ behavior } = {}) {
 
         const reachedTarget = y === 0 || Math.abs(window.scrollY - y) <= 1;
         if (reachedTarget) {
-          console.debug(
-            `[ScrollRestoration] mount: synchronous restore success at (${window.scrollX}, ${window.scrollY})`
-          );
           // Only clear isRestoring if no pending container restores remain —
           // otherwise registerScrollContainer will clear it after the last one.
           if (pendingContainerRestores.size === 0) {
@@ -485,19 +442,11 @@ export function ScrollRestoration({ behavior } = {}) {
           }
         } else {
           // Page not tall enough yet — fall back to rAF polling.
-          console.debug(
-            `[ScrollRestoration] mount: synchronous restore incomplete (at ${window.scrollY}, want ${y}), falling back to rAF polling`
-          );
           restoreScroll(x, y, behavior, savedContainers);
         }
-      } else {
-        console.debug(`[ScrollRestoration] mount: no saved position found`);
       }
-    } catch (e) {
-      console.debug(
-        `[ScrollRestoration] mount: error reading saved position`,
-        e
-      );
+    } catch {
+      // ignore
     }
   }, [url, pathname, behavior]);
 
@@ -511,9 +460,6 @@ export function ScrollRestoration({ behavior } = {}) {
 
     // Hash navigation — scroll to the anchor
     if (location.hash && scrollToHash(location.hash)) {
-      console.debug(
-        `[ScrollRestoration] nav: scrolled to hash ${location.hash}`
-      );
       return;
     }
 
@@ -521,9 +467,6 @@ export function ScrollRestoration({ behavior } = {}) {
     // Default is "popstate" — pushState/replaceState set it to "push".
     const source = navigationSource;
     navigationSource = "popstate";
-    console.debug(
-      `[ScrollRestoration] nav: url=${url}, source=${source}, scrollKey=${scrollKey}`
-    );
 
     const resolved = resolveBehavior(behavior);
 
@@ -531,7 +474,6 @@ export function ScrollRestoration({ behavior } = {}) {
       // Back/forward navigation — restore saved position
       try {
         const saved = sessionStorage.getItem(getStorageKey(scrollKey));
-        console.debug(`[ScrollRestoration] nav popstate: saved=${saved}`);
         if (saved) {
           const { x, y, containers: savedContainers } = JSON.parse(saved);
 
@@ -542,12 +484,7 @@ export function ScrollRestoration({ behavior } = {}) {
               from: fromUrl,
               savedPosition: { x, y },
             });
-            if (result === false) {
-              console.debug(
-                `[ScrollRestoration] nav: scrollPositionHandler returned false, skipping`
-              );
-              return;
-            }
+            if (result === false) return;
             if (result && typeof result === "object") {
               restoreScroll(result.x, result.y, behavior, null);
               return;
@@ -557,11 +494,8 @@ export function ScrollRestoration({ behavior } = {}) {
           restoreScroll(x, y, behavior, savedContainers);
           return;
         }
-      } catch (e) {
-        console.debug(
-          `[ScrollRestoration] nav popstate: error reading saved position`,
-          e
-        );
+      } catch {
+        // ignore
       }
     }
 
@@ -572,12 +506,7 @@ export function ScrollRestoration({ behavior } = {}) {
         from: fromUrl,
         savedPosition: null,
       });
-      if (result === false) {
-        console.debug(
-          `[ScrollRestoration] nav: scrollPositionHandler returned false, skipping scroll to top`
-        );
-        return;
-      }
+      if (result === false) return;
       if (result && typeof result === "object") {
         window.scrollTo({
           left: result.x,
@@ -591,15 +520,9 @@ export function ScrollRestoration({ behavior } = {}) {
     // Query-param-only change (same pathname) — skip scroll to top by default.
     // Sort/filter changes shouldn't jump the user to the top of the page.
     const fromPathname = fromUrl?.split("?")[0];
-    if (fromPathname === pathname) {
-      console.debug(
-        `[ScrollRestoration] nav: query-param-only change, skipping scroll to top`
-      );
-      return;
-    }
+    if (fromPathname === pathname) return;
 
     // Default: scroll to top
-    console.debug(`[ScrollRestoration] nav: scrolling to top`);
     window.scrollTo({
       left: 0,
       top: 0,

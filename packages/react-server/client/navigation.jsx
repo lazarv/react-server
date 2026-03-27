@@ -31,10 +31,16 @@ import { useClient } from "./context.mjs";
 import { SearchParamsTransformContext } from "./search-params-context.mjs";
 import { isRouteDescriptor } from "../lib/create-route.jsx";
 import { buildHref } from "../lib/build-href.mjs";
+import {
+  resolveSearchUpdater,
+  applySearchObject,
+} from "../lib/search-params.mjs";
 
 export function useNavigate() {
   const { navigate } = useClient();
-  const { encode: encodeSearch } = useContext(SearchParamsTransformContext);
+  const { encode: encodeSearch, decode: decodeSearch } = useContext(
+    SearchParamsTransformContext
+  );
 
   return useCallback(
     (target, options) => {
@@ -53,13 +59,13 @@ export function useNavigate() {
         const merged = new URLSearchParams(current);
 
         if (search) {
-          for (const [k, v] of Object.entries(search)) {
-            if (v == null) {
-              merged.delete(k);
-            } else {
-              merged.set(k, String(v));
-            }
-          }
+          const searchObj = resolveSearchUpdater(
+            search,
+            current,
+            decodeSearch,
+            target
+          );
+          applySearchObject(merged, searchObj);
         }
 
         // Apply the encode transform chain
@@ -73,7 +79,7 @@ export function useNavigate() {
       // Fallback
       return navigate(target, options);
     },
-    [navigate, encodeSearch]
+    [navigate, encodeSearch, decodeSearch]
   );
 }
 

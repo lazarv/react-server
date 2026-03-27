@@ -22,7 +22,9 @@ import type * as React from "react";
  */
 export type LinkProps<T> = React.PropsWithChildren<{
   to: T;
-  search?: Record<string, unknown>;
+  search?:
+    | Record<string, unknown>
+    | ((prev: Record<string, string | string[]>) => Record<string, unknown>);
   target?: string;
   local?: boolean;
   root?: boolean;
@@ -700,8 +702,13 @@ export function useRouteSearchParams<TPath extends string, TParams, TSearch>(
 export interface RouteNavigateOptions<TParams = {}, TSearch = {}> {
   /** Path params — required when the route has dynamic segments */
   params?: TParams;
-  /** Search params — merged with the current URL search params */
-  search?: Partial<TSearch>;
+  /**
+   * Search params — merged with the current URL search params.
+   *
+   * Object form: values are merged on top of current params (null removes a key).
+   * Function form: receives decoded current search params, returns the next search object.
+   */
+  search?: Partial<TSearch> | ((prev: TSearch) => TSearch);
   outlet?: string;
   push?: boolean;
   rollback?: number;

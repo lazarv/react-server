@@ -145,17 +145,23 @@ export interface RouteDescriptor<
     ? never
     : ExtractParams<TPath> extends Record<string, never>
       ? React.FC<
-          Omit<import("../client/navigation").LinkProps<string>, "to"> & {
+          Omit<
+            import("../client/navigation").LinkProps<string>,
+            "to" | "search"
+          > & {
             to?: never;
             params?: never;
-            search?: TSearch;
+            search?: TSearch | ((prev: TSearch) => TSearch);
           }
         >
       : React.FC<
-          Omit<import("../client/navigation").LinkProps<string>, "to"> & {
+          Omit<
+            import("../client/navigation").LinkProps<string>,
+            "to" | "search"
+          > & {
             to?: never;
             params: TParams;
-            search?: TSearch;
+            search?: TSearch | ((prev: TSearch) => TSearch);
           }
         >;
 

@@ -75,20 +75,25 @@ export default function ProductList() {
       <h2>Products</h2>
       <p>
         Search params are validated with Zod via{" "}
-        <code>products.useSearchParams()</code>. The price filter is stored as{" "}
-        <code>?price=min-max</code> in the URL and decoded to{" "}
-        <code>min_price</code> / <code>max_price</code> by the route-scoped{" "}
+        <code>products.useSearchParams()</code>. Sort, price filter, and
+        pagination use <strong>functional updaters</strong> —{" "}
+        <code>search: (prev) =&gt; (...)</code> — which read the current params
+        at click time, avoiding race conditions from stale closures. The price
+        filter is stored as <code>?price=min-max</code> in the URL and decoded
+        to <code>min_price</code> / <code>max_price</code> by the route-scoped{" "}
         <code>SearchParams</code> transform before validation runs.
       </p>
 
-      {/* Sort controls */}
+      {/* Sort controls — functional updater preserves other search params */}
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
         <span>Sort:</span>
         {SORT_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             onClick={() =>
-              navigate(products, { search: { sort: opt.value, page: 1 } })
+              navigate(products, {
+                search: (prev) => ({ ...prev, sort: opt.value, page: 1 }),
+              })
             }
             style={{
               fontWeight: sort === opt.value ? "bold" : "normal",
@@ -100,8 +105,9 @@ export default function ProductList() {
         ))}
       </div>
 
-      {/* Price range filter — navigate with min_price/max_price; the encode
-          transform converts them to ?price=min-max in the URL */}
+      {/* Price range filter — functional updater preserves sort while
+          resetting page. The encode transform converts min_price/max_price
+          to ?price=min-max in the URL */}
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
         <span>Price:</span>
         {PRICE_PRESETS.map((p) => {
@@ -111,7 +117,12 @@ export default function ProductList() {
               key={p.label}
               onClick={() =>
                 navigate(products, {
-                  search: { min_price: p.min, max_price: p.max, page: 1 },
+                  search: (prev) => ({
+                    ...prev,
+                    min_price: p.min,
+                    max_price: p.max,
+                    page: 1,
+                  }),
                 })
               }
               style={{
@@ -169,7 +180,8 @@ export default function ProductList() {
         </tbody>
       </table>
 
-      {/* Pagination */}
+      {/* Pagination — functional updaters read the current page at click time,
+          avoiding stale-closure bugs when multiple clicks happen in quick succession */}
       <div
         style={{
           display: "flex",
@@ -180,7 +192,11 @@ export default function ProductList() {
       >
         <button
           disabled={safePage <= 1}
-          onClick={() => navigate(products, { search: { page: safePage - 1 } })}
+          onClick={() =>
+            navigate(products, {
+              search: (prev) => ({ ...prev, page: prev.page - 1 }),
+            })
+          }
         >
           ← Prev
         </button>
@@ -189,10 +205,47 @@ export default function ProductList() {
         </span>
         <button
           disabled={safePage >= totalPages}
-          onClick={() => navigate(products, { search: { page: safePage + 1 } })}
+          onClick={() =>
+            navigate(products, {
+              search: (prev) => ({ ...prev, page: prev.page + 1 }),
+            })
+          }
         >
           Next →
         </button>
+      </div>
+
+      {/* Functional updater on Link — the <a> href updates reactively as
+          the URL changes, and the updater runs against current params on click */}
+      <div
+        style={{
+          display: "flex",
+          gap: "0.5rem",
+          marginTop: "0.5rem",
+          alignItems: "center",
+        }}
+      >
+        <products.Link
+          search={(prev) => ({ ...prev, page: Math.max(1, prev.page - 1) })}
+          style={{
+            color: safePage <= 1 ? "gray" : "blue",
+            pointerEvents: safePage <= 1 ? "none" : undefined,
+          }}
+        >
+          ← Prev (Link)
+        </products.Link>
+        <products.Link
+          search={(prev) => ({
+            ...prev,
+            page: Math.min(totalPages || 1, prev.page + 1),
+          })}
+          style={{
+            color: safePage >= totalPages ? "gray" : "blue",
+            pointerEvents: safePage >= totalPages ? "none" : undefined,
+          }}
+        >
+          Next (Link) →
+        </products.Link>
       </div>
 
       <p style={{ color: "gray", fontSize: "0.85rem", marginTop: "1rem" }}>

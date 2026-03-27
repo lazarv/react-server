@@ -1,6 +1,7 @@
 import { buildHref } from "./build-href.mjs";
 import Link from "../client/Link.jsx";
 import SearchParamsComponent from "../client/SearchParams.jsx";
+import { validateSearchParams } from "./search-params.mjs";
 
 /**
  * Client-safe route descriptor tag.
@@ -37,6 +38,9 @@ export function createRouteFactory(useRouteParams, useRouteSearchParams) {
 
     // ── .Link component ──
     // Computes href from typed params, passes search to Link for merge mode.
+    // When search is a functional updater, wraps it so that `prev` is run
+    // through the route's validate/parse before reaching the caller — giving
+    // the updater the same coerced/defaulted values as useSearchParams().
     function TypedLink({
       params,
       search,
@@ -44,8 +48,15 @@ export function createRouteFactory(useRouteParams, useRouteSearchParams) {
       ...linkRest
     }) {
       const to = path ? buildHref(path, params) : "/";
+      let resolvedSearch = search;
+      if (typeof search === "function") {
+        resolvedSearch = (rawPrev) => {
+          const prev = validateSearchParams(rawPrev, descriptor);
+          return search(prev);
+        };
+      }
       return (
-        <Link to={to} search={search} {...linkRest}>
+        <Link to={to} search={resolvedSearch} {...linkRest}>
           {linkChildren}
         </Link>
       );

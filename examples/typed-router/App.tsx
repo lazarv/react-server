@@ -50,7 +50,9 @@ export default function App() {
               <code>SearchParams</code> decode/encode stores the product price
               filter as compact <code>?price=min-max</code> in the URL while
               exposing separate <code>min_price</code> / <code>max_price</code>{" "}
-              fields to Zod.
+              fields to Zod. <strong>Functional search updaters</strong> —{" "}
+              <code>search: (prev) =&gt; (...)</code> — allow delta updates
+              without knowing the full current state.
             </p>
 
             <nav
@@ -95,7 +97,7 @@ export default function App() {
                 style={{ color: "blue" }}
                 search={{ sort: "rating", min_price: 50, max_price: 150 }}
               >
-                Products ($50–$150)
+                Products ($50-$150)
               </router.products.Link>
               <Link to="/nonexistent" style={{ color: "blue" }}>
                 404 Page

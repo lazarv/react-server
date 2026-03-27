@@ -17,11 +17,20 @@ function getClientComponent(value) {
 }
 
 export function useMatch(path, options = {}) {
-  if (path === "*" || options.fallback) {
+  // Global fallback
+  if (path === "*" || (options.fallback && !path)) {
     if (getContext(ROUTE_MATCH)) {
       return null;
     }
     return {};
+  }
+
+  // Scoped fallback — e.g. "/user/*"
+  if (options.fallback && path) {
+    if (getContext(ROUTE_MATCH)) return null;
+    const { pathname: rawPathname } = useUrl();
+    const pathname = decodeURIComponent(rawPathname);
+    return match(path, pathname, options);
   }
 
   const { pathname: rawPathname } = useUrl();
@@ -100,6 +109,7 @@ export default function Route({
     <ClientRouteGuard
       path={path}
       exact={exact ?? false}
+      fallback={fallback ?? false}
       pathname={pathname}
       loadingComponent={loadingComponent}
       loadingElement={loadingElement}

@@ -22,6 +22,11 @@ export function createRouteFactory(useRouteParams, useRouteSearchParams) {
         path = undefined;
         fallback = true;
         options = maybeOptions ?? {};
+      } else if (pathOrOptions.endsWith("/*")) {
+        // Scoped fallback — e.g. "/user/*"
+        path = pathOrOptions;
+        fallback = true;
+        options = maybeOptions ?? {};
       } else {
         path = pathOrOptions;
         fallback = false;

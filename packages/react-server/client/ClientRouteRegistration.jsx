@@ -44,8 +44,13 @@ export default function ClientRouteRegistration({
 
   // Fallback routes are active only after hydration (when route maps are
   // populated by effects). During SSR the maps are empty, so we skip.
+  // Scoped fallbacks additionally check that the pathname matches their prefix.
+  // The fallback path is passed to isFallbackActive so that a global fallback
+  // defers to a more-specific scoped fallback when one matches.
   const active = fallback
-    ? hydrated.current && isFallbackActive(pathname)
+    ? hydrated.current &&
+      isFallbackActive(pathname, path) &&
+      (!path || !!match(path, pathname))
     : !!match(path, pathname, { exact });
 
   // When a server navigation with a loading skeleton is in-flight, hide all

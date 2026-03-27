@@ -4,51 +4,87 @@ import { match } from "../lib/route-match.mjs";
 
 const clientRoutes = new Map();
 const serverRoutes = new Map();
-let clientFallbackRoute = null;
+const clientFallbackRoutes = new Map(); // path -> { component }  (path = "/user/*" or "*")
 
 export function registerClientRoute(path, { exact, component, fallback }) {
   if (fallback) {
-    clientFallbackRoute = { component };
+    const key = path || "*"; // global fallback uses "*"
+    clientFallbackRoutes.set(key, { component });
     return () => {
-      clientFallbackRoute = null;
+      clientFallbackRoutes.delete(key);
     };
   }
   clientRoutes.set(path, { exact, component });
   return () => clientRoutes.delete(path);
 }
 
-export function registerServerRoute(path, { exact, hasLoading = false }) {
-  serverRoutes.set(path, { exact, hasLoading });
+export function registerServerRoute(
+  path,
+  { exact, fallback = false, hasLoading = false }
+) {
+  serverRoutes.set(path, { exact, fallback, hasLoading });
   return () => serverRoutes.delete(path);
 }
 
 export function matchClientRoute(pathname) {
+  // 1. Try regular routes first
   for (const [path, route] of clientRoutes) {
     const params = match(path, pathname, { exact: route.exact });
     if (params) {
       return { ...route, params, path };
     }
   }
-  // No regular client route matched — try the fallback
-  if (clientFallbackRoute) {
-    return { ...clientFallbackRoute, params: {}, path: null, fallback: true };
+
+  // 2. Try scoped fallbacks (most specific prefix first)
+  const scopedFallbacks = [...clientFallbackRoutes.entries()]
+    .filter(([key]) => key !== "*")
+    .toSorted((a, b) => b[0].length - a[0].length);
+
+  for (const [pattern, route] of scopedFallbacks) {
+    const params = match(pattern, pathname);
+    if (params) return { ...route, params, path: pattern, fallback: true };
+  }
+
+  // 3. Global fallback
+  const globalFallback = clientFallbackRoutes.get("*");
+  if (globalFallback) {
+    return { ...globalFallback, params: {}, path: null, fallback: true };
   }
   return null;
 }
 
 /**
- * Check if no regular (non-fallback) route matches the pathname.
- * Used by ClientRouteRegistration to determine if a fallback route is active.
+ * Check if a fallback route should be active for the given pathname.
+ *
+ * A fallback is active when:
+ * 1. No regular (non-fallback) route matches the pathname
+ * 2. No more-specific scoped fallback already covers the pathname
+ *    (e.g. "/user/*" beats "*" for paths under /user/)
+ *
+ * @param {string} pathname - The current pathname
+ * @param {string|undefined} fallbackPath - The caller's fallback pattern (e.g. "/user/*" or undefined for global)
  */
-export function isFallbackActive(pathname) {
+export function isFallbackActive(pathname, fallbackPath) {
+  // If any regular route matches, no fallback is active
   for (const [path, route] of clientRoutes) {
     if (match(path, pathname, { exact: route.exact })) return false;
   }
   for (const [path, route] of serverRoutes) {
-    // Skip fallback server routes (path is undefined)
-    if (!path) continue;
+    // Skip fallback server routes (global or scoped)
+    if (!path || route.fallback) continue;
     if (match(path, pathname, { exact: route.exact })) return false;
   }
+
+  // Check if a more-specific scoped fallback already covers this pathname.
+  // A scoped fallback is "more specific" if it matches and has a longer
+  // pattern than the caller's fallback.
+  const callerKey = fallbackPath || "*";
+  for (const [key] of clientFallbackRoutes) {
+    if (key === callerKey || key === "*") continue;
+    // A different scoped fallback with a longer (more specific) prefix matches
+    if (key.length > callerKey.length && match(key, pathname)) return false;
+  }
+
   return true;
 }
 
@@ -69,9 +105,9 @@ export function canNavigateClientOnly(fromPathname, toPathname) {
   // Also, if a server route matches both but with different params,
   // we need RSC to re-render with the new params.
   for (const [path, route] of serverRoutes) {
-    // Fallback server routes (path is undefined) are always active;
+    // Fallback server routes (global or scoped) are always active;
     // they never "become newly active", so skip them.
-    if (!path) continue;
+    if (!path || route.fallback) continue;
     const matchBefore = match(path, fromPathname, { exact: route.exact });
     const matchAfter = match(path, toPathname, { exact: route.exact });
     if (!matchBefore && matchAfter) return false;

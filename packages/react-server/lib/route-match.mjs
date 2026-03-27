@@ -129,7 +129,19 @@ export function parse(path) {
 }
 
 export function match(route, path, options = {}) {
-  if (route === "*") {
+  if (route === "*" || route === "/*") {
+    return {};
+  }
+
+  // Scoped fallback — "/user/*" matches any path starting with "/user/"
+  if (route.endsWith("/*")) {
+    const prefix = route.slice(0, -2); // "/user/*" → "/user"
+    const prefixSegments = prefix.split("/").filter(Boolean);
+    const pathSegments = path.split("/").filter(Boolean);
+    if (pathSegments.length < prefixSegments.length) return null;
+    for (let i = 0; i < prefixSegments.length; i++) {
+      if (pathSegments[i] !== prefixSegments[i]) return null;
+    }
     return {};
   }
 

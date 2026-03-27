@@ -237,6 +237,13 @@ export function createRoute(
   options?: Omit<RouteOptions<"*">, "exact">
 ): TypedRoute<"*", {}, {}>;
 
+/** Create a scoped fallback route — matches any URL under the given prefix */
+export function createRoute(
+  path: `${string}/*`,
+  element: React.ReactNode,
+  options?: Omit<RouteOptions<string>, "exact">
+): TypedRoute<string, {}, {}>;
+
 export function createRoute(
   element: React.ReactNode,
   options?: Omit<RouteOptions<"*">, "exact">
@@ -247,6 +254,12 @@ export function createRoute(
   path: "*",
   options?: Omit<RouteOptions<"*">, "exact">
 ): RouteDescriptor<"*", {}, {}>;
+
+/** Create a scoped fallback descriptor (no element / no `.Route`) */
+export function createRoute(
+  path: `${string}/*`,
+  options?: Omit<RouteOptions<string>, "exact">
+): RouteDescriptor<string, {}, {}>;
 
 /** Create a route descriptor (no element / no `.Route`) */
 export function createRoute<

@@ -14,6 +14,7 @@ import { RedirectBoundary } from "./RedirectBoundary.jsx";
 export default function ClientRouteGuard({
   path,
   exact,
+  fallback,
   pathname: serverPathname,
   loadingComponent,
   loadingElement,
@@ -31,9 +32,10 @@ export default function ClientRouteGuard({
   useEffect(() => {
     return registerServerRoute(path, {
       exact,
+      fallback: fallback ?? false,
       hasLoading: !!(loadingComponent || loadingElement),
     });
-  }, [path, exact, loadingComponent, loadingElement]);
+  }, [path, exact, fallback, loadingComponent, loadingElement]);
 
   // Determine which pathname to trust for visibility.
   // During a server navigation transition, pushStateSilent updates the
@@ -50,9 +52,12 @@ export default function ClientRouteGuard({
       : serverPathname;
   const pathname =
     clientPathname !== browserPathname ? serverPathname : clientPathname;
-  // Fallback routes have no path — they're active when no other route matches.
+  // Fallback routes (global or scoped) — active when no other route matches.
   // On the client, treat them as always active (server already determined the match).
-  const active = !path || !!match(path, pathname, { exact });
+  // Scoped fallbacks have a path ending with "/*" — match via prefix.
+  const active = fallback
+    ? !path || !!match(path, pathname)
+    : !path || !!match(path, pathname, { exact });
 
   // While a server navigation is in-flight to a route with a loading skeleton,
   // immediately show that skeleton and hide all other routes.  When the target

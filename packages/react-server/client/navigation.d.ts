@@ -635,6 +635,12 @@ export function createRoute(
   options?: Omit<ClientRouteOptions, "exact">
 ): RouteDescriptor<"*", {}, {}>;
 
+/** Create a scoped fallback descriptor — matches any URL under the given prefix */
+export function createRoute(
+  path: `${string}/*`,
+  options?: Omit<ClientRouteOptions, "exact">
+): RouteDescriptor<string, {}, {}>;
+
 export function createRoute(
   options?: Omit<ClientRouteOptions, "exact">
 ): RouteDescriptor<"*", {}, {}>;

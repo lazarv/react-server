@@ -44,6 +44,7 @@ function parseArgs(a, b, c) {
     v != null && typeof v === "object" && "$$typeof" in v;
 
   if (typeof a === "string") {
+    const isFallback = a === "*" || a.endsWith("/*");
     // createRoute(path, element, options?) or createRoute(path, options?)
     if (isElement(b)) {
       // element provided
@@ -51,15 +52,14 @@ function parseArgs(a, b, c) {
       return {
         path: a === "*" ? undefined : a,
         element: b,
-        fallback: a === "*",
-        ...(a === "*" ? {} : {}),
+        fallback: isFallback,
         ...opts,
       };
     }
     // No element — descriptor only
     return {
       path: a === "*" ? undefined : a,
-      fallback: a === "*",
+      fallback: isFallback,
       descriptorOnly: true,
       ...b,
     };

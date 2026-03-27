@@ -9,6 +9,7 @@ import UserPage from "./UserPage";
 import PostPage from "./PostPage";
 import ProductList from "./ProductList";
 import NotFound from "./NotFound";
+import UserNotFound from "./UserNotFound";
 import ProductPriceRange from "./StripTrackingParams";
 
 // ── Create full typed routes from descriptors + elements ──
@@ -22,6 +23,7 @@ const router = createRouter({
   user: createRoute(routes.user, <UserPage />),
   post: createRoute(routes.post, <PostPage />),
   products: createRoute(routes.products, <ProductList />),
+  userNotFound: createRoute(routes.userNotFound, <UserNotFound />),
   notFound: createRoute(routes.notFound, <NotFound />),
 });
 
@@ -99,6 +101,9 @@ export default function App() {
               >
                 Products ($50-$150)
               </router.products.Link>
+              <Link to="/user/abc/xyz" style={{ color: "orange" }}>
+                User 404 (scoped)
+              </Link>
               <Link to="/nonexistent" style={{ color: "blue" }}>
                 404 Page
               </Link>

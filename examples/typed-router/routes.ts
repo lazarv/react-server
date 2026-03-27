@@ -57,4 +57,7 @@ export const products = createRoute("/products", {
   },
 });
 
+// Scoped fallback — matches anything under /user/ when no other /user/* route matches
+export const userNotFound = createRoute("/user/*");
+
 export const notFound = createRoute("*");

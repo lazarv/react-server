@@ -59,6 +59,10 @@ pnpm react-server start
 }
 ```
 
+ルーターは仮想的な[`@lazarv/react-server/routes`](/router/define-routes#routes-module)モジュールも生成し、すべてのルートの型付きルートディスクリプタをエクスポートします — `.Link`、`.href()`、`.useParams()`、型付き`createPage` / `createLayout`ヘルパー、ブランド付きアウトレット型など。詳細は[ルートモジュール](/router/define-routes#routes-module)のドキュメントを参照してください。
+
+型付きルーティングシステムの完全なガイド — プログラム的な`createRoute` / `createRouter` API、スキーマバリデーション、軽量パース関数、型付きフック、関数型検索アップデーター、SearchParams変換を含む — については、[型付きルーター](/router/typed-router#create-route)ページを参照してください。ファイルシステムルーター固有の型付きルートについては、[ルートを定義する](/router/define-routes#typed-routes)を参照してください。
+
 <Link name="nextjs-compatibility">
 ## Next.jsとの互換性
 </Link>

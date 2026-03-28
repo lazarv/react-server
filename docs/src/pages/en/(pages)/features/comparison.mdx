@@ -1,0 +1,163 @@
+---
+title: Comparison
+category: Features
+order: 99
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Comparison
+
+This table compares `@lazarv/react-server` against other popular React frameworks and routing solutions. The comparison covers full-stack features, architecture, routing, type safety, search params, scroll restoration, and developer experience.
+
+> This comparison is maintained by the `@lazarv/react-server` team. If you find an inaccuracy, please [open an issue](https://github.com/lazarv/react-server/issues) — we want this to be fair and factual.
+
+**Legend:**
+
+- ✅ — First-class, built-in support
+- 🟡 — Partial or limited support
+- 🔶 — Possible via community plugin, workaround, or manual setup
+- 🛑 — Not supported
+
+<Link name="full-stack">
+## Full-stack features
+</Link>
+
+|  | @lazarv/react-server | Next.js | TanStack Start | React Router | Waku |
+|--|:---:|:---:|:---:|:---:|:---:|
+| React Server Components | ✅ | ✅ | 🛑 | 🟡 | ✅ |
+| Server Functions (actions) | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| SSR | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Streaming SSR | ✅ | ✅ | ✅ | ✅ | ✅ |
+| API Routes | ✅ | ✅ | ✅ | ✅ | ✅ |
+| API / Route Middleware | ✅ | ✅ | ✅ | ✅ | 🟡 |
+| Server Function Middleware | 🟡 | 🛑 | ✅ | 🛑 | 🛑 |
+| Static Site Generation | ✅ | ✅ | 🟡 | 🟡 | ✅ |
+| Partial Pre-rendering (PPR) | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
+| Response Caching (TTL) | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
+| Redirects (server) | ✅ | ✅ | ✅ | ✅ | 🟡 |
+| Rewrites (server) | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
+| Reload / Invalidation | ✅ | ✅ | ✅ | ✅ | 🛑 |
+
+<Link name="architecture">
+## Architecture
+</Link>
+
+|  | @lazarv/react-server | Next.js | TanStack Start | React Router | Waku |
+|--|:---:|:---:|:---:|:---:|:---:|
+| Open Runtime (no vendor lock-in) | ✅ | 🟡 <br/> *optimized for Vercel* | ✅ | ✅ | ✅ |
+| Vite-based | ✅ | 🛑 | ✅ | ✅ | ✅ |
+| Multiple Deploy Targets | ✅ | 🟡 | ✅ | ✅ | ✅ |
+| Micro-frontend / Remote Components | ✅ | 🔶 | 🛑 | 🛑 | 🛑 |
+| MCP Server Integration | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Worker / Multi-threaded Rendering | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Cluster Mode | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Adapter-based Deployment | ✅ | 🟡 | ✅ | ✅ | ✅ |
+
+<Link name="routing">
+## Routing
+</Link>
+
+|  | @lazarv/react-server | Next.js | TanStack Router | React Router | Waku |
+|--|:---:|:---:|:---:|:---:|:---:|
+| Nested / Layout Routes | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Code-based Routes | ✅ | 🛑 | ✅ | ✅ | 🛑 |
+| File-based Routes | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Virtual / Programmatic Routes | ✅ | 🛑 | ✅ | ✅ | 🛑 |
+| Ranked Route Matching | ✅ | ✅ | ✅ | ✅ | 🛑 |
+| Suspense Route Transitions | ✅ | ✅ | ✅ | ✅ | 🟡 |
+| Suspense Route Elements | ✅ | ✅ | ✅ | ✅ | 🟡 |
+| Error Boundary Elements | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Loading / Pending Elements | ✅ | ✅ | ✅ | ✅ | 🟡 |
+| Client-only Routes | ✅ | 🛑 | ✅ | ✅ | 🛑 |
+| Parallel Routes / Outlets | ✅ | ✅ | 🛑 | 🛑 | 🟡 |
+| Route Prefetching | ✅ | ✅ | ✅ | ✅ | 🟡 |
+| Automatic Prefetching | ✅ | ✅ | ✅ | ✅ | 🛑 |
+| Active Link Customization | ✅ | ✅ | ✅ | ✅ | 🛑 |
+| Navigation Guards / Blocker | ✅ | 🛑 | ✅ | 🟡 | 🛑 |
+| `<Form>` Component | ✅ | ✅ | 🛑 | ✅ | 🛑 |
+| Deferred / Streaming Primitives | ✅ | ✅ | ✅ | ✅ | 🟡 |
+
+<Link name="type-safety">
+## Type safety
+</Link>
+
+|  | @lazarv/react-server | Next.js | TanStack Router | React Router | Waku |
+|--|:---:|:---:|:---:|:---:|:---:|
+| Typesafe Route Paths | ✅ | 🟡 | ✅ | 🟡 | 🛑 |
+| Typesafe Path Params | ✅ | 🛑 | ✅ | ✅ | 🟡 |
+| Typesafe Navigation | ✅ | 🟡 | ✅ | 🟡 | 🛑 |
+| Typesafe Search Params | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Path Param Validation | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Path Param Coercion / Parsing | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Typed Link Components | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Typed Hooks (useParams, useSearchParams) | ✅ | 🛑 | ✅ | 🟡 | 🛑 |
+| Auto-generated Route Types (file-router) | ✅ | 🟡 | ✅ | 🛑 | 🛑 |
+| Branded Outlet Types | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Multi-library Schema Support (Zod, ArkType, Valibot) | ✅ | 🛑 | 🟡 | 🛑 | 🛑 |
+| Lightweight Parse Functions (no schema library) | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+
+<Link name="search-params">
+## Search params
+</Link>
+
+|  | @lazarv/react-server | Next.js | TanStack Router | React Router | Waku |
+|--|:---:|:---:|:---:|:---:|:---:|
+| Basic Search Params | ✅ | ✅ | ✅ | ✅ | 🟡 |
+| Search Param Hooks | ✅ | ✅ | ✅ | ✅ | 🛑 |
+| Typed Search Params | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Search Param Schema Validation | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| `<Link>` / `useNavigate` Search API (object, not string) | ✅ | 🟡 | ✅ | 🟡 | 🛑 |
+| Functional Search Updaters (`prev => next`) | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Search Param Transforms (encode/decode boundary) | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Route-scoped Search Transforms | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Custom Search Parsing/Serialization | ✅ | 🛑 | ✅ | 🔶 | 🛑 |
+
+<Link name="scroll-restoration-comparison">
+## Scroll restoration
+</Link>
+
+|  | @lazarv/react-server | Next.js | TanStack Router | React Router | Waku |
+|--|:---:|:---:|:---:|:---:|:---:|
+| Window Scroll Restoration | ✅ | 🟡 | ✅ | ✅ | 🟡 |
+| Element / Container Scroll Restoration | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Async Content Scroll Restoration | ✅ | 🛑 | ✅ | 🛑 | 🛑 |
+| Per-route Scroll Customization | ✅ | 🛑 | 🟡 | 🛑 | 🛑 |
+| Zero-flash Restoration (pre-hydration script) | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| `prefers-reduced-motion` Aware | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Hash / Anchor Scrolling | ✅ | ✅ | ✅ | ✅ | 🛑 |
+| Config-level Enable (zero code) | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Query-only Changes Preserve Scroll | ✅ | 🛑 | 🟡 | 🛑 | 🛑 |
+
+<Link name="developer-experience">
+## Developer experience
+</Link>
+
+|  | @lazarv/react-server | Next.js | TanStack Router | React Router | Waku |
+|--|:---:|:---:|:---:|:---:|:---:|
+| Zero-config File Router | ✅ | ✅ | 🟡 | 🟡 | ✅ |
+| MDX Pages | ✅ | 🔶 | 🛑 | 🛑 | 🛑 |
+| Virtual Routes Module | ✅ | 🛑 | 🟡 | 🟡 | 🛑 |
+| Route-scoped Loading / Error / Fallback Files | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
+| Route Devtools | 🛑 | 🛑 | ✅ | 🟡 | 🛑 |
+| Router Loaders (data fetching) | 🟡 <br/> *RSC as loaders* | ✅ | ✅ | ✅ | 🛑 |
+| SWR / Stale-While-Revalidate Caching | 🟡 <br/> *`"use cache"`* | ✅ | ✅ | 🛑 | 🛑 |
+| Route Masking | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
+| Typesafe Route Context | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
+| Route Mount / Unmount Events | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
+
+<Link name="notes">
+## Notes
+</Link>
+
+`@lazarv/react-server` is a full React Server Components runtime — not just a router. The routing system is deeply integrated with RSC streaming, server functions, and the Vite build pipeline. This means features like typed routes, client-only routes, and server-side validation work end-to-end without glue code.
+
+### Key architectural differences
+
+- **RSC-native**: Unlike routers that bolt RSC support on top, `@lazarv/react-server` was built from the ground up for React Server Components. Every route can mix server and client components freely.
+- **Client-only routes**: Pages with `"use client"` in the file-system router are automatically client-only — navigation skips the server entirely. No configuration needed, and component state is preserved across navigations via React's `<Activity>` component.
+- **Schema-agnostic validation**: Route params and search params can be validated with any schema library (Zod, ArkType, Valibot) or lightweight parse functions — the runtime detects the validation strategy automatically.
+- **RSC as route loaders**: In `@lazarv/react-server`, React Server Components *are* the route loaders. Each server component fetches its own data with `async/await` — no separate loader API, no waterfall chains, no `useLoaderData` hooks. RSC's streaming model with automatic Suspense boundaries provides the same deferred loading experience without an extra abstraction layer. Combined with `"use cache"` for stale-while-revalidate caching, this covers the same use cases as dedicated router loaders and SWR — but with less boilerplate.
+- **No devtools yet**: Route devtools are planned. The tradeoff today is that the typed route system provides compile-time safety that catches most routing errors before they reach the browser.
+- **Outlets vs. parallel routes**: `@lazarv/react-server` uses named outlets (`@sidebar`, `@content`) rendered as typed props to layouts. This is functionally similar to Next.js parallel routes but with stronger typing — each outlet is a branded React element that prevents accidentally swapping outlets.
+- **Waku**: Waku is another RSC-native framework built on Vite, but takes a deliberately minimal approach. It provides basic file-based routing with layouts and RSC support, but lacks the typed routing system, search param handling, scroll restoration, middleware, and most advanced routing features. Waku's `Link` component supports basic `scroll` and `prefetchOnEnter`/`prefetchOnView` props, but most of its router API is still marked as `unstable_`. Waku is a good choice for simple RSC applications that don't need advanced routing.

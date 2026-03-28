@@ -1,0 +1,227 @@
+---
+title: Scroll restoration
+category: Router
+order: 12
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Scroll restoration
+
+`@lazarv/react-server` includes a complete scroll restoration system that handles window scroll, nested scrollable containers, hash navigation, and async content — with zero-flash restoration on page reload, automatic `prefers-reduced-motion` support, and per-route customization hooks.
+
+<Link name="getting-started">
+## Getting started
+</Link>
+
+The fastest way to enable scroll restoration is through the config file:
+
+```js filename="react-server.config.mjs"
+export default {
+  scrollRestoration: true,
+};
+```
+
+This injects an early-restore script into `<head>` (runs before React hydrates — no flash) and auto-renders the `<ScrollRestoration>` component with default settings.
+
+You can also pass options:
+
+```js filename="react-server.config.mjs"
+export default {
+  scrollRestoration: {
+    behavior: "smooth", // "auto" | "smooth" | "instant"
+  },
+};
+```
+
+<Link name="component">
+## ScrollRestoration component
+</Link>
+
+For more control, render the component yourself in a client component instead of using the config option:
+
+```tsx
+"use client";
+
+import { ScrollRestoration } from "@lazarv/react-server/navigation";
+
+export default function App({ children }) {
+  return (
+    <>
+      <ScrollRestoration behavior="smooth" />
+      {children}
+    </>
+  );
+}
+```
+
+Place `<ScrollRestoration>` once at the top level of your app. It handles:
+
+- **Forward navigation** (link clicks) — scrolls to top, or to `#hash` target if present
+- **Back/forward** (browser buttons) — restores the saved scroll position
+- **Page refresh** — restores saved position with no visible flash
+- **Query-only changes** — preserves scroll position (sort/filter operations don't jump to top)
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `behavior` | `"auto" \| "smooth" \| "instant"` | `"auto"` | Scroll behavior passed to `window.scrollTo()`. Automatically falls back to `"auto"` when the user has `prefers-reduced-motion` enabled |
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+Scroll positions are saved to `sessionStorage` keyed by a unique scroll key per history entry. On each navigation:
+
+1. The current scroll position is saved (window + all registered containers)
+2. If navigating forward — scroll to top (or `#hash` target)
+3. If navigating back/forward — restore saved position from `sessionStorage`
+
+On page refresh, an early script in `<head>` runs before React hydrates and synchronously restores the saved position — preventing the flash-of-wrong-position that plagues most SPA scroll restoration solutions.
+
+For async content (Suspense boundaries, Activity transitions), the component retries scroll restoration using `requestAnimationFrame` polling until the page is tall enough to reach the target position, up to 500ms.
+
+**Storage management:** When `sessionStorage` quota is exceeded, the oldest ~50% of scroll entries are automatically evicted.
+
+<Link name="scroll-containers">
+## Nested scroll containers
+</Link>
+
+Use `useScrollContainer` to register nested scrollable elements (sidebars, chat panels, data tables) for automatic save/restore alongside the window scroll:
+
+```tsx
+"use client";
+
+import { useRef } from "react";
+import { useScrollContainer } from "@lazarv/react-server/navigation";
+
+export function Sidebar() {
+  const ref = useRef(null);
+  useScrollContainer("sidebar", ref);
+
+  return (
+    <nav ref={ref} style={{ overflow: "auto", height: "100vh" }}>
+      {/* sidebar content */}
+    </nav>
+  );
+}
+```
+
+The `id` must be unique and stable across navigations and page reloads. When the user navigates away and presses Back, both the window scroll and the sidebar scroll are restored to their saved positions.
+
+If the container element isn't mounted yet when restoration occurs (e.g. inside a Suspense boundary), the target position is deferred and applied as soon as the container registers.
+
+You can also use the imperative API for non-React contexts:
+
+```tsx
+import {
+  registerScrollContainer,
+  unregisterScrollContainer,
+} from "@lazarv/react-server/navigation";
+
+// Register
+registerScrollContainer("chat-messages", element);
+
+// Cleanup
+unregisterScrollContainer("chat-messages");
+```
+
+<Link name="custom-scroll-behavior">
+## Custom scroll behavior
+</Link>
+
+Use `useScrollPosition` to customize scroll behavior per route. The handler is called on every navigation and can override or suppress scrolling:
+
+```tsx
+"use client";
+
+import { useCallback } from "react";
+import { useScrollPosition } from "@lazarv/react-server/navigation";
+
+export default function ScrollConfig() {
+  useScrollPosition(
+    useCallback(({ to, from, savedPosition }) => {
+      const toPath = to.split("?")[0];
+      const fromPath = from?.split("?")[0];
+
+      // Skip scrolling for modal routes
+      if (toPath.startsWith("/modal")) return false;
+
+      // Keep scroll position when switching dashboard tabs
+      if (
+        toPath.startsWith("/dashboard/") &&
+        fromPath?.startsWith("/dashboard/")
+      ) {
+        return false;
+      }
+
+      // Scroll to a custom position
+      if (toPath === "/gallery") return { x: 0, y: 200 };
+
+      // Use default behavior (restore on back/forward, top on forward nav)
+      return undefined;
+    }, [])
+  );
+
+  return null;
+}
+```
+
+**Handler parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `to` | `string` | The URL being navigated to (path + search, e.g. `"/products?sort=price"`) |
+| `from` | `string \| null` | The URL being navigated from, or `null` on initial page load |
+| `savedPosition` | `{ x: number, y: number } \| null` | Saved position from `sessionStorage` (on back/forward), or `null` (on forward nav) |
+
+**Return values:**
+
+| Return | Effect |
+|--------|--------|
+| `{ x, y }` | Scroll to the specified position |
+| `false` | Skip scrolling entirely |
+| `undefined` / `null` | Fall back to default behavior |
+
+Only the most recently registered handler is active. The handler is automatically unregistered when the component unmounts.
+
+<Link name="hash-navigation">
+## Hash navigation
+</Link>
+
+When the URL contains a `#hash`, scroll restoration automatically scrolls to the target element using `element.scrollIntoView()`. It looks up the element by `id` first, then falls back to `[name="..."]`. Hash scrolling takes priority over all other scroll behavior — including `useScrollPosition` handlers.
+
+<Link name="accessibility">
+## Accessibility
+</Link>
+
+The scroll restoration system respects the `prefers-reduced-motion` media query. When the user has requested reduced motion, `"smooth"` behavior is automatically downgraded to `"auto"` (instant scroll). This applies to both window scroll and container scroll restoration.
+
+<Link name="api-reference">
+## API reference
+</Link>
+
+All scroll restoration exports are available from `@lazarv/react-server/navigation`.
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `ScrollRestoration` | Component | Renders nothing visible. Manages scroll save/restore lifecycle. Props: `{ behavior? }` |
+| `useScrollPosition` | Hook | Register a per-route scroll behavior handler. Accepts `(params) => ScrollPosition \| false \| undefined` |
+| `useScrollContainer` | Hook | Register a scrollable element for save/restore. Accepts `(id: string, ref: RefObject<HTMLElement>)` |
+| `registerScrollContainer` | Function | Imperative container registration. Accepts `(id: string, element: HTMLElement)` |
+| `unregisterScrollContainer` | Function | Remove a registered container. Accepts `(id: string)` |
+
+**Config option:**
+
+```js filename="react-server.config.mjs"
+export default {
+  // Enable with defaults
+  scrollRestoration: true,
+
+  // Or configure behavior
+  scrollRestoration: {
+    behavior: "smooth", // "auto" | "smooth" | "instant"
+  },
+};
+```

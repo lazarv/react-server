@@ -24,11 +24,15 @@ export default function ClientRouteRegistration({
 }) {
   const initialChildren = useRef(children);
   const hydrated = useRef(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [mounted, setMounted] = useState(!!children);
 
-  // Register the route in the client store
+  // Register the route in the client store.
+  // For fallback routes, also trigger a re-render via state so the component
+  // transitions from server-rendered content to client-managed behaviour.
   useEffect(() => {
     hydrated.current = true;
+    if (fallback) setIsHydrated(true);
     return registerClientRoute(path, { exact, component, fallback });
   }, [path, exact, component, fallback]);
 
@@ -48,7 +52,7 @@ export default function ClientRouteRegistration({
   // The fallback path is passed to isFallbackActive so that a global fallback
   // defers to a more-specific scoped fallback when one matches.
   const active = fallback
-    ? hydrated.current &&
+    ? isHydrated &&
       isFallbackActive(pathname, path) &&
       (!path || !!match(path, pathname))
     : !!match(path, pathname, { exact });
@@ -59,10 +63,20 @@ export default function ClientRouteRegistration({
   const pendingHasLoading = getPendingHasLoading();
   const hiddenByPending = !!(pendingTarget && pendingHasLoading);
 
-  // Fallback routes always re-render when active (the UI depends on the
-  // current pathname, so a cached instance would be stale). Skip Activity
-  // state preservation and mount/unmount directly.
+  // Fallback routes: show server-rendered content before hydration,
+  // then switch to client-managed rendering once the route store is
+  // populated and we can determine fallback priority correctly.
   if (fallback) {
+    if (!isHydrated) {
+      // Before hydration, preserve server-rendered content (if any)
+      // so SSR output is visible and hydration doesn't mismatch.
+      if (initialChildren.current) {
+        return <RedirectBoundary>{initialChildren.current}</RedirectBoundary>;
+      }
+      return null;
+    }
+    // After hydration — clear initial children, use dynamic rendering.
+    initialChildren.current = null;
     if (!active || hiddenByPending) return null;
     return <RedirectBoundary>{createElement(component)}</RedirectBoundary>;
   }

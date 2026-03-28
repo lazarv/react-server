@@ -71,7 +71,7 @@ export default function Route({
         component={clientComponent}
         pathname={pathname}
       >
-        {params && !fallback ? (element ?? <>{children}</>) : null}
+        {params ? (element ?? <>{children}</>) : null}
       </ClientRouteRegistration>
     );
   }

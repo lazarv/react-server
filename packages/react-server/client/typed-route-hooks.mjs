@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { match } from "../lib/route-match.mjs";
 import { applyParsers } from "../lib/apply-parsers.mjs";
+import { safeValidate } from "../lib/safe-validate.mjs";
 import {
   useLocation,
   useSearchParams as useClientSearchParams,
@@ -32,8 +33,8 @@ export function useRouteParams(route) {
   return useMemo(() => {
     if (!raw) return null;
     if (route.validate?.params) {
-      const result = route.validate.params.safeParse(raw);
-      return result.success ? result.data : null;
+      const result = safeValidate(route.validate.params, raw, null);
+      return result.success ? result.data : result.fallback;
     }
     if (route.parse?.params) {
       return applyParsers(raw, route.parse.params);
@@ -80,8 +81,8 @@ export function useRouteSearchParams(route) {
   return useMemo(() => {
     if (!raw) return {};
     if (route.validate?.search) {
-      const result = route.validate.search.safeParse(raw);
-      return result.success ? result.data : {};
+      const result = safeValidate(route.validate.search, raw, {});
+      return result.success ? result.data : result.fallback;
     }
     if (route.parse?.search) {
       return applyParsers(raw, route.parse.search);

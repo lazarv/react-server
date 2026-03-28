@@ -23,21 +23,56 @@ export type ExtractParams<T extends string> =
       ? { [K in P]: string } & ExtractParams<R>
       : {};
 
-// ── Zod-like schema interface (minimal structural typing) ──
+// ── Schema interface (structural typing — works with Zod, ArkType, Valibot, etc.) ──
 
 /**
- * Minimal interface matching Zod's `.safeParse()` / `.parse()` API.
- * Any schema library with this shape will work.
+ * Schema with Zod / Valibot-style `.safeParse()` + `.parse()`.
  */
-export interface ValidateSchema<T = any> {
+export interface SafeParseSchema<T = any> {
   parse(data: unknown): T;
   safeParse(
     data: unknown
   ): { success: true; data: T } | { success: false; error: unknown };
 }
 
+/**
+ * Schema with ArkType-style `.assert()` (throws on failure, returns `T`).
+ */
+export interface AssertSchema<T = any> {
+  assert(data: unknown): T;
+}
+
+/**
+ * Schema with a generic `.parse()` that throws on failure.
+ */
+export interface ParseSchema<T = any> {
+  parse(data: unknown): T;
+}
+
+/**
+ * Any schema that exposes at least one recognized validation method.
+ *
+ * Supported patterns (tried in this order at runtime):
+ * 1. `.safeParse()` — Zod, Valibot
+ * 2. `.assert()` — ArkType
+ * 3. `.parse()` — generic fallback
+ *
+ * You can use any library whose schema objects satisfy one of these shapes.
+ */
+export type ValidateSchema<T = any> =
+  | SafeParseSchema<T>
+  | AssertSchema<T>
+  | ParseSchema<T>;
+
 /** Infer the output type of a ValidateSchema */
-export type InferSchema<T> = T extends ValidateSchema<infer U> ? U : never;
+export type InferSchema<T> =
+  T extends SafeParseSchema<infer U>
+    ? U
+    : T extends AssertSchema<infer U>
+      ? U
+      : T extends ParseSchema<infer U>
+        ? U
+        : never;
 
 // ── Route options ──
 

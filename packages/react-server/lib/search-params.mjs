@@ -1,4 +1,5 @@
 import { applyParsers } from "./apply-parsers.mjs";
+import { safeValidate } from "./safe-validate.mjs";
 
 /**
  * Convert URLSearchParams to a plain object.
@@ -18,14 +19,14 @@ export function searchParamsToObject(sp) {
  * Mirrors the logic in `useRouteSearchParams` but works outside of hooks.
  *
  * @param {Record<string, string | string[]>} raw
- * @param {{ validate?: { search?: { safeParse: Function } }, parse?: { search?: Record<string, Function> } } | null} route
+ * @param {{ validate?: { search?: object }, parse?: { search?: Record<string, Function> } } | null} route
  * @returns {Record<string, unknown>}
  */
 export function validateSearchParams(raw, route) {
   if (!route) return raw;
   if (route.validate?.search) {
-    const result = route.validate.search.safeParse(raw);
-    return result.success ? result.data : raw;
+    const result = safeValidate(route.validate.search, raw, raw);
+    return result.success ? result.data : result.fallback;
   }
   if (route.parse?.search) {
     return applyParsers(raw, route.parse.search);

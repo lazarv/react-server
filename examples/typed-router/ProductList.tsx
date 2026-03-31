@@ -56,7 +56,13 @@ export default function ProductList() {
   // through the Zod schema in routes.ts. min_price and max_price come from
   // the decoded ?price=min-max — the ProductPriceRange SearchParams transform
   // in App.tsx splits that into separate params before Zod sees them.
-  const { sort, page, min_price, max_price } = products.useSearchParams();
+  const {
+    sort,
+    page: rawPage,
+    min_price,
+    max_price,
+  } = products.useSearchParams();
+  const page = rawPage ?? 1;
   const navigate = useNavigate();
 
   const sorted = sortItems(ITEMS, sort);

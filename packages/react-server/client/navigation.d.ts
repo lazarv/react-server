@@ -579,6 +579,41 @@ export function useScrollContainer(
   ref: React.RefObject<HTMLElement>
 ): void;
 
+// ── Route resource registration (client-only navigation) ──
+
+import type { RouteResourceBinding, RouteResource } from "../server/router";
+
+/**
+ * Register resource bindings for a route path on the client side.
+ *
+ * When a client-only navigation matches the path, the registered resources
+ * are loaded in parallel **before** the component renders — eliminating the
+ * waterfall that would occur if the component's `.use()` call triggered
+ * the loader.
+ *
+ * Call this at module level in a `"use client"` module (alongside your
+ * client-side resource loaders).
+ *
+ * @param path - Route path pattern (e.g. `"/todos"`)
+ * @param resources - Array of resource bindings (from `.from()`) or bare descriptors
+ * @returns Cleanup function that unregisters the bindings
+ *
+ * @example
+ * ```ts
+ * "use client";
+ * import { registerRouteResources } from "@lazarv/react-server/navigation";
+ * import { todos } from "./resources.client";
+ *
+ * registerRouteResources("/todos", [
+ *   todos.from((_, search) => ({ filter: search.filter ?? "all" })),
+ * ]);
+ * ```
+ */
+export function registerRouteResources(
+  path: string,
+  resources: (RouteResourceBinding | RouteResource)[]
+): () => void;
+
 // ── Typed route definitions & hooks ──
 
 import type {

@@ -334,6 +334,12 @@ export default async function createServer(root, options) {
           ),
         },
         {
+          find: /^@lazarv\/react-server\/resources$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/resources.jsx")
+          ),
+        },
+        {
           find: /^@lazarv\/react-server\/prerender$/,
           replacement: sys.normalizePath(
             join(sys.rootDir, "server/prerender.jsx")
@@ -418,6 +424,12 @@ export default async function createServer(root, options) {
                         join(sys.rootDir, "client/route.mjs")
                       ),
                     },
+                    {
+                      find: /^@lazarv\/react-server\/resources$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/resource.mjs")
+                      ),
+                    },
                   ],
                 },
               },
@@ -438,6 +450,12 @@ export default async function createServer(root, options) {
                       find: /^@lazarv\/react-server\/router$/,
                       replacement: sys.normalizePath(
                         join(sys.rootDir, "client/route.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/resources$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/resource.mjs")
                       ),
                     },
                     {

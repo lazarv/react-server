@@ -13,6 +13,7 @@ import {
 import {
   canNavigateClientOnly,
   hasLoadingForPath,
+  loadRouteResources,
 } from "./client-route-store.mjs";
 import { runNavigationGuards } from "./client-navigation.mjs";
 import {
@@ -293,6 +294,12 @@ const navigateOutlet = async (
     // loading skeleton is removed.
     abort(PAGE_ROOT, new FlightNavigationAbortError());
     clearPendingNavigation();
+
+    // Start loading route-bound resources before the URL update so data
+    // is already in flight (or cached) when the component renders and
+    // calls .use().  Fire-and-forget — the component's React.use() will
+    // suspend on the same thenable if the data isn't ready yet.
+    loadRouteResources(toPathname, targetUrl.search);
 
     outlets.set(outlet, to);
     if (push !== false) {

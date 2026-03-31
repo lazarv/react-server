@@ -1,10 +1,20 @@
 "use client";
 
-import { Activity, createElement, useEffect, useRef, useState } from "react";
+import {
+  Activity,
+  Suspense,
+  createElement,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { match } from "../lib/route-match.mjs";
+import { addPendingHydration } from "../lib/create-resource.jsx";
 import {
   registerClientRoute,
+  registerRouteResources,
   isFallbackActive,
 } from "./client-route-store.mjs";
 import {
@@ -20,12 +30,72 @@ export default function ClientRouteRegistration({
   fallback,
   component,
   pathname: serverPathname,
+  loadingComponent,
+  loadingElement,
+  resources,
+  hydrationData,
   children,
 }) {
   const initialChildren = useRef(children);
   const hydrated = useRef(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [mounted, setMounted] = useState(!!children);
+
+  // Client resources: defer component rendering until after hydration.
+  // During SSR, the component must NOT render — its .use() calls would
+  // execute client-only loaders that may depend on browser APIs.
+  //
+  // Exception: dual-loader resources with hydrationData. The server already
+  // loaded the data and injected it into the descriptor thenable caches
+  // (below), so .use() returns synchronously — no loader, no suspension.
+  const hasClientResources = !!resources?.length;
+  const hasHydrationData = !!hydrationData?.length;
+  const [clientResourcesReady, setClientResourcesReady] = useState(
+    !hasClientResources || hasHydrationData
+  );
+
+  // Inject hydration data into resource descriptors' thenable caches.
+  // For dual-loader resources, the server already loaded the data and
+  // passed it as hydrationData. Injecting into the thenable cache means
+  // .use() finds it immediately — no loader call, no suspension.
+  //
+  // The resources array may contain client reference entries that resolve
+  // to bindings (or arrays of bindings) on the client. Flatten and inject
+  // into every descriptor that has `_injectHydration`. If the client
+  // references haven't resolved yet, fall back to the global pending store.
+  const hydrationInjected = useRef(false);
+  if (hasHydrationData && !hydrationInjected.current) {
+    hydrationInjected.current = true;
+    // Flatten resolved client resources — entries may be arrays or single bindings.
+    const flat = Array.isArray(resources)
+      ? resources.flat
+        ? resources.flat()
+        : resources
+      : resources
+        ? [resources]
+        : [];
+    let injected = false;
+    for (const binding of flat) {
+      if (binding?.resource?._injectHydration) {
+        binding.resource._injectHydration(hydrationData);
+        injected = true;
+      }
+    }
+    // Fallback — resources not yet resolved (e.g. module chunk loading).
+    // Push into global store; `.use()` matches by cache key.
+    if (!injected) {
+      addPendingHydration(hydrationData);
+    }
+  }
+
+  // Memoize the loading fallback element so it's referentially stable
+  const loading = useMemo(
+    () =>
+      loadingComponent
+        ? createElement(loadingComponent)
+        : loadingElement || null,
+    [loadingComponent, loadingElement]
+  );
 
   // Register the route in the client store.
   // For fallback routes, also trigger a re-render via state so the component
@@ -35,6 +105,27 @@ export default function ClientRouteRegistration({
     if (fallback) setIsHydrated(true);
     return registerClientRoute(path, { exact, component, fallback });
   }, [path, exact, component, fallback]);
+
+  // Register route-resource bindings for client-only navigation.
+  // `resources` may be:
+  // - A client reference resolving to [{ resource, mapFn }, ...]
+  // - A plain array of client reference entries, each resolving to a
+  //   single binding or an array of bindings — flatten for registration.
+  useEffect(() => {
+    if (resources?.length && path) {
+      const flat = resources.flat ? resources.flat() : resources;
+      return registerRouteResources(path, flat);
+    }
+  }, [path, resources]);
+
+  // After hydration, allow client-resource routes to render their component.
+  // This triggers a re-render: the component mounts, .use() fires, Suspense
+  // shows the loading fallback while data loads, then the content appears.
+  useEffect(() => {
+    if (hasClientResources) {
+      setClientResourcesReady(true);
+    }
+  }, [hasClientResources]);
 
   // Determine which pathname to trust for visibility (same logic as
   // ClientRouteGuard — see comments there for full explanation).
@@ -78,7 +169,31 @@ export default function ClientRouteRegistration({
     // After hydration — clear initial children, use dynamic rendering.
     initialChildren.current = null;
     if (!active || hiddenByPending) return null;
-    return <RedirectBoundary>{createElement(component)}</RedirectBoundary>;
+    const fallbackContent = createElement(component);
+    return loading ? (
+      <Suspense fallback={loading}>
+        <RedirectBoundary>{fallbackContent}</RedirectBoundary>
+      </Suspense>
+    ) : (
+      <RedirectBoundary>{fallbackContent}</RedirectBoundary>
+    );
+  }
+
+  // Client-resource routes: during SSR and hydration, show the loading
+  // fallback instead of rendering the component. This prevents client-only
+  // loaders from executing on the server (they may use browser-only APIs).
+  // After the clientResourcesReady effect fires, the component mounts normally.
+  // Wrapped in Activity so it's only visible when the route is active.
+  if (!clientResourcesReady) {
+    initialChildren.current = null;
+    const fallbackContent = loading ? (
+      <RedirectBoundary>{loading}</RedirectBoundary>
+    ) : null;
+    return (
+      <Activity mode={active && !hiddenByPending ? "visible" : "hidden"}>
+        {fallbackContent}
+      </Activity>
+    );
   }
 
   // Mount the component on first visit, then keep it alive
@@ -99,9 +214,20 @@ export default function ClientRouteRegistration({
     content = createElement(component);
   }
 
+  // Wrap in Suspense when a loading skeleton is configured.
+  // When the component calls .use() and suspends (e.g. waiting for
+  // a resource loader), the loading skeleton is shown until data arrives.
+  const wrapped = loading ? (
+    <Suspense fallback={loading}>
+      <RedirectBoundary>{content}</RedirectBoundary>
+    </Suspense>
+  ) : (
+    <RedirectBoundary>{content}</RedirectBoundary>
+  );
+
   return (
     <Activity mode={active && !hiddenByPending ? "visible" : "hidden"}>
-      <RedirectBoundary>{content}</RedirectBoundary>
+      {wrapped}
     </Activity>
   );
 }

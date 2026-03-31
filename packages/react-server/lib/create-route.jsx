@@ -60,6 +60,7 @@ export function createRouteFactory(useRouteParams, useRouteSearchParams) {
           return search(prev);
         };
       }
+
       return (
         <Link to={to} search={resolvedSearch} {...linkRest}>
           {linkChildren}

@@ -1,0 +1,556 @@
+---
+title: Resources
+category: Router
+order: 13
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Resources
+
+`@lazarv/react-server` includes a typed resource layer for schema-validated, route-aware data fetching. Resources build on the same principles as the [typed router](/router/typed-router) — descriptors define shape, implementations bind behavior, and everything is type-safe end-to-end.
+
+Resources use `"use cache"` as the entire caching runtime. There is no custom cache layer, no SWR logic, no TTL configuration. If you want caching, add `"use cache"` to your loader function. On the client, `"use cache"` supports browser storage providers — sessionStorage, localStorage, IndexedDB, in-memory — via the Unstorage engine, or any custom provider.
+
+<Link name="create-resource">
+## Defining resources with createResource
+</Link>
+
+Use `createResource` to define resource descriptors. Descriptors carry the key schema (the shape of the lookup key) but no implementation. They are client-safe — import them from both server and client components.
+
+```ts filename="resources.ts"
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+// Keyed resource — validated with Zod
+export const userById = createResource({
+  key: z.object({ id: z.coerce.number().int().positive() }),
+});
+
+// Singleton resource — no key
+export const currentUser = createResource();
+
+// Lightweight parse — no schema library needed
+export const postBySlug = createResource({
+  key: { slug: String },
+});
+
+// Complex key
+export const posts = createResource({
+  key: z.object({
+    page: z.coerce.number().default(1),
+    tag: z.string().optional(),
+  }),
+});
+```
+
+The key schema supports the same validation strategies as route params:
+
+| Strategy | Example | Library |
+|----------|---------|---------|
+| Schema validation | `z.object({ id: z.coerce.number() })` | Zod, ArkType, Valibot |
+| Lightweight parse | `{ id: Number }` | None (built-in constructors) |
+| No key (singleton) | `createResource()` | None |
+
+<Link name="bind-loader">
+## Binding loaders
+</Link>
+
+Bind a **loader function** to a descriptor using `.bind(loaderFn)`. The loader is just an async function — add `"use cache"` to its body for caching. `.bind()` mutates the descriptor and returns it with the `TData` type narrowed to the loader's return type — capture the return value for typed `.use()` calls. Loaders can live on the server or the client.
+
+### Server-side loaders
+
+For simple resources, define the descriptor and bind the loader in a single file:
+
+```ts filename="resources/user.ts"
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+export const userById = createResource({
+  key: z.object({ id: z.coerce.number().int().positive() }),
+}).bind(async ({ id }) => {
+  "use cache";
+  return db.users.findById(id);
+});
+
+export const currentUser = createResource().bind(async () => {
+  return (await getSession()).user;
+});
+```
+
+```ts filename="resources/post.ts"
+import { createResource } from "@lazarv/react-server/resources";
+
+export const postBySlug = createResource({
+  key: { slug: String },
+}).bind(async ({ slug }) => {
+  "use cache";
+  return db.posts.findBySlug(slug);
+});
+```
+
+### Client-side loaders
+
+Loaders can also live on the client — `"use cache"` caches the result in the browser using any supported storage provider (sessionStorage, localStorage, IndexedDB, in-memory, or a custom Unstorage driver). No server round-trip required.
+
+The loader implementation is abstract — it can be any async function: a `fetch()` call, a WebSocket message, reading from an IndexedDB store, or computing derived data. Mark the module with `"use client"` so server code never reaches the client bundle.
+
+```ts filename="resources/search.ts"
+"use client";
+import { createResource } from "@lazarv/react-server/resources";
+
+export const searchResults = createResource({
+  key: { q: String },
+}).bind(async ({ q }) => {
+  "use cache";
+  const res = await fetch(`/api/search?q=${q}`);
+  return res.json();
+});
+```
+
+<Link name="client-only-routes">
+### Client-only routes with resources
+</Link>
+
+For routes that load data entirely in the browser, use a **dual-loader** pattern with a directory structure: a shared descriptor, a server loader, and a client loader.
+
+The shared descriptor holds the resource identity. Both the server and client loaders bind to it, ensuring SSR hydration works across module boundaries. The client module is marked with `"use client"` so server code never reaches the client bundle.
+
+```ts filename="resources/todos/resource.ts"
+// Shared descriptor — both server and client loaders bind to this
+import { createResource } from "@lazarv/react-server/resources";
+
+export const todos = createResource({
+  key: { filter: String },
+});
+```
+
+```ts filename="resources/todos/server.ts"
+import { todos as resource } from "./resource";
+
+export const todos = resource.bind(async ({ filter }) => {
+  "use cache: request";
+  return db.todos.list({ filter });
+});
+```
+
+```ts filename="resources/todos/client.ts"
+"use client";
+import { todos as resource } from "./resource";
+
+export const todos = resource.bind(async ({ filter }) => {
+  "use cache";
+  const res = await fetch(`/api/todos?filter=${filter}`);
+  return res.json();
+});
+
+// Export route-resource binding as a client reference.
+// Since this is a "use client" module, the export passes through RSC
+// serialization and resolves on the client for client-only navigation.
+export const todosClientMapping = todos.from((_, search) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+The component calls `.use()` directly — it suspends (via `React.use()`) until the data is available. Use the route's `loading` prop to show a fallback during suspension. When the resource is invalidated, components that called `.use()` automatically re-render and re-fetch fresh data.
+
+```tsx filename="TodosPage.tsx"
+"use client";
+import { todos } from "./resources/todos/client";
+
+export default function TodosPage() {
+  const data = todos.use({ filter: "active" });
+  return <ul>{data.items.map(t => <li key={t.id}>{t.title}</li>)}</ul>;
+}
+```
+
+In the router, place server and client bindings side by side in the `resources` array. Route.jsx automatically partitions them — server bindings are loaded on the server, client references pass through RSC for client-only navigation:
+
+```ts filename="resources/mappings.ts"
+import { todos } from "./todos/server";
+
+export const todosServerMapping = todos.from((_, search) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+```tsx filename="router.tsx"
+import { todosServerMapping } from "./resources/mappings";
+import { todosClientMapping } from "./resources/todos/client";
+
+const router = createRouter({
+  todos: createRoute(routes.todos, <TodosPage />, {
+    loading: TodosLoading,
+    resources: [todosServerMapping, todosClientMapping],
+  }),
+});
+```
+
+The `resources` prop accepts both server-side binding arrays (loaded on the server) and client references from `"use client"` modules. Client references are opaque on the server — they pass through RSC serialization and resolve on the client, where the Route component automatically registers them for client-only navigation pre-loading.
+
+<Link name="use-hook">
+## Using resources in components
+</Link>
+
+### `.use(key)` — suspense-integrated hook
+
+The primary way to consume resources in components. Calls the loader, validates the key, and suspends (via `React.use()`) until the data is available.
+
+When a resource is invalidated, all components that called `.use()` on that resource automatically re-render and re-fetch. The loading fallback (from the route's `loading` prop or a `<Suspense>` boundary) is shown while the fresh data loads.
+
+```tsx filename="UserPage.tsx"
+import { user as userRoute } from "./routes";
+import { userById, currentUser } from "./resources";
+
+export default function UserPage() {
+  const { id } = userRoute.useParams();
+  const userData = userById.use({ id });
+  const me = currentUser.use();
+
+  return (
+    <div>
+      <h1>{userData.name}</h1>
+      <p>{userData.email}</p>
+      {me.id === userData.id && <EditButton userId={id} />}
+    </div>
+  );
+}
+```
+
+Resources are not coupled to routes — they work anywhere:
+
+```tsx
+function UserTooltip({ userId }) {
+  const user = userById.use({ id: userId });
+  return <span>{user.name}</span>;
+}
+```
+
+### `.query(key)` — imperative, returns Promise
+
+Use outside React's render cycle — event handlers, server actions, scripts.
+
+```ts
+const user = await userById.query({ id: 42 });
+```
+
+### `.prefetch(key)` — warm cache, no suspend
+
+Fire-and-forget. Triggers the loader to populate the cache without waiting for the result.
+
+```ts
+userById.prefetch({ id: 42 });
+```
+
+### Error handling
+
+- `.use()` throws errors — caught by React error boundaries (consistent with Suspense)
+- `.query()` returns a rejected Promise — handle with try/catch
+
+<Link name="invalidation">
+## Invalidation
+</Link>
+
+Invalidation clears the cached data and triggers a re-render of all components currently using the resource. Components re-suspend while fresh data loads — the route's `loading` fallback (or the nearest `<Suspense>` boundary) is shown automatically.
+
+Under the hood, invalidation delegates to the existing `invalidate()` function from `@lazarv/react-server/cache`. The resource layer adds no custom cache logic — it clears the internal thenable cache (used for `React.use()` referential stability) and notifies subscribed components via `useSyncExternalStore`.
+
+Invalidation works on both the server and the client. On the client, it clears entries from whichever browser storage provider `"use cache"` is using (sessionStorage, localStorage, IndexedDB, in-memory, or a custom Unstorage driver).
+
+```ts
+// Invalidate all cached entries for a resource
+userById.invalidate();
+
+// Invalidate a specific entry
+userById.invalidate({ id: 42 });
+```
+
+### Usage from server actions
+
+```ts filename="actions.ts"
+"use server";
+import { userById, posts } from "./resources";
+
+export async function updateUser(id, data) {
+  await db.users.update(id, data);
+  userById.invalidate({ id });
+}
+
+export async function deleteUser(id) {
+  await db.users.delete(id);
+  userById.invalidate({ id });
+  posts.invalidate(); // also invalidate posts
+}
+```
+
+### Client-side invalidation
+
+On the client, invalidation clears the browser cache AND triggers a re-render. Components that called `.use()` re-suspend, the loading fallback is shown, and fresh data is fetched.
+
+```tsx filename="TodosPage.tsx"
+"use client";
+import { todos } from "./resources/todos/client";
+
+function RefreshButton({ filter }) {
+  return (
+    <button onClick={() => todos.invalidate({ filter })}>
+      Refresh
+    </button>
+  );
+}
+```
+
+<Link name="create-resources">
+## Resource collections
+</Link>
+
+Group resources into a typed registry with `createResources`. Provides `invalidateAll()` to bust cached entries across all resources at once.
+
+```ts filename="resources/index.ts"
+import { createResources } from "@lazarv/react-server/resources";
+import { userById } from "./user";
+import { currentUser } from "./current-user";
+import { posts } from "./posts";
+
+export const resources = createResources({ userById, currentUser, posts });
+
+// Invalidate everything
+resources.invalidateAll();
+```
+
+<Link name="route-binding">
+## Route-resource binding
+</Link>
+
+Routes declare resource dependencies via the `resources` option on `createRoute`. When a route matches, all bound resources are **loaded in parallel** and the route waits for the data before rendering the component tree. This eliminates sequential waterfalls — instead of components calling `.use()` one by one, all loaders run concurrently.
+
+Resources also work without route bindings. Any component can call `.use()` directly — it suspends until the data is available. Route-resource binding is an optimization that moves loading to the route level.
+
+```tsx filename="router.tsx"
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import * as routes from "./routes";
+import { userById } from "./resources/user";
+import { currentUser } from "./resources/current-user";
+import { posts } from "./resources/posts";
+
+const router = createRouter({
+  user: createRoute(routes.user, <UserPage />, {
+    resources: [
+      // .from() maps (routeParams, searchParams) → resource key
+      userById.from((params) => ({ id: params.id })),
+      // singleton resources don't need .from()
+      currentUser,
+    ],
+  }),
+
+  posts: createRoute(routes.posts, <PostListPage />, {
+    resources: [
+      // Load current + next page in parallel
+      posts.from((params, search) => ({
+        page: search.page ?? 1,
+        tag: search.tag,
+      })),
+      posts.from((params, search) => ({
+        page: (search.page ?? 1) + 1,
+      })),
+    ],
+  }),
+});
+
+export default router;
+```
+
+### `.from(mapFn)`
+
+Returns a `{ resource, mapFn }` binding tuple. Each `.from()` is a separate binding — you can bind the same resource multiple times with different key mappings (e.g., load current + next page in parallel).
+
+For dual-loader resources, place client bindings (from `"use client"` modules) alongside server bindings in the `resources` array. Route.jsx partitions them automatically — no special wiring needed.
+
+### Navigation flow
+
+**Server routes:**
+
+1. Navigation starts (Link click, `useNavigate()`, back/forward)
+2. Server renders the route, `resources: [...]` bindings are found
+3. All resource loaders run in parallel — the route **waits** for all of them
+4. Component renders, calls `.use()` — data already loaded, no suspension
+
+**Client-only routes (with client resource bindings):**
+
+1. Navigation starts
+2. Route-registered loaders fire in parallel (fire-and-forget)
+3. URL updates, component renders, calls `.use()`
+4. If data is ready — renders immediately. If still loading — suspends with loading fallback
+
+### Client-only navigation
+
+Resource bindings contain `mapFn` functions that can't be serialized directly from server to client. The solution: define the bindings in a `"use client"` module and export them. Since `"use client"` exports are client references, they pass through RSC serialization and resolve on the client.
+
+Place server bindings and client references side by side in the `resources` array. Route.jsx partitions them automatically by `$$typeof` — server bindings load on the server, client references pass through RSC:
+
+```ts filename="resources/todos/client.ts"
+"use client";
+import { todos as resource } from "./resource";
+
+export const todos = resource.bind(async ({ filter }) => {
+  "use cache";
+  const res = await fetch(`/api/todos?filter=${filter}`);
+  return res.json();
+});
+
+// Exported as a client reference — passes through RSC to the client
+export const todosClientMapping = todos.from((_, search) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+```tsx filename="router.tsx"
+import { todosServerMapping } from "./resources/mappings";
+import { todosClientMapping } from "./resources/todos/client";
+
+createRoute(routes.todos, <TodosPage />, {
+  // Server binding loads on initial request; client reference passes
+  // through RSC for client-only navigation pre-loading.
+  resources: [todosServerMapping, todosClientMapping],
+});
+```
+
+The Route component detects client references and passes them through to the client, where they are automatically registered for pre-loading during client-only navigation.
+
+For advanced cases (dynamic registration, resources not tied to a Route), `registerRouteResources` from `@lazarv/react-server/navigation` is also available as a programmatic API.
+
+### Prefetching
+
+Prefetching is separate from route loading. Use the `.prefetch()` method on a resource descriptor to warm the cache ahead of time — for example on Link hover via the built-in `prefetch` prop, or programmatically before a navigation you anticipate.
+
+```ts
+// Programmatic prefetch — fire-and-forget
+userById.prefetch({ id: 42 });
+```
+
+<Link name="loading">
+## Loading states
+</Link>
+
+The route's `loading` prop provides a loading fallback for both server and client component routes. When a component calls `.use()` and the data isn't ready yet, the loading component is shown automatically via `<Suspense>`.
+
+```tsx filename="router.tsx"
+const router = createRouter({
+  todos: createRoute(routes.todos, <TodosPage />, {
+    loading: TodosLoading,
+    resources: [...],
+  }),
+});
+```
+
+```tsx filename="TodosLoading.tsx"
+"use client";
+export default function TodosLoading() {
+  return <div>Loading todos...</div>;
+}
+```
+
+The loading fallback is shown:
+- On initial render when the resource loader hasn't completed yet
+- After invalidation, while fresh data is being fetched
+- During client-only navigation, while route resources are loading
+
+<Link name="identity">
+## Identity by reference
+</Link>
+
+Resources are identified by object reference, not string names. There is no name registry, no string key collisions. This is what makes dual-loader resources work: both the server and client loaders call `.bind()` on the same descriptor object, so `.use()` in any component finds the correct loader.
+
+```ts filename="resources/todos/resource.ts"
+// Shared descriptor — the single source of identity
+export const todos = createResource({ key: { filter: String } });
+```
+
+```ts filename="resources/todos/server.ts"
+import { todos as resource } from "./resource";
+// .bind() attaches the server loader to the shared descriptor
+export const todos = resource.bind(async ({ filter }) => { /* ... */ });
+```
+
+```ts filename="resources/todos/client.ts"
+"use client";
+import { todos as resource } from "./resource";
+// Same descriptor reference — .bind() attaches the client loader
+export const todos = resource.bind(async ({ filter }) => { /* ... */ });
+```
+
+For simple (non-dual-loader) resources, identity is implicit — the descriptor and loader are defined in the same file via `createResource({ ... }).bind(loaderFn)`.
+
+<Link name="api-reference">
+## API reference
+</Link>
+
+### `createResource(options?)`
+
+Create a resource descriptor (no loader).
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `key` | `ValidateSchema` \| `Record<string, Function>` | Key schema or parse map. Omit for singletons. |
+
+Returns a `ResourceDescriptor` with `.use()`, `.query()`, `.prefetch()`, `.invalidate()`, `.from()`.
+
+### `.bind(loaderFn)`
+
+Bind a loader to a descriptor. Mutates the descriptor and returns it with the `TData` type narrowed to the loader's return type.
+
+```ts
+const userById = createResource({
+  key: z.object({ id: z.coerce.number() }),
+}).bind(async ({ id }) => {
+  "use cache";
+  return db.users.findById(id);
+});
+```
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `loaderFn` | `(key) => T \| Promise<T>` | Data fetching function. Add `"use cache"` for caching. |
+
+Returns the same `ResourceDescriptor` with `TData` narrowed to the loader's return type.
+
+### `createResources(resources)`
+
+Collect resources into a registry.
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `resources` | `Record<string, ResourceDescriptor>` | Named resources |
+
+Returns the resources plus `invalidateAll()`.
+
+### ResourceDescriptor methods
+
+| Method | Description |
+|--------|-------------|
+| `.use(key?)` | React hook — suspends until data available. Re-renders on invalidation. |
+| `.query(key?)` | Imperative — returns Promise |
+| `.prefetch(key?)` | Fire-and-forget cache warming |
+| `.invalidate(key?)` | Clear cache and trigger re-render of all `.use()` consumers |
+| `.from(mapFn)` | Create route binding. Place alongside client bindings in the `resources` array for dual-loader routes. |
+| `.bind(loaderFn)` | Attach a loader function. Returns the descriptor with narrowed `TData` type. |
+
+### `registerRouteResources(path, resources)`
+
+Programmatic API for registering resource bindings for client-only navigation. In most cases, prefer passing client resource bindings via the `resources` prop on `createRoute` — the Route component handles registration automatically.
+
+Use this for advanced cases: dynamic registration, resources not tied to a Route component, or imperative setup.
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `path` | `string` | Route path pattern (e.g. `"/todos"`) |
+| `resources` | `(RouteResourceBinding \| RouteResource)[]` | From `.from()` or bare descriptors |
+
+Returns a cleanup function.
+
+```ts
+import { registerRouteResources } from "@lazarv/react-server/navigation";
+registerRouteResources("/todos", [
+  todos.from((_, search) => ({ filter: search.filter ?? "all" })),
+]);
+```

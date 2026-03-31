@@ -1,31 +1,7 @@
-import { createRoute, createRouter } from "@lazarv/react-server/router";
 import { Link } from "@lazarv/react-server/navigation";
 
-import * as routes from "./routes";
-
-import Home from "./Home";
-import About from "./About";
-import UserPage from "./UserPage";
-import PostPage from "./PostPage";
-import ProductList from "./ProductList";
-import NotFound from "./NotFound";
-import UserNotFound from "./UserNotFound";
+import router from "./router";
 import ProductPriceRange from "./StripTrackingParams";
-
-// ── Create full typed routes from descriptors + elements ──
-// The server `createRoute(descriptor, element)` overload takes a route
-// descriptor (from routes.ts) and binds a React element to it, adding
-// the .Route component. The .Link and .href() come from the descriptor.
-
-const router = createRouter({
-  home: createRoute(routes.home, <Home />),
-  about: createRoute(routes.about, <About />),
-  user: createRoute(routes.user, <UserPage />),
-  post: createRoute(routes.post, <PostPage />),
-  products: createRoute(routes.products, <ProductList />),
-  userNotFound: createRoute(routes.userNotFound, <UserNotFound />),
-  notFound: createRoute(routes.notFound, <NotFound />),
-});
 
 export default function App() {
   return (
@@ -54,7 +30,11 @@ export default function App() {
               exposing separate <code>min_price</code> / <code>max_price</code>{" "}
               fields to Zod. <strong>Functional search updaters</strong> —{" "}
               <code>search: (prev) =&gt; (...)</code> — allow delta updates
-              without knowing the full current state.
+              without knowing the full current state.{" "}
+              <strong>Route-resource binding</strong> loads user and post data
+              in parallel before the route renders.{" "}
+              <strong>Client-only resources</strong> — the Todos page loads data
+              entirely in the browser with client-side caching and invalidation.
             </p>
 
             <nav
@@ -92,6 +72,9 @@ export default function App() {
               >
                 Post (comments)
               </router.post.Link>
+              <router.todos.Link style={{ color: "blue" }}>
+                Todos
+              </router.todos.Link>
               <router.products.Link style={{ color: "blue" }}>
                 Products
               </router.products.Link>

@@ -382,6 +382,396 @@ describe("typed-router — Home page typed links", () => {
   });
 });
 
+// ── Resources — .use() in server components ──
+
+describe("typed-router — resources (server-side .use())", () => {
+  test("userById.use() returns user data on user page", async () => {
+    await page.goto(`${hostname}/user/42`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Charlie Brown"
+    );
+    expect(await page.textContent('[data-testid="user-email"]')).toContain(
+      "charlie@example.com"
+    );
+  });
+
+  test("userById.use() returns fallback for unknown user", async () => {
+    await page.goto(`${hostname}/user/999`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "User 999"
+    );
+    expect(await page.textContent('[data-testid="user-email"]')).toContain(
+      "user999@example.com"
+    );
+  });
+
+  test("currentUser.use() returns singleton data", async () => {
+    await page.goto(`${hostname}/user/1`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="current-user"]')).toContain(
+      "Alice Johnson"
+    );
+    expect(await page.textContent('[data-testid="current-user"]')).toContain(
+      "admin"
+    );
+  });
+
+  test("currentUser.use() shows 'that's you' for matching user", async () => {
+    await page.goto(`${hostname}/user/1`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="current-user"]')).toContain(
+      "that's you!"
+    );
+  });
+
+  test("resource data updates when navigating between users", async () => {
+    await page.goto(`${hostname}/user/42`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Charlie Brown"
+    );
+
+    // Navigate to user 99
+    await page.goto(`${hostname}/user/99`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Diana Prince"
+    );
+  });
+
+  test("resource works with Zod key validation (coerces string to number)", async () => {
+    // The route param is a string "2", Zod coerces to number 2
+    await page.goto(`${hostname}/user/2`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Bob Smith"
+    );
+  });
+});
+
+// ── Route-resource binding (prefetch on navigation) ──
+
+describe("typed-router — route-resource binding", () => {
+  test("postBySlug resource data rendered via route-resource binding", async () => {
+    await page.goto(`${hostname}/post/hello-world?tab=content`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="post-title"]')).toContain(
+      "Hello World"
+    );
+    expect(await page.textContent('[data-testid="post-excerpt"]')).toContain(
+      "A first post about getting started"
+    );
+  });
+
+  test("postBySlug resource returns data for different slugs", async () => {
+    await page.goto(`${hostname}/post/react-server?tab=content`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="post-title"]')).toContain(
+      "React Server Components"
+    );
+    expect(await page.textContent('[data-testid="post-excerpt"]')).toContain(
+      "Deep dive into RSC architecture"
+    );
+  });
+
+  test("user route with resources shows user data after client navigation", async () => {
+    await page.goto(hostname);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const prevUrl = page.url();
+    await page.click('nav a:has-text("User 42")');
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("/user/42");
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Charlie Brown"
+    );
+  });
+});
+
+// ── Dual-loader resources (server + client) ──
+
+describe("typed-router — dual-loader resources", () => {
+  test("renders todos page with client-side resource data", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    expect(await page.textContent('[data-testid="todos-title"]')).toContain(
+      "Todos"
+    );
+    // Default filter is "all" — should show all 7 items
+    const list = await page.textContent('[data-testid="todos-list"]');
+    expect(list).toContain("Set up typed router");
+    expect(list).toContain("Deploy to production");
+  });
+
+  test("filter tabs update displayed todos", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    // Click "completed" filter — wait for both URL and content to update.
+    // The client loader runs async, so content may lag behind the URL change.
+    const prevUrl = page.url();
+    await page.click('a:has-text("completed")');
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("filter=completed");
+
+    // Wait for the list to reflect the filter (active items removed)
+    await waitForChange(
+      null,
+      () => page.textContent('[data-testid="todos-list"]'),
+      await page.textContent('[data-testid="todos-list"]')
+    ).catch(() => {});
+    // Re-read after potential update
+    const list = await page.textContent('[data-testid="todos-list"]');
+    // Completed items
+    expect(list).toContain("Set up typed router");
+    expect(list).toContain("Implement resource layer");
+    // Active items should NOT appear
+    expect(list).not.toContain("Deploy to production");
+  });
+
+  test("active filter shows only incomplete todos", async () => {
+    await page.goto(`${hostname}/todos?filter=active`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const list = await page.textContent('[data-testid="todos-list"]');
+    expect(list).toContain("Deploy to production");
+    expect(list).toContain("Write integration tests");
+    // Completed items should NOT appear
+    expect(list).not.toContain("Set up typed router");
+  });
+
+  test("invalidate button clears cache and re-fetches", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const firstFetch = await page.textContent(
+      '[data-testid="todos-fetched-at"]'
+    );
+    expect(firstFetch).toBeTruthy();
+
+    // Click invalidate and wait for the timestamp to change
+    await page.click('[data-testid="todos-refresh"]');
+    await waitForChange(
+      null,
+      () => page.textContent('[data-testid="todos-fetched-at"]'),
+      firstFetch
+    );
+
+    const secondFetch = await page.textContent(
+      '[data-testid="todos-fetched-at"]'
+    );
+    expect(secondFetch).toBeTruthy();
+  });
+
+  test("client navigation to todos from home", async () => {
+    await page.goto(hostname);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const prevUrl = page.url();
+    await page.click('nav a:has-text("Todos")');
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("/todos");
+    expect(await page.textContent('[data-testid="todos-title"]')).toContain(
+      "Todos"
+    );
+  });
+});
+
+// ── Dual-loader resource hydration ──
+
+describe("typed-router — dual-loader hydration (server → client)", () => {
+  test("SSR todos page renders without hydration mismatch", async () => {
+    // Direct navigation — server renders with server loader,
+    // client hydrates with injected data. No mismatch.
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    // Data should be present (server-loaded, hydrated to client)
+    const list = await page.textContent('[data-testid="todos-list"]');
+    expect(list).toContain("Set up typed router");
+
+    // No console errors about hydration mismatch
+    const errors = await page.evaluate(() =>
+      (window.__consoleErrors || []).filter((e) =>
+        /hydration|mismatch/i.test(e)
+      )
+    );
+    expect(errors.length).toBe(0);
+  });
+
+  test("SSR todos with filter renders correct filtered data", async () => {
+    await page.goto(`${hostname}/todos?filter=completed`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const list = await page.textContent('[data-testid="todos-list"]');
+    expect(list).toContain("Set up typed router");
+    expect(list).not.toContain("Deploy to production");
+  });
+
+  test("client navigation to todos loads data via client loader", async () => {
+    // Start on a different route, then navigate to todos
+    await page.goto(`${hostname}/about`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const prevUrl = page.url();
+    await page.click('nav a:has-text("Todos")');
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    // Client loader should have fired — data should appear
+    expect(await page.textContent('[data-testid="todos-title"]')).toContain(
+      "Todos"
+    );
+    const list = await page.textContent('[data-testid="todos-list"]');
+    expect(list).toContain("Set up typed router");
+  });
+
+  test("client navigation from todos to another route and back", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    // Navigate away to about
+    const prevUrl1 = page.url();
+    await page.click('nav a:has-text("About")');
+    await waitForChange(null, () => page.url(), prevUrl1);
+    expect(page.url()).toContain("/about");
+
+    // Navigate back to todos
+    const prevUrl2 = page.url();
+    await page.click('nav a:has-text("Todos")');
+    await waitForChange(null, () => page.url(), prevUrl2);
+
+    expect(page.url()).toContain("/todos");
+    const list = await page.textContent('[data-testid="todos-list"]');
+    expect(list).toContain("Set up typed router");
+  });
+
+  test("filter change after hydration uses client loader", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    // Initial: all todos
+    let list = await page.textContent('[data-testid="todos-list"]');
+    expect(list).toContain("Deploy to production");
+
+    // Switch to active filter — client loader handles this
+    const prevUrl = page.url();
+    await page.click('a:has-text("active")');
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("filter=active");
+
+    // Wait for the list to reflect the filter (completed items removed)
+    const prevList = await page.textContent('[data-testid="todos-list"]');
+    await waitForChange(
+      null,
+      () => page.textContent('[data-testid="todos-list"]'),
+      prevList
+    );
+
+    list = await page.textContent('[data-testid="todos-list"]');
+    expect(list).toContain("Deploy to production");
+    expect(list).not.toContain("Set up typed router");
+  });
+});
+
+// ── Resource data across route transitions ──
+
+describe("typed-router — resource data across navigations", () => {
+  test("navigating between user pages updates resource data", async () => {
+    await page.goto(`${hostname}/user/42`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Charlie Brown"
+    );
+
+    // Client-navigate to a different user
+    const prevUrl = page.url();
+    await page.click('a:has-text("User 99")');
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Diana Prince"
+    );
+  });
+
+  test("navigating from user to todos and back preserves correct data", async () => {
+    await page.goto(`${hostname}/user/42`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Charlie Brown"
+    );
+
+    // Navigate to todos
+    const prevUrl1 = page.url();
+    await page.click('nav a:has-text("Todos")');
+    await waitForChange(null, () => page.url(), prevUrl1);
+    expect(await page.textContent('[data-testid="todos-title"]')).toContain(
+      "Todos"
+    );
+
+    // Navigate back to user 42
+    const prevUrl2 = page.url();
+    await page.click('nav a:has-text("User 42")');
+    await waitForChange(null, () => page.url(), prevUrl2);
+
+    expect(await page.textContent('[data-testid="user-name"]')).toContain(
+      "Charlie Brown"
+    );
+  });
+
+  test("navigating from todos with filter to post preserves post data", async () => {
+    await page.goto(`${hostname}/todos?filter=active`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const prevUrl = page.url();
+    await page.click('nav a:has-text("Post")');
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("/post/");
+    expect(await page.textContent('[data-testid="post-title"]')).toBeTruthy();
+  });
+
+  test("post resource data correct after client navigation", async () => {
+    await page.goto(hostname);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    // Navigate to post via typed Link
+    const prevUrl = page.url();
+    await page.click('nav a:has-text("Post (comments)")');
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(await page.textContent('[data-testid="post-title"]')).toContain(
+      "React Server Components"
+    );
+    expect(await page.textContent('[data-testid="post-excerpt"]')).toContain(
+      "Deep dive into RSC architecture"
+    );
+  });
+});
+
 // ── Browser history navigation ──
 
 describe("typed-router — browser history", () => {

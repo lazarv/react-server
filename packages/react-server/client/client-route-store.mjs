@@ -5,6 +5,7 @@ import { match } from "../lib/route-match.mjs";
 const clientRoutes = new Map();
 const serverRoutes = new Map();
 const clientFallbackRoutes = new Map(); // path -> { component }  (path = "/user/*" or "*")
+const routeResources = new Map(); // path -> [{ resource, mapFn }]
 
 export function registerClientRoute(path, { exact, component, fallback }) {
   if (fallback) {
@@ -125,6 +126,51 @@ export function canNavigateClientOnly(fromPathname, toPathname) {
 
 export function getClientRoutes() {
   return clientRoutes;
+}
+
+/**
+ * Register resource bindings for a route.
+ * Called from client code to enable resource loading on client-only navigation.
+ *
+ * @param {string} path - Route path pattern (e.g. "/todos")
+ * @param {Array} resources - Resource bindings: { resource, mapFn } or bare descriptors
+ * @returns {Function} Cleanup function
+ */
+export function registerRouteResources(path, resources) {
+  routeResources.set(path, resources);
+  return () => routeResources.delete(path);
+}
+
+/**
+ * Load all resources for a matched route.
+ * Called by the navigation system during client-only navigation.
+ *
+ * @param {string} pathname - Target pathname
+ * @param {string} [search] - Target search string (e.g. "?filter=active")
+ * @returns {Promise|null} Promise that resolves when all resources are loaded, or null if no resources
+ */
+export function loadRouteResources(pathname, search) {
+  // Find matching route resources
+  for (const [path, resources] of routeResources) {
+    const params = match(path, pathname, { exact: true });
+    if (!params) continue;
+
+    const searchParams = Object.fromEntries(new URLSearchParams(search || ""));
+    const loaders = [];
+    for (const binding of resources) {
+      if (binding.resource && binding.mapFn) {
+        if (!binding.resource._loader) continue;
+        const key = binding.mapFn(params, searchParams);
+        loaders.push(binding.resource.query(key));
+      } else if (binding._loader && typeof binding.query === "function") {
+        loaders.push(binding.query());
+      }
+    }
+    if (loaders.length) {
+      return Promise.all(loaders);
+    }
+  }
+  return null;
 }
 
 /**

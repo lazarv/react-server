@@ -3,7 +3,10 @@
 import { Activity, Suspense, createElement, useEffect, useMemo } from "react";
 
 import { match } from "../lib/route-match.mjs";
-import { registerServerRoute } from "./client-route-store.mjs";
+import {
+  registerServerRoute,
+  registerRouteResources,
+} from "./client-route-store.mjs";
 import {
   usePathname,
   usePendingNavigation,
@@ -18,6 +21,7 @@ export default function ClientRouteGuard({
   pathname: serverPathname,
   loadingComponent,
   loadingElement,
+  resources,
   children,
 }) {
   // Memoize the loading fallback element so it's referentially stable
@@ -36,6 +40,16 @@ export default function ClientRouteGuard({
       hasLoading: !!(loadingComponent || loadingElement),
     });
   }, [path, exact, fallback, loadingComponent, loadingElement]);
+
+  // Register route-resource bindings for client-only navigation.
+  // Flatten: each entry may be an array (resolved client reference)
+  // or a single binding object.
+  useEffect(() => {
+    if (resources?.length && path) {
+      const flat = resources.flat ? resources.flat() : resources;
+      return registerRouteResources(path, flat);
+    }
+  }, [path, resources]);
 
   // Determine which pathname to trust for visibility.
   // During a server navigation transition, pushStateSilent updates the

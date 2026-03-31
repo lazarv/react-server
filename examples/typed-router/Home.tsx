@@ -1,4 +1,4 @@
-import { user, products } from "./routes";
+import { user, products, todosRoute } from "./routes";
 
 export default function Home() {
   return (
@@ -7,25 +7,33 @@ export default function Home() {
       <p>Welcome to the typed router example!</p>
       <p>
         This example demonstrates <code>createRoute</code> /{" "}
-        <code>createRouter</code> for type-safe routing with Zod validation.
+        <code>createRouter</code> for type-safe routing with Zod validation, and{" "}
+        <code>createResource</code> for typed, schema-validated data fetching
+        with <code>"use cache"</code>.
       </p>
       <h3>Try these links:</h3>
       <ul style={{ lineHeight: 2 }}>
         <li>
           <user.Link params={{ id: 1 }}>User 1</user.Link> — typed{" "}
-          <code>.Link</code> builds <code>/user/1</code>
+          <code>.Link</code> builds <code>/user/1</code> + resource data
         </li>
         <li>
           <user.Link params={{ id: 42 }}>User 42</user.Link> — typed{" "}
-          <code>.Link</code> builds <code>/user/42</code>
+          <code>.Link</code> builds <code>/user/42</code> + resource data
         </li>
         <li>
           <products.Link
             search={{ sort: "price", min_price: 50, max_price: 150 }}
           >
-            Products (price-sorted, $50–$150)
+            Products (price-sorted, $50-$150)
           </products.Link>{" "}
           — Zod validate + SearchParams decode/encode
+        </li>
+        <li>
+          <todosRoute.Link search={{ filter: "active" }}>
+            Todos (active)
+          </todosRoute.Link>{" "}
+          — client-only resource with <code>"use cache"</code> + invalidation
         </li>
       </ul>
     </div>

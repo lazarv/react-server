@@ -166,14 +166,15 @@ export function invalidate(key, provider) {
     return;
   }
 
-  const cache =
-    cacheInstances.get(provider) ??
-    (typeof key === "function" && key[CACHE_PROVIDER]
-      ? key[CACHE_PROVIDER]()
-      : null);
+  const cache = cacheInstances.get(
+    provider ??
+      (typeof key === "function" && key[CACHE_PROVIDER]
+        ? key[CACHE_PROVIDER]
+        : "default")
+  );
 
   if (typeof key === "function" && key[CACHE_KEY]) {
-    return cache.delete(key[CACHE_KEY]);
+    return cache?.delete(key[CACHE_KEY]);
   }
 
   return cache?.delete(key);

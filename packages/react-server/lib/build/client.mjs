@@ -234,6 +234,10 @@ export default async function clientBuild(
           replacement: join(sys.rootDir, "client/route.mjs"),
         },
         {
+          find: /^@lazarv\/react-server\/resources$/,
+          replacement: join(sys.rootDir, "client/resource.mjs"),
+        },
+        {
           find: /^@lazarv\/react-server\/prerender$/,
           replacement: join(sys.rootDir, "server/prerender.jsx"),
         },

@@ -141,6 +141,41 @@ export interface SearchParamsProps {
  */
 export const SearchParams: React.FC<SearchParamsProps>;
 
+/**
+ * A route-resource binding — see `@lazarv/react-server/resources`.
+ * Returned by `resource.from(mapFn)`.
+ */
+export interface RouteResourceBinding {
+  resource: { query: (key?: any) => Promise<any> };
+  mapFn: (
+    routeParams: Record<string, any>,
+    searchParams: Record<string, any>
+  ) => any;
+}
+
+/**
+ * A resource descriptor (singleton) that can be used directly in
+ * a route's `resources` array without `.from()`.
+ */
+export interface RouteResource {
+  query: (key?: any) => Promise<any>;
+}
+
+/**
+ * Client resource binding(s) from a "use client" module.
+ * Opaque on the server — passes through RSC serialization and resolves
+ * on the client for navigation pre-loading. Can be a single binding or
+ * an array of bindings exported from a "use client" module.
+ *
+ * Place alongside server bindings in the `resources` array:
+ * ```ts
+ * resources: [serverBinding, clientBinding]
+ * ```
+ */
+export type ClientRouteResources =
+  | RouteResourceBinding
+  | (RouteResourceBinding | RouteResource)[];
+
 export interface RouteOptions<
   TPath extends string = string,
   TParams = ExtractParams<TPath>,
@@ -155,6 +190,27 @@ export interface RouteOptions<
   children?: React.ReactNode;
   validate?: RouteValidate<TParams, TSearch>;
   parse?: RouteParse<TParams, TSearch>;
+  /**
+   * Resource bindings to load when this route matches.
+   *
+   * When a route matches, all bound resources are loaded in parallel
+   * and the route waits for the data before rendering the component
+   * tree. This eliminates sequential waterfalls from components
+   * calling `.use()` one by one.
+   *
+   * Server bindings and client references can be mixed freely.
+   * Route.jsx partitions them automatically by `$$typeof`.
+   *
+   * @example
+   * ```tsx
+   * // Server-only resources
+   * resources: [userById.from(p => ({ id: p.id })), currentUser]
+   *
+   * // Dual-loader: server binding + client reference side by side
+   * resources: [todosServerMapping, todosClientMapping]
+   * ```
+   */
+  resources?: (RouteResourceBinding | RouteResource | ClientRouteResources)[];
 }
 
 // ── RouteDescriptor — minimal shape accepted by client hooks ──
@@ -168,6 +224,7 @@ export interface RouteDescriptor<
   TPath extends string = string,
   TParams = ExtractParams<TPath>,
   TSearch = Record<string, string>,
+  TSearchInput = TSearch,
 > {
   readonly path: TPath | undefined;
   readonly fallback: boolean;
@@ -186,7 +243,7 @@ export interface RouteDescriptor<
           > & {
             to?: never;
             params?: never;
-            search?: TSearch | ((prev: TSearch) => TSearch);
+            search?: TSearchInput | ((prev: TSearch) => TSearchInput);
           }
         >
       : React.FC<
@@ -196,7 +253,7 @@ export interface RouteDescriptor<
           > & {
             to?: never;
             params: TParams;
-            search?: TSearch | ((prev: TSearch) => TSearch);
+            search?: TSearchInput | ((prev: TSearch) => TSearchInput);
           }
         >;
 
@@ -223,7 +280,8 @@ export interface TypedRoute<
   TPath extends string = string,
   TParams = ExtractParams<TPath>,
   TSearch = Record<string, string>,
-> extends RouteDescriptor<TPath, TParams, TSearch> {
+  TSearchInput = TSearch,
+> extends RouteDescriptor<TPath, TParams, TSearch, TSearchInput> {
   /** Route component — renders with factory defaults; JSX props override */
   Route: React.FC<
     Partial<{
@@ -256,6 +314,20 @@ export interface TypedRoute<
  * const alsoNotFound = createRoute(<NotFound />);
  * ```
  */
+
+/** Create a typed route with parse-based search — search params are optional on Link */
+export function createRoute<
+  TPath extends string,
+  TParams = ExtractParams<TPath>,
+  TSearch = Record<string, string>,
+>(
+  path: TPath,
+  element: React.ReactNode,
+  options: RouteOptions<TPath, TParams, TSearch> & {
+    parse: { search: { [K in keyof TSearch]: (value: string) => TSearch[K] } };
+  }
+): TypedRoute<TPath, TParams, TSearch, Partial<TSearch>>;
+
 export function createRoute<
   TPath extends string,
   TParams = ExtractParams<TPath>,
@@ -296,6 +368,18 @@ export function createRoute(
   options?: Omit<RouteOptions<string>, "exact">
 ): RouteDescriptor<string, {}, {}>;
 
+/** Create a route descriptor with parse-based search — search params are optional on Link */
+export function createRoute<
+  TPath extends string,
+  TParams = ExtractParams<TPath>,
+  TSearch = Record<string, string>,
+>(
+  path: TPath,
+  options: RouteOptions<TPath, TParams, TSearch> & {
+    parse: { search: { [K in keyof TSearch]: (value: string) => TSearch[K] } };
+  }
+): RouteDescriptor<TPath, TParams, TSearch, Partial<TSearch>>;
+
 /** Create a route descriptor (no element / no `.Route`) */
 export function createRoute<
   TPath extends string,
@@ -311,14 +395,21 @@ export function createRoute<
   TPath extends string,
   TParams = ExtractParams<TPath>,
   TSearch = Record<string, string>,
+  TSearchInput = TSearch,
 >(
-  descriptor: RouteDescriptor<TPath, TParams, TSearch>,
-  element: React.ReactNode
-): TypedRoute<TPath, TParams, TSearch>;
+  descriptor: RouteDescriptor<TPath, TParams, TSearch, TSearchInput>,
+  element: React.ReactNode,
+  options?: {
+    loading?: React.ComponentType | React.ReactNode;
+    resources?: (RouteResourceBinding | RouteResource | ClientRouteResources)[];
+  }
+): TypedRoute<TPath, TParams, TSearch, TSearchInput>;
 
 // ── TypedRouter ──
 
-export type TypedRouter<T extends Record<string, TypedRoute<any, any, any>>> = {
+export type TypedRouter<
+  T extends Record<string, TypedRoute<any, any, any, any>>,
+> = {
   /** Render all routes in declaration order */
   Routes: React.FC;
   /** Global (non-scoped) SearchParams transform boundary */
@@ -339,7 +430,7 @@ export type TypedRouter<T extends Record<string, TypedRoute<any, any, any>>> = {
  * ```
  */
 export function createRouter<
-  T extends Record<string, TypedRoute<any, any, any>>,
+  T extends Record<string, TypedRoute<any, any, any, any>>,
 >(routes: T): TypedRouter<T>;
 
 /**

@@ -131,6 +131,22 @@ This comparison summarizes the feature set described in the documentation. It fo
 | Config-level Enable (zero code) | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
 | Query-only Changes Preserve Scroll | ✅ | 🛑 | 🟡 | 🛑 | 🛑 |
 
+<Link name="data-fetching">
+## Data fetching & resources
+</Link>
+
+|  | @lazarv/react-server | Next.js | TanStack Router | React Router | Waku |
+|--|:---:|:---:|:---:|:---:|:---:|
+| Typed Resource Descriptors | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Schema-validated Resource Keys | ✅ | 🛑 | 🟡 | 🛑 | 🛑 |
+| Suspense-integrated `.use()` Hook | ✅ | 🛑 | ✅ | 🟡 | 🛑 |
+| Resource Invalidation (per-key) | ✅ | 🟡 | ✅ | 🛑 | 🛑 |
+| Resource Collections | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
+| Route-Resource Binding (prefetch) | ✅ | 🛑 | ✅ | ✅ | 🛑 |
+| Router Loaders (data fetching) | ✅ <br/> *RSC + resources* | 🟡 | ✅ | ✅ | 🟡 |
+| SWR / Stale-While-Revalidate Caching | ✅ <br/> *`"use cache"`* | ✅ | ✅ | 🛑 | 🛑 |
+| Server & Client Loaders | ✅ | 🟡 | ✅ | ✅ | 🛑 |
+
 <Link name="developer-experience">
 ## Developer experience
 </Link>
@@ -142,8 +158,6 @@ This comparison summarizes the feature set described in the documentation. It fo
 | Virtual Routes Module | ✅ | 🛑 | 🟡 | 🟡 | 🛑 |
 | Route-scoped Loading / Error / Fallback Files | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
 | Route Devtools | 🛑 | 🛑 | ✅ | 🟡 | 🛑 |
-| Router Loaders (data fetching) | 🟡 <br/> *RSC as loaders* | ✅ | ✅ | ✅ | 🛑 |
-| SWR / Stale-While-Revalidate Caching | 🟡 <br/> *`"use cache"`* | ✅ | ✅ | 🛑 | 🛑 |
 | Route Masking | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
 | Typesafe Route Context | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
 | Route Mount / Unmount Events | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
@@ -159,7 +173,7 @@ This comparison summarizes the feature set described in the documentation. It fo
 - **RSC-native**: Unlike routers that bolt RSC support on top, `@lazarv/react-server` was built from the ground up for React Server Components. Every route can mix server and client components freely.
 - **Client-only routes**: Pages with `"use client"` in the file-system router are automatically client-only — navigation skips the server entirely. No configuration needed, and component state is preserved across navigations via React's `<Activity>` component.
 - **Schema-agnostic validation**: Route params and search params can be validated with any schema library (Zod, ArkType, Valibot) or lightweight parse functions — the runtime detects the validation strategy automatically.
-- **RSC as route loaders**: In `@lazarv/react-server`, React Server Components *are* the route loaders. Each server component fetches its own data with `async/await` — no separate loader API, no waterfall chains, no `useLoaderData` hooks. RSC's streaming model with automatic Suspense boundaries provides the same deferred loading experience without an extra abstraction layer. Combined with `"use cache"` for stale-while-revalidate caching, this covers the same use cases as dedicated router loaders and SWR — but with less boilerplate.
+- **RSC + typed resources**: `@lazarv/react-server` offers two complementary data-fetching approaches: React Server Components with `async/await` (RSC as loaders), and **typed resources** — schema-validated, reference-identified data descriptors with `.use()` (suspense), `.query()` (imperative), `.prefetch()`, and `.invalidate()`. Resources use `"use cache"` as the caching runtime — no custom cache layer, no SWR boilerplate. Route-resource bindings enable parallel prefetching on navigation.
 - **No devtools yet**: Route devtools are planned. The tradeoff today is that the typed route system provides compile-time safety that catches most routing errors before they reach the browser.
 - **Outlets vs. parallel routes**: `@lazarv/react-server` uses named outlets (`@sidebar`, `@content`) rendered as typed props to layouts. This is functionally similar to Next.js parallel routes but with stronger typing — each outlet is a branded React element that prevents accidentally swapping outlets.
 - **Waku**: Waku is another RSC-native framework built on Vite, but takes a deliberately minimal approach. It provides basic file-based routing with layouts and RSC support, but lacks the typed routing system, search param handling, scroll restoration, middleware, and most advanced routing features. Waku's `Link` component supports basic `scroll` and `prefetchOnEnter`/`prefetchOnView` props, but most of its router API is still marked as `unstable_`. Waku is a good choice for simple RSC applications that don't need advanced routing.

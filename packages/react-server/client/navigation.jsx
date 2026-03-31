@@ -25,6 +25,7 @@ export {
   useRouteMatch,
   useRouteSearchParams,
 } from "./typed-route-hooks.mjs";
+export { registerRouteResources } from "./client-route-store.mjs";
 
 import { useCallback, useContext } from "react";
 import { useClient } from "./context.mjs";

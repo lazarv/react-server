@@ -418,6 +418,10 @@ export default async function serverBuild(root, options, clientManifestBus) {
           replacement: join(sys.rootDir, "server/router.jsx"),
         },
         {
+          find: /^@lazarv\/react-server\/resources$/,
+          replacement: join(sys.rootDir, "server/resources.jsx"),
+        },
+        {
           find: /^@lazarv\/react-server\/prerender$/,
           replacement: join(sys.rootDir, "server/prerender.jsx"),
         },
@@ -869,6 +873,10 @@ export default async function serverBuild(root, options, clientManifestBus) {
           replacement: join(sys.rootDir, "client/route.mjs"),
         },
         {
+          find: /^@lazarv\/react-server\/resources$/,
+          replacement: join(sys.rootDir, "client/resource.mjs"),
+        },
+        {
           find: /^@lazarv\/react-server\/navigation$/,
           replacement: join(sys.rootDir, "client/navigation.jsx"),
         },
@@ -918,6 +926,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ) &&
             !alias.replacement.endsWith("react-server/cache/index.mjs") &&
             !alias.replacement.endsWith("react-server/server/router.jsx") &&
+            !alias.replacement.endsWith("react-server/server/resources.jsx") &&
             !alias.replacement.endsWith("react-server/server/navigation.mjs") &&
             // In edge mode, filter out react-server versions of react packages
             !(

@@ -1,5 +1,5 @@
 /**
- * Shared route definitions — imported by both server (App.tsx) and client components.
+ * Shared route definitions — imported by both server (router.tsx) and client components.
  *
  * Uses `createRoute` from `@lazarv/react-server/router` which returns a route
  * descriptor with `path`, `validate`, `parse`, `href()`, and a typed `.Link`
@@ -48,11 +48,22 @@ export const products = createRoute("/products", {
   validate: {
     search: z.object({
       sort: z.enum(["name", "price", "rating"]).catch("name"),
-      page: z.coerce.number().int().positive().catch(1),
+      page: z.coerce.number().int().positive().optional().default(1),
       // Decoded from ?price=min-max by the ProductPriceRange SearchParams transform.
       // .catch() provides a safe default for any invalid or missing values.
       min_price: z.coerce.number().min(0).max(10000).catch(0),
       max_price: z.coerce.number().min(0).max(10000).catch(10000),
+    }),
+  },
+});
+
+// Dual-loader route — todo list with filter search param.
+// Server loads data on initial request, client loader takes over on navigation.
+export const todosRoute = createRoute("/todos", {
+  exact: true,
+  validate: {
+    search: z.object({
+      filter: z.enum(["all", "active", "completed"]).catch("all"),
     }),
   },
 });

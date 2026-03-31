@@ -1,4 +1,5 @@
 import { post } from "./routes";
+import { postBySlug } from "./resources/post";
 
 const TABS = ["content", "comments", "related"] as const;
 type Tab = (typeof TABS)[number];
@@ -62,13 +63,25 @@ export default function PostPage() {
 
   if (!params) return <p style={{ color: "red" }}>No match</p>;
 
+  // postBySlug.use() — suspense-integrated resource fetch.
+  // The loader was bound in resources/post.ts and prefetched by the
+  // route-resource binding in router.tsx.
+  const postData = postBySlug.use({ slug: params.slug });
   const article = POSTS[params.slug];
   const tab: Tab = (search?.tab as Tab | undefined) ?? "content";
   const q = (search?.q as string | undefined) ?? "";
 
   return (
     <div>
-      <h2>{article?.title ?? params.slug}</h2>
+      <h2 data-testid="post-title">
+        {postData?.title ?? article?.title ?? params.slug}
+      </h2>
+      <p
+        data-testid="post-excerpt"
+        style={{ color: "gray", fontSize: "0.9rem" }}
+      >
+        {postData?.excerpt}
+      </p>
       <p>
         Uses <code>parse</code> with a validation function: <code>tab</code>{" "}
         falls back to <code>"content"</code> for unknown values; <code>q</code>{" "}

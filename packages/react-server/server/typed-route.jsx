@@ -25,17 +25,24 @@ const createRouteDescriptor = createRouteFactory(
  */
 function parseArgs(a, b, c) {
   // createRoute(descriptor, element) — first arg is a route descriptor
+  // Second arg may be element or { element, resources, ... }
   if (isRouteDescriptor(a)) {
+    const isElement = (v) =>
+      v != null && typeof v === "object" && "$$typeof" in v;
+    // createRoute(descriptor, element, options?) or createRoute(descriptor, options?)
+    const element = isElement(b) ? b : undefined;
+    const opts = isElement(b) ? (c ?? {}) : (b ?? {});
     return {
       path: a.path,
-      element: b,
+      element,
       fallback: a.fallback ?? false,
       exact: a.exact ?? false,
       validate: a.validate ?? null,
-      loading: a.loading,
+      loading: opts.loading ?? a.loading,
       matchers: a.matchers,
       render: a.render,
       children: a.children,
+      resources: opts.resources,
     };
   }
 
@@ -119,6 +126,7 @@ export function createRoute(pathOrElement, elementOrOptions, maybeOptions) {
     children,
     validate,
     matchers,
+    resources,
     descriptorOnly,
   } = config;
 
@@ -156,6 +164,7 @@ export function createRoute(pathOrElement, elementOrOptions, maybeOptions) {
       render,
       children,
       element,
+      resources,
       ...props,
     };
     return <Route {...merged} />;

@@ -198,47 +198,94 @@ function deriveResourceName(filename) {
 }
 
 /**
- * Extract an explicit `export const name = "..."` from a resource file.
- * Returns null if not found.
+ * Parse a source file into an AST. Returns null on failure.
  */
-async function extractResourceNameExport(src) {
+async function parseFileAST(src) {
   try {
     const content = await readFile(src, "utf8");
-    const nameMatch = content.match(
-      /export\s+const\s+name\s*=\s*["'`]([^"'`]+)["'`]/
-    );
-    return nameMatch?.[1] ?? null;
+    return { ast: await parseAST(content, src), content };
   } catch {
-    return null;
+    return { ast: null, content: null };
   }
+}
+
+/**
+ * Extract a string literal value from an AST init node.
+ * Handles Literal ("foo"), TemplateLiteral (`foo` with no expressions).
+ */
+function getStringValue(init) {
+  if (!init) return null;
+  if (init.type === "Literal" && typeof init.value === "string") {
+    return init.value;
+  }
+  // Template literal with no expressions: `foo`
+  if (
+    init.type === "TemplateLiteral" &&
+    init.expressions.length === 0 &&
+    init.quasis.length === 1
+  ) {
+    return init.quasis[0].value?.cooked ?? init.quasis[0].value?.raw ?? null;
+  }
+  return null;
+}
+
+/**
+ * Find an `export const <name>` declaration in the AST and return its
+ * init node, or null if not found.
+ */
+function findExportedConst(ast, name) {
+  for (const node of ast.body) {
+    if (
+      node.type === "ExportNamedDeclaration" &&
+      node.declaration?.type === "VariableDeclaration"
+    ) {
+      for (const decl of node.declaration.declarations) {
+        if (decl.id?.name === name) {
+          return decl.init ?? null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract an explicit `export const name = "..."` from a resource file.
+ * Returns null if not found or not a string literal.
+ */
+async function extractResourceNameExport(src) {
+  const { ast } = await parseFileAST(src);
+  if (!ast) return null;
+  return getStringValue(findExportedConst(ast, "name"));
 }
 
 /**
  * Detect whether a source file has a "use client" directive.
+ * Uses AST-based directive detection for correctness (ignores comments,
+ * multi-line strings, etc.).
  */
 async function isClientSource(src) {
-  try {
-    const content = await readFile(src, "utf8");
-    return /^\s*["']use client["']/m.test(content);
-  } catch {
-    return false;
-  }
+  const { ast, content } = await parseFileAST(src);
+  if (!ast) return false;
+  // Fast bail: skip full directive walk if the text doesn't contain the string
+  if (!content.includes("use client")) return false;
+  const directives = ast.body
+    .filter((node) => node.type === "ExpressionStatement")
+    .map(({ directive }) => directive);
+  return directives.includes("use client");
 }
 
 /**
- * Extract `export const route = "name"` and detect `export const validate` from a source file.
+ * Extract `export const route = "name"` and detect `export const validate`
+ * from a source file using AST parsing.
  */
 async function extractRouteExports(src) {
-  try {
-    const content = await readFile(src, "utf8");
-    const nameMatch = content.match(
-      /export\s+const\s+route\s*=\s*["'`]([^"'`]+)["'`]/
-    );
-    const hasValidate = /export\s+const\s+validate\s*=/.test(content);
-    return { name: nameMatch?.[1] ?? null, hasValidate };
-  } catch {
-    return { name: null, hasValidate: false };
-  }
+  const { ast } = await parseFileAST(src);
+  if (!ast) return { name: null, hasValidate: false };
+  const routeInit = findExportedConst(ast, "route");
+  const name = getStringValue(routeInit);
+  const hasValidate = findExportedConst(ast, "validate") !== null;
+  return { name, hasValidate };
 }
 
 /**

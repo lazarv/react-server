@@ -22,6 +22,9 @@ import {
  * string to navigate to.
  *
  * Only called on the client (inside click / prefetch handlers).
+ *
+ * User-supplied encode/decode transforms can throw — errors are caught,
+ * logged with context, and the merge falls back to the un-transformed URL.
  */
 function mergeSearchParams(baseTo, search, encodeSearch, decodeSearch) {
   const target = new URL(baseTo, location.origin);
@@ -30,13 +33,38 @@ function mergeSearchParams(baseTo, search, encodeSearch, decodeSearch) {
   // Start with current params (merge mode)
   const merged = new URLSearchParams(current);
 
-  // Resolve functional updater or pass object through
-  const searchObj = resolveSearchUpdater(search, current, decodeSearch);
-  applySearchObject(merged, searchObj);
+  try {
+    // Resolve functional updater or pass object through
+    const searchObj = resolveSearchUpdater(search, current, decodeSearch);
+    applySearchObject(merged, searchObj);
+  } catch (err) {
+    console.error(
+      "[react-server] search params decode/updater threw during navigation. " +
+        "The search params transform was skipped. Check your decode() or " +
+        "search updater function.\n" +
+        "Target: %s\nCurrent search: %s",
+      baseTo,
+      current.toString(),
+      err
+    );
+    // Fall through with un-decoded merge — better than crashing the navigation
+  }
 
-  // Apply the encode transform chain
-  const final = encodeSearch ? encodeSearch(merged, current) : merged;
-  target.search = final.toString();
+  try {
+    // Apply the encode transform chain
+    const final = encodeSearch ? encodeSearch(merged, current) : merged;
+    target.search = final.toString();
+  } catch (err) {
+    console.error(
+      "[react-server] search params encode() threw during navigation. " +
+        "The encode transform was skipped. Check your encode() function.\n" +
+        "Target: %s\nMerged search: %s",
+      baseTo,
+      merged.toString(),
+      err
+    );
+    target.search = merged.toString();
+  }
 
   return target.pathname + (target.search || "") + (target.hash || "");
 }
@@ -98,23 +126,39 @@ export default function Link({
   // Object form: computed once from the search object (no merge with current URL).
   // Function form: evaluated against current search params so the <a> href
   // always reflects the resolved target URL.
+  //
+  // User-supplied decode transforms or search updater functions can throw —
+  // errors are caught and logged so the Link still renders (with the base `to`
+  // as fallback href) instead of crashing the component tree.
   const displayHref = useMemo(() => {
     if (!search) return to;
-    const u = new URL(to, "http://localhost");
-    if (isFunctionalSearch) {
-      // Evaluate updater against current params for display
-      const current = new URLSearchParams(currentSearch);
-      const searchObj = resolveSearchUpdater(search, current, decodeSearch);
-      // Merge current params with updater result
-      const merged = new URLSearchParams(current);
-      applySearchObject(merged, searchObj);
-      u.search = merged.toString();
-    } else {
-      for (const [k, v] of Object.entries(search)) {
-        if (v != null) u.searchParams.set(k, String(v));
+    try {
+      const u = new URL(to, "http://localhost");
+      if (isFunctionalSearch) {
+        // Evaluate updater against current params for display
+        const current = new URLSearchParams(currentSearch);
+        const searchObj = resolveSearchUpdater(search, current, decodeSearch);
+        // Merge current params with updater result
+        const merged = new URLSearchParams(current);
+        applySearchObject(merged, searchObj);
+        u.search = merged.toString();
+      } else {
+        for (const [k, v] of Object.entries(search)) {
+          if (v != null) u.searchParams.set(k, String(v));
+        }
       }
+      return u.pathname + u.search + (u.hash || "");
+    } catch (err) {
+      console.error(
+        "[react-server] search params decode/updater threw while computing " +
+          "Link href. The Link will render with the base `to` href. " +
+          "Check your decode() or search updater function.\n" +
+          "Link to: %s",
+        to,
+        err
+      );
+      return to;
     }
-    return u.pathname + u.search + (u.hash || "");
   }, [to, search, isFunctionalSearch, currentSearch, decodeSearch]);
 
   const tryNavigate = useCallback(async () => {
@@ -195,22 +239,31 @@ export default function Link({
   const handlePrefetch = (handler) => (e) => {
     handler?.(e);
     if (prefetchEnabled === true) {
-      let prefetchTo = to;
-      // Use merged URL for prefetch so the correct page is fetched
-      if (search) {
-        prefetchTo = mergeSearchParams(
-          url ? new URL(to, url).href : to,
-          search,
-          encodeSearch,
-          decodeSearch
+      try {
+        let prefetchTo = to;
+        // Use merged URL for prefetch so the correct page is fetched
+        if (search) {
+          prefetchTo = mergeSearchParams(
+            url ? new URL(to, url).href : to,
+            search,
+            encodeSearch,
+            decodeSearch
+          );
+        }
+        prefetch(prefetchTo, {
+          outlet: target || (local ? outlet : root ? "PAGE_ROOT" : undefined),
+          ttl,
+          noCache,
+          revalidate,
+        });
+      } catch (err) {
+        console.error(
+          "[react-server] search params transform threw during prefetch. " +
+            "Prefetch was skipped.\nLink to: %s",
+          to,
+          err
         );
       }
-      prefetch(prefetchTo, {
-        outlet: target || (local ? outlet : root ? "PAGE_ROOT" : undefined),
-        ttl,
-        noCache,
-        revalidate,
-      });
     }
   };
 

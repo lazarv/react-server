@@ -26,31 +26,50 @@ function emitLocationChange() {
 let origPushState;
 let origReplaceState;
 
+// Symbol guard ensures idempotent patching — if two copies of this module
+// load (e.g. different bundle chunks), the second one reuses the existing
+// patch instead of wrapping it (which would double-dispatch events).
+const PATCHED = Symbol.for("react-server.history-patched");
+
 if (typeof window !== "undefined") {
   window.addEventListener("popstate", emitLocationChange);
 
-  // Patch history.pushState/replaceState to notify subscribers and dispatch
-  // custom events so useLocation (and any external listener) picks up changes.
-  origPushState = history.pushState.bind(history);
-  origReplaceState = history.replaceState.bind(history);
+  if (!history[PATCHED]) {
+    // Patch history.pushState/replaceState to notify subscribers and dispatch
+    // custom events so useLocation (and any external listener) picks up changes.
+    const _origPush = history.pushState.bind(history);
+    const _origReplace = history.replaceState.bind(history);
 
-  history.pushState = function (...args) {
-    const prevHref = location.href;
-    origPushState(...args);
-    window.dispatchEvent(
-      new CustomEvent("pushstate", { detail: { prevHref } })
-    );
-    emitLocationChange();
-  };
+    history.pushState = function (...args) {
+      const prevHref = location.href;
+      _origPush(...args);
+      window.dispatchEvent(
+        new CustomEvent("pushstate", { detail: { prevHref } })
+      );
+      emitLocationChange();
+    };
 
-  history.replaceState = function (...args) {
-    const prevHref = location.href;
-    origReplaceState(...args);
-    window.dispatchEvent(
-      new CustomEvent("replacestate", { detail: { prevHref } })
-    );
-    emitLocationChange();
-  };
+    history.replaceState = function (...args) {
+      const prevHref = location.href;
+      _origReplace(...args);
+      window.dispatchEvent(
+        new CustomEvent("replacestate", { detail: { prevHref } })
+      );
+      emitLocationChange();
+    };
+
+    // Stash the original (unpatched) references on the patched functions
+    // so any copy of this module can access them for silent navigation.
+    history.pushState._orig = _origPush;
+    history.replaceState._orig = _origReplace;
+
+    history[PATCHED] = true;
+  }
+
+  // Always resolve origPushState/origReplaceState from the stashed references
+  // so silent navigation works even if this is a second copy of the module.
+  origPushState = history.pushState._orig;
+  origReplaceState = history.replaceState._orig;
 }
 
 /**

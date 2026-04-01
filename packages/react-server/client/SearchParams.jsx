@@ -59,15 +59,38 @@ export default function SearchParams({ decode, encode, route, children }) {
     return {
       // decode chain: parent (outer) runs first, then self (inner)
       decode: decode
-        ? (sp) => decode(parent.decode ? parent.decode(sp) : sp)
+        ? (sp) => {
+            try {
+              const parentDecoded = parent.decode ? parent.decode(sp) : sp;
+              return decode(parentDecoded);
+            } catch (err) {
+              console.error(
+                "[react-server] SearchParams decode() threw. " +
+                  "The raw search params will be used instead. " +
+                  "Check your decode function.",
+                err
+              );
+              return sp;
+            }
+          }
         : parent.decode,
       // encode chain: self (inner) runs first, then parent (outer)
       encode: encode
         ? (sp, current) => {
-            const selfEncoded = encode(sp, current);
-            return parent.encode
-              ? parent.encode(selfEncoded, current)
-              : selfEncoded;
+            try {
+              const selfEncoded = encode(sp, current);
+              return parent.encode
+                ? parent.encode(selfEncoded, current)
+                : selfEncoded;
+            } catch (err) {
+              console.error(
+                "[react-server] SearchParams encode() threw. " +
+                  "The un-encoded search params will be used instead. " +
+                  "Check your encode function.",
+                err
+              );
+              return sp;
+            }
           }
         : parent.encode,
     };

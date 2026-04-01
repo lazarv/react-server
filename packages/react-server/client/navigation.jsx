@@ -60,18 +60,43 @@ export function useNavigate() {
         const merged = new URLSearchParams(current);
 
         if (search) {
-          const searchObj = resolveSearchUpdater(
-            search,
-            current,
-            decodeSearch,
-            target
-          );
-          applySearchObject(merged, searchObj);
+          try {
+            const searchObj = resolveSearchUpdater(
+              search,
+              current,
+              decodeSearch,
+              target
+            );
+            applySearchObject(merged, searchObj);
+          } catch (err) {
+            console.error(
+              "[react-server] search params decode/updater threw during " +
+                "navigation. The search params transform was skipped. " +
+                "Check your decode() or search updater function.\n" +
+                "Route: %s\nCurrent search: %s",
+              target.path,
+              current.toString(),
+              err
+            );
+          }
         }
 
-        // Apply the encode transform chain
-        const final = encodeSearch ? encodeSearch(merged, current) : merged;
-        const qs = final.toString();
+        let qs;
+        try {
+          // Apply the encode transform chain
+          const final = encodeSearch ? encodeSearch(merged, current) : merged;
+          qs = final.toString();
+        } catch (err) {
+          console.error(
+            "[react-server] search params encode() threw during navigation. " +
+              "The encode transform was skipped. Check your encode() function.\n" +
+              "Route: %s\nMerged search: %s",
+            target.path,
+            merged.toString(),
+            err
+          );
+          qs = merged.toString();
+        }
         const url = pathname + (qs ? `?${qs}` : "");
 
         return navigate(url, navOptions);

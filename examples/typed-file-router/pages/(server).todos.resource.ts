@@ -16,6 +16,6 @@ export const loader = async ({ filter }: { filter: string }) => {
   return loadTodos({ filter });
 };
 
-export const mapping = (_params: any, search: any) => ({
+export const mapping = ({ search }: { search: any }) => ({
   filter: search.filter ?? "all",
 });

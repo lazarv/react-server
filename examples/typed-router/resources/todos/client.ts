@@ -18,6 +18,6 @@ export const todos = resource.bind(async ({ filter }) => {
 // Route-resource binding — exported as client reference for router.tsx.
 // Placed alongside server bindings in the resources array; Route.jsx
 // detects client references by $$typeof and passes them through RSC.
-export const todosClientMapping = todos.from((_: any, search: any) => ({
+export const todosClientMapping = todos.from(({ search }: { search: any }) => ({
   filter: search.filter ?? "all",
 }));

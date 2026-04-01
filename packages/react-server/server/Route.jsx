@@ -114,7 +114,7 @@ export default async function Route({
       if (binding.resource && binding.mapFn) {
         // Skip resources with no loader (e.g. client-only resources)
         if (!binding.resource._loader) continue;
-        const key = binding.mapFn(params, searchParams);
+        const key = binding.mapFn({ params, search: searchParams });
         const promise = binding.resource.query(key);
         loaders.push(promise);
         if (hydrationCollectors) {

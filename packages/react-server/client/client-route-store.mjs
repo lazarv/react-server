@@ -160,7 +160,7 @@ export function loadRouteResources(pathname, search) {
     for (const binding of resources) {
       if (binding.resource && binding.mapFn) {
         if (!binding.resource._loader) continue;
-        const key = binding.mapFn(params, searchParams);
+        const key = binding.mapFn({ params, search: searchParams });
         loaders.push(binding.resource.query(key));
       } else if (binding._loader && typeof binding.query === "function") {
         loaders.push(binding.query());

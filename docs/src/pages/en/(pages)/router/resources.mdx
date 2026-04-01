@@ -147,7 +147,7 @@ export const todos = resource.bind(async ({ filter }) => {
 // Export route-resource binding as a client reference.
 // Since this is a "use client" module, the export passes through RSC
 // serialization and resolves on the client for client-only navigation.
-export const todosClientMapping = todos.from((_, search) => ({
+export const todosClientMapping = todos.from(({ search }) => ({
   filter: search.filter ?? "all",
 }));
 ```
@@ -169,7 +169,7 @@ In the router, place server and client bindings side by side in the `resources` 
 ```ts filename="resources/mappings.ts"
 import { todos } from "./todos/server";
 
-export const todosServerMapping = todos.from((_, search) => ({
+export const todosServerMapping = todos.from(({ search }) => ({
   filter: search.filter ?? "all",
 }));
 ```
@@ -336,8 +336,8 @@ import { posts } from "./resources/posts";
 const router = createRouter({
   user: createRoute(routes.user, <UserPage />, {
     resources: [
-      // .from() maps (routeParams, searchParams) → resource key
-      userById.from((params) => ({ id: params.id })),
+      // .from() maps { params, search } → resource key
+      userById.from(({ params }) => ({ id: params.id })),
       // singleton resources don't need .from()
       currentUser,
     ],
@@ -346,11 +346,11 @@ const router = createRouter({
   posts: createRoute(routes.posts, <PostListPage />, {
     resources: [
       // Load current + next page in parallel
-      posts.from((params, search) => ({
+      posts.from(({ search }) => ({
         page: search.page ?? 1,
         tag: search.tag,
       })),
-      posts.from((params, search) => ({
+      posts.from(({ search }) => ({
         page: (search.page ?? 1) + 1,
       })),
     ],
@@ -399,7 +399,7 @@ export const todos = resource.bind(async ({ filter }) => {
 });
 
 // Exported as a client reference — passes through RSC to the client
-export const todosClientMapping = todos.from((_, search) => ({
+export const todosClientMapping = todos.from(({ search }) => ({
   filter: search.filter ?? "all",
 }));
 ```
@@ -497,7 +497,7 @@ A resource file exports the following named exports:
 |--------|----------|-------------|
 | `key` | no | Resource key schema (e.g. `{ filter: String }`, a Zod schema, etc.). Omit for singleton resources. |
 | `loader` | yes | Async function that fetches data given a validated key. |
-| `mapping` | yes | Function `(params, searchParams) => key` that maps route parameters and search parameters to the resource key. |
+| `mapping` | yes | Function `({ params, search }) => key` that maps route parameters and search parameters to the resource key. |
 | `name` | no | Override the auto-derived resource name. |
 
 The filename determines the route path, just like with other file-system based router files. For example, `todos.resource.ts` binds a resource to the `/todos` route.
@@ -510,7 +510,7 @@ export const loader = async ({ filter }) => {
   return db.todos.list({ filter });
 };
 
-export const mapping = (_params: any, search: any) => ({
+export const mapping = ({ search }: { search: any }) => ({
   filter: search.filter ?? "all",
 });
 ```
@@ -585,7 +585,7 @@ export const loader = async ({ q }) => {
   return res.json();
 };
 
-export const mapping = (_params: any, search: any) => ({
+export const mapping = ({ search }: { search: any }) => ({
   q: search.q ?? "",
 });
 ```
@@ -614,7 +614,7 @@ export const loader = async ({ filter }) => {
   return loadTodos({ filter });
 };
 
-export const mapping = (_params: any, search: any) => ({
+export const mapping = ({ search }: { search: any }) => ({
   filter: search.filter ?? "all",
 });
 ```
@@ -631,7 +631,7 @@ export const loader = async ({ filter }) => {
   return loadTodos({ filter });
 };
 
-export const mapping = (_params: any, search: any) => ({
+export const mapping = ({ search }: { search: any }) => ({
   filter: search.filter ?? "all",
 });
 ```
@@ -729,6 +729,6 @@ Returns a cleanup function.
 ```ts
 import { registerRouteResources } from "@lazarv/react-server/navigation";
 registerRouteResources("/todos", [
-  todos.from((_, search) => ({ filter: search.filter ?? "all" })),
+  todos.from(({ search }) => ({ filter: search.filter ?? "all" })),
 ]);
 ```

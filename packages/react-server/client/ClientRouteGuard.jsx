@@ -46,7 +46,9 @@ export default function ClientRouteGuard({
   // or a single binding object.
   useEffect(() => {
     if (resources?.length && path) {
-      const flat = resources.flat ? resources.flat() : resources;
+      const flat = (resources.flat ? resources.flat() : resources).filter(
+        Boolean
+      );
       return registerRouteResources(path, flat);
     }
   }, [path, resources]);

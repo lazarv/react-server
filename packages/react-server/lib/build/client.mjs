@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { existsSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
 import colors from "picocolors";
@@ -20,6 +21,7 @@ import rollupUseWorker, {
   useWorkerSubBuildPlugin,
 } from "../plugins/use-worker.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
+import resourcesPlugin from "../plugins/resources.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import {
@@ -237,6 +239,23 @@ export default async function clientBuild(
           find: /^@lazarv\/react-server\/resources$/,
           replacement: join(sys.rootDir, "client/resource.mjs"),
         },
+        // When file-router is active, the RSC build writes a generated
+        // __resources__ module to disk. Use it instead of the empty fallback.
+        ...(existsSync(join(cwd, ".react-server", "__resources__.mjs"))
+          ? [
+              {
+                find: /^@lazarv\/react-server\/__resources__$/,
+                replacement: sys.normalizePath(
+                  join(cwd, ".react-server", "__resources__.mjs")
+                ),
+              },
+            ]
+          : []),
+        // Resolve __create_resource__ for resource files in client build
+        {
+          find: /^@lazarv\/react-server\/__create_resource__$/,
+          replacement: join(sys.rootDir, "client/create-resource.mjs"),
+        },
         {
           find: /^@lazarv\/react-server\/prerender$/,
           replacement: join(sys.rootDir, "server/prerender.jsx"),
@@ -392,6 +411,39 @@ export default async function clientBuild(
     plugins: [
       fileListingReporterPlugin("Client"),
       jsonNamedExports(),
+      resourcesPlugin(),
+      // Transform .resource.* files: append createResource/bind/from wiring.
+      // The file-router prePlugin does this for RSC/SSR builds, but the
+      // client build is a separate Vite process without file-router.
+      {
+        name: "react-server:resource-transform",
+        enforce: "pre",
+        transform: {
+          filter: { id: /\.resource\.\w+$/ },
+          handler(code) {
+            // Only transform files that export loader and mapping
+            if (
+              !/export\s+(const|let|var|function|async\s+function)\s+(loader|mapping)\b/.test(
+                code
+              ) &&
+              !/export\s*\{[^}]*(loader|mapping)/.test(code)
+            ) {
+              return null;
+            }
+            const hasKey =
+              /export\s+(const|let|var|function)\s+key\b/.test(code) ||
+              /export\s*\{[^}]*\bkey\b/.test(code);
+            const appendCode = `
+import { createResource as __rs_createResource__ } from "@lazarv/react-server/__create_resource__";
+const __rs_descriptor__ = __rs_createResource__(${hasKey ? "{ key }" : "{}"});
+__rs_descriptor__.bind(loader);
+export { __rs_descriptor__ };
+export default __rs_descriptor__.from(mapping);
+`;
+            return code + "\n" + appendCode;
+          },
+        },
+      },
       ...userOrBuiltInVitePluginReact(config.plugins),
       ...filterOutVitePluginReact(config.plugins),
       fixEsbuildOptionsPlugin(),

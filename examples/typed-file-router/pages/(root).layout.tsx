@@ -5,6 +5,7 @@ import {
   dashboard,
   counter,
   clock,
+  todos,
 } from "@lazarv/react-server/routes";
 
 export default index.createLayout(({ children }) => {
@@ -29,6 +30,7 @@ export default index.createLayout(({ children }) => {
           <dashboard.Link>Dashboard</dashboard.Link>
           <counter.Link>Counter</counter.Link>
           <clock.Link>Clock</clock.Link>
+          <todos.Link>Todos</todos.Link>
         </nav>
         {children}
       </body>

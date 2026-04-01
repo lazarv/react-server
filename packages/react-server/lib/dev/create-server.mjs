@@ -41,6 +41,7 @@ import { moduleAliases } from "../loader/module-alias.mjs";
 import aliasPlugin from "../plugins/alias.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
+import resourcesPlugin from "../plugins/resources.mjs";
 import importRemote from "../plugins/import-remote.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import reactServerLive from "../plugins/live.mjs";
@@ -246,6 +247,7 @@ export default async function createServer(root, options) {
     },
     plugins: [
       jsonNamedExports(),
+      resourcesPlugin(),
       ...(options.inspect
         ? [
             inspect({
@@ -452,12 +454,16 @@ export default async function createServer(root, options) {
                         join(sys.rootDir, "client/route.mjs")
                       ),
                     },
-                    {
-                      find: /^@lazarv\/react-server\/resources$/,
-                      replacement: sys.normalizePath(
-                        join(sys.rootDir, "client/resource.mjs")
-                      ),
-                    },
+                    ...(root && root !== "@lazarv/react-server/file-router"
+                      ? [
+                          {
+                            find: /^@lazarv\/react-server\/resources$/,
+                            replacement: sys.normalizePath(
+                              join(sys.rootDir, "client/resource.mjs")
+                            ),
+                          },
+                        ]
+                      : []),
                     {
                       find: /^@lazarv\/react-server\/http-context$/,
                       replacement: sys.normalizePath(

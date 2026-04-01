@@ -11,6 +11,7 @@ import { forRoot } from "../../config/index.mjs";
 import { resolveTelemetryConfig } from "../../server/telemetry.mjs";
 import configPrebuilt from "../plugins/config-prebuilt.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
+import resourcesPlugin from "../plugins/resources.mjs";
 import optionalDeps from "../plugins/optional-deps.mjs";
 import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
@@ -795,6 +796,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
       manifestRegistry(),
       manifestGenerator(clientManifest, serverManifest),
       jsonNamedExports(),
+      resourcesPlugin(),
       !root || root === "@lazarv/react-server/file-router"
         ? fileRouter(options)
         : [],
@@ -1092,6 +1094,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     },
     plugins: [
       fileListingReporterPlugin("SSR"),
+      resourcesPlugin(),
       ...buildPlugins,
       manifestRegistry(),
       manifestGenerator(clientManifest, serverManifest, "ssr"),

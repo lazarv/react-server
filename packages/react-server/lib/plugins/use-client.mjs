@@ -171,6 +171,9 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
           // Normalize to forward slashes so generated import() paths work on Windows
           const filePath = id.split("?")[0];
           const query = id.includes("?") ? id.slice(id.indexOf("?")) : "";
+          // Get real path - this is the canonical path after resolving symlinks
+          // pnpm uses symlinks, so the same file can be accessed via multiple paths
+          // Normalize to forward slashes so generated import() paths work on Windows
           const realId = sys.normalizePath(await realpath(filePath)) + query;
 
           // DEDUPLICATION: If we've already processed this real path, return cached result

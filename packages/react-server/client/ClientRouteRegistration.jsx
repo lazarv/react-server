@@ -17,6 +17,7 @@ import {
   registerRouteResources,
   isFallbackActive,
 } from "./client-route-store.mjs";
+
 import {
   usePathname,
   usePendingNavigation,
@@ -67,13 +68,15 @@ export default function ClientRouteRegistration({
   if (hasHydrationData && !hydrationInjected.current) {
     hydrationInjected.current = true;
     // Flatten resolved client resources — entries may be arrays or single bindings.
-    const flat = Array.isArray(resources)
-      ? resources.flat
-        ? resources.flat()
+    const flat = (
+      Array.isArray(resources)
+        ? resources.flat
+          ? resources.flat()
+          : resources
         : resources
-      : resources
-        ? [resources]
-        : [];
+          ? [resources]
+          : []
+    ).filter(Boolean);
     let injected = false;
     for (const binding of flat) {
       if (binding?.resource?._injectHydration) {
@@ -113,7 +116,9 @@ export default function ClientRouteRegistration({
   //   single binding or an array of bindings — flatten for registration.
   useEffect(() => {
     if (resources?.length && path) {
-      const flat = resources.flat ? resources.flat() : resources;
+      const flat = (resources.flat ? resources.flat() : resources).filter(
+        Boolean
+      );
       return registerRouteResources(path, flat);
     }
   }, [path, resources]);

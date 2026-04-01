@@ -253,6 +253,24 @@ export function createResource<
   TParseMap extends Record<string, (value: string) => any>,
 >(options: { key: TParseMap }): ResourceDescriptor<InferParseMap<TParseMap>>;
 
+// ── File-router resources collection ──
+
+/**
+ * Collection of file-router generated resource descriptors.
+ * Each entry is created from `.resource.ts/js` files via the file-router.
+ *
+ * Empty when the file-router is not active.
+ *
+ * @example
+ * ```tsx
+ * import { resources } from "@lazarv/react-server/resources";
+ *
+ * const data = resources.todos.use({ filter: "all" });
+ * resources.todos.invalidate({ filter: "all" });
+ * ```
+ */
+export const resources: Record<string, ResourceDescriptor<any, any>>;
+
 // ── createResources ──
 
 /**

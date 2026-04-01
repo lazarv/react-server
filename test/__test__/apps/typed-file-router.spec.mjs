@@ -191,6 +191,53 @@ describe("typed-file-router — client-side navigation", () => {
   });
 });
 
+// ── Resource routes ──
+
+describe("typed-file-router — resource routes", () => {
+  test("renders todos page with server-loaded data at /todos", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+    expect(await page.textContent("body")).toContain("Todos");
+    // Verify todo items from the server resource loader
+    expect(await page.textContent("body")).toContain("Set up file router");
+    expect(await page.textContent("body")).toContain("Add resource files");
+    expect(await page.textContent("body")).toContain("Deploy to production");
+  });
+
+  test("todos page shows todo list with correct item count", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+    const listItems = await page.$$('[data-testid="todos-list"] li');
+    expect(listItems.length).toBe(7);
+  });
+
+  test("navigates to todos via typed Link click", async () => {
+    await page.goto(hostname);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const prevUrl = page.url();
+    const todosLink = await page.$('nav a[href="/todos"]');
+    expect(todosLink).not.toBeNull();
+    await todosLink.click();
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("/todos");
+    expect(await page.textContent("body")).toContain("Todos");
+  });
+
+  test("todos page has filter links", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+    expect(await page.textContent("body")).toContain("all");
+    expect(await page.textContent("body")).toContain("active");
+    expect(await page.textContent("body")).toContain("completed");
+  });
+});
+
 // ── Browser history ──
 
 describe("typed-file-router — browser history", () => {

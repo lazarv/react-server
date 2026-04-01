@@ -2061,6 +2061,28 @@ ${lazyValidateLines.join("\n")}
         }
         const hasClientRoutes = clientSiblings.length > 0;
 
+        // --- Loading components for client sibling routes ---
+        // Each client sibling may have a page-level loading file (e.g.
+        // todos.loading.tsx for /todos). These are NOT covered by the
+        // layout-level loadings array (which only matches the main page
+        // path), so we look them up from the full manifest.
+        const clientSiblingLoadings = clientSiblings.map(
+          ([, sibPath]) =>
+            manifest.pages.find(
+              ([, loadingPath, , type]) =>
+                type === "loading" && loadingPath === sibPath
+            ) ?? null
+        );
+        // Deduplicate and collect only new loading entries not already in
+        // the main loadings list.
+        const extraLoadings = clientSiblingLoadings
+          .filter(Boolean)
+          .filter((entry) => !loadings.some(([src]) => src === entry[0]));
+        // Merge into loadings so they get imported alongside others.
+        for (const entry of extraLoadings) {
+          loadings.push(entry);
+        }
+
         // --- Resources for this route ---
         const routeResources = manifest.pages.filter(
           ([, resourcePath, , type]) =>
@@ -2471,10 +2493,30 @@ ${lazyValidateLines.join("\n")}
                   }`;
                 })
                 .join("\n")}
-                ${hasClientRoutes || hasResources ? `<Route path="${path}" exact={true}${hasResources ? ` resources={__page_resources__}` : ""}>` : ""}
+                ${
+                  hasClientRoutes || hasResources
+                    ? (() => {
+                        const pageLoading = loadings.find(
+                          ([, loadingPath]) => loadingPath === path
+                        );
+                        const pageLoadingProp = pageLoading
+                          ? ` loading={<__react_server_router_loading_${loadings.indexOf(pageLoading)}__/>}`
+                          : "";
+                        return `<Route path="${path}" exact={true}${pageLoadingProp}${hasResources ? ` resources={__page_resources__}` : ""}>`;
+                      })()
+                    : ""
+                }
                 <${loadingIndex.length > 0 || errorBoundaryIndex.length > 0 ? "PrerenderedPage" : "CachedPage"} {...pageProps} {...props} />
                 ${hasClientRoutes || hasResources ? `</Route>` : ""}
-                ${clientSiblings.map(([, sibPath], i) => `<Route path="${sibPath}" exact={true} element={<__client_page_${i}__ />} />`).join("\n                ")}
+                ${clientSiblings
+                  .map(([, sibPath], i) => {
+                    const sibLoading = clientSiblingLoadings[i];
+                    const loadingProp = sibLoading
+                      ? ` loading={<__react_server_router_loading_${loadings.indexOf(sibLoading)}__/>}`
+                      : "";
+                    return `<Route path="${sibPath}" exact={true}${loadingProp} element={<__client_page_${i}__ />} />`;
+                  })
+                  .join("\n                ")}
               ${layouts
                 .map(
                   (_, i) =>

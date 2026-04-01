@@ -7,6 +7,7 @@
  * The data is hydrated to the client on initial page load.
  * On client-side navigation, the client resource takes over.
  */
+import { todos } from "@lazarv/react-server/routes";
 import { loadTodos } from "../src/todos-loader";
 
 export const key = { filter: String };
@@ -16,6 +17,6 @@ export const loader = async ({ filter }: { filter: string }) => {
   return loadTodos({ filter });
 };
 
-export const mapping = ({ search }: { search: any }) => ({
+export const mapping = todos.createResourceMapping(({ search }) => ({
   filter: search.filter ?? "all",
-});
+}));

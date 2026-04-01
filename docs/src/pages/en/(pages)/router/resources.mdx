@@ -481,7 +481,7 @@ export const todos = resource.bind(async ({ filter }) => { /* ... */ });
 
 For simple (non-dual-loader) resources, identity is implicit — the descriptor and loader are defined in the same file via `createResource({ ... }).bind(loaderFn)`.
 
-<Link name="resource-files">
+<Link name="file-system-resources">
 ## File-system based resources
 </Link>
 
@@ -497,12 +497,14 @@ A resource file exports the following named exports:
 |--------|----------|-------------|
 | `key` | no | Resource key schema (e.g. `{ filter: String }`, a Zod schema, etc.). Omit for singleton resources. |
 | `loader` | yes | Async function that fetches data given a validated key. |
-| `mapping` | yes | Function `({ params, search }) => key` that maps route parameters and search parameters to the resource key. |
+| `mapping` | yes | Function `({ params, search }) => key` that maps route parameters and search parameters to the resource key. Use `route.createResourceMapping(fn)` for type-safe params and search. |
 | `name` | no | Override the auto-derived resource name. |
 
 The filename determines the route path, just like with other file-system based router files. For example, `todos.resource.ts` binds a resource to the `/todos` route.
 
 ```ts filename="pages/todos.resource.ts"
+import { todos } from "@lazarv/react-server/routes";
+
 export const key = { filter: String };
 
 export const loader = async ({ filter }) => {
@@ -510,9 +512,9 @@ export const loader = async ({ filter }) => {
   return db.todos.list({ filter });
 };
 
-export const mapping = ({ search }: { search: any }) => ({
+export const mapping = todos.createResourceMapping(({ search }) => ({
   filter: search.filter ?? "all",
-});
+}));
 ```
 
 The page component accesses the resource via the `resources` collection:
@@ -577,6 +579,8 @@ Add `"use client"` at the top of a resource file to make it a client-side loader
 ```ts filename="pages/search.resource.ts"
 "use client";
 
+import { search as searchRoute } from "@lazarv/react-server/routes";
+
 export const key = { q: String };
 
 export const loader = async ({ q }) => {
@@ -585,9 +589,9 @@ export const loader = async ({ q }) => {
   return res.json();
 };
 
-export const mapping = ({ search }: { search: any }) => ({
+export const mapping = searchRoute.createResourceMapping(({ search }) => ({
   q: search.q ?? "",
-});
+}));
 ```
 
 ### Dual-loader resource files
@@ -605,6 +609,7 @@ pages/
 Both files bind to `/todos` and share the same resource name (`todos`). On the initial server render, the server resource loads data and hydrates it to the client. On subsequent client-side navigations, the client resource runs its loader directly in the browser. Both resource files should use the same key schema so hydration injection works correctly.
 
 ```ts filename="pages/(server).todos.resource.ts"
+import { todos } from "@lazarv/react-server/routes";
 import { loadTodos } from "../src/todos-loader";
 
 export const key = { filter: String };
@@ -614,14 +619,15 @@ export const loader = async ({ filter }) => {
   return loadTodos({ filter });
 };
 
-export const mapping = ({ search }: { search: any }) => ({
+export const mapping = todos.createResourceMapping(({ search }) => ({
   filter: search.filter ?? "all",
-});
+}));
 ```
 
 ```ts filename="pages/(client).todos.resource.ts"
 "use client";
 
+import { todos } from "@lazarv/react-server/routes";
 import { loadTodos } from "../src/todos-loader";
 
 export const key = { filter: String };
@@ -631,9 +637,9 @@ export const loader = async ({ filter }) => {
   return loadTodos({ filter });
 };
 
-export const mapping = ({ search }: { search: any }) => ({
+export const mapping = todos.createResourceMapping(({ search }) => ({
   filter: search.filter ?? "all",
-});
+}));
 ```
 
 The page component uses `resources.todos` from the collection — no need to import from individual resource files:

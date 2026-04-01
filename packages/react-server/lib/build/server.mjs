@@ -879,6 +879,10 @@ export default async function serverBuild(root, options, clientManifestBus) {
           replacement: join(sys.rootDir, "client/resource.mjs"),
         },
         {
+          find: /^@lazarv\/react-server\/__create_resource__$/,
+          replacement: join(sys.rootDir, "client/create-resource.mjs"),
+        },
+        {
           find: /^@lazarv\/react-server\/navigation$/,
           replacement: join(sys.rootDir, "client/navigation.jsx"),
         },
@@ -1094,7 +1098,38 @@ export default async function serverBuild(root, options, clientManifestBus) {
     },
     plugins: [
       fileListingReporterPlugin("SSR"),
-      resourcesPlugin(),
+      resourcesPlugin({ useStore: true }),
+      // Transform .resource.* files: append createResource/bind/from wiring.
+      // The file-router prePlugin does this for the RSC build, but the
+      // SSR build is a separate Vite process without file-router.
+      {
+        name: "react-server:resource-transform",
+        enforce: "pre",
+        transform: {
+          filter: { id: /\.resource\.\w+$/ },
+          handler(code) {
+            if (
+              !/export\s+(const|let|var|function|async\s+function)\s+(loader|mapping)\b/.test(
+                code
+              ) &&
+              !/export\s*\{[^}]*(loader|mapping)/.test(code)
+            ) {
+              return null;
+            }
+            const hasKey =
+              /export\s+(const|let|var|function)\s+key\b/.test(code) ||
+              /export\s*\{[^}]*\bkey\b/.test(code);
+            const appendCode = `
+import { createResource as __rs_createResource__ } from "@lazarv/react-server/__create_resource__";
+const __rs_descriptor__ = __rs_createResource__(${hasKey ? "{ key }" : "{}"});
+__rs_descriptor__.bind(loader);
+export { __rs_descriptor__ };
+export default __rs_descriptor__.from(mapping);
+`;
+            return code + "\n" + appendCode;
+          },
+        },
+      },
       ...buildPlugins,
       manifestRegistry(),
       manifestGenerator(clientManifest, serverManifest, "ssr"),

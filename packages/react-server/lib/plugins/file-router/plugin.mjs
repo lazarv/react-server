@@ -13,6 +13,7 @@ import merge from "@lazarv/react-server/lib/utils/merge.mjs";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 import { applyParamsToPath } from "@lazarv/react-server/server/route-match.mjs";
 import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
+import { initStoreEntry, setVirtualModuleContent } from "../resources.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
 import micromatch from "micromatch";
@@ -285,6 +286,12 @@ function deduplicateRouteNames(routeInfos) {
 }
 
 export default function viteReactServerRouter(options = {}) {
+  // Pre-create store entries so parallel SSR/client builds can await them.
+  // Must happen at plugin creation time (before any build starts) so
+  // the entries exist when the SSR/client load handlers check the store.
+  initStoreEntry("resources");
+  initStoreEntry("routes");
+
   const outDir = options.outDir ?? ".react-server";
   const entry = {
     layouts: [],
@@ -683,6 +690,15 @@ export default function viteReactServerRouter(options = {}) {
           `      component: (props: { error: Error }) => React.ReactNode`
         );
         lines.push(`    ): typeof component;`);
+      }
+
+      // Resource — typed mapping function
+      if (fileTypes.includes("resource")) {
+        lines.push(`    createResourceMapping<TKey>(`);
+        lines.push(
+          `      mapping: (ctx: { params: ${validateParamsType}; search: ${validateSearchType} }) => TKey`
+        );
+        lines.push(`    ): typeof mapping;`);
       }
 
       lines.push(`  }`);
@@ -1514,8 +1530,12 @@ export default function viteReactServerRouter(options = {}) {
       if (id === "@lazarv/react-server/__create_resource__") {
         // RSC: server createResource (with server-side cache invalidation)
         // SSR/client: client createResource (with skipBind on SSR)
-        const env = this.environment?.name;
-        if (env === "rsc") {
+        //
+        // In build mode the file-router only exists in the RSC viteBuild(),
+        // so __create_resource__ always needs the server version.
+        // In dev mode the file-router is shared across environments, so
+        // check this.environment.name to distinguish RSC from SSR/client.
+        if (viteCommand === "build" || this.environment?.name === "rsc") {
           return join(sys.rootDir, "server/typed-resource.jsx");
         }
         return join(sys.rootDir, "client/create-resource.mjs");
@@ -1575,9 +1595,9 @@ export default __rs_descriptor__.from(mapping);
       if (viteCommand === "build") {
         await config_init$();
 
-        // Write the __resources__ module to disk for the client build.
-        // The client build doesn't load file-router, so it needs a real file.
-        // Import __rs_descriptor__ from each resource file (prefer client).
+        // Set virtual module content for the client build.
+        // The client build doesn't load file-router, so the resources plugin
+        // serves these as virtual modules using the shared store.
         const resourceEntries = manifest.pages.filter(
           ([, , , type]) => type === "resource"
         );
@@ -1605,11 +1625,41 @@ export default __rs_descriptor__.from(mapping);
             entries.push(`${JSON.stringify(rName)}: __d${ri}__`);
             ri++;
           }
-          const resourcesModuleContent = `${imports.join("\n")}\nexport default {\n  ${entries.join(",\n  ")}\n};\n`;
-          await mkdir(join(cwd, outDir), { recursive: true });
-          await writeFile(
-            join(cwd, outDir, "__resources__.mjs"),
-            resourcesModuleContent
+          setVirtualModuleContent(
+            "resources",
+            `${imports.join("\n")}\nexport default {\n  ${entries.join(",\n  ")}\n};\n`
+          );
+        } else {
+          // No resources — resolve the promise so SSR/client builds
+          // awaiting the store don't hang forever.
+          setVirtualModuleContent("resources", "export default {};");
+        }
+
+        // Set routes virtual module content for the client build.
+        const routeInfos = await buildRouteInfos();
+        if (routeInfos.length > 0) {
+          const routeExportLines = routeInfos.map(
+            (info) =>
+              `export const ${info.name} = __withHelpers(__createRoute("${info.path}"));`
+          );
+          setVirtualModuleContent(
+            "routes",
+            `import { createRoute as __createRoute } from "@lazarv/react-server/router";
+
+const __identity = (x) => x;
+function __withHelpers(descriptor) {
+  descriptor.createPage = __identity;
+  descriptor.createLayout = __identity;
+  descriptor.createMiddleware = __identity;
+  descriptor.createError = __identity;
+  descriptor.createLoading = __identity;
+  descriptor.createFallback = __identity;
+  descriptor.createResourceMapping = __identity;
+  return descriptor;
+}
+
+${routeExportLines.join("\n")}
+`
           );
         }
 
@@ -1734,6 +1784,7 @@ function __withHelpers(descriptor) {
   descriptor.createError = __identity;
   descriptor.createLoading = __identity;
   descriptor.createFallback = __identity;
+  descriptor.createResourceMapping = __identity;
   return descriptor;
 }
 

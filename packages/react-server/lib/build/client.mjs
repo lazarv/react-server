@@ -1,5 +1,4 @@
 import { createRequire } from "node:module";
-import { existsSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
 import colors from "picocolors";
@@ -239,18 +238,11 @@ export default async function clientBuild(
           find: /^@lazarv\/react-server\/resources$/,
           replacement: join(sys.rootDir, "client/resource.mjs"),
         },
-        // When file-router is active, the RSC build writes a generated
-        // __resources__ module to disk. Use it instead of the empty fallback.
-        ...(existsSync(join(cwd, ".react-server", "__resources__.mjs"))
-          ? [
-              {
-                find: /^@lazarv\/react-server\/__resources__$/,
-                replacement: sys.normalizePath(
-                  join(cwd, ".react-server", "__resources__.mjs")
-                ),
-              },
-            ]
-          : []),
+        // @lazarv/react-server/__resources__ and @lazarv/react-server/routes
+        // are resolved by the resourcesPlugin() as virtual modules. The
+        // file-router populates their content via setVirtualModuleContent()
+        // during the RSC build's configResolved (before the client build
+        // constructs its config, since it awaits chunkGroupsPromise first).
         // Resolve __create_resource__ for resource files in client build
         {
           find: /^@lazarv\/react-server\/__create_resource__$/,
@@ -411,7 +403,7 @@ export default async function clientBuild(
     plugins: [
       fileListingReporterPlugin("Client"),
       jsonNamedExports(),
-      resourcesPlugin(),
+      resourcesPlugin({ useStore: true }),
       // Transform .resource.* files: append createResource/bind/from wiring.
       // The file-router prePlugin does this for RSC/SSR builds, but the
       // client build is a separate Vite process without file-router.

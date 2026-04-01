@@ -257,11 +257,26 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
                 names.forEach((n) => exportNames.add(n));
               }
             }
-            manifest.set(name, {
-              id: realId,
-              name,
-              exports: Array.from(exportNames),
-            });
+            const existing = manifest.get(name);
+            if (existing) {
+              // Merge exports — the RSC build (with file-router transforms)
+              // may have detected additional exports (e.g. default,
+              // __rs_descriptor__) that the SSR build can't see.
+              const mergedExports = new Set([
+                ...existing.exports,
+                ...exportNames,
+              ]);
+              manifest.set(name, {
+                ...existing,
+                exports: Array.from(mergedExports),
+              });
+            } else {
+              manifest.set(name, {
+                id: realId,
+                name,
+                exports: Array.from(exportNames),
+              });
+            }
           }
 
           if (type === "ssr") {

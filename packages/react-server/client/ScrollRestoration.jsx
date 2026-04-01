@@ -16,6 +16,15 @@ let scrollKeyCounter = 0;
 // to participate in save/restore alongside the window scroll.
 const scrollContainers = new Map();
 
+// Cached container scroll positions — updated eagerly on container scroll
+// events so that saveScrollWithKey can read them even after the container
+// component unmounts (unregisterScrollContainer removes from scrollContainers
+// but keeps the cached position so the effect cleanup can still save it).
+const cachedContainerPositions = new Map();
+
+// Scroll event listeners for containers — cleaned up on unregister.
+const containerScrollListeners = new Map();
+
 // Pending container restores — when ScrollRestoration's effects fire before
 // useScrollContainer's useEffect has registered the element, we stash the
 // target position here.  registerScrollContainer checks this map on
@@ -62,6 +71,21 @@ function scrollContainerTo(id, el, x, y, resolved) {
 export function registerScrollContainer(id, element) {
   scrollContainers.set(id, element);
 
+  // Cache the initial scroll position and keep it updated on scroll events.
+  cachedContainerPositions.set(id, {
+    x: element.scrollLeft,
+    y: element.scrollTop,
+  });
+
+  function onScroll() {
+    cachedContainerPositions.set(id, {
+      x: element.scrollLeft,
+      y: element.scrollTop,
+    });
+  }
+  element.addEventListener("scroll", onScroll, { passive: true });
+  containerScrollListeners.set(id, { element, onScroll });
+
   // If there's a pending restore for this container, apply it now.
   const pending = pendingContainerRestores.get(id);
   if (pending) {
@@ -77,6 +101,17 @@ export function registerScrollContainer(id, element) {
 export function unregisterScrollContainer(id) {
   scrollContainers.delete(id);
   restoringContainers.delete(id);
+  // NOTE: cachedContainerPositions is intentionally NOT deleted here.
+  // The container component unmounts (triggering this cleanup) BEFORE
+  // ScrollRestoration's effect cleanup calls saveScrollWithKey.
+  // The cached position is cleaned up after it has been saved.
+
+  // Remove the scroll event listener to avoid leaking references.
+  const listener = containerScrollListeners.get(id);
+  if (listener) {
+    listener.element.removeEventListener("scroll", listener.onScroll);
+    containerScrollListeners.delete(id);
+  }
 }
 
 // ---- Per-route scroll position handler ----
@@ -115,6 +150,23 @@ function saveScrollWithKey(scrollKey, x, y) {
       containers[id] = restoring
         ? { x: restoring.x, y: restoring.y }
         : { x: el.scrollLeft, y: el.scrollTop };
+    }
+  }
+
+  // Include recently unmounted containers whose cached position hasn't been
+  // saved yet.  This covers the case where a container component unmounts
+  // (removing itself from scrollContainers) before this function runs.
+  for (const [id, pos] of cachedContainerPositions) {
+    if (!containers[id]) {
+      containers[id] = { x: pos.x, y: pos.y };
+    }
+  }
+
+  // Clean up cached positions for containers that are no longer registered —
+  // they have now been included in the save and won't be needed again.
+  for (const id of cachedContainerPositions.keys()) {
+    if (!scrollContainers.has(id)) {
+      cachedContainerPositions.delete(id);
     }
   }
 

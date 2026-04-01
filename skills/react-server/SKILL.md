@@ -75,6 +75,7 @@ src/pages/
 
 Key conventions:
 - `page.jsx` or `index.jsx` — route page (index route)
+- `"use client"` page — client-only route (no server round-trip, state preserved between navigations)
 - `layout.jsx` — wraps child routes with persistent layout
 - `[param]` — dynamic route parameter (passed as prop)
 - `[...slug]` — catch-all (param is `string[]`)
@@ -85,6 +86,22 @@ Key conventions:
 - `*.server.{js,mjs,ts,mts}` — API route handler
 - `GET.*.server.mjs` / `POST.*.server.mjs` — HTTP method-specific API route
 - `{filename.xml}.server.mjs` — escaped route segment for special characters
+- `*.resource.{js,mjs,ts,mts}` — resource file (auto-bound to route)
+
+Route validation (export `validate` object with `params`/`search` schemas from any page):
+
+```tsx
+import { z } from "zod";
+import { user } from "@lazarv/react-server/routes";
+
+export const validate = {
+  params: z.object({ id: z.string().regex(/^\d+$/) }),
+};
+
+export default user.createPage(({ id }) => <h1>User {id}</h1>);
+```
+
+Auto-generated routes module (`@lazarv/react-server/routes`): exports named route descriptors for every route. Each has `.Link`, `.href()`, `.useParams()`, `.useSearchParams()`, `.createPage()`, `.createLayout()`, `.createLoading()`, `.createError()`, `.createMiddleware()`.
 
 ## Imports Quick Reference
 
@@ -118,12 +135,18 @@ import {
 import { defineConfig } from "@lazarv/react-server/config";
 
 // Navigation (client-side)
-import { Link, Refresh, ReactServerComponent } from "@lazarv/react-server/navigation";
+import { Link, Refresh, ReactServerComponent, ScrollRestoration, useNavigate } from "@lazarv/react-server/navigation";
 import { useClient } from "@lazarv/react-server/navigation";
 // useClient() returns { navigate, replace, prefetch }
 
-// Router utilities
-import { useMatch } from "@lazarv/react-server/router";
+// Typed router
+import { createRoute, createRouter, Route, SearchParams } from "@lazarv/react-server/router";
+
+// Resources (typed, schema-validated data fetching)
+import { createResource, createResources, resources } from "@lazarv/react-server/resources";
+
+// Auto-generated routes module (file-system router only)
+import { index, about, user } from "@lazarv/react-server/routes";
 
 // Error handling
 import { ErrorBoundary } from "@lazarv/react-server/error-boundary";
@@ -138,8 +161,185 @@ import RemoteComponent from "@lazarv/react-server/remote";
 import { isWorker } from "@lazarv/react-server/worker";
 
 // MCP (Model Context Protocol)
-import { createServer, createTool, createResource, createPrompt } from "@lazarv/react-server/mcp";
+import { createServer, createTool, createResource as createMcpResource, createPrompt } from "@lazarv/react-server/mcp";
 ```
+
+## Typed Router
+
+`@lazarv/react-server` includes a fully typed routing solution with compile-time type safety for route paths, params, and search params. No code generation step — works with any schema library (Zod, ArkType, Valibot) or lightweight parse functions.
+
+### Defining routes with createRoute
+
+```ts
+import { createRoute } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+// Static route
+export const home = createRoute("/", { exact: true });
+
+// Dynamic route — params extracted from pattern
+export const user = createRoute("/user/[id]", {
+  exact: true,
+  validate: { params: z.object({ id: z.coerce.number().int().positive() }) },
+});
+
+// Search params with validation
+export const products = createRoute("/products", {
+  exact: true,
+  validate: {
+    search: z.object({
+      sort: z.enum(["name", "price", "rating"]).catch("name"),
+      page: z.coerce.number().int().positive().catch(1),
+    }),
+  },
+});
+
+// Lightweight parse (no schema library)
+export const post = createRoute("/post/[slug]", {
+  exact: true,
+  parse: { params: { slug: String }, search: { tab: String } },
+});
+
+// Fallback routes
+export const notFound = createRoute("*");
+export const userNotFound = createRoute("/user/*"); // scoped fallback
+```
+
+### Composing routes with createRouter (server)
+
+```tsx
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import * as routes from "./routes";
+
+const router = createRouter({
+  home: createRoute(routes.home, <Home />),
+  user: createRoute(routes.user, <UserPage />),
+  notFound: createRoute(routes.notFound, <NotFound />),
+});
+
+export default function App() {
+  return (
+    <div>
+      <nav>
+        <router.home.Link>Home</router.home.Link>
+        <router.user.Link params={{ id: 42 }}>User 42</router.user.Link>
+      </nav>
+      <router.Routes />
+    </div>
+  );
+}
+```
+
+### Client-only routes
+
+Routes without server components — useful for tabs, modals, filters. Define with `createRoute` (no element) and use in `"use client"` components:
+
+```tsx
+"use client";
+import { settings } from "./routes";
+
+export default function SettingsPage() {
+  const params = settings.useParams();
+  return (
+    <nav>
+      <settings.Link params={{ tab: "profile" }}>Profile</settings.Link>
+      <settings.Link params={{ tab: "security" }}>Security</settings.Link>
+    </nav>
+  );
+}
+```
+
+In the file-system router, any page with `"use client"` at the top is automatically a client-only route.
+
+### Typed hooks and Link
+
+Every route descriptor provides: `.Link` (typed Link component), `.href(params?)` (URL builder), `.useParams()` (typed params or null), `.useSearchParams()` (typed search params), `.SearchParams` (route-scoped transform boundary).
+
+### Functional search param updaters
+
+```tsx
+<products.Link search={(prev) => ({ ...prev, page: prev.page + 1 })}>
+  Next Page
+</products.Link>
+```
+
+### SearchParams transform boundary
+
+Bidirectional URL ↔ app search param transforms with `decode` and `encode`:
+
+```tsx
+<products.SearchParams decode={decode} encode={encode}>
+  {children}
+</products.SearchParams>
+```
+
+### Programmatic navigation
+
+```tsx
+import { useNavigate } from "@lazarv/react-server/navigation";
+const navigate = useNavigate();
+navigate(user, { params: { id: 42 } });
+```
+
+## Resources (Typed Data Fetching)
+
+Schema-validated, route-aware data fetching with `"use cache"` as the caching runtime.
+
+```ts
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+// Define + bind loader
+export const userById = createResource({
+  key: z.object({ id: z.coerce.number().int().positive() }),
+}).bind(async ({ id }) => {
+  "use cache";
+  return db.users.findById(id);
+});
+
+// Singleton (no key)
+export const currentUser = createResource().bind(async () => {
+  return (await getSession()).user;
+});
+```
+
+Using in components:
+
+```tsx
+// .use() — suspense-integrated, auto-re-renders on invalidation
+const userData = userById.use({ id });
+
+// .query() — imperative, returns Promise
+const user = await userById.query({ id: 42 });
+
+// .prefetch() — warm cache
+userById.prefetch({ id: 42 });
+```
+
+Route-resource bindings for automatic pre-loading:
+
+```ts
+const todosMapping = todos.from(({ search }) => ({ filter: search.filter ?? "all" }));
+// Pass to createRoute: createRoute(routes.todos, <TodosPage />, { resources: [todosMapping] })
+```
+
+## Scroll Restoration
+
+Enable via config or component:
+
+```js
+// react-server.config.mjs
+export default { scrollRestoration: true };
+// Or with options:
+export default { scrollRestoration: { behavior: "smooth" } };
+```
+
+```tsx
+import { ScrollRestoration } from "@lazarv/react-server/navigation";
+<ScrollRestoration behavior="smooth" />
+```
+
+Handles: forward navigation (scroll to top or #hash), back/forward (restore saved position), page refresh (zero-flash restore), query-only changes (preserve position), nested scroll containers, `prefers-reduced-motion` support.
 
 ## Component Patterns
 
@@ -372,6 +572,7 @@ export default defineConfig({
   port: 3000,                     // Server port
   adapter: "vercel",              // Deployment adapter
   // adapter: ["cloudflare", { serverlessFunctions: false }],
+  scrollRestoration: true,        // Enable scroll restoration (or { behavior: "smooth" })
   mdx: {                          // MDX support
     remarkPlugins: [],
     rehypePlugins: [],
@@ -405,10 +606,16 @@ Env variables: `VITE_*` and `REACT_SERVER_*` prefixed vars are exposed via `impo
 ## Navigation
 
 ```jsx
-import { Link, Refresh, ReactServerComponent } from "@lazarv/react-server/navigation";
+import { Link, Refresh, ReactServerComponent, ScrollRestoration, useNavigate } from "@lazarv/react-server/navigation";
 
 // Client-side navigation
 <Link href="/about" prefetch>About</Link>
+
+// Typed Link from route descriptor (compile-time param checking)
+<user.Link params={{ id: 42 }}>User 42</user.Link>
+
+// Link with search param updater
+<products.Link search={(prev) => ({ ...prev, page: prev.page + 1 })}>Next</products.Link>
 
 // Re-render current route
 <Refresh>Reload</Refresh>
@@ -416,9 +623,16 @@ import { Link, Refresh, ReactServerComponent } from "@lazarv/react-server/naviga
 // Render an outlet
 <ReactServerComponent outlet="sidebar">{sidebar}</ReactServerComponent>
 
+// Scroll restoration
+<ScrollRestoration behavior="smooth" />
+
 // Programmatic navigation (client component only)
 import { useClient } from "@lazarv/react-server/navigation";
 const { navigate, replace, prefetch } = useClient();
+
+// Typed programmatic navigation
+const nav = useNavigate();
+nav(user, { params: { id: 42 } });
 ```
 
 ## Error Handling

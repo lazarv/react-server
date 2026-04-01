@@ -33,8 +33,12 @@ No config files, no boilerplate, no separate React installation needed. Or use t
 - **React Server Components**: The default rendering model. Components render on the server, support async/await, and their source code never reaches the client.
 - **Client Components**: Add `"use client"` directive to enable interactivity. Components are server-rendered then hydrated on the client.
 - **Server Functions**: Add `"use server"` to turn async functions into server-side RPC endpoints. Works as form actions with progressive enhancement.
-- **File-System Router**: Activates automatically when no entrypoint is specified. Supports pages, layouts, outlets, API routes, middlewares, error boundaries, and loading states.
-- **Client Navigation**: SPA-like navigation with `Link`, `Form`, `Refresh`, and `ReactServerComponent` components. Supports prefetching, error rollback, and outlet-scoped rendering.
+- **Typed Router**: Fully typed routing with `createRoute` and `createRouter`. Compile-time type safety for route paths, params, and search params. Schema validation with Zod, ArkType, Valibot, or lightweight parse functions. Typed `Link` components, typed hooks, typed programmatic navigation.
+- **File-System Router**: Activates automatically when no entrypoint is specified. Supports pages, layouts, outlets, API routes, middlewares, error boundaries, loading states, client-only routes, route validation, and auto-generated typed route descriptors via `@lazarv/react-server/routes`.
+- **Resources**: Typed, schema-validated data fetching with `createResource`. Descriptors define key shape, loaders bind behavior, and `"use cache"` handles caching. Server-side and client-side loaders with `.use()` (suspense), `.query()` (imperative), `.prefetch()` (cache warming).
+- **Client-Only Routes**: Pages with `"use client"` are client-only — navigation happens entirely on the client with no server round-trip. Component state is preserved between navigations using React's Activity component.
+- **Client Navigation**: SPA-like navigation with `Link`, `Form`, `Refresh`, `ReactServerComponent`, and `ScrollRestoration` components. Supports prefetching, error rollback, outlet-scoped rendering, typed navigation with `useNavigate`, and functional search param updaters.
+- **Scroll Restoration**: Built-in scroll restoration with zero-flash page reload, nested container support, hash navigation, `prefers-reduced-motion` support, and per-route customization. Enable via config (`scrollRestoration: true`) or `<ScrollRestoration>` component.
 - **Caching**: Multi-layered caching with response cache, in-memory cache, `"use cache"` directive, and Unstorage-backed cache providers.
 - **Partial Pre-Rendering (PPR)**: Mix static and dynamic content using `"use dynamic"` and `"use static"` directives.
 - **Live Components**: Real-time server-to-client streaming with `"use live"` async generators over WebSocket.
@@ -67,19 +71,22 @@ No config files, no boilerplate, no separate React installation needed. Or use t
 - [Micro-Frontends](https://react-server.dev/features/micro-frontends): Implementing micro-frontend architecture with RemoteComponent for loading and rendering remote React applications with SSR
 - [MCP Server](https://react-server.dev/features/mcp): Exposing typed server functions as discoverable tools, resources, and prompts for language models and automation agents via the Model Context Protocol
 - [Server Function Encryption](https://react-server.dev/features/server-function-encryption): AES-256-GCM encryption of server function identifiers to prevent unauthorized discovery and invocation
-- [Router](https://react-server.dev/router): Overview of the file-system based router and low-level routing covering route definition, client navigation, outlets, middlewares, and API routes
+- [Router](https://react-server.dev/router): Overview of the typed router, file-system based router, and routing covering route definition, client navigation, outlets, middlewares, and API routes
+- [Typed Router](https://react-server.dev/router/typed-router): Fully typed routing with createRoute, createRouter, typed Link components, typed hooks, schema validation (Zod, ArkType, Valibot), lightweight parse functions, client-only routes, functional search param updaters, SearchParams transform boundaries, and the low-level Route component
+- [Resources](https://react-server.dev/router/resources): Typed, schema-validated data fetching with createResource — server-side and client-side loaders, .use() (suspense), .query() (imperative), .prefetch(), route-resource bindings, and "use cache" integration
+- [Scroll Restoration](https://react-server.dev/router/scroll-restoration): Built-in scroll restoration with zero-flash page reload, nested container support, hash navigation, prefers-reduced-motion support, and per-route customization
 - [File-System Router](https://react-server.dev/router/file-router): How to use the file-system based router that activates automatically when no entrypoint is specified
-- [Define Routes](https://react-server.dev/router/define-routes): How to define routes using file-system conventions including layouts, nested routes, dynamic routes, catch-all routes, and route groups
+- [Define Routes](https://react-server.dev/router/define-routes): How to define routes using file-system conventions including layouts, nested routes, dynamic routes, catch-all routes, route groups, route validation, and the auto-generated @lazarv/react-server/routes module with typed page/layout/loading/error helpers
 - [Client-Side Navigation](https://react-server.dev/router/client-navigation): Client-side navigation components (Link, Refresh, Redirect) and hooks for programmatic navigation, prefetching, and page refresh
 - [Outlets](https://react-server.dev/router/outlets): Creating nested layouts with named outlets using @-prefixed subdirectories that pass matched route components as props to layouts
 - [Middlewares](https://react-server.dev/router/middlewares): File-system based server middlewares using .middleware.{js,mjs,ts,mts} files for authentication, logging, redirects, and request processing
-- [Server-Side Routing](https://react-server.dev/router/server-routing): Low-level server-side routing using the Route component from @lazarv/react-server/router for programmatic route definition
 - [API Routes](https://react-server.dev/router/api): Defining file-system based API route handlers using .server.{js,mjs,ts,mts} files with HTTP method-based exports
 - [Error Handling (Router)](https://react-server.dev/router/error-handling): Defining custom error components per layout using .error.jsx files in the file-system router for route-level error boundaries
 - [Loading States](https://react-server.dev/router/loading): Defining loading state components using .loading.jsx files that show a loading indicator while pages are being fetched
 - [Static Generation](https://react-server.dev/router/static): Marking pages for static generation using .static.{js,mjs,ts,mts,json} files with parameter exports for build-time pre-rendering
 - [Markdown & MDX](https://react-server.dev/router/markdown): Using Markdown and MDX files as pages with Remark/Rehype plugins and React component interop
 - [Router Configuration](https://react-server.dev/router/configuration): Configuring the router root path, public path, file includes/excludes, and private directories using glob patterns
+- [Comparison](https://react-server.dev/features/comparison): Feature comparison table of @lazarv/react-server vs Next.js, TanStack Start, React Router, and Waku across full-stack features, routing, type safety, and developer experience
 - [Deploy](https://react-server.dev/deploy): Overview of deployment options with built-in adapters for Vercel, Netlify, Cloudflare, AWS, Azure, Bun, Deno, Docker, and Firebase
 - [Adapters](https://react-server.dev/deploy/adapters): Overview of deployment adapters and how to configure them for different platforms
 - [Vercel](https://react-server.dev/deploy/vercel): How to deploy to Vercel using the built-in adapter with project linking and configuration
@@ -123,6 +130,7 @@ app/
 ├── layout.jsx            # Root layout
 ├── page.jsx              # / (index page)
 ├── about.jsx             # /about
+├── counter.tsx           # /counter ("use client" → client-only route)
 ├── posts/
 │   ├── page.jsx          # /posts
 │   ├── [id].jsx          # /posts/:id (dynamic route)
@@ -134,8 +142,12 @@ app/
 ├── loading.jsx           # Suspense loading fallback
 ├── error.jsx             # Error boundary
 ├── (i18n).middleware.mjs  # Middleware
+├── (client).todos.resource.ts  # Client-side resource
+├── (server).todos.resource.ts  # Server-side resource
 └── GET.api.server.mjs    # GET /api (REST API endpoint)
 ```
+
+Pages with `"use client"` at the top are client-only routes — navigation is instant with no server round-trip and component state is preserved. Export a `validate` object from any page to validate route/search params at runtime with any schema library. The runtime auto-generates `@lazarv/react-server/routes` with typed descriptors (`.Link`, `.href()`, `.useParams()`, `.useSearchParams()`, `.createPage()`, `.createLayout()`).
 
 Configure routing root directory in `react-server.config.json`:
 
@@ -158,6 +170,7 @@ export default {
   root: "app",
   public: "public",
   cluster: 4,
+  scrollRestoration: true,  // or { behavior: "smooth" }
   prerender: { timeout: 5000 },
   cache: {
     profiles: { default: { ttl: 60000 } },
@@ -169,9 +182,11 @@ export default {
 
 Key package exports for application code:
 
-- `@lazarv/react-server/navigation` — Link, Form, Refresh, Redirect components for client-side navigation
+- `@lazarv/react-server/navigation` — Link, Form, Refresh, Redirect, ScrollRestoration, useNavigate components for client-side navigation
 - `@lazarv/react-server/client` — useClient() hook for programmatic navigation (navigate, prefetch, refresh)
-- `@lazarv/react-server/router` — Route component for server-side routing
+- `@lazarv/react-server/router` — createRoute, createRouter, Route, SearchParams for typed routing
+- `@lazarv/react-server/resources` — createResource, createResources, resources for typed data fetching
+- `@lazarv/react-server/routes` — Auto-generated typed route descriptors (file-system router only)
 - `@lazarv/react-server/http` — HTTP context hooks: useUrl, usePathname, useSearchParams, useRequest, useResponse, headers, cookie, redirect, rewrite, status, useResponseCache
 - `@lazarv/react-server/cache` — useCache, revalidate, invalidate for data caching
 - `@lazarv/react-server/error` — ErrorBoundary component

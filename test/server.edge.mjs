@@ -42,6 +42,19 @@ try {
   // (it defaults to "." assuming cwd IS the outDir, e.g. in Cloudflare Workers)
   process.env.REACT_SERVER_EDGE_OUTDIR = outDir;
 
+  // Pass runtime initialConfig to the edge entry via env var.
+  // In production, config like scrollRestoration is in the config file and
+  // baked into the prebuilt config at build time. In tests, it's passed as
+  // initialConfig at runtime, so we need to communicate it to the edge entry.
+  if (
+    workerData.initialConfig &&
+    Object.keys(workerData.initialConfig).length > 0
+  ) {
+    process.env.REACT_SERVER_INITIAL_CONFIG = JSON.stringify(
+      workerData.initialConfig
+    );
+  }
+
   const edgeEntryPath = join(absOutDir, "server/edge.mjs");
   const edgeModule = await import(pathToFileURL(edgeEntryPath).href);
   const edgeWorker = edgeModule.default;

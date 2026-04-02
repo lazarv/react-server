@@ -1,0 +1,145 @@
+---
+title: React
+category: Integrations
+order: 3
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# React
+
+`@lazarv/react-server`にはReactが組み込まれています。`react`や`react-dom`を自分でインストールする**必要はありません** — ランタイムにはReact Server Components、サーバーアクション、およびすべての最新React機能をサポートする正しい実験的バージョンのReactが含まれています。
+
+<Link name="why-react-is-built-in">
+## Reactが組み込まれている理由
+</Link>
+
+React Server Componentsには、RSCワイヤープロトコル、サーバー参照、ストリーミングサポートを含む実験的なReactビルドが必要です。これらの実験的APIは、npmに公開されている安定版リリースでは利用できません。`@lazarv/react-server`はビルド対象の正確なReactバージョンをバンドルすることで、以下を保証します:
+
+- **正しいRSCサポート** — `react-server`エクスポート条件、`react-server-dom-webpack`、ストリーミングプリミティブがすべて一致します。
+- **設定不要** — どの実験的Reactビルドをインストールすべきか、または`react`、`react-dom`、`react-server-dom-webpack`間で同期を保つ方法を考える必要はありません。
+- **単一Reactインスタンス** — ランタイムは常に1つのReactコピーのみがロードされることを保証し、悪名高い「複数のReactインスタンス」バグ（フックの破損、コンテキストの破損など）を回避します。
+
+<Link name="no-react-in-your-package-json">
+## package.jsonにReactは不要
+</Link>
+
+`@lazarv/react-server`でプロジェクトを作成する場合、`package.json`に`react`や`react-dom`を依存関係として記載する**べきではありません**:
+
+```json filename="./package.json"
+{
+  "dependencies": {
+    "@lazarv/react-server": "latest"
+  }
+}
+```
+
+これだけです。ランタイムがプロジェクト全体にReactを提供します — サーバーコンポーネント、クライアントコンポーネント、SSRのすべてに対応します。
+
+既存のReactプロジェクトから移行する場合は、依存関係から**`react`と`react-dom`を削除**してください:
+
+```sh
+pnpm remove react react-dom
+```
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+`@lazarv/react-server`は`react`、`react-dom`、`react-server-dom-webpack`を直接の**依存関係**（ピア依存関係ではなく）としてリストしています。開発時とビルド時の両方で、ランタイムはモジュールエイリアスを設定し、あなたのコードやサードパーティライブラリからの`react`または`react-dom`の`import`がランタイムにバンドルされたReactバージョンに解決されるようにします。
+
+このエイリアシングは、3つのVite環境すべてにおいてViteモジュール解決レベルで動作します:
+
+- **`rsc`** — React Server Componentsは`react-server`エクスポート条件（`react.react-server.js`）を使用します
+- **`ssr`** — サーバーサイドレンダリングは標準のReactエントリ（`index.js`）を使用します
+- **`client`** — ブラウザのクライアントコンポーネントはViteによってバンドルされた同じReactバージョンを使用します
+
+エイリアシングはバンドリングの前に解決をインターセプトするため、`react`や`react-dom`から`import`するサードパーティライブラリは、設定なしでランタイムのReactを透過的に使用します。
+
+<Link name="third-party-library-compatibility">
+## サードパーティライブラリの互換性
+</Link>
+
+ほとんどのReactライブラリは`@lazarv/react-server`ですぐに動作します。主な互換性の考慮事項は以下の通りです:
+
+### シームレスに動作するライブラリ
+
+標準的なインポートを通じて`react`や`react-dom`に依存するライブラリはすべて動作します。モジュールエイリアシングによりランタイムのReactが提供されるためです。これには以下が含まれます:
+
+- **UIコンポーネントライブラリ** — [Material UI](/integrations/mui)、[Mantine](/integrations/mantine)、Chakra UI、Radix、shadcn/ui、Headless UIなど
+- **状態管理** — Zustand、Jotai、Recoil、Redux（クライアントコンポーネント内で使用）
+- **データフェッチ** — [TanStack Query](/integrations/react-query)、SWR、Apollo Client（クライアントコンポーネント内で使用）
+- **アニメーション** — Framer Motion、React Spring
+- **フォーム** — React Hook Form、Formik（クライアントコンポーネント内で使用）
+- **スタイリング** — Emotion、Styled Components、Tailwind CSS、CSS Modules
+
+### クライアントコンポーネントとサーバーコンポーネント
+
+Reactフック（`useState`、`useEffect`、`useRef`など）やブラウザAPIを使用するサードパーティライブラリは、[クライアントコンポーネント](/guide/client-components)（`"use client"`ディレクティブを持つファイル）内で使用する必要があります。これは`@lazarv/react-server`の制限ではなく、React Server Componentsのルールです。
+
+```jsx filename="./src/Counter.jsx"
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <motion.button
+      whileTap={{ scale: 0.95 }}
+      onClick={() => setCount(count + 1)}
+    >
+      count is {count}
+    </motion.button>
+  );
+}
+```
+
+サーバーコンポーネントはクライアントコンポーネントをインポートしてレンダリングできますが、フックやブラウザAPIを直接使用することはできません。詳細については、[クライアントコンポーネントガイド](/guide/client-components)と[サーバーコンポーネントガイド](/guide/server-components)を参照してください。
+
+### Reactバージョンチェックを行うライブラリ
+
+一部のライブラリはランタイムでバージョンチェックを実行します（例：`React.version`の読み取り）。`@lazarv/react-server`は実験的なReactビルドを使用しているため、バージョン文字列は安定版の`19.x.x`ではなく`0.0.0-experimental-...`のようになります。ほとんどのライブラリはこれを適切に処理しますが、まれにバージョンを認識できないために警告を出したり、ロードを拒否するライブラリがあります。
+
+このような場合でも、通常ライブラリは正しく動作します — 警告は安全に無視できます。ライブラリがバージョンで厳密にブロックする場合は、そのライブラリの新しいバージョンでバージョンチェックが緩和されていないか確認するか、ライブラリのメンテナーにissueを作成してください。
+
+### 独自のReactをバンドルするライブラリ
+
+まれに、ピア依存関係としてインポートする代わりに、独自のReactコピーをバンドルするライブラリがあります。これは「複数のReactインスタンス」問題を引き起こす可能性があります — フックエラー（`Invalid hook call`）やコンテキストが共有されないなどの症状が現れます。ただし、`@lazarv/react-server`は`react`と`react-dom`の重複排除を自動的に行うため、これらのケースのほとんどは追加の設定なしで処理されます。
+
+<Link name="typescript-types">
+## TypeScript型定義
+</Link>
+
+TypeScriptユーザーは、`tsconfig.json`で実験的なReact型定義を使用する必要があります:
+
+```json filename="./tsconfig.json"
+{
+  "compilerOptions": {
+    "types": ["react/experimental", "react-dom/experimental"]
+  }
+}
+```
+
+これにより、エディタが`"use client"`、`"use server"`、`useActionState`、`useFormStatus`などの最新React APIを認識するようになります。完全な設定例については、[TypeScript統合ガイド](/integrations/typescript)を参照してください。
+
+<Link name="checking-the-react-version">
+## Reactバージョンの確認
+</Link>
+
+`@lazarv/react-server`が使用しているReactバージョンを確認するには、ランタイムでチェックできます:
+
+```jsx
+import { version } from "react";
+
+export default function Version() {
+  return <p>React version: {version}</p>;
+}
+```
+
+またはCLIでインストール済みバージョンを確認できます:
+
+```sh
+node -e "console.log(require('@lazarv/react-server/node_modules/react/package.json').version)"
+```

@@ -1,0 +1,145 @@
+---
+title: React
+category: Integrations
+order: 3
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# React
+
+`@lazarv/react-server` ships with React built-in. You **do not need to install `react` or `react-dom`** yourself — the runtime includes the correct experimental version of React that supports React Server Components, server actions, and all the latest React features.
+
+<Link name="why-react-is-built-in">
+## Why React is built-in
+</Link>
+
+React Server Components require an experimental build of React that includes the RSC wire protocol, server references, and streaming support. These experimental APIs are not available in the stable releases published to npm. By bundling the exact React version it was built against, `@lazarv/react-server` guarantees:
+
+- **Correct RSC support** — the `react-server` export condition, `react-server-dom-webpack`, and streaming primitives all match.
+- **Zero configuration** — you don't need to figure out which experimental React build to install, or keep it in sync across `react`, `react-dom`, and `react-server-dom-webpack`.
+- **Single React instance** — the runtime ensures only one copy of React is loaded at any time, avoiding the notorious "multiple React instances" bugs (broken hooks, broken context, etc.).
+
+<Link name="no-react-in-your-package-json">
+## No React in your package.json
+</Link>
+
+When you create a project with `@lazarv/react-server`, your `package.json` should **not** list `react` or `react-dom` as dependencies:
+
+```json filename="./package.json"
+{
+  "dependencies": {
+    "@lazarv/react-server": "latest"
+  }
+}
+```
+
+That's it. The runtime provides React for your entire project — server components, client components, and SSR.
+
+If you are migrating from an existing React project, **remove `react` and `react-dom`** from your dependencies:
+
+```sh
+pnpm remove react react-dom
+```
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+`@lazarv/react-server` lists `react`, `react-dom`, and `react-server-dom-webpack` as direct **dependencies** (not peer dependencies). At both development and build time, the runtime sets up module aliases so that any `import` of `react` or `react-dom` — whether from your code or from third-party libraries — resolves to the React version bundled with the runtime.
+
+This aliasing operates at the Vite module resolution level across all three environments:
+
+- **`rsc`** — React Server Components use the `react-server` export condition (`react.react-server.js`)
+- **`ssr`** — server-side rendering uses the standard React entry (`index.js`)
+- **`client`** — client components in the browser use the same React version, bundled by Vite
+
+Because the aliasing intercepts resolution before any bundling happens, third-party libraries that `import` from `react` or `react-dom` will transparently use the runtime's React — no configuration needed.
+
+<Link name="third-party-library-compatibility">
+## Third-party library compatibility
+</Link>
+
+Most React libraries work out of the box with `@lazarv/react-server`. The key compatibility considerations are:
+
+### Libraries that work seamlessly
+
+Any library that depends on `react` or `react-dom` via standard imports will work, because module aliasing ensures it receives the runtime's React. This includes:
+
+- **UI component libraries** — [Material UI](/integrations/mui), [Mantine](/integrations/mantine), Chakra UI, Radix, shadcn/ui, Headless UI, etc.
+- **State management** — Zustand, Jotai, Recoil, Redux (in client components)
+- **Data fetching** — [TanStack Query](/integrations/react-query), SWR, Apollo Client (in client components)
+- **Animation** — Framer Motion, React Spring
+- **Forms** — React Hook Form, Formik (in client components)
+- **Styling** — Emotion, Styled Components, Tailwind CSS, CSS Modules
+
+### Client vs. server components
+
+Third-party libraries that use React hooks (`useState`, `useEffect`, `useRef`, etc.) or browser APIs must be used inside [client components](/guide/client-components) (files with `"use client"` directive). This is a React Server Components rule, not a `@lazarv/react-server` limitation.
+
+```jsx filename="./src/Counter.jsx"
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <motion.button
+      whileTap={{ scale: 0.95 }}
+      onClick={() => setCount(count + 1)}
+    >
+      count is {count}
+    </motion.button>
+  );
+}
+```
+
+Server components can import and render client components, but cannot use hooks or browser APIs themselves. See the [client components guide](/guide/client-components) and [server components guide](/guide/server-components) for more details.
+
+### Libraries with React version checks
+
+Some libraries perform runtime version checks (e.g., reading `React.version`). Since `@lazarv/react-server` uses an experimental React build, the version string looks like `0.0.0-experimental-...` rather than a stable `19.x.x`. Most libraries handle this gracefully, but in rare cases a library might warn or refuse to load because it doesn't recognize the version.
+
+If you encounter this, the library usually still works correctly — the warning can be safely ignored. If a library strictly blocks on version, check whether a newer version of that library has relaxed its version check, or open an issue with the library maintainer.
+
+### Libraries that bundle their own React
+
+Occasionally, a library might bundle its own copy of React instead of importing it as a peer dependency. This can cause the "multiple React instances" problem — hooks errors (`Invalid hook call`) or context not being shared. However, `@lazarv/react-server` already deduplicates `react` and `react-dom` automatically, so most of these cases are handled for you without any extra configuration.
+
+<Link name="typescript-types">
+## TypeScript types
+</Link>
+
+For TypeScript users, you should use the experimental React types in your `tsconfig.json`:
+
+```json filename="./tsconfig.json"
+{
+  "compilerOptions": {
+    "types": ["react/experimental", "react-dom/experimental"]
+  }
+}
+```
+
+This ensures your editor recognizes the latest React APIs like `"use client"`, `"use server"`, `useActionState`, `useFormStatus`, and other experimental features. See the [TypeScript integration guide](/integrations/typescript) for a complete configuration example.
+
+<Link name="checking-the-react-version">
+## Checking the React version
+</Link>
+
+To see which React version `@lazarv/react-server` is using, you can check it at runtime:
+
+```jsx
+import { version } from "react";
+
+export default function Version() {
+  return <p>React version: {version}</p>;
+}
+```
+
+Or inspect the installed version via the CLI:
+
+```sh
+node -e "console.log(require('@lazarv/react-server/node_modules/react/package.json').version)"
+```

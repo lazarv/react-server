@@ -1,9 +1,9 @@
 {
   "root": "src/app",
   "layout": {
-    "include": ["**/layout.jsx"]
+    "include": ["**/layout.tsx"]
   },
   "page": {
-    "include": ["**/page.jsx"]
+    "include": ["**/page.tsx"]
   }
 }

@@ -1148,7 +1148,7 @@ export default function viteReactServerRouter(options = {}) {
         ),
       };
 
-      rootDir = join(cwd, root);
+      rootDir = sys.normalizePath(join(cwd, root));
 
       if (viteCommand === "build") {
         const sourceFiles = await glob(

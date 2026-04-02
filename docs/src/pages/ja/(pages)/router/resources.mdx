@@ -1,0 +1,740 @@
+---
+title: リソース
+category: Router
+order: 13
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# リソース
+
+`@lazarv/react-server`には、スキーマバリデーション済みでルート対応のデータ取得のための型付きリソースレイヤーが含まれています。リソースは[型付きルーター](/router/typed-router)と同じ原則に基づいています — ディスクリプタが形状を定義し、実装が動作をバインドし、すべてがエンドツーエンドで型安全です。
+
+リソースはキャッシュランタイムとして`"use cache"`を使用します。カスタムキャッシュレイヤー、SWRロジック、TTL設定はありません。キャッシュが必要な場合は、ローダー関数に`"use cache"`を追加します。クライアントでは、`"use cache"`はUnstorageエンジンを介してブラウザストレージプロバイダー — sessionStorage、localStorage、IndexedDB、インメモリ — またはカスタムプロバイダーをサポートします。
+
+<Link name="create-resource">
+## createResourceでリソースを定義する
+</Link>
+
+`createResource`を使用してリソースディスクリプタを定義します。ディスクリプタはキースキーマ（ルックアップキーの形状）を持ちますが、実装は含みません。クライアントセーフです — サーバーとクライアントの両方のコンポーネントからインポートできます。
+
+```ts filename="resources.ts"
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+// キー付きリソース — Zodでバリデーション
+export const userById = createResource({
+  key: z.object({ id: z.coerce.number().int().positive() }),
+});
+
+// シングルトンリソース — キーなし
+export const currentUser = createResource();
+
+// 軽量パース — スキーマライブラリ不要
+export const postBySlug = createResource({
+  key: { slug: String },
+});
+
+// 複合キー
+export const posts = createResource({
+  key: z.object({
+    page: z.coerce.number().default(1),
+    tag: z.string().optional(),
+  }),
+});
+```
+
+キースキーマはルートパラメータと同じバリデーション戦略をサポートします：
+
+| 戦略 | 例 | ライブラリ |
+|----------|---------|---------|
+| スキーマバリデーション | `z.object({ id: z.coerce.number() })` | Zod, ArkType, Valibot |
+| 軽量パース | `{ id: Number }` | なし（組み込みコンストラクタ） |
+| キーなし（シングルトン） | `createResource()` | なし |
+
+<Link name="bind-loader">
+## ローダーのバインド
+</Link>
+
+`.bind(loaderFn)`を使用して**ローダー関数**をディスクリプタにバインドします。ローダーは単なる非同期関数です — キャッシュには本体に`"use cache"`を追加します。`.bind()`はディスクリプタを変更し、`TData`型がローダーの戻り値の型に絞り込まれた状態で返します — 型付き`.use()`呼び出しのために戻り値をキャプチャしてください。ローダーはサーバーまたはクライアントに配置できます。
+
+### サーバーサイドローダー
+
+シンプルなリソースの場合、ディスクリプタの定義とローダーのバインドを1つのファイルで行います：
+
+```ts filename="resources/user.ts"
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+export const userById = createResource({
+  key: z.object({ id: z.coerce.number().int().positive() }),
+}).bind(async ({ id }) => {
+  "use cache";
+  return db.users.findById(id);
+});
+
+export const currentUser = createResource().bind(async () => {
+  return (await getSession()).user;
+});
+```
+
+```ts filename="resources/post.ts"
+import { createResource } from "@lazarv/react-server/resources";
+
+export const postBySlug = createResource({
+  key: { slug: String },
+}).bind(async ({ slug }) => {
+  "use cache";
+  return db.posts.findBySlug(slug);
+});
+```
+
+### クライアントサイドローダー
+
+ローダーはクライアントにも配置できます — `"use cache"`はサポートされるストレージプロバイダー（sessionStorage、localStorage、IndexedDB、インメモリ、またはカスタムUnstorageドライバー）を使用してブラウザでキャッシュします。サーバーへのラウンドトリップは不要です。
+
+ローダーの実装は抽象的です — `fetch()`呼び出し、WebSocketメッセージ、IndexedDBストアからの読み取り、派生データの計算など、任意の非同期関数にできます。サーバーコードがクライアントバンドルに到達しないように、モジュールに`"use client"`を付けます。
+
+```ts filename="resources/search.ts"
+"use client";
+import { createResource } from "@lazarv/react-server/resources";
+
+export const searchResults = createResource({
+  key: { q: String },
+}).bind(async ({ q }) => {
+  "use cache";
+  const res = await fetch(`/api/search?q=${q}`);
+  return res.json();
+});
+```
+
+<Link name="client-only-routes">
+### リソースを使ったクライアント専用ルート
+</Link>
+
+ブラウザで完全にデータをロードするルートの場合、ディレクトリ構造を持つ**デュアルローダー**パターンを使用します：共有ディスクリプタ、サーバーローダー、クライアントローダー。
+
+共有ディスクリプタがリソースのアイデンティティを保持します。サーバーとクライアントの両方のローダーがこれにバインドし、モジュール境界をまたいだSSRハイドレーションが機能するようにします。クライアントモジュールには`"use client"`を付けて、サーバーコードがクライアントバンドルに到達しないようにします。
+
+```ts filename="resources/todos/resource.ts"
+// 共有ディスクリプタ — サーバーとクライアントの両方のローダーがバインド
+import { createResource } from "@lazarv/react-server/resources";
+
+export const todos = createResource({
+  key: { filter: String },
+});
+```
+
+```ts filename="resources/todos/server.ts"
+import { todos as resource } from "./resource";
+
+export const todos = resource.bind(async ({ filter }) => {
+  "use cache: request";
+  return db.todos.list({ filter });
+});
+```
+
+```ts filename="resources/todos/client.ts"
+"use client";
+import { todos as resource } from "./resource";
+
+export const todos = resource.bind(async ({ filter }) => {
+  "use cache";
+  const res = await fetch(`/api/todos?filter=${filter}`);
+  return res.json();
+});
+
+// ルート-リソースバインディングをクライアント参照としてエクスポート。
+// これは"use client"モジュールなので、エクスポートはRSC
+// シリアライゼーションを通過し、クライアント専用ナビゲーション時にクライアントで解決されます。
+export const todosClientMapping = todos.from(({ search }) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+コンポーネントは`.use()`を直接呼び出します — データが利用可能になるまで（`React.use()`経由で）サスペンドします。サスペンション中にフォールバックを表示するには、ルートの`loading`プロップを使用します。リソースが無効化されると、`.use()`を呼び出したコンポーネントは自動的に再レンダリングされ、新しいデータを再取得します。
+
+```tsx filename="TodosPage.tsx"
+"use client";
+import { todos } from "./resources/todos/client";
+
+export default function TodosPage() {
+  const data = todos.use({ filter: "active" });
+  return <ul>{data.items.map(t => <li key={t.id}>{t.title}</li>)}</ul>;
+}
+```
+
+ルーターでは、サーバーとクライアントのバインディングを`resources`配列に並べて配置します。Route.jsxが自動的にパーティション分けします — サーバーバインディングはサーバーでロードされ、クライアント参照はクライアント専用ナビゲーション用にRSCを通過します：
+
+```ts filename="resources/mappings.ts"
+import { todos } from "./todos/server";
+
+export const todosServerMapping = todos.from(({ search }) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+```tsx filename="router.tsx"
+import { todosServerMapping } from "./resources/mappings";
+import { todosClientMapping } from "./resources/todos/client";
+
+const router = createRouter({
+  todos: createRoute(routes.todos, <TodosPage />, {
+    loading: TodosLoading,
+    resources: [todosServerMapping, todosClientMapping],
+  }),
+});
+```
+
+`resources`プロップは、サーバーサイドバインディング配列（サーバーでロード）と`"use client"`モジュールからのクライアント参照の両方を受け付けます。クライアント参照はサーバー上では不透明です — RSCシリアライゼーションを通過し、クライアントで解決されます。そこでRouteコンポーネントがクライアント専用ナビゲーションのプリローディングに自動的に登録します。
+
+<Link name="use-hook">
+## コンポーネントでリソースを使う
+</Link>
+
+### `.use(key)` — Suspense統合フック
+
+コンポーネントでリソースを消費する主要な方法です。ローダーを呼び出し、キーをバリデーションし、データが利用可能になるまで（`React.use()`経由で）サスペンドします。
+
+リソースが無効化されると、そのリソースで`.use()`を呼び出したすべてのコンポーネントが自動的に再レンダリングされ、再取得します。新しいデータのロード中は、ローディングフォールバック（ルートの`loading`プロップまたは`<Suspense>`バウンダリ）が表示されます。
+
+```tsx filename="UserPage.tsx"
+import { user as userRoute } from "./routes";
+import { userById, currentUser } from "./resources";
+
+export default function UserPage() {
+  const { id } = userRoute.useParams();
+  const userData = userById.use({ id });
+  const me = currentUser.use();
+
+  return (
+    <div>
+      <h1>{userData.name}</h1>
+      <p>{userData.email}</p>
+      {me.id === userData.id && <EditButton userId={id} />}
+    </div>
+  );
+}
+```
+
+リソースはルートに結合されていません — どこでも動作します：
+
+```tsx
+function UserTooltip({ userId }) {
+  const user = userById.use({ id: userId });
+  return <span>{user.name}</span>;
+}
+```
+
+### `.query(key)` — 命令型、Promiseを返す
+
+Reactのレンダーサイクル外で使用 — イベントハンドラ、サーバーアクション、スクリプト。
+
+```ts
+const user = await userById.query({ id: 42 });
+```
+
+### `.prefetch(key)` — キャッシュウォーム、サスペンドなし
+
+ファイア・アンド・フォーゲット。結果を待たずにキャッシュを投入するためにローダーをトリガーします。
+
+```ts
+userById.prefetch({ id: 42 });
+```
+
+### エラーハンドリング
+
+- `.use()`はエラーをスローします — Reactのエラーバウンダリでキャッチ（Suspenseと一貫性あり）
+- `.query()`はリジェクトされたPromiseを返します — try/catchで処理
+
+<Link name="invalidation">
+## 無効化
+</Link>
+
+無効化はキャッシュされたデータをクリアし、現在リソースを使用しているすべてのコンポーネントの再レンダリングをトリガーします。新しいデータのロード中、コンポーネントは再サスペンドします — ルートの`loading`フォールバック（または最も近い`<Suspense>`バウンダリ）が自動的に表示されます。
+
+内部的には、無効化は`@lazarv/react-server/cache`の既存の`invalidate()`関数に委譲します。リソースレイヤーはカスタムキャッシュロジックを追加しません — 内部のthenableキャッシュ（`React.use()`の参照安定性に使用）をクリアし、`useSyncExternalStore`経由でサブスクライブしているコンポーネントに通知します。
+
+無効化はサーバーとクライアントの両方で動作します。クライアントでは、`"use cache"`が使用しているブラウザストレージプロバイダー（sessionStorage、localStorage、IndexedDB、インメモリ、またはカスタムUnstorageドライバー）からエントリをクリアします。
+
+```ts
+// リソースのすべてのキャッシュエントリを無効化
+userById.invalidate();
+
+// 特定のエントリを無効化
+userById.invalidate({ id: 42 });
+```
+
+### サーバーアクションからの使用
+
+```ts filename="actions.ts"
+"use server";
+import { userById, posts } from "./resources";
+
+export async function updateUser(id, data) {
+  await db.users.update(id, data);
+  userById.invalidate({ id });
+}
+
+export async function deleteUser(id) {
+  await db.users.delete(id);
+  userById.invalidate({ id });
+  posts.invalidate(); // postsも無効化
+}
+```
+
+### クライアントサイドの無効化
+
+クライアントでは、無効化はブラウザキャッシュをクリアし、再レンダリングをトリガーします。`.use()`を呼び出したコンポーネントは再サスペンドし、ローディングフォールバックが表示され、新しいデータが取得されます。
+
+```tsx filename="TodosPage.tsx"
+"use client";
+import { todos } from "./resources/todos/client";
+
+function RefreshButton({ filter }) {
+  return (
+    <button onClick={() => todos.invalidate({ filter })}>
+      更新
+    </button>
+  );
+}
+```
+
+<Link name="create-resources">
+## リソースコレクション
+</Link>
+
+`createResources`でリソースを型付きレジストリにグループ化します。すべてのリソースのキャッシュエントリを一度に破棄する`invalidateAll()`を提供します。
+
+```ts filename="resources/index.ts"
+import { createResources } from "@lazarv/react-server/resources";
+import { userById } from "./user";
+import { currentUser } from "./current-user";
+import { posts } from "./posts";
+
+export const resources = createResources({ userById, currentUser, posts });
+
+// すべてを無効化
+resources.invalidateAll();
+```
+
+<Link name="route-binding">
+## ルート-リソースバインディング
+</Link>
+
+ルートは`createRoute`の`resources`オプションを介してリソース依存関係を宣言します。ルートがマッチすると、すべてのバインドされたリソースが**並列でロード**され、コンポーネントツリーのレンダリング前にデータを待ちます。これにより逐次ウォーターフォールが排除されます — コンポーネントが1つずつ`.use()`を呼び出す代わりに、すべてのローダーが同時に実行されます。
+
+リソースはルートバインディングなしでも動作します。任意のコンポーネントが`.use()`を直接呼び出すことができ — データが利用可能になるまでサスペンドします。ルート-リソースバインディングは、ロードをルートレベルに移動する最適化です。
+
+```tsx filename="router.tsx"
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import * as routes from "./routes";
+import { userById } from "./resources/user";
+import { currentUser } from "./resources/current-user";
+import { posts } from "./resources/posts";
+
+const router = createRouter({
+  user: createRoute(routes.user, <UserPage />, {
+    resources: [
+      // .from()は { params, search } → リソースキーにマッピング
+      userById.from(({ params }) => ({ id: params.id })),
+      // シングルトンリソースは.from()不要
+      currentUser,
+    ],
+  }),
+
+  posts: createRoute(routes.posts, <PostListPage />, {
+    resources: [
+      // 現在のページと次のページを並列でロード
+      posts.from(({ search }) => ({
+        page: search.page ?? 1,
+        tag: search.tag,
+      })),
+      posts.from(({ search }) => ({
+        page: (search.page ?? 1) + 1,
+      })),
+    ],
+  }),
+});
+
+export default router;
+```
+
+### `.from(mapFn)`
+
+`{ resource, mapFn }`バインディングタプルを返します。各`.from()`は個別のバインディングです — 同じリソースを異なるキーマッピングで複数回バインドできます（例：現在のページと次のページを並列でロード）。
+
+デュアルローダーリソースの場合、クライアントバインディング（`"use client"`モジュールから）をサーバーバインディングと`resources`配列に並べて配置します。Route.jsxが自動的にパーティション分けします — 特別な配線は不要です。
+
+### ナビゲーションフロー
+
+**サーバールート：**
+
+1. ナビゲーション開始（Linkクリック、`useNavigate()`、戻る/進む）
+2. サーバーがルートをレンダリング、`resources: [...]`バインディングを発見
+3. すべてのリソースローダーが並列で実行 — ルートはすべてを**待機**
+4. コンポーネントがレンダリング、`.use()`を呼び出し — データは既にロード済み、サスペンションなし
+
+**クライアント専用ルート（クライアントリソースバインディング付き）：**
+
+1. ナビゲーション開始
+2. ルート登録済みローダーが並列で発火（ファイア・アンド・フォーゲット）
+3. URLが更新、コンポーネントがレンダリング、`.use()`を呼び出し
+4. データが準備完了なら — 即座にレンダリング。まだロード中なら — ローディングフォールバックでサスペンド
+
+### クライアント専用ナビゲーション
+
+リソースバインディングには、サーバーからクライアントに直接シリアライズできない`mapFn`関数が含まれます。解決策：`"use client"`モジュールでバインディングを定義してエクスポートします。`"use client"`のエクスポートはクライアント参照なので、RSCシリアライゼーションを通過してクライアントで解決されます。
+
+サーバーバインディングとクライアント参照を`resources`配列に並べて配置します。Route.jsxが`$$typeof`により自動的にパーティション分けします — サーバーバインディングはサーバーでロード、クライアント参照はRSCを通過：
+
+```ts filename="resources/todos/client.ts"
+"use client";
+import { todos as resource } from "./resource";
+
+export const todos = resource.bind(async ({ filter }) => {
+  "use cache";
+  const res = await fetch(`/api/todos?filter=${filter}`);
+  return res.json();
+});
+
+// クライアント参照としてエクスポート — RSCを通過してクライアントへ
+export const todosClientMapping = todos.from(({ search }) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+```tsx filename="router.tsx"
+import { todosServerMapping } from "./resources/mappings";
+import { todosClientMapping } from "./resources/todos/client";
+
+createRoute(routes.todos, <TodosPage />, {
+  // サーバーバインディングは初回リクエストでロード、クライアント参照は
+  // クライアント専用ナビゲーションのプリローディング用にRSCを通過。
+  resources: [todosServerMapping, todosClientMapping],
+});
+```
+
+Routeコンポーネントはクライアント参照を検出してクライアントに渡し、クライアント専用ナビゲーション中のプリローディングに自動的に登録されます。
+
+高度なケース（動的登録、Routeに紐付かないリソース）の場合、`@lazarv/react-server/navigation`の`registerRouteResources`もプログラマティックAPIとして利用できます。
+
+### プリフェッチ
+
+プリフェッチはルートロードとは別です。リソースディスクリプタの`.prefetch()`メソッドを使用して、事前にキャッシュをウォームします — 例えば、組み込みの`prefetch`プロップを使用したLinkホバー時や、予期されるナビゲーション前のプログラム的な呼び出し。
+
+```ts
+// プログラム的プリフェッチ — ファイア・アンド・フォーゲット
+userById.prefetch({ id: 42 });
+```
+
+<Link name="loading">
+## ローディング状態
+</Link>
+
+ルートの`loading`プロップは、サーバーとクライアントコンポーネントルートの両方にローディングフォールバックを提供します。コンポーネントが`.use()`を呼び出してデータがまだ準備できていない場合、`<Suspense>`経由でローディングコンポーネントが自動的に表示されます。
+
+```tsx filename="router.tsx"
+const router = createRouter({
+  todos: createRoute(routes.todos, <TodosPage />, {
+    loading: TodosLoading,
+    resources: [...],
+  }),
+});
+```
+
+```tsx filename="TodosLoading.tsx"
+"use client";
+export default function TodosLoading() {
+  return <div>Loading todos...</div>;
+}
+```
+
+ローディングフォールバックが表示されるタイミング：
+- リソースローダーがまだ完了していない初回レンダリング時
+- 無効化後、新しいデータの取得中
+- クライアント専用ナビゲーション中、ルートリソースのロード中
+
+<Link name="identity">
+## 参照によるアイデンティティ
+</Link>
+
+リソースは文字列名ではなくオブジェクト参照で識別されます。名前レジストリも文字列キーの衝突もありません。これがデュアルローダーリソースを機能させるものです：サーバーとクライアントの両方のローダーが同じディスクリプタオブジェクトで`.bind()`を呼び出すので、任意のコンポーネントの`.use()`が正しいローダーを見つけます。
+
+```ts filename="resources/todos/resource.ts"
+// 共有ディスクリプタ — アイデンティティの単一ソース
+export const todos = createResource({ key: { filter: String } });
+```
+
+```ts filename="resources/todos/server.ts"
+import { todos as resource } from "./resource";
+// .bind()がサーバーローダーを共有ディスクリプタにアタッチ
+export const todos = resource.bind(async ({ filter }) => { /* ... */ });
+```
+
+```ts filename="resources/todos/client.ts"
+"use client";
+import { todos as resource } from "./resource";
+// 同じディスクリプタ参照 — .bind()がクライアントローダーをアタッチ
+export const todos = resource.bind(async ({ filter }) => { /* ... */ });
+```
+
+シンプルな（非デュアルローダー）リソースの場合、アイデンティティは暗黙的です — ディスクリプタとローダーは`createResource({ ... }).bind(loaderFn)`で同じファイルに定義されます。
+
+<Link name="file-system-resources">
+## ファイルシステムベースのリソース
+</Link>
+
+[ファイルシステムベースのルーター](/router/file-router)は、宣言的でルートバインドされたデータ取得をサポートします。`createResource`、`.bind()`、`.from()`を手動で配線する代わりに、いくつかの名前付き値をエクスポートするだけで、ルーターがすべてのボイラープレートを自動生成します。リソースファイルを作成するには、ファイル名に`.resource`セグメントを追加します — 例えば、`todos.resource.ts`。
+
+リソースファイルから作成されたリソースディスクリプタは、仮想モジュール`@lazarv/react-server/resources`経由で公開されます。`resources`オブジェクトは名前付きディスクリプタの型付きコレクションです — 名前はファイル名から導出されます（例：`todos.resource.ts` → `resources.todos`）。
+
+### 規約
+
+リソースファイルは以下の名前付きエクスポートをエクスポートします：
+
+| エクスポート | 必須 | 説明 |
+|--------|----------|-------------|
+| `key` | いいえ | リソースキースキーマ（例：`{ filter: String }`、Zodスキーマなど）。シングルトンリソースでは省略。 |
+| `loader` | はい | バリデーション済みのキーを受け取ってデータを取得する非同期関数。 |
+| `mapping` | はい | ルートパラメータと検索パラメータをリソースキーにマッピングする関数`({ params, search }) => key`。型安全なparamsとsearchには`route.createResourceMapping(fn)`を使用。 |
+| `name` | いいえ | 自動導出されたリソース名をオーバーライド。 |
+
+ファイル名は、他のファイルシステムベースのルーターファイルと同様にルートパスを決定します。例えば、`todos.resource.ts`はリソースを`/todos`ルートにバインドします。
+
+```ts filename="pages/todos.resource.ts"
+import { todos } from "@lazarv/react-server/routes";
+
+export const key = { filter: String };
+
+export const loader = async ({ filter }) => {
+  "use cache";
+  return db.todos.list({ filter });
+};
+
+export const mapping = todos.createResourceMapping(({ search }) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+ページコンポーネントは`resources`コレクション経由でリソースにアクセスします：
+
+```tsx filename="pages/todos.page.tsx"
+"use client";
+
+import { resources } from "@lazarv/react-server/resources";
+
+export default function TodosPage() {
+  const data = resources.todos.use({ filter: "all" });
+  return <ul>{data.items.map(t => <li key={t.id}>{t.title}</li>)}</ul>;
+}
+```
+
+### 仕組み
+
+ルーターがすべての配線を行います。リソースファイルを見つけると：
+
+1. **ディスクリプタを作成** — エクスポートされた`key`を使用して`createResource({ key })`
+2. **ローダーをバインド** — `.bind(loader)`でエクスポートされたローダー関数をアタッチ
+3. **ルートバインディングを作成** — `.from(mapping)`でルートパラメータ/検索をリソースキーにマッピング
+4. **バインディングを登録** — ナビゲーション時に並列ロードされるようにルートの`resources`配列にリソースを追加
+5. **コレクションに追加** — 仮想モジュール`@lazarv/react-server/resources`で`resources.<name>`としてディスクリプタを公開
+
+これにより、リソースファイルで`createResource`、`.bind()`、`.from()`を自分で呼び出す必要はありません — パーツをエクスポートするだけです。
+
+内部的には、ルーターは手動で書くのとまったく同じものを生成します：
+
+| 手動（型付きルーター） | リソースファイルの等価物 |
+|---|---|
+| `createResource({ key })` | `export const key = ...` |
+| `.bind(loaderFn)` | `export const loader = ...` |
+| ルート設定の`.from(mapFn)` | `export const mapping = ...` |
+| `createResources({ ... })` | 自動生成される`resources`コレクション |
+
+### リソースの命名
+
+リソース名 — `resources`コレクションのキーとして使用 — はファイル名から導出されます：
+
+| ファイル名 | 導出される名前 |
+|----------|-------------|
+| `todos.resource.ts` | `todos` |
+| `user-profile.resource.ts` | `userProfile` |
+| `(server).todos.resource.ts` | `todos` |
+| `(client).todos.resource.ts` | `todos` |
+| `posts/index.resource.ts` | `posts` |
+
+`(server)`や`(client)`のような括弧付きプレフィックスは除去されます。ハイフンはキャメルケースに変換されます。
+
+`name`をエクスポートして導出名をオーバーライドします：
+
+```ts filename="pages/todos.resource.ts"
+export const name = "todoList";
+// → resources.todoList
+```
+
+### クライアントリソースファイル
+
+リソースファイルの先頭に`"use client"`を追加して、クライアントサイドローダーにします。クライアントリソースは完全にブラウザで実行されます — サーバーラウンドトリップなし。データはサポートされるストレージプロバイダー（sessionStorage、localStorage、IndexedDB、インメモリ、またはカスタムUnstorageドライバー）を使用して`"use cache"`でクライアントサイドにキャッシュされます。
+
+```ts filename="pages/search.resource.ts"
+"use client";
+
+import { search as searchRoute } from "@lazarv/react-server/routes";
+
+export const key = { q: String };
+
+export const loader = async ({ q }) => {
+  "use cache";
+  const res = await fetch(`/api/search?q=${q}`);
+  return res.json();
+};
+
+export const mapping = searchRoute.createResourceMapping(({ search }) => ({
+  q: search.q ?? "",
+}));
+```
+
+### デュアルローダーリソースファイル
+
+括弧付きプレフィックスを使用して、同じルートパスに複数のリソースをバインドします。プレフィックスはパスから除去されます — ファイルを区別するためのラベルとしてのみ機能します。
+
+```
+pages/
+  todos.page.tsx
+  todos.loading.tsx
+  (server).todos.resource.ts   # サーバーローダー — 初回リクエストでロード
+  (client).todos.resource.ts   # クライアントローダー — ナビゲーション時に引き継ぎ
+```
+
+両方のファイルが`/todos`にバインドされ、同じリソース名（`todos`）を共有します。初回のサーバーレンダリングでは、サーバーリソースがデータをロードしてクライアントにハイドレーションします。その後のクライアントサイドナビゲーションでは、クライアントリソースがブラウザで直接ローダーを実行します。ハイドレーション注入が正しく動作するように、両方のリソースファイルは同じキースキーマを使用する必要があります。
+
+```ts filename="pages/(server).todos.resource.ts"
+import { todos } from "@lazarv/react-server/routes";
+import { loadTodos } from "../src/todos-loader";
+
+export const key = { filter: String };
+
+export const loader = async ({ filter }) => {
+  "use cache: request";
+  return loadTodos({ filter });
+};
+
+export const mapping = todos.createResourceMapping(({ search }) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+```ts filename="pages/(client).todos.resource.ts"
+"use client";
+
+import { todos } from "@lazarv/react-server/routes";
+import { loadTodos } from "../src/todos-loader";
+
+export const key = { filter: String };
+
+export const loader = async ({ filter }) => {
+  "use cache";
+  return loadTodos({ filter });
+};
+
+export const mapping = todos.createResourceMapping(({ search }) => ({
+  filter: search.filter ?? "all",
+}));
+```
+
+ページコンポーネントはコレクションから`resources.todos`を使用します — 個々のリソースファイルからインポートする必要はありません：
+
+```tsx filename="pages/todos.page.tsx"
+"use client";
+
+import { resources } from "@lazarv/react-server/resources";
+
+export default function TodosPage() {
+  const data = resources.todos.use({ filter: "all" });
+
+  return (
+    <div>
+      <ul>{data.items.map(t => <li key={t.id}>{t.title}</li>)}</ul>
+      <button onClick={() => resources.todos.invalidate({ filter: "all" })}>
+        更新
+      </button>
+    </div>
+  );
+}
+```
+
+デュアルリソースが同じ名前を共有する場合、ルーターは`resources`コレクションにクライアントディスクリプタを優先します。これにより、クライアントコンポーネントの`resources.todos.use()`がナビゲーション時にクライアントローダーに解決され、サーバーローダーはルートバインディング経由の初回サーバーレンダリングに使用されます。
+
+<Link name="api-reference">
+## APIリファレンス
+</Link>
+
+### `createResource(options?)`
+
+リソースディスクリプタを作成します（ローダーなし）。
+
+| オプション | 型 | 説明 |
+|--------|------|-------------|
+| `key` | `ValidateSchema` \| `Record<string, Function>` | キースキーマまたはパースマップ。シングルトンでは省略。 |
+
+`.use()`、`.query()`、`.prefetch()`、`.invalidate()`、`.from()`を持つ`ResourceDescriptor`を返します。
+
+### `.bind(loaderFn)`
+
+ディスクリプタにローダーをバインドします。ディスクリプタを変更し、`TData`型がローダーの戻り値の型に絞り込まれた状態で返します。
+
+```ts
+const userById = createResource({
+  key: z.object({ id: z.coerce.number() }),
+}).bind(async ({ id }) => {
+  "use cache";
+  return db.users.findById(id);
+});
+```
+
+| パラメータ | 型 | 説明 |
+|-------|------|-------------|
+| `loaderFn` | `(key) => T \| Promise<T>` | データ取得関数。キャッシュには`"use cache"`を追加。 |
+
+`TData`がローダーの戻り値の型に絞り込まれた同じ`ResourceDescriptor`を返します。
+
+### `createResources(resources)`
+
+リソースをレジストリにまとめます。
+
+| パラメータ | 型 | 説明 |
+|-------|------|-------------|
+| `resources` | `Record<string, ResourceDescriptor>` | 名前付きリソース |
+
+リソースに`invalidateAll()`を加えて返します。
+
+### ResourceDescriptorメソッド
+
+| メソッド | 説明 |
+|--------|-------------|
+| `.use(key?)` | Reactフック — データが利用可能になるまでサスペンド。無効化時に再レンダリング。 |
+| `.query(key?)` | 命令型 — Promiseを返す |
+| `.prefetch(key?)` | ファイア・アンド・フォーゲットのキャッシュウォーミング |
+| `.invalidate(key?)` | キャッシュをクリアし、すべての`.use()`消費者の再レンダリングをトリガー |
+| `.from(mapFn)` | ルートバインディングを作成。デュアルローダールートでは`resources`配列にクライアントバインディングと並べて配置。 |
+| `.bind(loaderFn)` | ローダー関数をアタッチ。絞り込まれた`TData`型のディスクリプタを返す。 |
+
+### `registerRouteResources(path, resources)`
+
+クライアント専用ナビゲーション用のリソースバインディングを登録するプログラマティックAPI。ほとんどの場合、`createRoute`の`resources`プロップ経由でクライアントリソースバインディングを渡すことを推奨します — Routeコンポーネントが登録を自動的に処理します。
+
+高度なケースで使用：動的登録、Routeコンポーネントに紐付かないリソース、命令的セットアップ。
+
+| パラメータ | 型 | 説明 |
+|-------|------|-------------|
+| `path` | `string` | ルートパスパターン（例：`"/todos"`） |
+| `resources` | `(RouteResourceBinding \| RouteResource)[]` | `.from()`またはベアディスクリプタから |
+
+クリーンアップ関数を返します。
+
+```ts
+import { registerRouteResources } from "@lazarv/react-server/navigation";
+registerRouteResources("/todos", [
+  todos.from(({ search }) => ({ filter: search.filter ?? "all" })),
+]);
+```

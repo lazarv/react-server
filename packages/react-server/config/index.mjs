@@ -167,9 +167,20 @@ export async function loadConfig(initialConfig, options = {}) {
     ? "."
     : (configKeys.find((key) => configKeys.every((it) => it.startsWith(key))) ??
       ".");
+  // Pick up runtime initial config from env var
+  let envInitialConfig = {};
+  try {
+    if (process.env.REACT_SERVER_INITIAL_CONFIG) {
+      envInitialConfig = JSON.parse(process.env.REACT_SERVER_INITIAL_CONFIG);
+    }
+  } catch {
+    // ignore
+  }
+
   config[CONFIG_ROOT] = config[root] = merge(
     {},
     defaultConfig,
+    envInitialConfig,
     initialConfig,
     { root },
     config[root]

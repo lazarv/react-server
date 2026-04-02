@@ -59,6 +59,8 @@ jobs:
             pkg_mgr: npm
           - runtime: deno
             pkg_mgr: pnpm
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test create ${{ matrix.runtime }}/${{ matrix.pkg_mgr }} 🧪"
@@ -78,7 +80,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-create-${{ matrix.runtime }}-${{ matrix.pkg_mgr }}
+          name: test-results-create-${{ matrix.runtime }}-${{ matrix.pkg_mgr }}-shard${{ matrix.shard }}
           path: packages/create-react-server/test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -89,7 +91,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: packages/create-react-server/test/test-results/junit.xml
-          flags: create-${{ matrix.runtime }}-${{ matrix.pkg_mgr }}
+          flags: create-${{ matrix.runtime }}-${{ matrix.pkg_mgr }}-shard${{ matrix.shard }}
           report_type: test_results
 
   test-results:

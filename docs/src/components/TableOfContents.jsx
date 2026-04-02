@@ -95,11 +95,7 @@ export default function TableOfContents({ title }) {
             <a
               href={item.href}
               className={`block max-w-full after:mb-[-1px] !whitespace-normal text-xs${
-                (
-                  item.href === "#"
-                    ? active === "#"
-                    : active?.includes(item.href)
-                )
+                (item.href === "#" ? active === "#" : active === item.href)
                   ? " text-indigo-500 dark:text-yellow-600 active"
                   : ""
               } ${item.indent === 0 ? "font-semibold" : ""}`}

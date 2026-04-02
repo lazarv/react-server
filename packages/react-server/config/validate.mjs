@@ -201,6 +201,14 @@ const REACT_SERVER_SCHEMA = {
   inspect: optional(oneOf(is.boolean, is.object)),
   runtime: optional(oneOf(is.function, is.object)),
   cookies: optional(is.object),
+  scrollRestoration: optional(
+    oneOf(
+      is.boolean,
+      objectShape({
+        behavior: optional(enumOf("auto", "smooth", "instant")),
+      })
+    )
+  ),
   host: optional(oneOf(is.string, (v) => v === true)),
   port: optional(is.number),
 
@@ -462,6 +470,48 @@ const REACT_SERVER_SCHEMA = {
     })
   ),
 
+  // ── Virtual routes ──
+  routes: optional(
+    oneOf(
+      is.object,
+      arrayOf(
+        custom(
+          (v) =>
+            is.object(v) &&
+            is.string(v.path) &&
+            is.string(v.file) &&
+            (v.type === undefined ||
+              [
+                "page",
+                "layout",
+                "middleware",
+                "api",
+                "error",
+                "loading",
+                "fallback",
+                "default",
+                "template",
+                "state",
+                "metadata",
+                "static",
+              ].includes(v.type)) &&
+            (v.method === undefined ||
+              [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "HEAD",
+                "OPTIONS",
+              ].includes(v.method)) &&
+            (v.outlet === undefined || is.string(v.outlet)),
+          '{ path: string, file: string, type?: "page" | "layout" | ... }'
+        )
+      )
+    )
+  ),
+
   // ── File-router child config ──
   layout: optional(oneOf(is.object, is.function)),
   page: optional(oneOf(is.object, is.function)),
@@ -616,6 +666,7 @@ const EXAMPLES = {
   "mdx.remarkPlugins": `mdx: { remarkPlugins: [remarkGfm] }`,
   "mdx.rehypePlugins": `mdx: { rehypePlugins: [rehypeHighlight] }`,
   "mdx.components": `mdx: { components: "./mdx-components.jsx" }`,
+  routes: `routes: { "/custom": "./src/CustomPage.tsx" }  // or [{ path: "/custom", file: "./src/CustomPage.tsx" }]`,
   layout: `layout: { /* file-router layout config */ }`,
   page: `page: { /* file-router page config */ }`,
   middleware: `middleware: { /* file-router middleware config */ }`,

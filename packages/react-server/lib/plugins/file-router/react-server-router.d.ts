@@ -73,12 +73,13 @@ declare namespace __react_server_routing__ {
 }
 
 declare module "@lazarv/react-server/navigation" {
+  import type * as React from "react";
   import type {
     LinkProps as OriginalLinkProps,
     RefreshProps as OriginalRefreshProps,
     ReactServerComponentProps as OriginalReactServerComponentProps,
   } from "@lazarv/react-server/client/navigation.d.ts";
-  export * from "@lazarv/react-server/client/navigation.d.ts";
+  export type * from "@lazarv/react-server/client/navigation.d.ts";
 
   export type LinkProps<T> = Omit<OriginalLinkProps<T>, "to" | "target"> & {
     to: __react_server_routing__.RouteImpl<T>;
@@ -105,7 +106,7 @@ declare module "@lazarv/react-server/navigation" {
    */
   export function Link<T>(
     props: LinkProps<__react_server_routing__.RouteImpl<T>>
-  ): JSX.Element;
+  ): React.JSX.Element;
 
   export type RefreshProps = Omit<OriginalRefreshProps, "target"> & {
     target?: __react_server_routing__.Outlet;
@@ -128,7 +129,7 @@ declare module "@lazarv/react-server/navigation" {
    *  );
    * }
    */
-  export function Refresh(props: RefreshProps): JSX.Element;
+  export function Refresh(props: RefreshProps): React.JSX.Element;
 
   export type ReactServerComponentProps = Omit<
     OriginalReactServerComponentProps,
@@ -148,7 +149,7 @@ declare module "@lazarv/react-server/navigation" {
    */
   export function ReactServerComponent(
     props: ReactServerComponentProps
-  ): JSX.Element;
+  ): React.JSX.Element;
 
   /**
    * A hook that returns the current location.
@@ -182,8 +183,9 @@ declare module "@lazarv/react-server/navigation" {
 }
 
 declare module "@lazarv/react-server/client" {
+  import type * as React from "react";
   import type { ReactServerClientContext as OriginalReactServerClientContext } from "@lazarv/react-server/client/index.d.ts";
-  export * from "@lazarv/react-server/client/index.d.ts";
+  export type * from "@lazarv/react-server/client/index.d.ts";
 
   /**
    * The client context.
@@ -249,7 +251,7 @@ declare module "@lazarv/react-server/client" {
 
 declare module "@lazarv/react-server/router" {
   import type { MatchOptions } from "@lazarv/react-server/server/router.d.ts";
-  export * from "@lazarv/react-server/server/router.d.ts";
+  export type * from "@lazarv/react-server/server/router.d.ts";
 
   /**
    * This hook returns the route parameters for the given path.

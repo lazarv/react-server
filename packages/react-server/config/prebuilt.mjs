@@ -4,6 +4,19 @@ import { CONFIG_PARENT, CONFIG_ROOT } from "../server/symbols.mjs";
 const defaultConfig = {};
 
 export async function loadConfig(initialConfig) {
+  // Pick up runtime initial config from env var (used by edge test harness)
+  let envInitialConfig = {};
+  try {
+    if (
+      typeof process !== "undefined" &&
+      process.env?.REACT_SERVER_INITIAL_CONFIG
+    ) {
+      envInitialConfig = JSON.parse(process.env.REACT_SERVER_INITIAL_CONFIG);
+    }
+  } catch {
+    // ignore
+  }
+
   const { default: config } =
     await import("@lazarv/react-server/dist/__react_server_config__/prebuilt");
   const configKeys = Object.keys(config);
@@ -14,6 +27,7 @@ export async function loadConfig(initialConfig) {
   config[CONFIG_ROOT] = config[root] = merge(
     {},
     defaultConfig,
+    envInitialConfig,
     initialConfig,
     { root },
     config[root]

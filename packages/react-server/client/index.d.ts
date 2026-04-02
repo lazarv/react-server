@@ -1,3 +1,5 @@
+import type * as React from "react";
+
 /**
  * The client context.
  *
@@ -120,4 +122,4 @@ export function useOutlet(): ReactServerOutletContext;
  * }
  * ```
  */
-export function ClientOnly(props: React.PropsWithChildren): JSX.Element;
+export function ClientOnly(props: React.PropsWithChildren): React.JSX.Element;

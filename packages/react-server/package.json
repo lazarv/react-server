@@ -85,6 +85,10 @@
       "types": "./server/router.d.ts",
       "default": "./server/router.jsx"
     },
+    "./resources": {
+      "types": "./server/resources.d.ts",
+      "default": "./server/resources.jsx"
+    },
     "./remote": {
       "types": "./server/remote.d.ts",
       "default": "./server/remote.jsx"

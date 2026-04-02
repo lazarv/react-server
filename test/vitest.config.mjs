@@ -1,3 +1,4 @@
+import { cpus } from "node:os";
 import { resolve } from "node:path";
 
 import { defineConfig } from "vitest/config";
@@ -32,8 +33,9 @@ export default defineConfig({
           "github-actions",
           ["junit", { outputFile: "test-results/junit.xml" }],
         ]
-      : ["default"],
+      : [process.env.REACT_SERVER_VERBOSE ? "verbose" : "default"],
     pool: "forks",
+    maxForks: process.env.CI ? 1 : Math.max(1, cpus().length - 1),
     fileParallelism: !process.env.CI,
     retry: 3,
   },

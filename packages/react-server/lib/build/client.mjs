@@ -20,6 +20,7 @@ import rollupUseWorker, {
   useWorkerSubBuildPlugin,
 } from "../plugins/use-worker.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
+import resourcesPlugin from "../plugins/resources.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import {
@@ -231,7 +232,21 @@ export default async function clientBuild(
         },
         {
           find: /^@lazarv\/react-server\/router$/,
-          replacement: join(sys.rootDir, "server/router.jsx"),
+          replacement: join(sys.rootDir, "client/route.mjs"),
+        },
+        {
+          find: /^@lazarv\/react-server\/resources$/,
+          replacement: join(sys.rootDir, "client/resource.mjs"),
+        },
+        // @lazarv/react-server/__resources__ and @lazarv/react-server/routes
+        // are resolved by the resourcesPlugin() as virtual modules. The
+        // file-router populates their content via setVirtualModuleContent()
+        // during the RSC build's configResolved (before the client build
+        // constructs its config, since it awaits chunkGroupsPromise first).
+        // Resolve __create_resource__ for resource files in client build
+        {
+          find: /^@lazarv\/react-server\/__create_resource__$/,
+          replacement: join(sys.rootDir, "client/create-resource.mjs"),
         },
         {
           find: /^@lazarv\/react-server\/prerender$/,
@@ -343,6 +358,9 @@ export default async function clientBuild(
           index: __require.resolve(
             "@lazarv/react-server/client/entry.client.jsx"
           ),
+          "scroll-restoration-init": __require.resolve(
+            "@lazarv/react-server/client/scroll-restoration-init.mjs"
+          ),
           ...Object.entries(chunks).reduce((input, [src, mod]) => {
             if (
               config.resolve?.shared?.includes(mod) &&
@@ -385,6 +403,39 @@ export default async function clientBuild(
     plugins: [
       fileListingReporterPlugin("Client"),
       jsonNamedExports(),
+      resourcesPlugin({ useStore: true }),
+      // Transform .resource.* files: append createResource/bind/from wiring.
+      // The file-router prePlugin does this for RSC/SSR builds, but the
+      // client build is a separate Vite process without file-router.
+      {
+        name: "react-server:resource-transform",
+        enforce: "pre",
+        transform: {
+          filter: { id: /\.resource\.\w+$/ },
+          handler(code) {
+            // Only transform files that export loader and mapping
+            if (
+              !/export\s+(const|let|var|function|async\s+function)\s+(loader|mapping)\b/.test(
+                code
+              ) &&
+              !/export\s*\{[^}]*(loader|mapping)/.test(code)
+            ) {
+              return null;
+            }
+            const hasKey =
+              /export\s+(const|let|var|function)\s+key\b/.test(code) ||
+              /export\s*\{[^}]*\bkey\b/.test(code);
+            const appendCode = `
+import { createResource as __rs_createResource__ } from "@lazarv/react-server/__create_resource__";
+const __rs_descriptor__ = __rs_createResource__(${hasKey ? "{ key }" : "{}"});
+__rs_descriptor__.bind(loader);
+export { __rs_descriptor__ };
+export default __rs_descriptor__.from(mapping);
+`;
+            return code + "\n" + appendCode;
+          },
+        },
+      },
       ...userOrBuiltInVitePluginReact(config.plugins),
       ...filterOutVitePluginReact(config.plugins),
       fixEsbuildOptionsPlugin(),

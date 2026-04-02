@@ -60,6 +60,10 @@ To include the generated types in your project you only need to include `.ts` fi
 }
 ```
 
+The router also generates a virtual [`@lazarv/react-server/routes`](/router/define-routes#routes-module) module that exports typed route descriptors for every route — with `.Link`, `.href()`, `.useParams()`, typed `createPage` / `createLayout` helpers, branded outlet types, and more. See the [routes module](/router/define-routes#routes-module) documentation for details.
+
+For a complete guide on the typed routing system — including the programmatic `createRoute` / `createRouter` API, schema validation, lightweight parse functions, typed hooks, functional search updaters, and SearchParams transforms — see the [typed router](/router/typed-router#create-route) page. For typed routes in the file-system router specifically, see [define routes](/router/define-routes#typed-routes).
+
 <Link name="nextjs-compatibility">
 ## Next.js compatibility
 </Link>

@@ -16,6 +16,7 @@ import {
   COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
+  CONFIG_ROOT,
   ERROR_BOUNDARY,
   ERROR_CONTEXT,
   HTTP_CONTEXT,
@@ -31,6 +32,7 @@ import {
   RENDER_CONTEXT,
   RENDER_HANDLER,
   RENDER_STREAM,
+  SCROLL_RESTORATION_MODULE,
   REQUEST_CACHE_CONTEXT,
   REQUEST_CACHE_SHARED,
   SERVER_CONTEXT,
@@ -46,6 +48,7 @@ export default async function ssrHandler(root) {
   const { entryModule, rootModule, rootName, globalErrorModule } =
     await getModules(root, config);
 
+  const configRoot = config?.[CONFIG_ROOT] ?? {};
   const viteDevServer = getRuntime(SERVER_CONTEXT);
   const ssrLoadModule = getRuntime(MODULE_LOADER);
   const importMap = getRuntime(IMPORT_MAP);
@@ -97,6 +100,15 @@ export default async function ssrHandler(root) {
                   "/"
                 )
             ),
+            ...(configRoot.scrollRestoration
+              ? {
+                  [SCROLL_RESTORATION_MODULE]:
+                    `${viteDevServer.config.base || "/"}/@fs/${new URL("../../client/scroll-restoration-init.mjs", import.meta.url).pathname}`.replace(
+                      /\/+/g,
+                      "/"
+                    ),
+                }
+              : {}),
             [MEMORY_CACHE_CONTEXT]: noCache ? null : memoryCacheContext,
             [REQUEST_CACHE_CONTEXT]: requestCache,
             [REQUEST_CACHE_SHARED]: sharedRequestCache,

@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y curl git procps iproute2 unzip && rm -r
 RUN npm install -g pnpm
 
 # Install Deno
-RUN curl -fsSL https://deno.land/install.sh | sh
+RUN curl -fsSL https://deno.land/install.sh | sh -s -- v2.6.10
 ENV DENO_DIR="/root/.deno"
 ENV PATH="/root/.deno/bin:$PATH"
 

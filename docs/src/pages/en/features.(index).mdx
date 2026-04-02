@@ -19,3 +19,5 @@ You can learn about how to implement a micro-frontend architecture in the [micro
 The runtime also provides [Workers](/features/worker) to offload heavy computations to separate threads using the `"use worker"` directive. On the server, worker functions run in Node.js Worker Threads, and on the client, they run in Web Workers — all with transparent RSC-based serialization. Workers can return plain values, React elements with Suspense, ReadableStreams, and deferred Promises.
 
 For production readiness, the runtime includes built-in [Observability](/features/observability) via OpenTelemetry integration. When enabled, it automatically instruments HTTP requests, SSR rendering, server actions, and middleware with distributed traces and metrics — with zero overhead when disabled.
+
+See how `@lazarv/react-server` stacks up against Next.js, TanStack Start, and React Router in the [comparison table](/features/comparison).

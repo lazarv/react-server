@@ -8,41 +8,54 @@ import {
   waitForChange,
   waitForHydration,
 } from "playground/utils";
-import { expect, test } from "vitest";
+import { beforeAll } from "vitest";
+import { describe, expect, test } from "vitest";
 
 process.chdir(join(process.cwd(), "../examples/mantine"));
 
-test(
-  "mantine and extensions",
-  {
-    timeout: 360000,
-  },
-  async () => {
-    await server(null);
-    let res = await page.goto(hostname, { timeout: 60000 });
+beforeAll(async () => {
+  await server(null);
 
-    // TODO: I don't like this, but it's a workaround for an async dependency optimization issue in development mode
-    let attempts = 0;
-    while (res.status() === 500 && attempts < 5) {
-      res = await page.goto(hostname, { timeout: 60000 });
-      attempts++;
-    }
+  // Workaround for an async dependency optimization issue in development mode
+  let res = await page.goto(hostname, { timeout: 60000 });
+  let attempts = 0;
+  while (res.status() === 500 && attempts < 5) {
+    res = await page.goto(hostname, { timeout: 60000 });
+    attempts++;
+  }
+  if (!res.ok) {
+    throw new Error("Failed to load page");
+  }
+});
 
-    if (!res.ok) {
-      throw new Error("Failed to load page");
-    }
+// ── Home page ──
 
+describe("mantine — home page", () => {
+  test("renders home page with Mantine UI", async () => {
+    await page.goto(hostname, { timeout: 60000 });
     await page.waitForLoadState("networkidle");
     await waitForHydration();
 
     expect(await page.textContent("body")).toContain("Mantine UI");
+  });
+
+  test("increment button updates count", async () => {
+    await page.goto(hostname, { timeout: 60000 });
+    await page.waitForLoadState("networkidle");
+    await waitForHydration();
 
     const button = await page.getByRole("button", { name: "Increment" });
     expect(await button.isVisible()).toBe(true);
 
     await button.click();
     expect(await page.textContent("body")).toContain("Count: 1");
+  });
+});
 
+// ── Form page ──
+
+describe("mantine — form", () => {
+  test("shows validation error on empty submit", async () => {
     await page.goto(new URL("/form", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
@@ -52,7 +65,13 @@ test(
 
     await submit.click();
     expect(await page.textContent("body")).toContain("Invalid email");
+  });
+});
 
+// ── Dates page ──
+
+describe("mantine — dates", () => {
+  test("date input formats value", async () => {
     await page.goto(new URL("/dates", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
@@ -64,6 +83,19 @@ test(
     await input.blur();
     await nextAnimationFrame();
     expect(await input.getAttribute("value")).toContain("June 15, 1982");
+  });
+
+  test("locale select changes date format", async () => {
+    await page.goto(new URL("/dates", hostname).href);
+    await page.waitForLoadState("networkidle");
+    await waitForHydration();
+
+    const input = await page.getByPlaceholder("Date input");
+    await input.fill("1982/06/15");
+
+    await nextAnimationFrame();
+    await input.blur();
+    await nextAnimationFrame();
 
     const localeSelect = await page.locator('input[aria-haspopup="listbox"]');
     await localeSelect.click();
@@ -71,14 +103,26 @@ test(
     const germanLocale = await page.getByText("German");
     await germanLocale.click();
     expect(await input.getAttribute("value")).toContain("Juni 15, 1982");
+  });
+});
 
+// ── Charts page ──
+
+describe("mantine — charts", () => {
+  test("renders chart SVGs", async () => {
     await page.goto(new URL("/charts", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
 
     const charts = await page.locator("svg[class='recharts-surface']");
     expect(await charts.count()).toEqual(2);
+  });
+});
 
+// ── Notification system ──
+
+describe("mantine — notification system", () => {
+  test("shows notification on button click", async () => {
     await page.goto(new URL("/notification-system", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
@@ -90,7 +134,13 @@ test(
 
     const notification = await page.locator("div[role='alert']");
     expect(await notification.isVisible()).toBe(true);
+  });
+});
 
+// ── Spotlight ──
+
+describe("mantine — spotlight", () => {
+  test("opens spotlight and searches for items", async () => {
     await page.goto(new URL("/spotlight", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
@@ -120,7 +170,13 @@ test(
     await homeItem.click();
     await waitForChange(null, () => search.isVisible(), true);
     expect(await search.isVisible()).toBe(false);
+  });
+});
 
+// ── Carousel ──
+
+describe("mantine — carousel", () => {
+  test("navigates carousel slides", async () => {
     await page.goto(new URL("/carousel", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
@@ -141,7 +197,13 @@ test(
     );
     const rightStyle = await carouselContainer.getAttribute("style");
     expect(rightStyle).not.toEqual(carouselContainerStyle);
+  });
+});
 
+// ── Navigation progress ──
+
+describe("mantine — navigation progress", () => {
+  test("shows progress bar on start", async () => {
     await page.goto(new URL("/navigationprogress", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
@@ -156,7 +218,13 @@ test(
     );
     const progressBar = await page.locator("div[role='progressbar']");
     expect(await progressBar.isVisible()).toBe(true);
+  });
+});
 
+// ── Modals manager ──
+
+describe("mantine — modals manager", () => {
+  test("opens and confirms modal", async () => {
     await page.goto(new URL("/modalsmanager", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
@@ -181,7 +249,13 @@ test(
 
     await waitForChange(null, () => confirmModal.isVisible(), true);
     expect(await confirmModal.isVisible()).toBe(false);
+  });
+});
 
+// ── Rich text editor ──
+
+describe("mantine — rich text editor", () => {
+  test("renders rich text editor content", async () => {
     await page.goto(new URL("/rte", hostname).href);
     await page.waitForLoadState("networkidle");
     await waitForHydration();
@@ -189,5 +263,5 @@ test(
     expect(await page.textContent("body")).toContain(
       "Welcome to Mantine rich text editor"
     );
-  }
-);
+  });
+});

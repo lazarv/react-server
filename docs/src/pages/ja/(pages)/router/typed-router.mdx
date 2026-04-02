@@ -1,0 +1,862 @@
+---
+title: 型付きルーター
+category: Router
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# 型付きルーター
+
+`@lazarv/react-server`には完全に型付けされたルーティングソリューションが含まれています。すべてのルート、リンク、パラメータ、検索パラメータをコンパイル時に型チェックでき、ルートパス、パラメータ、検索値のIDEオートコンプリートが利用できます。手動で実行するコード生成ステップや外部ツールは不要です。
+
+ルートディスクリプタはどこでも使えます — サーバーコンポーネント、クライアントコンポーネント、共有モジュール。同じ`createRoute`呼び出しから、型付き`Link`コンポーネント、型付きフック（`useParams`、`useSearchParams`）、型付きプログラムナビゲーション、そして任意のスキーマライブラリ（Zod、ArkType、Valibot、または`ValidateSchema`インターフェースを満たすもの）や軽量パース関数によるオプションのランタイムバリデーションが得られます。
+
+ファイルシステムベースのルーティングについては、これらのプリミティブを自動的に構築する[ファイルシステムベースのルーター](/router/file-router)を参照してください。低レベルの`Route`コンポーネントAPIについては、以下の[Routeコンポーネント](#route-component)を参照してください。
+
+<Link name="create-route">
+## createRouteでルートを定義する
+</Link>
+
+`createRoute`を使用して、完全な型安全性を持つルートディスクリプタを定義します。ルートディスクリプタはルートのパス、バリデーションルール、型付きヘルパーを保持し、サーバーコンポーネントとクライアントコンポーネントの両方からインポートできます。
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+
+// 静的ルート — パラメータなし
+export const home = createRoute("/", { exact: true });
+
+// 動的ルート — パターンからパラメータを抽出
+export const user = createRoute("/user/[id]", { exact: true });
+
+// キャッチオールルート — パラメータはstring[]
+export const docs = createRoute("/docs/[...slug]");
+
+// フォールバックルート — 他にマッチしない場合にマッチ
+export const notFound = createRoute("*");
+
+// スコープ付きフォールバック — /user/配下で他のルートが処理しないものにマッチ
+export const userNotFound = createRoute("/user/*");
+```
+
+パスパターンがパラメータの型を自動的に決定します：
+
+| パターン | 抽出される型 |
+|---------|-------------|
+| `/user/[id]` | `{ id: string }` |
+| `/blog/[slug]/[commentId]` | `{ slug: string; commentId: string }` |
+| `/files/[...path]` | `{ path: string[] }` |
+| `*` | `{}` |
+
+スコープ付きフォールバックは、他のルートが処理しない場合にプレフィックス配下のURLにのみマッチします。これはコンテキスト固有の404ページを表示するのに便利です — 例えば、ユーザーが見つからないページで「ユーザーを検索」UIを表示し、グローバルな`*`フォールバックでは汎用メッセージを表示できます。
+
+<Link name="create-router">
+## createRouterでルートを構成する
+</Link>
+
+サーバーサイドでは、ルートディスクリプタをReact要素にバインドし、ルーターに収集します。ルーターはマッチしたルートをレンダリングする`<Routes />`コンポーネントを提供します。ルーター定義をレイアウトから分離すると、各ファイルが単一の関心事に集中できます。
+
+```tsx filename="router.tsx"
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import * as routes from "./routes";
+
+import Home from "./Home";
+import UserPage from "./UserPage";
+import NotFound from "./NotFound";
+
+const router = createRouter({
+  home: createRoute(routes.home, <Home />),
+  user: createRoute(routes.user, <UserPage />),
+  notFound: createRoute(routes.notFound, <NotFound />),
+});
+
+export default router;
+```
+
+```tsx filename="App.tsx"
+import router from "./router";
+
+export default function App() {
+  return (
+    <div>
+      <nav>
+        <router.home.Link>Home</router.home.Link>
+        <router.user.Link params={{ id: 42 }}>User 42</router.user.Link>
+      </nav>
+
+      <router.Routes />
+    </div>
+  );
+}
+```
+
+`createRoute(descriptor, element)`オーバーロードは、既存のルートディスクリプタを受け取りReact要素にバインドし、`.Route`コンポーネントを持つ完全な`TypedRoute`を生成します。`createRouter`関数はこれらをルーターオブジェクトに収集し、各ルートは名前でアクセスできます。
+
+<Link name="client-only-routes">
+## クライアント専用ルート
+</Link>
+
+ルートディスクリプタにサーバーコンポーネントは不要です。クライアント上でのみ存在するルートを作成できます — タブ、モーダル状態、フィルター、またはサーバーラウンドトリップなしでURLに基づいてUIを変更する場合に便利です。
+
+パスとオプションだけで`createRoute`を呼び出すと（要素なし）、`.Link`、`.href()`、`.useParams()`、`.useSearchParams()`を持つルートディスクリプタが得られます。これらのディスクリプタを`"use client"`コンポーネントで使用すると、ルーティングは完全にクライアント上で行われます。
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+export const settings = createRoute("/settings/[tab]", {
+  exact: true,
+  validate: {
+    params: z.object({
+      tab: z.enum(["profile", "security", "billing"]),
+    }),
+  },
+});
+```
+
+```tsx filename="SettingsPage.tsx"
+"use client";
+
+import { settings } from "./routes";
+
+export default function SettingsPage() {
+  const params = settings.useParams();
+  const tab = params?.tab ?? "profile";
+
+  return (
+    <div>
+      <nav>
+        <settings.Link params={{ tab: "profile" }}>Profile</settings.Link>
+        <settings.Link params={{ tab: "security" }}>Security</settings.Link>
+        <settings.Link params={{ tab: "billing" }}>Billing</settings.Link>
+      </nav>
+
+      {tab === "profile" && <ProfileForm />}
+      {tab === "security" && <SecuritySettings />}
+      {tab === "billing" && <BillingInfo />}
+    </div>
+  );
+}
+```
+
+<Link name="client-only-file-router">
+### ファイルシステムルーター
+</Link>
+
+ファイルシステムベースのルーターでは、先頭に`"use client"`を持つページは自動的にクライアント専用ルートになります。ディレクティブとデフォルトエクスポートを持つページファイルを作成するだけです：
+
+```tsx filename="pages/counter.tsx"
+"use client";
+
+import { useState } from "react";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>Count: {count}</button>;
+}
+```
+
+```tsx filename="pages/clock.tsx"
+"use client";
+
+import { useState, useEffect } from "react";
+
+export default function Clock() {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <p>Current time: {time.toLocaleTimeString()}</p>;
+}
+```
+
+これらのページはクライアントルートストアに自動的に登録されます。これらの間のナビゲーションは完全にクライアント上で行われ — サーバーラウンドトリップなしで、Reactの`Activity`コンポーネントによるインスタントな表示/非表示トランジションでコンポーネントの状態が保持されます。
+
+ルートがクライアントコンポーネントとして登録されている場合 — ファイルシステムルーター、`<Route>`コンポーネント、`createRouter`のいずれを通じても — ランタイムはクライアントサイドのルートストアで追跡します。ターゲットURLのすべてのルートがクライアント専用の場合、ナビゲーションは**完全にクライアント上で**行われ — サーバーリクエストは不要です。これにより、クライアント専用ルートはタブ、カウンター、時計、またはナビゲーションを超えて存続すべきステートフルUIなどの高速でインタラクティブなUIパターンに最適です。
+
+クライアント専用ルートとサーバールートを自由に混在させることができます。プレーンな`.ts`ファイルで共有ルートディスクリプタを定義し、両方の環境でインポートします：
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+
+// サーバーとクライアントの両方で動作 — ディスクリプタのみ（要素なし）
+export const home = createRoute("/");
+export const user = createRoute("/user/[id]");
+```
+
+サーバーコンポーネントからインポートすると、`useParams()`はHTTPリクエストコンテキストから読み取ります。クライアントコンポーネントからインポートすると、ブラウザのロケーションから読み取ります。ランタイムはViteエイリアスを介して正しい実装を解決するため、どこでも同じコードを書くことができます。
+
+<Link name="typed-link">
+## 型付きLinkコンポーネント
+</Link>
+
+すべてのルートディスクリプタには、コンパイル時に正しいパラメータと検索型を強制する`.Link`コンポーネントがあります。動的セグメントのないルートは`params`を受け付けません。動的セグメントを持つルートは`params`が必須です。
+
+```tsx
+// パラメータなし — paramsを渡すとTypeScriptエラー
+<home.Link>Home</home.Link>
+
+// 必須パラメータ — paramsを省略するとTypeScriptエラー
+<user.Link params={{ id: 42 }}>User 42</user.Link>
+
+// 検索パラメータ付き
+<post.Link params={{ slug: "hello" }} search={{ tab: "comments" }}>
+  Post
+</post.Link>
+
+// すべての標準Linkプロップ（prefetch、rollbackなど）がサポートされます
+<user.Link params={{ id: 1 }} prefetch>User 1</user.Link>
+```
+
+フォールバックルート（`*`）にはアドレス指定可能なパスがないため、`.Link`コンポーネントはありません。
+
+<Link name="typed-hooks">
+## 型付きフック
+</Link>
+
+ルートディスクリプタは、型付きでバリデーション済みのパラメータと検索パラメータを返すフックを提供します。これらのフックはサーバーコンポーネント（RSC）とクライアントコンポーネントの両方で動作します。
+
+```tsx filename="UserPage.tsx"
+import { user } from "./routes";
+
+export default function UserPage() {
+  // ルートがマッチしない場合は型付きパラメータまたはnullを返す
+  const params = user.useParams();
+  // params: { id: string } | null
+
+  if (!params) return <p>No match</p>;
+
+  return <h2>User {params.id}</h2>;
+}
+```
+
+```tsx filename="ProductList.tsx"
+"use client";
+
+import { products } from "./routes";
+
+export default function ProductList() {
+  // デフォルト付きのバリデーション済み検索パラメータを返す
+  const { sort, page } = products.useSearchParams();
+  // sort: "name" | "price" | "rating", page: number
+
+  return <div>Sorted by {sort}, page {page}</div>;
+}
+```
+
+サーバーでは、`useParams()`はHTTPリクエストコンテキストからパラメータを読み取ります。クライアントでは、ブラウザのロケーションから読み取ります。同じルートディスクリプタが両方の環境で動作します — ランタイムがViteエイリアスを介して正しい実装を解決します。
+
+<Link name="href">
+## hrefでURLを構築する
+</Link>
+
+各ルートディスクリプタには、型付きパラメータからURLパス名を構築する`href()`メソッドがあります：
+
+```ts
+user.href({ id: 42 });        // → "/user/42"
+post.href({ slug: "hello" }); // → "/post/hello"
+home.href();                   // → "/"
+```
+
+これはJSXの外でURLを生成するのに便利です — サーバー関数、APIハンドラー、リダイレクト、メタデータなどで。
+
+<Link name="programmatic-navigation">
+## 型付きプログラムナビゲーション
+</Link>
+
+`@lazarv/react-server/navigation`の`useNavigate`フックは、型安全なプログラムナビゲーションのためにルートディスクリプタを受け付けます：
+
+```tsx
+"use client";
+
+import { useNavigate } from "@lazarv/react-server/navigation";
+import { user, products } from "./routes";
+
+export default function SearchButton() {
+  const navigate = useNavigate();
+
+  return (
+    <button onClick={() => navigate(user, { params: { id: 42 } })}>
+      Go to User 42
+    </button>
+  );
+}
+```
+
+型付きルートにナビゲーションする場合、検索パラメータは現在のURL検索パラメータに**マージ**されます — 変更したいパラメータのみを指定します。
+
+<Link name="validation">
+## スキーマバリデーション
+</Link>
+
+ルートパラメータと検索パラメータは、`ValidateSchema`インターフェースを満たす任意のスキーマライブラリを使用してランタイムでバリデーションできます。ランタイムは3つのバリデーション戦略を順に試行します：
+
+1. **`.safeParse(data)`** — Zod、Valibot、および互換ライブラリ
+2. **`.assert(data)`** — ArkType（失敗時にスロー、成功時に`T`を返す）
+3. **`.parse(data)`** — 汎用フォールバック（失敗時にスロー）
+
+```ts
+// これらの形状のいずれかがValidateSchema<T>を満たします：
+
+// Zod / Valibotスタイル
+interface SafeParseSchema<T> {
+  parse(data: unknown): T;
+  safeParse(data: unknown): { success: true; data: T } | { success: false; error: unknown };
+}
+
+// ArkTypeスタイル
+interface AssertSchema<T> {
+  assert(data: unknown): T;
+}
+
+// 汎用パーススタイル
+interface ParseSchema<T> {
+  parse(data: unknown): T;
+}
+```
+
+TypeScriptはスキーマの出力型からパラメータと検索型を推論します。例えば、`z.object({ id: z.coerce.number() })`を渡すと、TypeScriptは`.parse()`が`{ id: number }`を返すことを認識し、その型を`useParams()`、`.Link`、`.href()`に流します。これは構造的型付けです — 特定のライブラリへの依存はありません。
+
+**Zodの場合：**
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+export const user = createRoute("/user/[id]", {
+  exact: true,
+  validate: {
+    params: z.object({
+      id: z.coerce.number().int().positive(),
+    }),
+  },
+});
+
+export const products = createRoute("/products", {
+  exact: true,
+  validate: {
+    search: z.object({
+      sort: z.enum(["name", "price", "rating"]).catch("name"),
+      page: z.coerce.number().int().positive().catch(1),
+    }),
+  },
+});
+```
+
+**ArkTypeの場合：**
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+import { type } from "arktype";
+
+export const user = createRoute("/user/[id]", {
+  exact: true,
+  validate: {
+    params: type({ id: "string.numeric.parse" }),
+  },
+});
+
+export const products = createRoute("/products", {
+  exact: true,
+  validate: {
+    search: type({
+      "sort?": "'name' | 'price' | 'rating'",
+      "page?": "string.numeric.parse",
+    }),
+  },
+});
+```
+
+この設定では：
+- `/user/42` → `user.useParams()`は`{ id: 42 }`を返す（数値に変換）
+- `/user/abc` → `user.useParams()`は`null`を返す（バリデーション失敗）
+- `/products?sort=price&page=2` → `products.useSearchParams()`は`{ sort: "price", page: 2 }`を返す
+- `/products?sort=invalid` → `products.useSearchParams()`は`{}`を返す（バリデーション失敗、フォールバックを返す）
+
+バリデーション済みの型はフックと`.Link`コンポーネントに流れます — IDEは生の文字列ではなくバリデーション済みの型を表示します。
+
+<Link name="parse">
+## 軽量パース関数
+</Link>
+
+完全なスキーマライブラリが不要な場合は、`parse`を使用して軽量な型変換とバリデーションを行います。各キーは生の文字列を目的の型に変換する関数にマップします。
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+
+export const post = createRoute("/post/[slug]", {
+  exact: true,
+  parse: {
+    params: { slug: String },
+    search: {
+      tab: (v) =>
+        ["content", "comments", "related"].includes(v) ? v : "content",
+      q: String,
+    },
+  },
+});
+```
+
+`Number`、`Boolean`、`String`、`Date`などの組み込みコンストラクタはパース関数として直接使用できます。カスタム関数で制約を強制できます — 上の例では、`tab`は許可リストに対してバリデーションし、不明な値には`"content"`にフォールバックします。
+
+パース関数は次の場合に適しています：
+- 依存関係を追加せずにシンプルな型変換を行いたい場合
+- 無効な値に対する軽量なフォールバックが必要な場合
+- バリデーションロジックが単純な場合
+
+複雑なスキーマ、ネストされたオブジェクト、詳細なエラーメッセージが必要な場合は、スキーマライブラリと`validate`を使用してください。
+
+<Link name="functional-search-updaters">
+## 関数型検索パラメータアップデーター
+</Link>
+
+型付き`Link`コンポーネントと`useNavigate`の両方が検索パラメータの関数型アップデーターをサポートしています。静的オブジェクトの代わりに、現在の検索パラメータを受け取り新しい値を返す関数を渡します：
+
+```tsx
+// Linkで関数型アップデーター
+<products.Link search={(prev) => ({ ...prev, page: prev.page + 1 })}>
+  Next Page
+</products.Link>
+
+// useNavigateで関数型アップデーター
+navigate(products, {
+  search: (prev) => ({ ...prev, sort: "price", page: 1 }),
+});
+```
+
+関数型アップデーターはクリック時に現在のパラメータを読み取るため、複数の更新が連続して発生する場合のステールクロージャバグを回避します。また、完全な現在の状態を事前に知る必要なく、一つのパラメータを変更しながら残りを保持するデルタ更新が容易になります。
+
+<Link name="search-params-transform">
+## SearchParams変換境界
+</Link>
+
+`SearchParams`コンポーネントは、URLとアプリケーション間の双方向変換レイヤーを提供します。コンパクトなURL形式を構造化パラメータにデコードしたり、コンポーネントに渡す前にトラッキングパラメータを除去するために使用します。
+
+各ルートディスクリプタには、そのルートがマッチした場合にのみアクティブになるルートスコープの`SearchParams`コンポーネントがあります：
+
+```tsx filename="StripTrackingParams.tsx"
+"use client";
+
+import { products } from "./routes";
+
+// URLには?price=min-maxを保存するが、アプリには?min_price & ?max_priceを公開
+function decode(sp) {
+  const range = sp.get("price");
+  if (!range) return sp;
+  const [min, max] = range.split("-");
+  const result = new URLSearchParams(sp);
+  result.delete("price");
+  result.set("min_price", min);
+  result.set("max_price", max);
+  return result;
+}
+
+function encode(sp) {
+  const min = sp.get("min_price");
+  const max = sp.get("max_price");
+  if (min == null && max == null) return sp;
+  const result = new URLSearchParams(sp);
+  result.delete("min_price");
+  result.delete("max_price");
+  result.set("price", `${min ?? 0}-${max ?? 10000}`);
+  return result;
+}
+
+export default function ProductPriceRange({ children }) {
+  return (
+    <products.SearchParams decode={decode} encode={encode}>
+      {children}
+    </products.SearchParams>
+  );
+}
+```
+
+- **decode** — 読み取りをインターセプト：フックとバリデーションが参照する前に生のURLパラメータを変換
+- **encode** — 書き込みをインターセプト：URLに入る前にマージされたパラメータを変換
+
+ネストがサポートされています — decodeは外→内にチェーンされ、encodeは内→外にチェーンされます。ルーターは`createRouter`を通じてすべてのルートに適用されるグローバル`SearchParams`コンポーネントも公開します。
+
+<Link name="example">
+## 完全な例
+</Link>
+
+スキーマバリデーション、軽量パース、`createRouter`を使用した完全な型付きルーターのセットアップ例：
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+export const home = createRoute("/", { exact: true });
+export const about = createRoute("/about", { exact: true });
+
+export const user = createRoute("/user/[id]", {
+  exact: true,
+  validate: {
+    params: z.object({ id: z.coerce.number().int().positive() }),
+  },
+});
+
+export const post = createRoute("/post/[slug]", {
+  exact: true,
+  parse: {
+    params: { slug: String },
+    search: {
+      tab: (v) =>
+        ["content", "comments", "related"].includes(v) ? v : "content",
+      q: String,
+    },
+  },
+});
+
+export const notFound = createRoute("*");
+```
+
+```tsx filename="router.tsx"
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import * as routes from "./routes";
+
+import Home from "./Home";
+import About from "./About";
+import UserPage from "./UserPage";
+import PostPage from "./PostPage";
+import NotFound from "./NotFound";
+
+const router = createRouter({
+  home: createRoute(routes.home, <Home />),
+  about: createRoute(routes.about, <About />),
+  user: createRoute(routes.user, <UserPage />),
+  post: createRoute(routes.post, <PostPage />),
+  notFound: createRoute(routes.notFound, <NotFound />),
+});
+
+export default router;
+```
+
+```tsx filename="App.tsx"
+import router from "./router";
+
+export default function App() {
+  return (
+    <div>
+      <nav>
+        <router.home.Link>Home</router.home.Link>
+        <router.about.Link>About</router.about.Link>
+        <router.user.Link params={{ id: 42 }}>User 42</router.user.Link>
+        <router.post.Link
+          params={{ slug: "hello-world" }}
+          search={{ tab: "comments" }}
+        >
+          Hello World
+        </router.post.Link>
+      </nav>
+
+      <router.Routes />
+    </div>
+  );
+}
+```
+
+> **注意:** 完全な動作例については、リポジトリ内の[typed-router](https://github.com/lazarv/react-server/tree/main/examples/typed-router)と[typed-file-router](https://github.com/lazarv/react-server/tree/main/examples/typed-file-router)のサンプルをチェックしてください。
+
+<Link name="api-reference">
+## APIリファレンス
+</Link>
+
+すべての型付きルーターエクスポートは`@lazarv/react-server/router`から利用できます。
+
+<Link name="api-create-route">
+### createRoute
+</Link>
+
+ルートディスクリプタまたは完全な型付きルートを作成します。返される型は引数によって異なります：
+
+**ルートディスクリプタ**（要素なし） — `RouteDescriptor`を返します。`.Link`、`.href()`、`.useParams()`、`.useSearchParams()`、`.SearchParams`を持ちますが、`.Route`はありません。サーバーとクライアントの両方のコンポーネントで安全にインポートできます。
+
+```ts
+createRoute(path, options?)             // → RouteDescriptor
+createRoute("*", options?)              // → RouteDescriptor（フォールバック）
+createRoute("/prefix/*", options?)      // → RouteDescriptor（スコープ付きフォールバック）
+```
+
+**型付きルート**（要素あり） — `RouteDescriptor`を拡張し`.Route`コンポーネントを追加した`TypedRoute`を返します。サーバーエントリーポイントでReact要素をルートにバインドするために使用します。
+
+```ts
+createRoute(path, element, options?)    // → TypedRoute
+createRoute("*", element, options?)     // → TypedRoute（フォールバック）
+createRoute("/prefix/*", element, options?) // → TypedRoute（スコープ付きフォールバック）
+createRoute(element, options?)          // → TypedRoute（グローバルフォールバック）
+```
+
+**ディスクリプタから** — 既存の`RouteDescriptor`を受け取り要素にバインドし、`TypedRoute`を生成します。これは推奨パターンです：共有ファイルでディスクリプタを定義し、サーバーエントリーポイントで要素をバインドします。
+
+```ts
+createRoute(descriptor, element)        // → TypedRoute
+```
+
+**オプション：**
+
+| オプション | 型 | 説明 |
+|--------|------|-------------|
+| `exact` | `boolean` | プレフィックスマッチではなく完全パスマッチ。デフォルト：`false` |
+| `validate` | `{ params?, search? }` | ランタイムバリデーション用のスキーマオブジェクト。`ValidateSchema<T>`インターフェースを満たす任意のライブラリ（Zod、ArkType、Valibotなど）が使用可能 — TypeScriptがスキーマの出力型からパラメータ/検索型を推論 |
+| `parse` | `{ params?, search? }` | 軽量パーサー関数マップ。各キーが生の文字列を目的の型にマップ |
+| `loading` | `ReactNode \| ComponentType` | ルートのロード中に表示されるSuspenseフォールバック |
+| `matchers` | `Record<string, (value: string) => boolean>` | `[param=matcher]`構文のカスタムマッチャー |
+| `render` | `(params) => ReactNode` | パラメータと`children`を受け取るレイアウト関数 |
+| `children` | `ReactNode` | ルート内にレンダリングされるネストコンテンツ |
+
+> `validate`と`parse`は相互排他的な戦略です。互換ライブラリによるスキーマベースのバリデーションには`validate`を、軽量な関数ベースの変換には`parse`を使用してください。
+
+<Link name="api-route-descriptor">
+### RouteDescriptor
+</Link>
+
+`createRoute(path, options?)`で返されるオブジェクト — 要素がバインドされていないルート。クライアントコンポーネントや共有ルート定義ファイルで使用する形状です。
+
+| プロパティ / メソッド | 型 | 説明 |
+|-------------------|------|-------------|
+| `path` | `string \| undefined` | ルートパスパターン |
+| `exact` | `boolean` | 完全一致が必要かどうか |
+| `fallback` | `boolean` | フォールバックルートかどうか |
+| `validate` | `RouteValidate \| null` | バリデーションスキーマ（提供された場合） |
+| `parse` | `RouteParse \| null` | パース関数（提供された場合） |
+| `Link` | `React.FC<...>` | 型付きLinkコンポーネント。パスに動的セグメントがある場合は`params`が必須。`search`をオブジェクトまたは関数型アップデーターとして受け付ける。フォールバックルートでは利用不可 |
+| `href(params?)` | `(params?) => string` | 型付きパラメータからURLパス名を構築。フォールバックルートでは利用不可 |
+| `useParams()` | `() => TParams \| null` | 型付きパラメータを返すフック。ルートがマッチしないかバリデーションが失敗した場合は`null`。サーバーとクライアントの両方のコンポーネントで動作 |
+| `useSearchParams()` | `() => TSearch` | 型付き検索パラメータを返すフック。設定されている場合はバリデーションまたはパースを適用 |
+| `SearchParams` | `React.FC<SearchParamsProps>` | ルートスコープの検索パラメータ変換境界。このルートがマッチした場合にのみアクティブ |
+
+<Link name="api-typed-route">
+### TypedRoute
+</Link>
+
+`RouteDescriptor`を`.Route`コンポーネントで拡張。要素が提供された場合に`createRoute`から返されます。
+
+| プロパティ | 型 | 説明 |
+|----------|------|-------------|
+| *...すべてのRouteDescriptorプロパティ* | | |
+| `Route` | `React.FC<...>` | バインドされた要素をレンダリングするルートコンポーネント。オプションのオーバーライドを受け付ける：`element`、`loading`、`render`、`children`、`exact`、`fallback` |
+
+<Link name="api-create-router">
+### createRouter
+</Link>
+
+型付きルートをルーターオブジェクトに収集します。すべてのルートを名前で展開し、`Routes`と`SearchParams`コンポーネントを追加した`TypedRouter`を返します。
+
+```ts
+const router = createRouter({
+  home: createRoute(routes.home, <Home />),
+  user: createRoute(routes.user, <UserPage />),
+  notFound: createRoute(routes.notFound, <NotFound />),
+});
+```
+
+**TypedRouterプロパティ：**
+
+| プロパティ | 型 | 説明 |
+|----------|------|-------------|
+| `Routes` | `React.FC` | すべてのルートを宣言順にレンダリング。ルートコンテンツを表示したい場所に配置 |
+| `SearchParams` | `React.FC<SearchParamsProps>` | グローバル検索パラメータ変換境界 — すべてのルートに適用 |
+| `[routeName]` | `TypedRoute` | 各ルートは`createRouter`に渡したキーでアクセス可能。`router.user.Link`、`router.user.useParams()`など |
+
+<Link name="api-search-params">
+### SearchParams
+</Link>
+
+双方向の検索パラメータ変換境界。スタンドアロンコンポーネント、各ルートディスクリプタ、ルーターオブジェクトとして利用可能です。
+
+```tsx
+import { SearchParams } from "@lazarv/react-server/router";
+
+// スタンドアロン — 内部のすべてのルートに適用
+<SearchParams decode={decode} encode={encode}>
+  {children}
+</SearchParams>
+
+// ルートスコープ — このルートがマッチした場合のみ適用
+<products.SearchParams decode={decode} encode={encode}>
+  {children}
+</products.SearchParams>
+
+// ルーターレベル — ルーター内のすべてのルートに適用
+<router.SearchParams decode={decode} encode={encode}>
+  {children}
+</router.SearchParams>
+```
+
+**プロップ：**
+
+| プロップ | 型 | 説明 |
+|------|------|-------------|
+| `decode` | `(sp: URLSearchParams) => URLSearchParams` | フックとバリデーションが読み取る前にURLパラメータを変換 |
+| `encode` | `(sp: URLSearchParams, current: URLSearchParams) => URLSearchParams` | URLに書き込まれる前にマージされたパラメータを変換 |
+| `children` | `ReactNode` | |
+
+<Link name="route-component">
+## Routeコンポーネント
+</Link>
+
+低レベルの`Route`コンポーネントはJSXによる基本的なパスマッチングを提供します。シンプルなユースケースや、型付きディスクリプタなしでルートレンダリングを直接制御したい場合に便利です。
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/about">
+      <About />
+    </Route>
+    <Route path="/readme" element={<Readme />} />
+  );
+}
+```
+
+ルートを定義すると、定義したパスで始まるすべてのパスにマッチします。完全一致にするには`exact`プロップを使用します：
+
+```tsx
+<Route path="/about" exact>
+  <About />
+</Route>
+```
+
+ルートのネスト、`render`プロップによるレイアウトの定義、ルートパラメータの使用ができます：
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+function Layout({ children }) {
+  return (
+    <div>
+      <h1>Layout</h1>
+      {children}
+    </div>
+  );
+}
+
+function User({ id }) {
+  return <h2>User {id}</h2>;
+}
+
+export default function App() {
+  return (
+    <Route path="/" render={Layout}>
+      <Route path="/" exact element={<Home />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/users/[id]" render={User} />
+      <Route path="/files/[...path]" render={File} />
+      <Route fallback element={<NotFound />} />
+    </Route>
+  );
+}
+```
+
+ルートパラメータは`createRoute`と同じブラケット構文を使用します：`[id]`は単一パラメータ、`[...path]`はキャッチオールパラメータ。カスタムマッチャーも定義できます：
+
+```tsx
+const matchers = {
+  number: (value) => /^\d+$/.test(value),
+};
+
+<Route path="/files/[id=number]" render={File} matchers={matchers} />
+```
+
+フォールバックルートは他のルートがマッチしない場合にマッチします。`path="*"`または`fallback`プロップを使用します：
+
+```tsx
+<Route path="/about" element={<About />} />
+<Route fallback element={<NotFound />} />
+```
+
+> より複雑なアプリケーションには、代わりに`createRoute`と`createRouter`を使用してください — 型安全性、バリデーション、より良い開発者体験を提供します。`Route`コンポーネントはクイックプロトタイプやシンプルなアプリに最適です。
+
+<Link name="redirects">
+## リダイレクト
+</Link>
+
+コンポーネント内で`redirect`関数を使用することで、他の場所にリダイレクトできます。より正確には、サーバーサイドレンダリング中の任意の場所で`redirect`を使用できますが、`RedirectError`がスローされます。ランタイムはこのエラーをキャッチして、クライアントにリダイレクト応答を送信します。
+
+```tsx
+import { redirect } from "@lazarv/react-server";
+
+export default function App() {
+  return redirect("/user");
+}
+```
+
+`kind`パラメータを指定して、クライアントでのリダイレクトの動作を制御することもできます：
+
+```tsx
+import { redirect } from "@lazarv/react-server";
+
+export default function ProtectedPage() {
+  // pushStateでリダイレクト（ユーザーが戻れるように）
+  redirect("/login", 302, "push");
+}
+```
+
+利用可能なリダイレクト種類：`"navigate"`（デフォルト、replaceState）、`"push"`（pushState）、`"location"`（完全なブラウザナビゲーション）、`"error"`（カスタム処理のためにクライアントでスロー）。詳細は[HTTPリダイレクトのドキュメント](/features/http#redirect)を参照してください。
+
+<Link name="rewrites">
+## リライト
+</Link>
+
+現在のリクエストのURL内のパス名を変更するために`rewrite`関数を使用できます。これはクライアントをリダイレクトせずにURLを変更したい場合に便利です。ミドルウェアで使用するのに最適です。
+
+```tsx
+import { rewrite } from "@lazarv/react-server";
+
+export default function App() {
+  return rewrite("/user");
+}
+```
+
+<Link name="reload">
+## リロード
+</Link>
+
+サーバー関数では、`reload`関数を使って現在のページやアウトレットをリロードできます。これはミューテーション後にアプリの要素をリフレッシュするためにページやアウトレットをリロードしたい場合に便利です。
+
+```tsx
+"use server";
+
+import { reload } from "@lazarv/react-server";
+
+export async function addTodo(todo) {
+  await addTodo(todo);
+  reload();
+}
+```
+
+`reload`関数にURLとアウトレット名を渡して、別のルートとアウトレットをレンダリングすることもできます。この方法を使えば、サーバー関数を使ってデータを変更する場合でも、アプリ全体の不要な再レンダリングを回避してパフォーマンスを最適化できます。
+
+```tsx
+"use server";
+
+import { reload } from "@lazarv/react-server";
+
+export async function addTodo(todo) {
+  await addTodo(todo);
+  reload("/todos", "todo-list");
+}
+```
+
+<Link name="middlewares">
+## ミドルウェア
+</Link>
+
+ミドルウェアはルートハンドラの前に実行される関数です。認証、ロギング、解析など、さまざまなことに使用できます。
+
+エントリモジュールから`init$`という名前のasync関数をエクスポートしてください。この関数はミドルウェアランナーとなるリクエストハンドラを初期化します。`init$`関数はasync関数を返す必要があります。この関数がミドルウェアランナーとなります。
+
+```jsx
+// index.jsx
+
+export async function init$() {
+  return async (context) {
+    // do something
+  };
+}
+```
+
+`@lazarv/react-server`モジュールから利用可能なすべての関数をミドルウェアで使用できます。リクエストをリダイレクトしたり書き換えたり、クッキーを管理したり、レスポンスにヘッダーを追加したりできます。React Server Componentで使える機能は、ミドルウェアでもすべて利用可能です。

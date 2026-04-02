@@ -1,0 +1,227 @@
+---
+title: スクロール復元
+category: Router
+order: 12
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# スクロール復元
+
+`@lazarv/react-server`には、ウィンドウスクロール、ネストされたスクロールコンテナ、ハッシュナビゲーション、非同期コンテンツを処理する完全なスクロール復元システムが含まれています — フラッシュなしのページリロード復元、自動`prefers-reduced-motion`サポート、ルートごとのカスタマイズフックを備えています。
+
+<Link name="getting-started">
+## はじめに
+</Link>
+
+スクロール復元を有効にする最も簡単な方法は、設定ファイルを使用することです：
+
+```js filename="react-server.config.mjs"
+export default {
+  scrollRestoration: true,
+};
+```
+
+これにより、早期復元スクリプトが`<head>`に注入され（Reactのハイドレーション前に実行 — フラッシュなし）、デフォルト設定で`<ScrollRestoration>`コンポーネントが自動レンダリングされます。
+
+オプションを渡すこともできます：
+
+```js filename="react-server.config.mjs"
+export default {
+  scrollRestoration: {
+    behavior: "smooth", // "auto" | "smooth" | "instant"
+  },
+};
+```
+
+<Link name="component">
+## ScrollRestorationコンポーネント
+</Link>
+
+より細かい制御が必要な場合は、設定オプションの代わりにクライアントコンポーネントでコンポーネントを直接レンダリングします：
+
+```tsx
+"use client";
+
+import { ScrollRestoration } from "@lazarv/react-server/navigation";
+
+export default function App({ children }) {
+  return (
+    <>
+      <ScrollRestoration behavior="smooth" />
+      {children}
+    </>
+  );
+}
+```
+
+`<ScrollRestoration>`をアプリのトップレベルに一度配置します。以下を処理します：
+
+- **フォワードナビゲーション**（リンククリック） — トップにスクロール、`#hash`ターゲットがある場合はそこにスクロール
+- **戻る/進む**（ブラウザボタン） — 保存されたスクロール位置を復元
+- **ページリフレッシュ** — 視覚的なフラッシュなしで保存位置を復元
+- **クエリのみの変更** — スクロール位置を維持（ソート/フィルター操作でトップにジャンプしない）
+
+**プロップ：**
+
+| プロップ | 型 | デフォルト | 説明 |
+|------|------|---------|-------------|
+| `behavior` | `"auto" \| "smooth" \| "instant"` | `"auto"` | `window.scrollTo()`に渡されるスクロール動作。ユーザーが`prefers-reduced-motion`を有効にしている場合、自動的に`"auto"`（インスタントスクロール）にフォールバック |
+
+<Link name="how-it-works">
+## 仕組み
+</Link>
+
+スクロール位置は、履歴エントリごとのユニークなスクロールキーをキーとして`sessionStorage`に保存されます。各ナビゲーションで：
+
+1. 現在のスクロール位置が保存される（ウィンドウ + すべての登録済みコンテナ）
+2. フォワードナビゲーションの場合 — トップにスクロール（または`#hash`ターゲット）
+3. 戻る/進むナビゲーションの場合 — `sessionStorage`から保存位置を復元
+
+ページリフレッシュ時、`<head>`内の早期スクリプトがReactのハイドレーション前に実行され、保存位置を同期的に復元します — ほとんどのSPAスクロール復元ソリューションを悩ませる位置ずれのフラッシュを防ぎます。
+
+非同期コンテンツ（Suspenseバウンダリ、Activityトランジション）の場合、コンポーネントは`requestAnimationFrame`ポーリングを使用してスクロール復元を再試行し、ページがターゲット位置に到達するのに十分な高さになるまで最大500msまで待ちます。
+
+**ストレージ管理：** `sessionStorage`のクォータを超えた場合、最も古い約50%のスクロールエントリが自動的に削除されます。
+
+<Link name="scroll-containers">
+## ネストされたスクロールコンテナ
+</Link>
+
+`useScrollContainer`を使用して、ネストされたスクロール可能な要素（サイドバー、チャットパネル、データテーブル）をウィンドウスクロールと一緒に自動保存/復元に登録します：
+
+```tsx
+"use client";
+
+import { useRef } from "react";
+import { useScrollContainer } from "@lazarv/react-server/navigation";
+
+export function Sidebar() {
+  const ref = useRef(null);
+  useScrollContainer("sidebar", ref);
+
+  return (
+    <nav ref={ref} style={{ overflow: "auto", height: "100vh" }}>
+      {/* サイドバーコンテンツ */}
+    </nav>
+  );
+}
+```
+
+`id`はナビゲーションとページリロードにわたってユニークかつ安定している必要があります。ユーザーが別のページに移動して戻るボタンを押すと、ウィンドウスクロールとサイドバースクロールの両方が保存位置に復元されます。
+
+復元が発生した時点でコンテナ要素がまだマウントされていない場合（例：Suspenseバウンダリ内）、ターゲット位置は遅延され、コンテナが登録されるとすぐに適用されます。
+
+命令的APIも非Reactコンテキストで使用できます：
+
+```tsx
+import {
+  registerScrollContainer,
+  unregisterScrollContainer,
+} from "@lazarv/react-server/navigation";
+
+// 登録
+registerScrollContainer("chat-messages", element);
+
+// クリーンアップ
+unregisterScrollContainer("chat-messages");
+```
+
+<Link name="custom-scroll-behavior">
+## カスタムスクロール動作
+</Link>
+
+`useScrollPosition`を使用して、ルートごとのスクロール動作をカスタマイズします。ハンドラはすべてのナビゲーションで呼び出され、スクロールをオーバーライドまたは抑制できます：
+
+```tsx
+"use client";
+
+import { useCallback } from "react";
+import { useScrollPosition } from "@lazarv/react-server/navigation";
+
+export default function ScrollConfig() {
+  useScrollPosition(
+    useCallback(({ to, from, savedPosition }) => {
+      const toPath = to.split("?")[0];
+      const fromPath = from?.split("?")[0];
+
+      // モーダルルートではスクロールをスキップ
+      if (toPath.startsWith("/modal")) return false;
+
+      // ダッシュボードタブ切り替え時はスクロール位置を維持
+      if (
+        toPath.startsWith("/dashboard/") &&
+        fromPath?.startsWith("/dashboard/")
+      ) {
+        return false;
+      }
+
+      // カスタム位置にスクロール
+      if (toPath === "/gallery") return { x: 0, y: 200 };
+
+      // デフォルト動作を使用（戻る/進むで復元、フォワードナビでトップ）
+      return undefined;
+    }, [])
+  );
+
+  return null;
+}
+```
+
+**ハンドラパラメータ：**
+
+| パラメータ | 型 | 説明 |
+|-----------|------|-------------|
+| `to` | `string` | ナビゲーション先のURL（パス + 検索、例：`"/products?sort=price"`) |
+| `from` | `string \| null` | ナビゲーション元のURL、初期ページロード時は`null` |
+| `savedPosition` | `{ x: number, y: number } \| null` | `sessionStorage`からの保存位置（戻る/進む時）、フォワードナビでは`null` |
+
+**戻り値：**
+
+| 戻り値 | 効果 |
+|--------|--------|
+| `{ x, y }` | 指定位置にスクロール |
+| `false` | スクロールを完全にスキップ |
+| `undefined` / `null` | デフォルト動作にフォールバック |
+
+最後に登録されたハンドラのみがアクティブです。コンポーネントがアンマウントされるとハンドラは自動的に登録解除されます。
+
+<Link name="hash-navigation">
+## ハッシュナビゲーション
+</Link>
+
+URLに`#hash`が含まれる場合、スクロール復元は`element.scrollIntoView()`を使用してターゲット要素に自動的にスクロールします。まず`id`で要素を検索し、次に`[name="..."]`にフォールバックします。ハッシュスクロールは他のすべてのスクロール動作（`useScrollPosition`ハンドラを含む）よりも優先されます。
+
+<Link name="accessibility">
+## アクセシビリティ
+</Link>
+
+スクロール復元システムは`prefers-reduced-motion`メディアクエリを尊重します。ユーザーがモーションの低減を要求した場合、`"smooth"`動作は自動的に`"auto"`（インスタントスクロール）にダウングレードされます。これはウィンドウスクロールとコンテナスクロール復元の両方に適用されます。
+
+<Link name="api-reference">
+## APIリファレンス
+</Link>
+
+すべてのスクロール復元エクスポートは`@lazarv/react-server/navigation`から利用できます。
+
+| エクスポート | 型 | 説明 |
+|--------|------|-------------|
+| `ScrollRestoration` | コンポーネント | 可視要素はレンダリングしない。スクロールの保存/復元ライフサイクルを管理。プロップ：`{ behavior? }` |
+| `useScrollPosition` | フック | ルートごとのスクロール動作ハンドラを登録。`(params) => ScrollPosition \| false \| undefined`を受け付ける |
+| `useScrollContainer` | フック | スクロール可能な要素を保存/復元に登録。`(id: string, ref: RefObject<HTMLElement>)`を受け付ける |
+| `registerScrollContainer` | 関数 | 命令的なコンテナ登録。`(id: string, element: HTMLElement)`を受け付ける |
+| `unregisterScrollContainer` | 関数 | 登録済みコンテナを削除。`(id: string)`を受け付ける |
+
+**設定オプション：**
+
+```js filename="react-server.config.mjs"
+export default {
+  // デフォルトで有効化
+  scrollRestoration: true,
+
+  // または動作を設定
+  scrollRestoration: {
+    behavior: "smooth", // "auto" | "smooth" | "instant"
+  },
+};
+```

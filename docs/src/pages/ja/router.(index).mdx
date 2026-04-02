@@ -1,8 +1,8 @@
 # ルーター
 
-`@lazarv/react-server`ランタイムには、ランタイム独自の低レベルなルーティングソリューションを基にしたファイルシステムベースのルーターが含まれており、とても使いやすく設定も簡単です。このルーターが必要以上に複雑だと感じる場合、ランタイムに組み込まれている低レベルな[サーバーサイドルーター](/router/server-routing)や[クライアントサイドナビゲーション](/router/client-navigation)コンポーネントを使用するか、[React Router](https://reactrouter.com/)や[TanStack Router](https://tanstack.com/router)のようなサードパーティーのルーターを使用することができます。これらのサードパーティーのルーターの使い方については、[サンプル集](https://github.com/lazarv/react-server/tree/main/examples)をチェックしてみてください。
+`@lazarv/react-server`ランタイムには、すべてのルート、リンク、パラメータ、検索パラメータに対するコンパイル時の型安全性を備えた[完全な型付きルーター](/router/typed-router)が含まれています。`createRoute`と`createRouter`を使用して、型付き`Link`コンポーネント、型付きフック、スキーマバリデーション、IDEオートコンプリートを定義できます — サーバーとクライアントの両方で。ルートはサーバーレンダリング、[クライアント専用](/router/typed-router#client-only-routes)、または環境間で共有できます。
 
-[ファイルシステムベースのルーター](/router/file-router)の使用は非常に簡単でシンプルです。`react-server`CLIを使用するときにエントリーポイントを省略するだけで、ルーターが自動的に使用されます。
+ランタイムには型付きルーティングプリミティブの上に構築された[ファイルシステムベースのルーター](/router/file-router)も含まれています。`react-server` CLIを使用するときにエントリーポイントを省略するだけで、ルーターが自動的に使用されます。サードパーティのソリューションを好む場合は、代わりに[React Router](https://reactrouter.com/)や[TanStack Router](https://tanstack.com/router)を使用できます。これらのサードパーティルーターの使い方については、[サンプル集](https://github.com/lazarv/react-server/tree/main/examples)をチェックしてください。
 
 [ルートを定義する](/router/define-routes)方法と[ルーターを構成する](/router/configuration)方法について学習し、レイアウト、ページ、ネストされたルート、動的ルート、キャッチオールルートなどのさまざまな種類のルートを作成できます。
 
@@ -14,4 +14,8 @@
 
 次に、ルーターとランタイムを組み合わせて[静的](/router/static)Webサイトを生成する方法を学びます。生成するすべてのルートを定義すると、ルーターが静的ファイルを生成します。ページだけでなく、Webサイトの`sitemap.xml`など任意の静的ファイルも生成します。
 
+ルーターには、フラッシュなしのページリロード、ネストされたコンテナサポート、ルートごとのカスタマイズを備えた組み込みの[スクロール復元](/router/scroll-restoration)が含まれています — 単一の設定オプションまたは`<ScrollRestoration>`コンポーネントで有効にできます。
+
 最後に、ニーズに合わせてルーターを[設定](/router/configuration)する方法を学びます。ルートパスや静的ファイルのパブリックパスを定義し、globパターンを使用してルーティングに特定のファイルを含めたり、ルーティングからファイルとディレクトリを除外したりできます。
+
+`@lazarv/react-server`がNext.js、TanStack Router、React Routerとどのように比較されるかは、[比較表](/features/comparison)を参照してください。

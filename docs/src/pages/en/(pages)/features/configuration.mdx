@@ -226,6 +226,20 @@ Console forwarding is enabled by default in your application. To disable console
 }
 ```
 
+<Link name="initial-config">
+#### Initial configuration via environment variable
+</Link>
+
+You can provide initial configuration at runtime using the `REACT_SERVER_INITIAL_CONFIG` environment variable. This is a JSON string that is merged into the configuration before the prebuilt config file values.
+
+This is useful when deploying to edge runtimes where the configuration needs to be provided at runtime rather than baked into the build, or when you need to override configuration without modifying the config file.
+
+```sh
+REACT_SERVER_INITIAL_CONFIG='{"scrollRestoration":true}' pnpm react-server start
+```
+
+The environment variable is parsed as JSON and merged with lower priority than the config file — config file values always take precedence.
+
 <Link name="config-validation">
 #### Config validation
 </Link>

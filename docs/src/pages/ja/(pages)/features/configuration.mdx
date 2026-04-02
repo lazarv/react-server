@@ -184,6 +184,20 @@ export default {
 };
 ```
 
+<Link name="initial-config">
+#### 環境変数による初期設定
+</Link>
+
+`REACT_SERVER_INITIAL_CONFIG` 環境変数を使用して、ランタイムで初期設定を提供できます。これはプリビルドされた設定ファイルの値の前にマージされるJSON文字列です。
+
+これは、設定をビルドに組み込むのではなくランタイムで提供する必要があるエッジランタイムへのデプロイ時や、設定ファイルを変更せずに設定をオーバーライドする必要がある場合に便利です。
+
+```sh
+REACT_SERVER_INITIAL_CONFIG='{"scrollRestoration":true}' pnpm react-server start
+```
+
+環境変数はJSONとして解析され、設定ファイルよりも低い優先度でマージされます。設定ファイルの値が常に優先されます。
+
 <Link name="config-validation">
 #### 設定のバリデーション
 </Link>

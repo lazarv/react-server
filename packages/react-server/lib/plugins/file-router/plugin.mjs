@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { basename, dirname, join, relative } from "node:path";
+import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { parse as parseAST } from "../../utils/ast.mjs";
 import { loadConfig } from "@lazarv/react-server/config";
 import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
@@ -11,6 +13,7 @@ import merge from "@lazarv/react-server/lib/utils/merge.mjs";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 import { applyParamsToPath } from "@lazarv/react-server/server/route-match.mjs";
 import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
+import { initStoreEntry, setVirtualModuleContent } from "../resources.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
 import micromatch from "micromatch";
@@ -19,11 +22,26 @@ import colors from "picocolors";
 const cwd = sys.cwd();
 const __require = createRequire(import.meta.url);
 
+function normalizeFileRouterConfig(config) {
+  if (!config || typeof config !== "object" || typeof config === "function")
+    return config;
+  const result = { ...config };
+  if ("include" in result) {
+    result.includes = result.include;
+    delete result.include;
+  }
+  if ("exclude" in result) {
+    result.excludes = result.exclude;
+    delete result.exclude;
+  }
+  return result;
+}
+
 function mergeOrApply(a, b = {}) {
   if (typeof b === "function") {
     return b(a);
   }
-  return merge(a, b);
+  return merge(a, normalizeFileRouterConfig(b));
 }
 
 function match(files, includes, excludes) {
@@ -40,6 +58,52 @@ function source(files, rootDir, root) {
     module: sys.normalizePath(relative(root, src)),
     src: sys.normalizePath(src),
   }));
+}
+
+/**
+ * Normalize virtual routes config (object shorthand or array format) into
+ * a uniform array of { path, file, type, method?, outlet? }.
+ */
+function normalizeVirtualRoutes(routes) {
+  if (!routes) return [];
+  if (Array.isArray(routes)) {
+    return routes.map((entry) => ({
+      path: entry.path,
+      file: join(cwd, entry.file),
+      type: entry.type ?? "page",
+      method: entry.method,
+      outlet: entry.outlet,
+    }));
+  }
+  // Object shorthand: { "/path": "./file.tsx" } → type defaults to "page"
+  return Object.entries(routes).map(([path, file]) => ({
+    path,
+    file: join(cwd, file),
+    type: "page",
+  }));
+}
+
+/**
+ * Create an entry object for a virtual route with _virtual* markers.
+ * The `directory` is derived from the route path (not file location) so
+ * layout nesting works correctly.
+ */
+function virtualSource(entry) {
+  const { path, file, type, method, outlet } = entry;
+  const src = sys.normalizePath(file);
+  // directory = route path without leading slash, e.g. "/admin/dashboard" → "admin/dashboard"
+  // For root path "/" → ""
+  const directory = path.replace(/^\//, "");
+  return {
+    directory,
+    filename: basename(file),
+    module: src,
+    src,
+    _virtualPath: path,
+    _virtualType: type,
+    _virtualOutlet: outlet,
+    _virtualMethod: method,
+  };
 }
 
 const HTTP_METHODS = [
@@ -66,6 +130,7 @@ const PAGE_EXTENSION_TYPES = [
   "template",
   "static",
   "middleware",
+  "resource",
 ];
 
 const reactServerRouterDtsTemplate = await readFile(
@@ -75,13 +140,212 @@ const reactServerRouterDtsTemplate = await readFile(
   "utf8"
 );
 
+// Cache for "use client" directive detection: src → boolean
+const clientPageCache = new Map();
+
+/**
+ * Detect whether a source file is a client page: has a "use client" directive
+ * AND a default export (required for a renderable page component).
+ * Results are cached per source path.
+ */
+async function isClientPageSource(src) {
+  if (clientPageCache.has(src)) return clientPageCache.get(src);
+  try {
+    const content = await readFile(src, "utf8");
+    if (!content.includes("use client")) {
+      clientPageCache.set(src, false);
+      return false;
+    }
+    const ast = await parseAST(content, src);
+    if (!ast) {
+      clientPageCache.set(src, false);
+      return false;
+    }
+    const directives = ast.body
+      .filter((node) => node.type === "ExpressionStatement")
+      .map(({ directive }) => directive);
+    if (!directives.includes("use client")) {
+      clientPageCache.set(src, false);
+      return false;
+    }
+    // A client page must also have a default export to be renderable
+    const hasDefaultExport = ast.body.some(
+      (node) =>
+        node.type === "ExportDefaultDeclaration" ||
+        (node.type === "ExportNamedDeclaration" &&
+          node.specifiers?.some((s) => s.exported?.name === "default"))
+    );
+    clientPageCache.set(src, hasDefaultExport);
+    return hasDefaultExport;
+  } catch {
+    clientPageCache.set(src, false);
+    return false;
+  }
+}
+
+/**
+ * Derive a camelCase resource name from a resource filename.
+ * E.g. "(server).todos.resource.ts" → "todos",
+ *      "(client).user-profile.resource.ts" → "userProfile"
+ */
+function deriveResourceName(filename) {
+  // Strip tag prefix: "(server).todos.resource.ts" → "todos.resource.ts"
+  const withoutTag = filename.replace(/^\([^)]+\)\./, "");
+  // Take everything before ".resource."
+  const namePart = withoutTag.split(".resource.")[0];
+  // CamelCase: "user-profile" → "userProfile"
+  return namePart.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+/**
+ * Parse a source file into an AST. Returns null on failure.
+ */
+async function parseFileAST(src) {
+  try {
+    const content = await readFile(src, "utf8");
+    return { ast: await parseAST(content, src), content };
+  } catch {
+    return { ast: null, content: null };
+  }
+}
+
+/**
+ * Extract a string literal value from an AST init node.
+ * Handles Literal ("foo"), TemplateLiteral (`foo` with no expressions).
+ */
+function getStringValue(init) {
+  if (!init) return null;
+  if (init.type === "Literal" && typeof init.value === "string") {
+    return init.value;
+  }
+  // Template literal with no expressions: `foo`
+  if (
+    init.type === "TemplateLiteral" &&
+    init.expressions.length === 0 &&
+    init.quasis.length === 1
+  ) {
+    return init.quasis[0].value?.cooked ?? init.quasis[0].value?.raw ?? null;
+  }
+  return null;
+}
+
+/**
+ * Find an `export const <name>` declaration in the AST and return its
+ * init node, or null if not found.
+ */
+function findExportedConst(ast, name) {
+  for (const node of ast.body) {
+    if (
+      node.type === "ExportNamedDeclaration" &&
+      node.declaration?.type === "VariableDeclaration"
+    ) {
+      for (const decl of node.declaration.declarations) {
+        if (decl.id?.name === name) {
+          return decl.init ?? null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract an explicit `export const name = "..."` from a resource file.
+ * Returns null if not found or not a string literal.
+ */
+async function extractResourceNameExport(src) {
+  const { ast } = await parseFileAST(src);
+  if (!ast) return null;
+  return getStringValue(findExportedConst(ast, "name"));
+}
+
+/**
+ * Detect whether a source file has a "use client" directive.
+ * Uses AST-based directive detection for correctness (ignores comments,
+ * multi-line strings, etc.).
+ */
+async function isClientSource(src) {
+  const { ast, content } = await parseFileAST(src);
+  if (!ast) return false;
+  // Fast bail: skip full directive walk if the text doesn't contain the string
+  if (!content.includes("use client")) return false;
+  const directives = ast.body
+    .filter((node) => node.type === "ExpressionStatement")
+    .map(({ directive }) => directive);
+  return directives.includes("use client");
+}
+
+/**
+ * Extract `export const route = "name"` and detect `export const validate`
+ * from a source file using AST parsing.
+ */
+async function extractRouteExports(src) {
+  const { ast } = await parseFileAST(src);
+  if (!ast) return { name: null, hasValidate: false };
+  const routeInit = findExportedConst(ast, "route");
+  const name = getStringValue(routeInit);
+  const hasValidate = findExportedConst(ast, "validate") !== null;
+  return { name, hasValidate };
+}
+
+/**
+ * Derive a camelCase route name from a path like "/user/[id]/posts" → "userPosts".
+ */
+function deriveRouteName(path) {
+  if (path === "/") return "index";
+  const segments = path
+    .replace(/^\//, "")
+    .split("/")
+    .map((s) => s.replace(/\[\.{0,3}([^\]]+)\]/g, "").replace(/^@/, ""))
+    .filter(Boolean);
+  if (segments.length === 0) {
+    // Path is purely dynamic like "/[id]"
+    const dynamicSegments = path
+      .replace(/^\//, "")
+      .split("/")
+      .map((s) => {
+        const m = s.match(/\[\.{0,3}([^\]]+)\]/);
+        return m ? m[1] : "";
+      })
+      .filter(Boolean);
+    return dynamicSegments[0] ?? "index";
+  }
+  return segments
+    .map((s, i) => (i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)))
+    .join("");
+}
+
+/**
+ * Ensure route names are unique by appending numeric suffixes on collision.
+ */
+function deduplicateRouteNames(routeInfos) {
+  const seen = new Map();
+  for (const info of routeInfos) {
+    const base = info.name;
+    if (seen.has(base)) {
+      const count = seen.get(base) + 1;
+      seen.set(base, count);
+      info.name = `${base}${count}`;
+    } else {
+      seen.set(base, 1);
+    }
+  }
+}
+
 export default function viteReactServerRouter(options = {}) {
+  // Pre-create store entries so parallel SSR/client builds can await them.
+  // Must happen at plugin creation time (before any build starts) so
+  // the entries exist when the SSR/client load handlers check the store.
+  initStoreEntry("resources");
+  initStoreEntry("routes");
+
   const outDir = options.outDir ?? ".react-server";
   const entry = {
     layouts: [],
     pages: [],
     api: [],
     middlewares: [],
+    resources: [],
   };
   const manifest = {
     pages: [],
@@ -90,6 +354,7 @@ export default function viteReactServerRouter(options = {}) {
   let config = {};
   let configRoot = {};
   let sourceWatcher;
+  let virtualWatcher;
   let viteCommand;
   let viteServer;
   let logger;
@@ -120,6 +385,7 @@ export default function viteReactServerRouter(options = {}) {
         `**/+{${HTTP_METHODS_PATTERN}}.*`,
         "**/*.server.*",
         "**/*.config.*",
+        "**/*.resource.*",
       ],
     },
     middleware: {
@@ -140,12 +406,18 @@ export default function viteReactServerRouter(options = {}) {
       ],
       excludes: [],
     },
+    resource: {
+      root: ".",
+      includes: ["**/*.resource.*"],
+      excludes: [],
+    },
   };
   let entryConfig = {
     layout: { ...defaultEntryConfig.layout },
     page: { ...defaultEntryConfig.page },
     middleware: { ...defaultEntryConfig.middleware },
     api: { ...defaultEntryConfig.api },
+    resource: { ...defaultEntryConfig.resource },
   };
 
   function isTypeOf(type, src) {
@@ -174,6 +446,54 @@ export default function viteReactServerRouter(options = {}) {
     return isTypeOf(entryConfig.api, src);
   }
 
+  function isResource(src) {
+    return isTypeOf(entryConfig.resource, src);
+  }
+
+  /**
+   * Validate and inject virtual routes into the correct entry arrays.
+   */
+  function injectVirtualRoutes(virtualRoutes) {
+    for (const vr of virtualRoutes) {
+      if (!vr.path.startsWith("/")) {
+        logger.warn(
+          `Virtual route path "${vr.path}" must start with "/". Skipping.`
+        );
+        continue;
+      }
+      if (!existsSync(vr.file)) {
+        logger.warn(
+          `Virtual route file "${vr.file}" does not exist. Skipping.`
+        );
+        continue;
+      }
+      if (vr.type === "api" && !vr.method) {
+        logger.warn(
+          `Virtual API route "${vr.path}" has no method specified. It will match all methods.`
+        );
+      }
+      const src = virtualSource(vr);
+      switch (vr.type) {
+        case "layout":
+          entry.layouts.push(src);
+          break;
+        case "middleware":
+          entry.middlewares.push(src);
+          break;
+        case "api":
+          entry.api.push(src);
+          break;
+        default:
+          // page, error, loading, fallback, template, default, state, metadata, static
+          entry.pages.push(src);
+          break;
+      }
+      logger.info(
+        `Adding source file ${colors.cyan(sys.normalizePath(relative(cwd, vr.file)))} to router ${colors.magenta(`(virtual ${vr.type})`)} 📁`
+      );
+    }
+  }
+
   function getParamCount(path) {
     let paramCount = 0;
     let context = "";
@@ -191,85 +511,105 @@ export default function viteReactServerRouter(options = {}) {
 
   function getRoutes(routes) {
     return routes
-      .map(({ directory, filename, src }) => {
-        const normalized = [];
-        let current = "";
-        let context = "";
-        const normalizedFilename = filename.replace(/^\+*/g, "");
-        for (const char of normalizedFilename) {
-          if (!context && char === "(") {
-            context = "(";
-          } else if (context === "(" && char === ")") {
-            context = "";
-          } else if (!context && char === "{") {
-            current += char;
-            context = char;
-          } else if (context === "{" && char === "}") {
-            current += char;
-            context = "";
-          } else if (!context && char === "[") {
-            current += char;
-            context = "[";
-          } else if (context === "[" && char === "]") {
-            current += char;
-            context = "";
-          } else if (!context && char === ".") {
-            if (current) {
-              normalized.push(current);
-            }
-            current = "";
-          } else if (context !== "(") {
-            current += char;
+      .map(
+        ({
+          directory,
+          filename,
+          src,
+          _virtualPath,
+          _virtualType,
+          _virtualOutlet,
+        }) => {
+          // Virtual routes: skip all filename-based path derivation
+          if (_virtualPath !== undefined) {
+            const ext = extname(filename).slice(1) || "tsx";
+            return [
+              src,
+              _virtualPath,
+              _virtualOutlet ?? null,
+              _virtualType,
+              ext,
+            ];
           }
-        }
-        if (current) {
-          normalized.push(current);
-        }
+          const normalized = [];
+          let current = "";
+          let context = "";
+          const normalizedFilename = filename.replace(/^\+*/g, "");
+          for (const char of normalizedFilename) {
+            if (!context && char === "(") {
+              context = "(";
+            } else if (context === "(" && char === ")") {
+              context = "";
+            } else if (!context && char === "{") {
+              current += char;
+              context = char;
+            } else if (context === "{" && char === "}") {
+              current += char;
+              context = "";
+            } else if (!context && char === "[") {
+              current += char;
+              context = "[";
+            } else if (context === "[" && char === "]") {
+              current += char;
+              context = "";
+            } else if (!context && char === ".") {
+              if (current) {
+                normalized.push(current);
+              }
+              current = "";
+            } else if (context !== "(") {
+              current += char;
+            }
+          }
+          if (current) {
+            normalized.push(current);
+          }
 
-        const path =
-          `/${directory}${
-            normalized[Math.max(0, normalized.length - 3)] === "index" ||
-            normalized[Math.max(0, normalized.length - 3)] === "page" ||
-            (normalized[Math.max(0, normalized.length - 2)] !== "page" &&
-              PAGE_EXTENSION_TYPES.includes(
-                normalized[Math.max(0, normalized.length - 3)]
-              ))
-              ? ""
-              : `${directory ? "/" : ""}${normalized
-                  .slice(
-                    0,
-                    normalized.filter(
-                      (segment) => !PAGE_EXTENSION_TYPES.includes(segment)
-                    ).length > 2
-                      ? Math.max(1, normalized.length - 2)
-                      : 1
+          const path =
+            `/${directory}${
+              normalized[Math.max(0, normalized.length - 3)] === "index" ||
+              normalized[Math.max(0, normalized.length - 3)] === "page" ||
+              (normalized[Math.max(0, normalized.length - 2)] !== "page" &&
+                PAGE_EXTENSION_TYPES.includes(
+                  normalized[Math.max(0, normalized.length - 3)]
+                ))
+                ? ""
+                : `${directory ? "/" : ""}${normalized
+                    .slice(
+                      0,
+                      normalized.filter(
+                        (segment) => !PAGE_EXTENSION_TYPES.includes(segment)
+                      ).length > 2
+                        ? Math.max(1, normalized.length - 2)
+                        : 1
+                    )
+                    .join("/")}`
+            }`
+              .replace(/\/\([^)]+\)/g, "")
+              .replace(/\/@[^/]*/g, "")
+              .replace(/@[^/\]]*$/g, "") || "/";
+
+          const outlet =
+            (normalized[0][0] === "@"
+              ? normalized[0]
+              : directory
+                  .split("/")
+                  .toReversed()
+                  .find((segment) => segment[0] === "@")
+            )?.slice(1) ?? null;
+          const type =
+            normalized[0][0] === "@"
+              ? "outlet"
+              : normalized[Math.max(0, normalized.length - 2)] === "page" ||
+                  !PAGE_EXTENSION_TYPES.includes(
+                    normalized[Math.max(0, normalized.length - 2)]
                   )
-                  .join("/")}`
-          }`
-            .replace(/\/\([^)]+\)/g, "")
-            .replace(/\/@[^/]*/g, "")
-            .replace(/@[^/\]]*$/g, "") || "/";
-
-        const outlet =
-          (normalized[0][0] === "@"
-            ? normalized[0]
-            : directory
-                .split("/")
-                .toReversed()
-                .find((segment) => segment[0] === "@")
-          )?.slice(1) ?? null;
-        const type =
-          normalized[0][0] === "@"
-            ? "outlet"
-            : normalized[Math.max(0, normalized.length - 2)] === "page" ||
-                !PAGE_EXTENSION_TYPES.includes(
-                  normalized[Math.max(0, normalized.length - 2)]
-                )
-              ? "page"
-              : normalized[Math.max(0, normalized.length - 2)];
-        const ext = normalized[normalized.length - 1];
-        return [src, path, outlet, type, ext];
-      })
+                ? "page"
+                : normalized[Math.max(0, normalized.length - 2)];
+          const ext = normalized[normalized.length - 1];
+          return [src, path, outlet, type, ext];
+        }
+      )
       .toSorted(
         ([, aPath, , aType], [, bPath, , bType]) =>
           aPath.includes("...") - bPath.includes("...") ||
@@ -283,11 +623,278 @@ export default function viteReactServerRouter(options = {}) {
       );
   }
 
+  /**
+   * Generate TypeScript `.d.ts` for `@lazarv/react-server/routes` virtual module.
+   * Produces per-route interfaces with context-aware helper methods and branded outlet types.
+   */
+  function generateRoutesDts(routeInfos) {
+    const lines = [];
+    lines.push(`// Auto-generated by @lazarv/react-server file-router plugin`);
+    lines.push(`// Do not edit manually\n`);
+    lines.push(`declare module "@lazarv/react-server/routes" {`);
+    lines.push(
+      `  import type { RouteDescriptor, ExtractParams, ValidateSchema, RouteValidate } from "@lazarv/react-server/router";\n`
+    );
+
+    // Branded outlet type
+    lines.push(`  const __outlet__: unique symbol;`);
+    lines.push(`  type Outlet<`);
+    lines.push(`    Name extends string,`);
+    lines.push(`    Nullable extends boolean = false`);
+    lines.push(`  > = (React.ReactElement & { readonly [__outlet__]: Name })`);
+    lines.push(`    | (Nullable extends true ? null : never);\n`);
+
+    for (const info of routeInfos) {
+      const { name, path, types, src, hasValidate } = info;
+      const interfaceName =
+        name.charAt(0).toUpperCase() + name.slice(1) + "Route";
+
+      // Compute params type
+      const paramsType = generateParamsType(path);
+      const validateParamsType =
+        hasValidate && src
+          ? `typeof import("${sys.normalizePath(relative(join(cwd, outDir), src))}").validate extends { params: ValidateSchema<infer T> } ? T : ${paramsType}`
+          : paramsType;
+      const validateSearchType =
+        hasValidate && src
+          ? `typeof import("${sys.normalizePath(relative(join(cwd, outDir), src))}").validate extends { search: ValidateSchema<infer T> } ? T : Record<string, string>`
+          : `Record<string, string>`;
+
+      lines.push(`  // ── ${path} ──`);
+      lines.push(
+        `  interface ${interfaceName} extends RouteDescriptor<"${path}", ${validateParamsType}, ${validateSearchType}> {`
+      );
+
+      // Page-level file types → methods
+      const fileTypes = [...types.keys()];
+      const hasPage =
+        fileTypes.includes("page") && types.get("page").some((e) => !e.outlet);
+
+      if (hasPage) {
+        lines.push(`    createPage(`);
+        lines.push(
+          `      component: (props: ${validateParamsType}) => React.ReactNode`
+        );
+        lines.push(`    ): typeof component;`);
+      }
+
+      // Layout — with typed outlets
+      if (fileTypes.includes("layout")) {
+        const layoutEntries = types.get("layout");
+        for (const layoutEntry of layoutEntries) {
+          const outletProps = [];
+          if (layoutEntry.outlets) {
+            for (const [outletName, outletInfo] of layoutEntry.outlets) {
+              const nullable = !outletInfo.hasDefault;
+              outletProps.push(
+                `        ${outletName}: Outlet<"${outletName}"${nullable ? ", true" : ""}>;`
+              );
+            }
+          }
+          lines.push(`    createLayout(`);
+          lines.push(`      component: (props: {`);
+          lines.push(`        children: React.ReactNode;`);
+          for (const prop of outletProps) {
+            lines.push(prop);
+          }
+          lines.push(`      }) => React.ReactNode`);
+          lines.push(`    ): typeof component;`);
+        }
+      }
+
+      // Middleware
+      if (
+        fileTypes.includes("middleware") ||
+        manifest.middlewares.some(([, mp]) => mp === path)
+      ) {
+        lines.push(`    createMiddleware(`);
+        lines.push(`      handler: (ctx: {`);
+        lines.push(`        request: Request & { params: ${paramsType} };`);
+        lines.push(`      }) => Response | void | Promise<Response | void>`);
+        lines.push(`    ): typeof handler;`);
+      }
+
+      // Error
+      if (fileTypes.includes("error")) {
+        lines.push(`    createError(`);
+        lines.push(
+          `      component: (props: { error: Error }) => React.ReactNode`
+        );
+        lines.push(`    ): typeof component;`);
+      }
+
+      // Loading
+      if (fileTypes.includes("loading")) {
+        lines.push(`    createLoading(`);
+        lines.push(`      component: () => React.ReactNode`);
+        lines.push(`    ): typeof component;`);
+      }
+
+      // Fallback
+      if (fileTypes.includes("fallback")) {
+        lines.push(`    createFallback(`);
+        lines.push(
+          `      component: (props: { error: Error }) => React.ReactNode`
+        );
+        lines.push(`    ): typeof component;`);
+      }
+
+      // Resource — typed mapping function
+      if (fileTypes.includes("resource")) {
+        lines.push(`    createResourceMapping<TKey>(`);
+        lines.push(
+          `      mapping: (ctx: { params: ${validateParamsType}; search: ${validateSearchType} }) => TKey`
+        );
+        lines.push(`    ): typeof mapping;`);
+      }
+
+      lines.push(`  }`);
+      lines.push(`  export const ${name}: ${interfaceName};\n`);
+    }
+
+    lines.push(`}`);
+    return lines.join("\n");
+  }
+
+  /**
+   * Generate a TypeScript params type from a route path.
+   * e.g. "/user/[id]" → "{ id: string }"
+   *      "/blog/[...slug]" → "{ slug: string[] }"
+   *      "/about" → "{}"
+   *      "/auth/[[...slug]]" → "{ slug?: string[] }"
+   */
+  function generateParamsType(path) {
+    const params = [];
+    const regex = /\[(\[?)\.{0,3}([^\]]+?)\]?\]/g;
+    let m;
+    while ((m = regex.exec(path)) !== null) {
+      const optional = m[0].startsWith("[[");
+      const spread = m[0].includes("...");
+      const name = m[2];
+      if (spread) {
+        params.push(`${name}${optional ? "?" : ""}: string[]`);
+      } else {
+        params.push(`${name}${optional ? "?" : ""}: string`);
+      }
+    }
+    return params.length > 0 ? `{ ${params.join("; ")} }` : "{}";
+  }
+
+  // Cached route infos — invalidated on createManifest()
+  let routeInfosCache = null;
+  let routeInfosPromise = null;
+
+  /**
+   * Build route info objects: group manifest entries by path, extract route names,
+   * compute outlet info for layouts.
+   */
+  async function buildRouteInfos() {
+    if (routeInfosCache) return routeInfosCache;
+    if (routeInfosPromise) return routeInfosPromise;
+    routeInfosPromise = (async () => {
+      // Group pages by path
+      const byPath = new Map();
+      for (const [src, path, outlet, type] of manifest.pages) {
+        if (!byPath.has(path))
+          byPath.set(path, { path, types: new Map(), outlets: new Map() });
+        const info = byPath.get(path);
+        if (!info.types.has(type)) info.types.set(type, []);
+        info.types.get(type).push({ src, outlet });
+        if (outlet) {
+          if (!info.outlets.has(outlet))
+            info.outlets.set(outlet, { hasDefault: false });
+          if (type === "default") info.outlets.get(outlet).hasDefault = true;
+        }
+      }
+
+      // Also collect middleware info
+      for (const [src, path] of manifest.middlewares) {
+        if (!byPath.has(path))
+          byPath.set(path, { path, types: new Map(), outlets: new Map() });
+        const info = byPath.get(path);
+        if (!info.types.has("middleware")) info.types.set("middleware", []);
+        info.types.get("middleware").push({ src, outlet: null });
+      }
+
+      // Compute outlet info for layouts: a layout owns outlets whose @outletDir
+      // is a direct child of the layout's directory
+      for (const info of byPath.values()) {
+        const layoutEntries = info.types.get("layout") ?? [];
+        for (const layoutEntry of layoutEntries) {
+          const layoutDir = dirname(layoutEntry.src);
+          const outletMap = new Map();
+          for (const [src, , outletName] of manifest.pages) {
+            if (!outletName) continue;
+            // Find the @outletName directory in the src path and get its parent
+            const srcParts = dirname(src).split("/");
+            const atIdx = srcParts.findLastIndex((s) => s.startsWith("@"));
+            if (atIdx < 0) continue;
+            const outletParentDir = srcParts.slice(0, atIdx).join("/");
+            if (outletParentDir !== layoutDir) continue;
+            if (!outletMap.has(outletName))
+              outletMap.set(outletName, { hasDefault: false });
+            // Detect default by filename pattern: @outletName.default.ext
+            const fname = basename(src);
+            if (fname.startsWith(`@${outletName}.default.`)) {
+              outletMap.get(outletName).hasDefault = true;
+            }
+          }
+          layoutEntry.outlets = outletMap;
+        }
+      }
+
+      // Only include routes that have page or layout types (addressable routes)
+      // Exclude routes where ALL page entries are outlet pages (no non-outlet page)
+      const addressableRoutes = [...byPath.values()].filter((info) => {
+        if (!info.types.has("page") && !info.types.has("layout")) return false;
+        const pageEntries = info.types.get("page") ?? [];
+        // If there are only outlet pages and no layout, this is an outlet content route
+        if (
+          pageEntries.length > 0 &&
+          !info.types.has("layout") &&
+          pageEntries.every((e) => e.outlet)
+        )
+          return false;
+        return true;
+      });
+
+      // Extract explicit route names from page source files
+      const routeInfos = [];
+      for (const info of addressableRoutes) {
+        const pageEntries = info.types.get("page") ?? [];
+        const mainPageSrc = pageEntries.find((e) => !e.outlet)?.src;
+        const exports = mainPageSrc
+          ? await extractRouteExports(mainPageSrc)
+          : { name: null, hasValidate: false };
+        const name = exports.name ?? deriveRouteName(info.path);
+        routeInfos.push({
+          ...info,
+          name,
+          src: mainPageSrc,
+          hasValidate: exports.hasValidate,
+        });
+      }
+
+      deduplicateRouteNames(routeInfos);
+      routeInfosCache = routeInfos;
+      routeInfosPromise = null;
+      return routeInfos;
+    })();
+    return routeInfosPromise;
+  }
+
   function createManifest() {
     manifest.pages = getRoutes(
-      Array.from(new Set([...entry.pages, ...entry.layouts]))
+      Array.from(
+        new Set([...entry.pages, ...entry.layouts, ...entry.resources])
+      )
     );
     manifest.middlewares = getRoutes(entry.middlewares);
+
+    // Invalidate route infos cache
+    routeInfosCache = null;
+    routeInfosPromise = null;
+    clientPageCache.clear();
 
     if (viteCommand === "serve" && viteServer) {
       const manifestModule = viteServer.moduleGraph.getModuleById(
@@ -295,6 +902,21 @@ export default function viteReactServerRouter(options = {}) {
       );
       if (manifestModule) {
         viteServer.moduleGraph.invalidateModule(manifestModule);
+      }
+      const routesModule = viteServer.moduleGraph.getModuleById(
+        `virtual:@lazarv/react-server/routes`
+      );
+      if (routesModule) {
+        viteServer.moduleGraph.invalidateModule(routesModule);
+      }
+      // Invalidate the __resources__ virtual module so it regenerates
+      for (const env of Object.values(viteServer.environments)) {
+        const resourcesModule = env.moduleGraph.getModuleById(
+          "virtual:@lazarv/react-server/__resources__"
+        );
+        if (resourcesModule) {
+          env.moduleGraph.invalidateModule(resourcesModule);
+        }
       }
     }
 
@@ -403,6 +1025,12 @@ export default function viteReactServerRouter(options = {}) {
         join(cwd, outDir, "react-server-router.d.ts"),
         reactServerRouterDts
       );
+
+      // Generate routes.d.ts with typed route descriptors
+      const routeInfos = await buildRouteInfos();
+      const routesDts = generateRoutesDts(routeInfos);
+      await writeFile(join(cwd, outDir, "react-server-routes.d.ts"), routesDts);
+
       debounceTypesGeneration = null;
     };
     if (viteCommand !== "build") {
@@ -473,6 +1101,7 @@ export default function viteReactServerRouter(options = {}) {
       entry.pages = [];
       entry.middlewares = [];
       entry.api = [];
+      entry.resources = [];
       manifest.pages = [];
       manifest.middlewares = [];
 
@@ -510,9 +1139,16 @@ export default function viteReactServerRouter(options = {}) {
           mergeOrApply({ ...defaultEntryConfig.api }, routerConfig.api),
           routerConfig.router
         ),
+        resource: mergeOrApply(
+          mergeOrApply(
+            { ...defaultEntryConfig.resource },
+            routerConfig.resource
+          ),
+          routerConfig.router
+        ),
       };
 
-      rootDir = join(cwd, root);
+      rootDir = sys.normalizePath(join(cwd, root));
 
       if (viteCommand === "build") {
         const sourceFiles = await glob(
@@ -563,6 +1199,22 @@ export default function viteReactServerRouter(options = {}) {
           root
         );
 
+        entry.resources = source(
+          match(
+            sourceFiles,
+            entryConfig.resource.includes,
+            entryConfig.resource.excludes
+          ),
+          rootDir,
+          root
+        );
+
+        // Inject virtual routes from config
+        const virtualRoutes = normalizeVirtualRoutes(configRoot.routes);
+        if (virtualRoutes.length > 0) {
+          injectVirtualRoutes(virtualRoutes);
+        }
+
         mdxCounter = entry.pages.filter(
           (page) => page.src.endsWith(".md") || page.src.endsWith(".mdx")
         ).length;
@@ -599,6 +1251,76 @@ export default function viteReactServerRouter(options = {}) {
         config_destroy.push(() => {
           sourceWatcher.close();
         });
+
+        // Inject virtual routes from config and set up dedicated watcher
+        const virtualRoutes = normalizeVirtualRoutes(configRoot.routes);
+        if (virtualRoutes.length > 0) {
+          injectVirtualRoutes(virtualRoutes);
+
+          const virtualFilePaths = virtualRoutes
+            .filter((vr) => existsSync(vr.file))
+            .map((vr) => sys.normalizePath(vr.file));
+
+          if (virtualFilePaths.length > 0) {
+            virtualWatcher = watch(virtualFilePaths, {
+              ignoreInitial: true,
+              ...(typeof Bun !== "undefined" && { useFsEvents: false }),
+            });
+
+            virtualWatcher.on("change", (rawSrc) => {
+              const src = sys.normalizePath(rawSrc);
+              clientPageCache.delete(src);
+
+              if (viteServer) {
+                // Invalidate manifest and routes virtual modules
+                for (const moduleId of [
+                  "virtual:@lazarv/react-server/file-router/manifest",
+                  "virtual:@lazarv/react-server/routes",
+                ]) {
+                  const mod =
+                    viteServer.environments.rsc.moduleGraph.getModuleById(
+                      moduleId
+                    );
+                  if (mod) {
+                    viteServer.environments.rsc.moduleGraph.invalidateModule(
+                      mod
+                    );
+                  }
+                }
+
+                // Invalidate page wrappers that reference this source
+                Array.from(
+                  viteServer.environments.rsc.moduleGraph.urlToModuleMap.entries()
+                ).forEach(([url, mod]) => {
+                  if (
+                    url.includes(src) ||
+                    url.includes("__react_server_router_page__")
+                  ) {
+                    viteServer.environments.rsc.moduleGraph.invalidateModule(
+                      mod
+                    );
+                  }
+                });
+              }
+
+              logger.info(
+                `Virtual route file changed: ${colors.cyan(relative(cwd, src))} 🔄`
+              );
+            });
+
+            virtualWatcher.on("unlink", (rawSrc) => {
+              const src = sys.normalizePath(rawSrc);
+              logger.warn(
+                `Virtual route file deleted: ${colors.yellow(relative(cwd, src))}. The route will not work until the file is restored or the config is updated.`
+              );
+            });
+
+            config_destroy.push(() => {
+              virtualWatcher.close();
+              virtualWatcher = null;
+            });
+          }
+        }
 
         let watcherTimeout = null;
         const debouncedWarning = () => {
@@ -645,6 +1367,12 @@ export default function viteReactServerRouter(options = {}) {
             createManifest();
           }
 
+          if (isResource(src)) {
+            includeInRouter = true;
+            entry.resources.push(...source([src], rootDir, root));
+            createManifest();
+          }
+
           if (src.endsWith(".md") || src.endsWith(".mdx")) {
             mdxCounter++;
             await setupMdx();
@@ -664,6 +1392,15 @@ export default function viteReactServerRouter(options = {}) {
             if (manifestModule) {
               viteServer.environments.rsc.moduleGraph.invalidateModule(
                 manifestModule
+              );
+            }
+            const routesModule =
+              viteServer.environments.rsc.moduleGraph.getModuleById(
+                "virtual:@lazarv/react-server/routes"
+              );
+            if (routesModule) {
+              viteServer.environments.rsc.moduleGraph.invalidateModule(
+                routesModule
               );
             }
 
@@ -697,6 +1434,9 @@ export default function viteReactServerRouter(options = {}) {
               ).length;
               const apiCount = entry.api.length;
               const middlewareCount = manifest.middlewares.length;
+              const resourceCount = manifest.pages.filter(
+                ([, , , type]) => type === "resource"
+              ).length;
               const outletCount = new Set(
                 manifest.pages
                   .filter(([, , outlet]) => outlet)
@@ -709,6 +1449,9 @@ export default function viteReactServerRouter(options = {}) {
                   : null,
                 outletCount > 0
                   ? `${colors.cyan(outletCount)} outlet${outletCount !== 1 ? "s" : ""}`
+                  : null,
+                resourceCount > 0
+                  ? `${colors.cyan(resourceCount)} resource${resourceCount !== 1 ? "s" : ""}`
                   : null,
                 apiCount > 0
                   ? `${colors.cyan(apiCount)} API route${apiCount !== 1 ? "s" : ""}`
@@ -759,6 +1502,14 @@ export default function viteReactServerRouter(options = {}) {
             createManifest();
           }
 
+          if (isResource(src)) {
+            includeInRouter = true;
+            entry.resources = entry.resources.filter(
+              (resource) => resource.src !== src
+            );
+            createManifest();
+          }
+
           if (src.endsWith(".md") || src.endsWith(".mdx")) {
             mdxCounter--;
             await setupMdx();
@@ -795,6 +1546,15 @@ export default function viteReactServerRouter(options = {}) {
               manifestModule
             );
           }
+          const routesModule =
+            viteServer.environments.rsc.moduleGraph.getModuleById(
+              "virtual:@lazarv/react-server/routes"
+            );
+          if (routesModule) {
+            viteServer.environments.rsc.moduleGraph.invalidateModule(
+              routesModule
+            );
+          }
         });
       }
     } catch (e) {
@@ -804,7 +1564,71 @@ export default function viteReactServerRouter(options = {}) {
     }
   }
 
-  return {
+  // Pre-enforce plugin that transforms .resource.* files to generate
+  // createResource/bind/from wiring. Runs BEFORE use-client.mjs so
+  // the generated default export is included in client reference stubs.
+  //
+  // Also resolves __create_resource__ (cycle-breaking alias) and
+  // __resources__ (descriptor collection for the resources API).
+  const prePlugin = {
+    name: "react-server:file-router-resources",
+    enforce: "pre",
+    resolveId(id) {
+      if (id === "@lazarv/react-server/__create_resource__") {
+        // RSC: server createResource (with server-side cache invalidation)
+        // SSR/client: client createResource (with skipBind on SSR)
+        //
+        // In build mode the file-router only exists in the RSC viteBuild(),
+        // so __create_resource__ always needs the server version.
+        // In dev mode the file-router is shared across environments, so
+        // check this.environment.name to distinguish RSC from SSR/client.
+        if (viteCommand === "build" || this.environment?.name === "rsc") {
+          return join(sys.rootDir, "server/typed-resource.jsx");
+        }
+        return join(sys.rootDir, "client/create-resource.mjs");
+      }
+      if (id === "@lazarv/react-server/__resources__") {
+        return "virtual:@lazarv/react-server/__resources__";
+      }
+    },
+    transform: {
+      filter: {
+        id: /\.resource\.\w+$/,
+      },
+      handler(code, id) {
+        // Only transform resource files that are part of the file-router
+        if (!entry.resources.some((e) => e.src === id)) return null;
+
+        // Check if the file exports a `key` (validation schema)
+        const hasKey =
+          /export\s+(const|let|var|function)\s+key\b/.test(code) ||
+          /export\s*\{[^}]*\bkey\b/.test(code);
+
+        // Append: create a resource descriptor, bind the loader, and
+        // export the binding as default. Also export the descriptor itself
+        // so the __resources__ virtual module can build the collection.
+        //
+        // Imports createResource from __create_resource__ (NOT from
+        // @lazarv/react-server/resources) to avoid circular dependency:
+        // resource.mjs → __resources__ → resource file → resource.mjs.
+        //
+        // For "use client" files, use-client.mjs runs after this transform
+        // and wraps the entire module — so default and __rs_descriptor__
+        // both become client references. On the client they resolve to
+        // the real binding and descriptor.
+        const appendCode = `
+import { createResource as __rs_createResource__ } from "@lazarv/react-server/__create_resource__";
+const __rs_descriptor__ = __rs_createResource__(${hasKey ? "{ key }" : "{}"});
+__rs_descriptor__.bind(loader);
+export { __rs_descriptor__ };
+export default __rs_descriptor__.from(mapping);
+`;
+        return code + "\n" + appendCode;
+      },
+    },
+  };
+
+  const mainPlugin = {
     name: "react-server:file-router",
     configureServer(server) {
       viteServer = server;
@@ -817,6 +1641,75 @@ export default function viteReactServerRouter(options = {}) {
       logger = config.logger;
       if (viteCommand === "build") {
         await config_init$();
+
+        // Set virtual module content for the client build.
+        // The client build doesn't load file-router, so the resources plugin
+        // serves these as virtual modules using the shared store.
+        const resourceEntries = manifest.pages.filter(
+          ([, , , type]) => type === "resource"
+        );
+        if (resourceEntries.length > 0) {
+          const byName = new Map();
+          for (const [src] of resourceEntries) {
+            const entryObj = entry.resources.find((e) => e.src === src);
+            if (!entryObj) continue;
+            const explicitName = await extractResourceNameExport(src);
+            const rName = explicitName ?? deriveResourceName(entryObj.filename);
+            const isClient = await isClientSource(src);
+            if (!byName.has(rName)) {
+              byName.set(rName, { src, isClient });
+            } else if (isClient && !byName.get(rName).isClient) {
+              byName.set(rName, { src, isClient });
+            }
+          }
+          const imports = [];
+          const entries = [];
+          let ri = 0;
+          for (const [rName, { src }] of byName) {
+            imports.push(
+              `import { __rs_descriptor__ as __d${ri}__ } from "${src}";`
+            );
+            entries.push(`${JSON.stringify(rName)}: __d${ri}__`);
+            ri++;
+          }
+          setVirtualModuleContent(
+            "resources",
+            `${imports.join("\n")}\nexport default {\n  ${entries.join(",\n  ")}\n};\n`
+          );
+        } else {
+          // No resources — resolve the promise so SSR/client builds
+          // awaiting the store don't hang forever.
+          setVirtualModuleContent("resources", "export default {};");
+        }
+
+        // Set routes virtual module content for the client build.
+        const routeInfos = await buildRouteInfos();
+        if (routeInfos.length > 0) {
+          const routeExportLines = routeInfos.map(
+            (info) =>
+              `export const ${info.name} = __withHelpers(__createRoute("${info.path}"));`
+          );
+          setVirtualModuleContent(
+            "routes",
+            `import { createRoute as __createRoute } from "@lazarv/react-server/router";
+
+const __identity = (x) => x;
+function __withHelpers(descriptor) {
+  descriptor.createPage = __identity;
+  descriptor.createLayout = __identity;
+  descriptor.createMiddleware = __identity;
+  descriptor.createError = __identity;
+  descriptor.createLoading = __identity;
+  descriptor.createFallback = __identity;
+  descriptor.createResourceMapping = __identity;
+  return descriptor;
+}
+
+${routeExportLines.join("\n")}
+`
+          );
+        }
+
         const options = getContext(BUILD_OPTIONS);
 
         if (options.export !== false) {
@@ -904,12 +1797,87 @@ export default function viteReactServerRouter(options = {}) {
     resolveId(id) {
       if (
         id === "@lazarv/react-server/file-router/manifest" ||
+        id === "@lazarv/react-server/routes" ||
         id.startsWith("__react_server_router_page__")
       ) {
         return `virtual:${id}`;
       }
     },
-    load(id) {
+    async load(id) {
+      if (id === "virtual:@lazarv/react-server/routes") {
+        const routeInfos = await buildRouteInfos();
+        const exportLines = [];
+        const lazyValidateLines = [];
+        for (const info of routeInfos) {
+          exportLines.push(
+            `export const ${info.name} = __withHelpers(__createRoute("${info.path}"));`
+          );
+          if (info.src && info.hasValidate) {
+            // Use dynamic import() to avoid circular dependency:
+            // page files import their descriptor from this module,
+            // so we can't statically import from page files here.
+            lazyValidateLines.push(
+              `import("${info.src}").then(__m => { ${info.name}.validate = __m.validate; });`
+            );
+          }
+        }
+        return `import { createRoute as __createRoute } from "@lazarv/react-server/router";
+
+const __identity = (x) => x;
+function __withHelpers(descriptor) {
+  descriptor.createPage = __identity;
+  descriptor.createLayout = __identity;
+  descriptor.createMiddleware = __identity;
+  descriptor.createError = __identity;
+  descriptor.createLoading = __identity;
+  descriptor.createFallback = __identity;
+  descriptor.createResourceMapping = __identity;
+  return descriptor;
+}
+
+${exportLines.join("\n")}
+
+${lazyValidateLines.join("\n")}
+`;
+      }
+      if (id === "virtual:@lazarv/react-server/__resources__") {
+        // Build the resources collection: import __rs_descriptor__ from each
+        // resource file, keyed by derived name. For dual-loader (server + client
+        // with same name), prefer the client file's descriptor since .use()
+        // runs on the client.
+        const resourceEntries = manifest.pages.filter(
+          ([, , , type]) => type === "resource"
+        );
+
+        // Group by name, prefer client source
+        const byName = new Map();
+        for (const [src] of resourceEntries) {
+          const entryObj = entry.resources.find((e) => e.src === src);
+          if (!entryObj) continue;
+          const explicitName = await extractResourceNameExport(src);
+          const rName = explicitName ?? deriveResourceName(entryObj.filename);
+          const isClient = await isClientSource(src);
+
+          if (!byName.has(rName)) {
+            byName.set(rName, { src, isClient });
+          } else if (isClient && !byName.get(rName).isClient) {
+            // Prefer client descriptor for the collection
+            byName.set(rName, { src, isClient });
+          }
+        }
+
+        const imports = [];
+        const entries = [];
+        let ri = 0;
+        for (const [rName, { src }] of byName) {
+          imports.push(
+            `import { __rs_descriptor__ as __d${ri}__ } from "${src}";`
+          );
+          entries.push(`${JSON.stringify(rName)}: __d${ri}__`);
+          ri++;
+        }
+        return `${imports.join("\n")}\nexport default {\n  ${entries.join(",\n  ")}\n};\n`;
+      }
       if (id === "virtual:@lazarv/react-server/file-router/manifest") {
         // Collect all unique import specifiers and generate cached import vars.
         // Each dynamic import is called once and the module is reused on subsequent requests.
@@ -931,7 +1899,12 @@ export default function viteReactServerRouter(options = {}) {
           .join(",\n");
 
         const routeEntries = entry.api
-          .map(({ directory, filename, src }) => {
+          .map(({ directory, filename, src, _virtualPath, _virtualMethod }) => {
+            if (_virtualPath !== undefined) {
+              return `["${_virtualMethod ?? "*"}", "${_virtualPath}", async () => {
+                return ${cachedImport(src)};
+              }]`;
+            }
             const normalized = filename
               .replace(/^\+*/g, "")
               .replace(/\.\.\./g, "_dot_dot_dot_")
@@ -961,6 +1934,7 @@ export default function viteReactServerRouter(options = {}) {
           .join(",\n");
 
         const pageEntries = manifest.pages
+          .filter(([, , , type]) => type !== "resource")
           .map(([src, path, outlet, type]) => {
             const pageSpecifier =
               (type === "page" && !outlet) || (type === "default" && outlet)
@@ -1004,12 +1978,16 @@ export default function viteReactServerRouter(options = {}) {
         let [path, src] = id
           .replace("virtual:__react_server_router_page__", "")
           .split("::");
+        // Virtual route files live outside rootDir — match layouts by route
+        // path only, since filesystem directory containment doesn't apply.
+        const isVirtualRoute = !`${src}/`.startsWith(`${rootDir}/`);
         const layouts = manifest.pages
           .filter(
             ([layoutSrc, layoutPath, , type]) =>
               type === "layout" &&
               path.includes(layoutPath) &&
-              `${dirname(src)}/`.includes(`${dirname(layoutSrc)}/`)
+              (isVirtualRoute ||
+                `${dirname(src)}/`.includes(`${dirname(layoutSrc)}/`))
           )
           .toSorted(
             ([a], [b]) =>
@@ -1035,6 +2013,83 @@ export default function viteReactServerRouter(options = {}) {
           ([, loadingPath, , type]) =>
             type === "loading" && path.includes(loadingPath)
         );
+
+        // --- Client route siblings ---
+        // Find "use client" pages that share the same innermost layout
+        const innermostLayoutSrc =
+          layouts.length > 0 ? layouts[layouts.length - 1][0] : null;
+        const candidatePages = manifest.pages.filter(
+          ([candidateSrc, candidatePath, candidateOutlet, candidateType]) => {
+            if (candidateType !== "page" || candidateOutlet) return false;
+            if (candidateSrc === src) return false;
+            if (innermostLayoutSrc) {
+              const candidateLayouts = manifest.pages
+                .filter(
+                  ([layoutSrc, layoutPath, , layoutType]) =>
+                    layoutType === "layout" &&
+                    candidatePath.includes(layoutPath) &&
+                    `${dirname(candidateSrc)}/`.includes(
+                      `${dirname(layoutSrc)}/`
+                    )
+                )
+                .toSorted(
+                  ([a], [b]) =>
+                    a.split("/").length - b.split("/").length ||
+                    a.localeCompare(b)
+                );
+              const candidateInnermostSrc =
+                candidateLayouts.length > 0
+                  ? candidateLayouts[candidateLayouts.length - 1][0]
+                  : null;
+              return candidateInnermostSrc === innermostLayoutSrc;
+            } else {
+              const candidateLayouts = manifest.pages.filter(
+                ([layoutSrc, layoutPath, , layoutType]) =>
+                  layoutType === "layout" &&
+                  candidatePath.includes(layoutPath) &&
+                  `${dirname(candidateSrc)}/`.includes(`${dirname(layoutSrc)}/`)
+              );
+              return candidateLayouts.length === 0;
+            }
+          }
+        );
+        const clientSiblings = [];
+        for (const [candidateSrc, candidatePath] of candidatePages) {
+          if (await isClientPageSource(candidateSrc)) {
+            clientSiblings.push([candidateSrc, candidatePath]);
+          }
+        }
+        const hasClientRoutes = clientSiblings.length > 0;
+
+        // --- Loading components for client sibling routes ---
+        // Each client sibling may have a page-level loading file (e.g.
+        // todos.loading.tsx for /todos). These are NOT covered by the
+        // layout-level loadings array (which only matches the main page
+        // path), so we look them up from the full manifest.
+        const clientSiblingLoadings = clientSiblings.map(
+          ([, sibPath]) =>
+            manifest.pages.find(
+              ([, loadingPath, , type]) =>
+                type === "loading" && loadingPath === sibPath
+            ) ?? null
+        );
+        // Deduplicate and collect only new loading entries not already in
+        // the main loadings list.
+        const extraLoadings = clientSiblingLoadings
+          .filter(Boolean)
+          .filter((entry) => !loadings.some(([src]) => src === entry[0]));
+        // Merge into loadings so they get imported alongside others.
+        for (const entry of extraLoadings) {
+          loadings.push(entry);
+        }
+
+        // --- Resources for this route ---
+        const routeResources = manifest.pages.filter(
+          ([, resourcePath, , type]) =>
+            type === "resource" && resourcePath === path
+        );
+        const hasResources = routeResources.length > 0;
+
         let errorBoundaryIndex = [];
         let loadingIndex = [];
         const code = `
@@ -1052,6 +2107,7 @@ export default function viteReactServerRouter(options = {}) {
             viteCommand === "build" ? "MANIFEST, " : ""
           }COLLECT_STYLESHEETS, STYLES_CONTEXT, COLLECT_CLIENT_MODULES, CLIENT_MODULES_CONTEXT, POSTPONE_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
           import { useMatch } from "@lazarv/react-server/router";
+          ${hasClientRoutes || hasResources ? `import { Route } from "@lazarv/react-server/router";` : ""}
           ${
             errorBoundaries.length > 0
               ? `import ErrorBoundary from "@lazarv/react-server/error-boundary";
@@ -1070,6 +2126,9 @@ export default function viteReactServerRouter(options = {}) {
           ${fallbacks.map(([src], i) => `import __react_server_router_fallback_${i}__ from "${src}"; fallbackComponents.set("${src}", __react_server_router_fallback_${i}__);`).join("\n")}
           ${loadings.map(([src], i) => `import __react_server_router_loading_${i}__ from "${src}"; loadingComponents.set("${src}", __react_server_router_loading_${i}__);`).join("\n")}
           import * as __react_server_page__ from "${src}";
+          ${clientSiblings.map(([sibSrc], i) => `import __client_page_${i}__ from "${sibSrc}";`).join("\n          ")}
+          ${routeResources.map(([resourceSrc], i) => `import __resource_${i}__ from "${resourceSrc}";`).join("\n          ")}
+          ${hasResources ? `const __page_resources__ = [${routeResources.map((_, i) => `__resource_${i}__`).join(", ")}];` : ""}
 
           const outletImports = {
             ${outlets.map(([src], i) => `"${src}": __react_server_router_outlet_${i}__`).join(",\n")}
@@ -1158,6 +2217,34 @@ export default function viteReactServerRouter(options = {}) {
                 pageStyles.unshift(...collectStylesheets?.(__react_server_router_module_${i}__));`
                   )
                   .join("\n")}
+
+                ${clientSiblings
+                  .map(([sibSrc], i) => {
+                    const sibModule = entry.pages.find(
+                      ({ src: entrySrc }) => entrySrc === sibSrc
+                    )?.module;
+                    return sibModule
+                      ? `const __client_page_build_module_${i}__ = Object.values(manifest.server).find((entry) => entry.src?.endsWith("${sibModule}") || (entry.src?.startsWith("virtual:") && entry.src?.includes("${sibModule}")))?.file;
+                clientModules.unshift(...collectClientModules?.(__client_page_build_module_${i}__));
+                pageStyles.unshift(...collectStylesheets?.(__client_page_build_module_${i}__));`
+                      : "";
+                  })
+                  .join("\n")}
+
+                ${routeResources
+                  .map(([resourceSrc], i) => {
+                    const resourceModule = entry.resources.find(
+                      ({ src: entrySrc }) => entrySrc === resourceSrc
+                    )?.module;
+                    return resourceModule
+                      ? `const __resource_build_module_${i}__ = Object.values(manifest.server).find((entry) => entry.src?.endsWith("${resourceModule}"))?.file;
+                if (__resource_build_module_${i}__) {
+                  clientModules.unshift(...collectClientModules?.(__resource_build_module_${i}__));
+                  pageStyles.unshift(...collectStylesheets?.(__resource_build_module_${i}__));
+                }`
+                      : "";
+                  })
+                  .join("\n")}
               }`
                   : `const pageModule = __require.resolve("${src}", { paths: [cwd] });
               clientModules.unshift(...collectClientModules?.(pageModule));
@@ -1177,6 +2264,24 @@ export default function viteReactServerRouter(options = {}) {
                   ) => `const __react_server_router_module_${i}__ = __require.resolve("${src}", { paths: [cwd] });
               clientModules.unshift(...collectClientModules?.(__react_server_router_module_${i}__));
               pageStyles.unshift(...collectStylesheets?.(__react_server_router_module_${i}__));`
+                )
+                .join("\n")}
+
+              ${clientSiblings
+                .map(
+                  ([sibSrc], i) =>
+                    `const __client_page_dev_module_${i}__ = __require.resolve("${sibSrc}", { paths: [cwd] });
+              clientModules.unshift(...collectClientModules?.(__client_page_dev_module_${i}__));
+              pageStyles.unshift(...collectStylesheets?.(__client_page_dev_module_${i}__));`
+                )
+                .join("\n")}
+
+              ${routeResources
+                .map(
+                  ([resourceSrc], i) =>
+                    `const __resource_dev_module_${i}__ = __require.resolve("${resourceSrc}", { paths: [cwd] });
+              clientModules.unshift(...collectClientModules?.(__resource_dev_module_${i}__));
+              pageStyles.unshift(...collectStylesheets?.(__resource_dev_module_${i}__));`
                 )
                 .join("\n")}`
               }
@@ -1388,7 +2493,30 @@ export default function viteReactServerRouter(options = {}) {
                   }`;
                 })
                 .join("\n")}
+                ${
+                  hasClientRoutes || hasResources
+                    ? (() => {
+                        const pageLoading = loadings.find(
+                          ([, loadingPath]) => loadingPath === path
+                        );
+                        const pageLoadingProp = pageLoading
+                          ? ` loading={<__react_server_router_loading_${loadings.indexOf(pageLoading)}__/>}`
+                          : "";
+                        return `<Route path="${path}" exact={true}${pageLoadingProp}${hasResources ? ` resources={__page_resources__}` : ""}>`;
+                      })()
+                    : ""
+                }
                 <${loadingIndex.length > 0 || errorBoundaryIndex.length > 0 ? "PrerenderedPage" : "CachedPage"} {...pageProps} {...props} />
+                ${hasClientRoutes || hasResources ? `</Route>` : ""}
+                ${clientSiblings
+                  .map(([, sibPath], i) => {
+                    const sibLoading = clientSiblingLoadings[i];
+                    const loadingProp = sibLoading
+                      ? ` loading={<__react_server_router_loading_${loadings.indexOf(sibLoading)}__/>}`
+                      : "";
+                    return `<Route path="${sibPath}" exact={true}${loadingProp} element={<__client_page_${i}__ />} />`;
+                  })
+                  .join("\n                ")}
               ${layouts
                 .map(
                   (_, i) =>
@@ -1416,4 +2544,6 @@ export default function viteReactServerRouter(options = {}) {
       return null;
     },
   };
+
+  return [prePlugin, mainPlugin];
 }

@@ -740,6 +740,34 @@ export interface MdxConfig {
   components?: string;
 }
 
+// ───── Virtual route entry ─────
+
+/** A virtual route entry that maps a URL path to a file outside the file-router root. */
+export interface VirtualRouteEntry {
+  /** The URL path for this route (must start with `/`). */
+  path: string;
+  /** File path to the component/handler (resolved relative to cwd). */
+  file: string;
+  /** Route type. Defaults to `"page"`. */
+  type?:
+    | "page"
+    | "layout"
+    | "middleware"
+    | "api"
+    | "error"
+    | "loading"
+    | "fallback"
+    | "default"
+    | "template"
+    | "state"
+    | "metadata"
+    | "static";
+  /** HTTP method (required when `type` is `"api"`). */
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+  /** Named outlet (for `type: "page"` or `type: "default"`). */
+  outlet?: string;
+}
+
 // ───── File-router config ─────
 
 /** File-router configuration for layout/page/middleware/api/router. Typically `{ include?: string[], exclude?: string[] }`. */
@@ -778,6 +806,28 @@ export interface ReactServerConfig {
    * @example `root: "src/pages"`
    */
   root?: string;
+
+  /**
+   * Virtual route definitions that map URL paths to files outside the file-router root.
+   *
+   * **Object shorthand** (type defaults to `"page"`):
+   * ```ts
+   * routes: {
+   *   "/custom": "./src/features/CustomPage.tsx",
+   *   "/admin/dashboard": "./src/admin/Dashboard.tsx",
+   * }
+   * ```
+   *
+   * **Array format** (full control over type):
+   * ```ts
+   * routes: [
+   *   { path: "/custom", file: "./src/features/CustomPage.tsx" },
+   *   { path: "/admin", file: "./src/admin/Layout.tsx", type: "layout" },
+   *   { path: "/api/users", file: "./src/api/users.ts", type: "api", method: "GET" },
+   * ]
+   * ```
+   */
+  routes?: Record<string, string> | VirtualRouteEntry[];
 
   /**
    * Base public path for the application.
@@ -943,6 +993,20 @@ export interface ReactServerConfig {
    * @example `cookies: { secure: true, sameSite: "lax" }`
    */
   cookies?: Record<string, unknown>;
+
+  /**
+   * Enable automatic scroll restoration for client-side navigations.
+   *
+   * When `true`, the framework injects the early scroll-restoration script
+   * and auto-renders the `<ScrollRestoration>` component with default settings.
+   *
+   * Pass an object to configure the component props (e.g. scroll behavior).
+   *
+   * @default false
+   * @example `scrollRestoration: true`
+   * @example `scrollRestoration: { behavior: "smooth" }`
+   */
+  scrollRestoration?: boolean | { behavior?: "auto" | "smooth" | "instant" };
 
   /**
    * Host to listen on.

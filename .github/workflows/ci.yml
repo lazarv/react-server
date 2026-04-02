@@ -63,6 +63,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test dev base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -114,6 +116,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test prod base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -165,6 +169,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test prod base (edge+node) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -218,6 +224,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test prod base (edge entry) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -271,6 +279,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test dev apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -322,6 +332,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test prod apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -373,6 +385,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test prod apps (edge+node) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -426,6 +440,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test prod apps (edge entry) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -478,6 +494,8 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test rsc 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"

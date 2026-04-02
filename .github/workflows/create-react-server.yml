@@ -59,6 +59,8 @@ jobs:
             pkg_mgr: npm
           - runtime: deno
             pkg_mgr: pnpm
+        shard: [1, 2, 3, 4, 5, 6]
+      max-parallel: 2
       fail-fast: false
 
     name: "Test create ${{ matrix.runtime }}/${{ matrix.pkg_mgr }} 🧪"

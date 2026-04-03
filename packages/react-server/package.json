@@ -235,7 +235,7 @@
     "react-server-dom-webpack": "0.0.0-experimental-46103596-20260305",
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",
-    "rolldown": "1.0.0-rc.12",
+    "rolldown": "1.0.0-rc.13",
     "sass": "^1.86.0",
     "semver": "^7.6.3",
     "smol-toml": "^1.6.0",

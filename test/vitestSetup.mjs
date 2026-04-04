@@ -140,7 +140,7 @@ test.beforeAll(async (_context, suite) => {
               fileURLToPath(new URL("./build-worker.mjs", import.meta.url)),
               {
                 cwd: process.cwd(),
-                stdio: ["ignore", "ignore", "pipe", "ipc"],
+                stdio: ["ignore", "ignore", "ignore", "ipc"],
                 env: {
                   ...process.env,
                   NODE_ENV: "production",
@@ -149,10 +149,6 @@ test.beforeAll(async (_context, suite) => {
                 },
               }
             );
-            let stderr = "";
-            buildProcess.stderr.on("data", (chunk) => {
-              stderr += chunk;
-            });
             buildProcess.on("message", (msg) => {
               if (msg.type === "done") {
                 clearTimeout(timer);
@@ -171,7 +167,7 @@ test.beforeAll(async (_context, suite) => {
               if (code !== 0) {
                 rejectBuild(
                   new Error(
-                    `Build process exited with code ${code} for ${name}${stderr ? `\n${stderr}` : ""}`
+                    `Build process exited with code ${code} for ${name}`
                   )
                 );
               }

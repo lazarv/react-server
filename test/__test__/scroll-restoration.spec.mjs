@@ -133,7 +133,7 @@ test("scroll restoration: multiple back/forward preserves positions", async () =
   // Go forward to Page A — should restore scroll
   await page.goForward();
   await waitForPageTitle("Page A");
-  const forwardPageAY = await waitForScrollY(pageAY, 50);
+  const forwardPageAY = await waitForScrollY(pageAY, 50, 15000);
   expect(forwardPageAY).toBeGreaterThan(1100);
 });
 

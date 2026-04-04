@@ -35,7 +35,7 @@ export default defineConfig({
         ]
       : [process.env.REACT_SERVER_VERBOSE ? "verbose" : "default"],
     pool: "forks",
-    maxForks: process.env.CI ? 1 : Math.max(1, cpus().length - 1),
+    maxForks: Math.max(1, cpus().length - 1),
     fileParallelism: !process.env.CI,
     retry: 3,
   },

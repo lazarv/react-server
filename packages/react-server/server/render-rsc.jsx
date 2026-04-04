@@ -63,23 +63,8 @@ import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-refe
 import { serverReferenceMap as _serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
 import { decryptActionId, wrapServerReferenceMap } from "./action-crypto.mjs";
 import { ScrollRestoration } from "../client/ScrollRestoration.jsx";
-import DevToolsButton from "../devtools/client/DevToolsButton.jsx";
-import HighlightOverlay from "../devtools/client/HighlightOverlay.jsx";
-import PayloadCollector from "../devtools/client/PayloadCollector.jsx";
-import { version as _runtimeVersion } from "./version.mjs";
 
-function DevToolsHost({ position }) {
-  return (
-    <>
-      <DevToolsButton
-        position={position ?? "bottom-right"}
-        version={_runtimeVersion}
-      />
-      <HighlightOverlay />
-      <PayloadCollector />
-    </>
-  );
-}
+let DevToolsHost;
 
 const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
 
@@ -87,6 +72,33 @@ export async function render(Component, props = {}, options = {}) {
   const logger = getContext(LOGGER_CONTEXT);
   const renderStream = getContext(RENDER_STREAM);
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
+
+  if (import.meta.env.DEV && config?.devtools && !DevToolsHost) {
+    const [
+      { default: DevToolsButton },
+      { default: HighlightOverlay },
+      { default: PayloadCollector },
+      { version: _runtimeVersion },
+    ] = await Promise.all([
+      import("../devtools/client/DevToolsButton.jsx"),
+      import("../devtools/client/HighlightOverlay.jsx"),
+      import("../devtools/client/PayloadCollector.jsx"),
+      import("./version.mjs"),
+    ]);
+
+    DevToolsHost = function DevToolsHost({ position }) {
+      return (
+        <>
+          <DevToolsButton
+            position={position ?? "bottom-right"}
+            version={_runtimeVersion}
+          />
+          <HighlightOverlay />
+          <PayloadCollector />
+        </>
+      );
+    };
+  }
 
   try {
     const streaming = new Promise(async (resolve, reject) => {

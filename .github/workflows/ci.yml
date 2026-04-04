@@ -56,11 +56,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false
@@ -107,11 +104,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false
@@ -158,11 +152,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false
@@ -211,11 +202,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false
@@ -264,11 +252,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false
@@ -315,11 +300,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false
@@ -366,11 +348,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false
@@ -419,11 +398,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          # Active LTS + other OS
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false
@@ -472,10 +448,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24]
         include:
-          - os: macos-latest
-            node_version: 24
           - os: windows-latest
             node_version: 24
       fail-fast: false

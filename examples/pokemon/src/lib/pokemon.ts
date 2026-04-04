@@ -17,10 +17,11 @@ export type Pokemon = {
   species: Species;
 };
 
-export async function getAllPokemons(): Promise<Pokemon[]> {
+export async function getAllPokemons(): Promise<{ name: string }[]> {
   "use cache";
-  let pokemons: Pokemon[] = [];
-  let next = `https://pokeapi.co/api/v2/pokemon?limit=${process.env.POKEMON_LIMIT || 1000}`;
+  let pokemons: { name: string }[] = [];
+  let next: string | null =
+    `https://pokeapi.co/api/v2/pokemon-species?limit=${process.env.POKEMON_LIMIT || 1000}`;
   while (next) {
     const response = await fetch(next);
     if (!response.ok) {
@@ -53,15 +54,13 @@ export async function getPokemons(
             pokemon.name.toLowerCase().includes(search.trim().toLowerCase())
           )
         : allPokemons;
-    const fullPokemons = await Promise.all(
-      filteredPokemons.map((pokemon) => getPokemon(pokemon.name))
-    );
-    const defaultPokemons = fullPokemons.filter(
-      (pokemon) => pokemon?.is_default
+    const page = filteredPokemons.slice(offset, offset + limit);
+    const data = await Promise.all(
+      page.map((pokemon) => getPokemon(pokemon.name))
     );
     return {
-      data: defaultPokemons.slice(offset, offset + limit),
-      count: defaultPokemons.length,
+      data,
+      count: filteredPokemons.length,
     };
   } catch {
     return { data: [], count: 0 };

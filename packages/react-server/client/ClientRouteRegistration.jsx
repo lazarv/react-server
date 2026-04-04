@@ -4,6 +4,7 @@ import {
   Activity,
   Suspense,
   createElement,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -17,6 +18,7 @@ import {
   registerRouteResources,
   isFallbackActive,
 } from "./client-route-store.mjs";
+import { FlightContext } from "./context.mjs";
 
 import {
   usePathname,
@@ -100,14 +102,22 @@ export default function ClientRouteRegistration({
     [loadingComponent, loadingElement]
   );
 
+  const { remote, outlet } = useContext(FlightContext);
+
   // Register the route in the client store.
   // For fallback routes, also trigger a re-render via state so the component
   // transitions from server-rendered content to client-managed behaviour.
   useEffect(() => {
     hydrated.current = true;
     if (fallback) setIsHydrated(true);
-    return registerClientRoute(path, { exact, component, fallback });
-  }, [path, exact, component, fallback]);
+    return registerClientRoute(path, {
+      exact,
+      component,
+      fallback,
+      remote: remote || false,
+      outlet: outlet || null,
+    });
+  }, [path, exact, component, fallback, remote, outlet]);
 
   // Register route-resource bindings for client-only navigation.
   // `resources` may be:
@@ -134,13 +144,18 @@ export default function ClientRouteRegistration({
 
   // Determine which pathname to trust for visibility (same logic as
   // ClientRouteGuard — see comments there for full explanation).
+  // For remote components, window.location.pathname reflects the host app,
+  // not the remote's URL — always trust serverPathname in that case.
   const clientPathname = usePathname();
   const browserPathname =
     typeof window !== "undefined"
       ? decodeURIComponent(window.location.pathname)
       : serverPathname;
-  const pathname =
-    clientPathname !== browserPathname ? serverPathname : clientPathname;
+  const pathname = remote
+    ? serverPathname
+    : clientPathname !== browserPathname
+      ? serverPathname
+      : clientPathname;
 
   // Fallback routes are active only after hydration (when route maps are
   // populated by effects). During SSR the maps are empty, so we skip.

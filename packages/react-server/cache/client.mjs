@@ -9,6 +9,16 @@ import { CACHE_KEY, CACHE_MISS, CACHE_PROVIDER } from "../server/symbols.mjs";
 
 export { StorageCache, memoryDriver as default, CACHE_MISS };
 
+function emitCacheEvent(type, keys, provider, ttl) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("__react_server_cache_event__", {
+        detail: { type, keys, provider, ttl },
+      })
+    );
+  }
+}
+
 // Stub for client/SSR — the real implementation lives in cache/index.mjs
 // and relies on AsyncLocalStorage which is not available in the browser.
 export function getCacheContext() {
@@ -143,6 +153,9 @@ async function useCacheAsync(keys, value, ttl, force, provider) {
         typeof value === "function" ? value() : value,
         ttl
       );
+      emitCacheEvent(force ? "revalidate" : "miss", keys, provider.name, ttl);
+    } else {
+      emitCacheEvent("hit", keys, provider.name);
     }
 
     lock.delete(key);
@@ -153,6 +166,13 @@ async function useCacheAsync(keys, value, ttl, force, provider) {
     lock.delete(key);
     release?.();
     throw e;
+  }
+}
+
+export async function invalidateExact(keys, provider) {
+  const cache = cacheInstances.get(provider ?? "default");
+  if (cache) {
+    await cache.deleteExact(keys);
   }
 }
 

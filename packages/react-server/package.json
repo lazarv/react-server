@@ -101,6 +101,10 @@
       "types": "./lib/dev/index.d.ts",
       "default": "./lib/dev/index.mjs"
     },
+    "./devtools": {
+      "types": "./devtools/index.d.ts",
+      "default": "./devtools/index.jsx"
+    },
     "./node": {
       "types": "./lib/start/node.d.ts",
       "default": "./lib/start/node.mjs"

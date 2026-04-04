@@ -90,6 +90,7 @@ function FlightComponent({
   defer = false,
   isolate = false,
   live = false,
+  ttl,
   request,
   remoteProps = {},
   children,
@@ -149,7 +150,9 @@ function FlightComponent({
       remote,
       remoteProps,
       defer,
-      live
+      live,
+      isolate,
+      ttl
     );
     const unsubscribe = subscribe(
       outlet || url,
@@ -409,6 +412,7 @@ export default function ReactServerComponent({
   isolate,
   request,
   live,
+  ttl,
   remoteProps = {},
   children,
 }) {
@@ -446,6 +450,7 @@ export default function ReactServerComponent({
     () => ({
       url: contextUrl,
       outlet,
+      remote: remote || false,
       live,
       refresh: refreshFn,
       prefetch: prefetchFn,
@@ -456,6 +461,7 @@ export default function ReactServerComponent({
     [
       contextUrl,
       outlet,
+      remote,
       live,
       refreshFn,
       prefetchFn,
@@ -467,6 +473,9 @@ export default function ReactServerComponent({
 
   return (
     <FlightContext.Provider value={contextValue}>
+      {import.meta.env?.DEV && outlet && outlet !== PAGE_ROOT ? (
+        <data data-devtools-outlet={outlet} hidden />
+      ) : null}
       <FlightComponent
         remote={remote}
         defer={defer}
@@ -474,9 +483,13 @@ export default function ReactServerComponent({
         request={request}
         remoteProps={remoteProps}
         live={live ? (url ?? parent.url ?? true) : false}
+        ttl={ttl}
       >
         {children}
       </FlightComponent>
+      {import.meta.env?.DEV && outlet && outlet !== PAGE_ROOT ? (
+        <data data-devtools-outlet-end={outlet} hidden />
+      ) : null}
     </FlightContext.Provider>
   );
 }

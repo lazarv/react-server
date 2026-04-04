@@ -1,7 +1,14 @@
+import { fstatSync } from "node:fs";
 import { isIPv6 } from "node:net";
 
 import open from "open";
 import colors from "picocolors";
+
+import { installOutputCapture } from "./devtools-output.mjs";
+
+// Install stdout/stderr capture at module load time so that even the
+// earliest output (logo, banner, config validation) is captured.
+installOutputCapture();
 
 import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
@@ -112,6 +119,11 @@ export default async function dev(root, options) {
             }
           }
 
+          // Merge CLI --devtools flag into config (CLI wins over config file)
+          if (options.devtools) {
+            configRoot.devtools = true;
+          }
+
           runtime$(CONFIG_CONTEXT, config);
 
           // Resolve the action encryption secret once at startup
@@ -120,13 +132,25 @@ export default async function dev(root, options) {
             await import("../../server/action-crypto.mjs");
           await initSecretFromConfig(configRoot);
 
-          const isNonInteractiveEnvironment =
-            !process.stdin.isTTY ||
-            process.env.CI === "true" ||
-            process.env.DOCKER_CONTAINER === "true";
+          // Detect whether the user is piping code via stdin.
+          // Use fstat on fd 0 to distinguish a real pipe/file redirect
+          // from a non-TTY background process, Docker, or CI runner
+          // where stdin is /dev/null or closed.
+          // Only relevant when no explicit root module was provided —
+          // if the user passed `react-server ./app.jsx`, use that even
+          // when stdin happens to be piped (e.g. via npm-run-all/run-p).
+          let isStdinPiped = false;
+          if (!root) {
+            try {
+              const stat = fstatSync(0);
+              isStdinPiped = stat.isFIFO() || stat.isFile();
+            } catch {
+              // fd 0 not available — not piped
+            }
+          }
 
           server = await createServer(
-            options.eval || isNonInteractiveEnvironment
+            options.eval || isStdinPiped
               ? "virtual:react-server-eval.jsx"
               : root,
             options

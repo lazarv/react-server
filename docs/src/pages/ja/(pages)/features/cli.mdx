@@ -106,6 +106,22 @@ URLのオリジン部分を定数に指定します。環境変数`ORIGIN`を使
 
 サーバー起動時にターミナルをクリアするか指定します。デフォルトは`false`です。ターミナルをクリアしてサーバーを起動したいときに使います。
 
+<Link name="dev-devtools">
+### --devtools
+</Link>
+
+組み込みのreact-server DevToolsを有効にします。デフォルトは`false`です。
+
+有効にすると、開発中にアプリケーションにDevToolsパネルが挿入されます。RSCペイロード、キャッシュエントリ、ルート、アウトレット、リモートコンポーネント、ライブコンポーネント、ワーカー、サーバーログなど、アプリケーションの内部をリアルタイムで検査できます。
+
+`react-server.config.mjs`で設定することもできます：
+
+```js
+export default {
+  devtools: true,
+};
+```
+
 <Link name="dev-no-color">
 ### --no-color
 </Link>

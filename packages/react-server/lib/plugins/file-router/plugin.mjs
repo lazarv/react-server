@@ -12,7 +12,11 @@ import * as sys from "@lazarv/react-server/lib/sys.mjs";
 import merge from "@lazarv/react-server/lib/utils/merge.mjs";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 import { applyParamsToPath } from "@lazarv/react-server/server/route-match.mjs";
-import { BUILD_OPTIONS } from "@lazarv/react-server/server/symbols.mjs";
+import {
+  BUILD_OPTIONS,
+  DEVTOOLS_CONTEXT,
+} from "@lazarv/react-server/server/symbols.mjs";
+import { getRuntime } from "@lazarv/react-server/server/runtime.mjs";
 import { initStoreEntry, setVirtualModuleContent } from "../resources.mjs";
 import { watch } from "chokidar";
 import glob from "fast-glob";
@@ -918,6 +922,38 @@ export default function viteReactServerRouter(options = {}) {
           env.moduleGraph.invalidateModule(resourcesModule);
         }
       }
+    }
+
+    // Push manifest to devtools context for the route inspector panel
+    const devtools = getRuntime(DEVTOOLS_CONTEXT);
+    if (devtools) {
+      const apiRoutes = entry.api.map(
+        ({ directory, filename, src, _virtualPath, _virtualMethod }) => {
+          if (_virtualPath !== undefined) {
+            return [_virtualMethod ?? "*", _virtualPath, src];
+          }
+          const normalized = filename
+            .replace(/^\+*/g, "")
+            .replace(/\.\.\./g, "_dot_dot_dot_")
+            .replace(/(\{)[^}]*(\})/g, (m) => m.replace(/\./g, "_dot_"))
+            .split(".");
+          const [method, name, ext] = apiEndpointRegExp.test(filename)
+            ? normalized
+            : ["*", normalized[0] === "server" ? "" : normalized[0], ""];
+          const path = `/${directory}/${ext ? name : ""}`
+            .replace(/\/+$/g, "")
+            .replace(/_dot_dot_dot_/g, "...")
+            .replace(/_dot_/g, ".")
+            .replace(/(\{)([^}]*)(\})/g, "$2")
+            .replace(/^\/+/, "/");
+          return [method, path, src];
+        }
+      );
+      devtools.setFileRouterManifest({
+        pages: manifest.pages,
+        middlewares: manifest.middlewares,
+        routes: apiRoutes,
+      });
     }
 
     const dynamicRouteGenericTypes = Array.from({
@@ -2470,10 +2506,15 @@ ${lazyValidateLines.join("\n")}
                         return props;
                       }, {})
                   )
-                    .map(
-                      ([outlet, components]) =>
-                        `${outlet}={${Array.isArray(components) ? `[${components.join(", ")}]` : components}}`
-                    )
+                    .map(([outlet, components]) => {
+                      const content = Array.isArray(components)
+                        ? `[${components.join(", ")}]`
+                        : components;
+                      if (getRuntime(DEVTOOLS_CONTEXT)) {
+                        return `${outlet}={(() => { const __o = ${content}; return __o ? <><data data-devtools-outlet="${outlet}" hidden />{__o}<data data-devtools-outlet-end="${outlet}" hidden /></> : null; })()}`;
+                      }
+                      return `${outlet}={${content}}`;
+                    })
                     .join(" ")}>${
                     loading && !errorBoundary
                       ? `<Suspense fallback={<__react_server_router_loading_${loadings.indexOf(loading)}__/>}>`

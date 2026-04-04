@@ -7,23 +7,26 @@ const serverRoutes = new Map();
 const clientFallbackRoutes = new Map(); // path -> { component }  (path = "/user/*" or "*")
 const routeResources = new Map(); // path -> [{ resource, mapFn }]
 
-export function registerClientRoute(path, { exact, component, fallback }) {
+export function registerClientRoute(
+  path,
+  { exact, component, fallback, remote = false, outlet = null }
+) {
   if (fallback) {
     const key = path || "*"; // global fallback uses "*"
-    clientFallbackRoutes.set(key, { component });
+    clientFallbackRoutes.set(key, { component, remote, outlet });
     return () => {
       clientFallbackRoutes.delete(key);
     };
   }
-  clientRoutes.set(path, { exact, component });
+  clientRoutes.set(path, { exact, component, remote, outlet });
   return () => clientRoutes.delete(path);
 }
 
 export function registerServerRoute(
   path,
-  { exact, fallback = false, hasLoading = false }
+  { exact, fallback = false, hasLoading = false, remote = false, outlet = null }
 ) {
-  serverRoutes.set(path, { exact, fallback, hasLoading });
+  serverRoutes.set(path, { exact, fallback, hasLoading, remote, outlet });
   return () => serverRoutes.delete(path);
 }
 
@@ -126,6 +129,38 @@ export function canNavigateClientOnly(fromPathname, toPathname) {
 
 export function getClientRoutes() {
   return clientRoutes;
+}
+
+export function getAllRoutes() {
+  const routes = [];
+  for (const [path, route] of serverRoutes) {
+    routes.push({
+      path: path || "/",
+      type: route.fallback ? "fallback" : "server",
+      exact: route.exact,
+      hasLoading: route.hasLoading,
+      remote: route.remote || false,
+      outlet: route.outlet || null,
+    });
+  }
+  for (const [path, route] of clientRoutes) {
+    routes.push({
+      path,
+      type: "client",
+      exact: route.exact,
+      remote: route.remote || false,
+      outlet: route.outlet || null,
+    });
+  }
+  for (const [key, route] of clientFallbackRoutes) {
+    routes.push({
+      path: key === "*" ? "*" : key,
+      type: "fallback",
+      remote: route.remote || false,
+      outlet: route.outlet || null,
+    });
+  }
+  return routes;
 }
 
 /**

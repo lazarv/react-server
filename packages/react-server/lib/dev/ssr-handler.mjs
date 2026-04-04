@@ -158,6 +158,38 @@ export default async function ssrHandler(root) {
               }
 
               const handler = async () => {
+                // Dev-only: intercept devtools routes and render the devtools
+                // app directly, bypassing the user's component tree and middleware.
+                if (
+                  configRoot.devtools &&
+                  httpContext.url?.pathname?.startsWith(
+                    "/__react_server_devtools__"
+                  )
+                ) {
+                  try {
+                    const { default: DevToolsApp } = await ssrLoadModule(
+                      "@lazarv/react-server/devtools/app/index.jsx"
+                    );
+                    if (DevToolsApp) {
+                      // Start with empty arrays — devtools client components
+                      // are discovered during RSC rendering, not from the user's module graph
+                      context$(CLIENT_MODULES_CONTEXT, []);
+                      context$(STYLES_CONTEXT, []);
+                      await module_loader_init$?.(
+                        ssrLoadModule,
+                        moduleCacheStorage,
+                        null,
+                        "rsc"
+                      );
+                      return moduleCacheStorage.run(new Map(), async () => {
+                        return render(DevToolsApp, {});
+                      });
+                    }
+                  } catch (e) {
+                    logger.error("DevTools render error:", e);
+                  }
+                }
+
                 let middlewareError = null;
                 try {
                   const middlewareHandler = await root_init$?.();

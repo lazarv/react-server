@@ -106,6 +106,22 @@ Watch for config changes. Default is `true`. To disable watching for config chan
 
 Clear screen on server start. Default is `false`. If you want to start with a clean terminal screen.
 
+<Link name="dev-devtools">
+### --devtools
+</Link>
+
+Enable the built-in react-server DevTools. Default is `false`.
+
+When enabled, a DevTools panel is injected into your application during development. It provides real-time inspection of your app's internals including RSC payload, cache entries, routes, outlets, remote components, live components, workers, and server logs.
+
+You can also enable DevTools via your `react-server.config.mjs`:
+
+```js
+export default {
+  devtools: true,
+};
+```
+
 <Link name="dev-no-color">
 ### --no-color
 </Link>

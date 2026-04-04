@@ -2,6 +2,13 @@ import { loadConfig } from "../../config/index.mjs";
 import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
 import { CONFIG_CONTEXT } from "../../server/symbols.mjs";
 import { experimentalWarningSilence } from "../sys.mjs";
+import { installOutputCapture } from "./devtools-output.mjs";
+
+// Install stdout/stderr capture at module load time — the earliest possible
+// moment.  The interceptor buffers entries until the devtools context is
+// ready.  Harmless no-op if devtools ends up disabled: the patched writes
+// just accumulate a small buffer that is never flushed.
+installOutputCapture();
 
 export function reactServer(root, options = {}, initialConfig = {}) {
   experimentalWarningSilence();

@@ -189,6 +189,7 @@ export default async function RemoteComponent({
         outlet={`__react_server_remote__${remoteUrlString.replace(/[^a-zA-Z0-9_]/g, "_")}`}
         request={request}
         remoteProps={props}
+        ttl={ttl}
       >
         <RemoteComponentLoader
           url={remoteUrl}

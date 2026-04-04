@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 import colors from "picocolors";
 
 import * as sys from "../sys.mjs";
@@ -439,6 +440,51 @@ export default function useCacheInline(profiles, providers = {}, type) {
           }
         }
 
+        // Resolve original source positions via combined source map
+        if (this.environment?.mode !== "build" && caches.length > 0) {
+          try {
+            const map = this.getCombinedSourcemap?.();
+            if (map) {
+              const traced = new TraceMap(map);
+              for (const cache of caches) {
+                const loc = cache.node.loc?.start;
+                if (loc) {
+                  const orig = originalPositionFor(traced, {
+                    line: loc.line,
+                    column: loc.column,
+                  });
+                  if (orig.source) {
+                    cache._origFile = orig.source;
+                    cache._origLine = orig.line;
+                    cache._origCol = orig.column;
+                  } else {
+                    cache._origLine = loc.line;
+                    cache._origCol = loc.column;
+                  }
+                }
+              }
+            } else {
+              // No prior transforms — positions are already original
+              for (const cache of caches) {
+                const loc = cache.node.loc?.start;
+                if (loc) {
+                  cache._origLine = loc.line;
+                  cache._origCol = loc.column;
+                }
+              }
+            }
+          } catch {
+            // Source map resolution failed — use raw AST positions
+            for (const cache of caches) {
+              const loc = cache.node.loc?.start;
+              if (loc) {
+                cache._origLine = loc.line;
+                cache._origCol = loc.column;
+              }
+            }
+          }
+        }
+
         for (const cache of caches) {
           if (
             cache.provider &&
@@ -542,6 +588,67 @@ export default function useCacheInline(profiles, providers = {}, type) {
                             {
                               type: "Literal",
                               value: hash,
+                            },
+                            {
+                              type: "ObjectExpression",
+                              properties: [
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: {
+                                    type: "Identifier",
+                                    name: "__devtools__",
+                                  },
+                                  value: { type: "Literal", value: true },
+                                },
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: { type: "Identifier", name: "file" },
+                                  value: {
+                                    type: "Literal",
+                                    value: cache._origFile ?? id,
+                                  },
+                                },
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: { type: "Identifier", name: "line" },
+                                  value: {
+                                    type: "Literal",
+                                    value: cache._origLine ?? 0,
+                                  },
+                                },
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: { type: "Identifier", name: "col" },
+                                  value: {
+                                    type: "Literal",
+                                    value: cache._origCol ?? 0,
+                                  },
+                                },
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: { type: "Identifier", name: "fn" },
+                                  value: {
+                                    type: "Literal",
+                                    value:
+                                      cache.identifier ||
+                                      cache.node.id?.name ||
+                                      (cache.node.parent?.type ===
+                                      "VariableDeclarator"
+                                        ? cache.node.parent.id?.name
+                                        : null) ||
+                                      (cache.node.parent?.type ===
+                                      "ExportDefaultDeclaration"
+                                        ? "default"
+                                        : null) ||
+                                      "anonymous",
+                                  },
+                                },
+                              ],
                             },
                           ]
                         : []),

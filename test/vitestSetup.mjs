@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+import { fork } from "node:child_process";
 import { readdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 
 import { chromium } from "playwright-chromium";
@@ -78,6 +80,14 @@ test.beforeAll(async (_context, suite) => {
   });
   server = (root, initialConfig, base) =>
     new Promise(async (resolve, reject) => {
+      let settled = false;
+      const settle = (fn) => {
+        if (!settled) {
+          settled = true;
+          fn();
+        }
+      };
+
       try {
         logs = [];
         serverLogs = [];
@@ -111,14 +121,77 @@ test.beforeAll(async (_context, suite) => {
               };
 
         if (process.env.NODE_ENV === "production") {
-          const { build } = await import("@lazarv/react-server/build");
-          await build(
+          const buildTimeout = 60000;
+          const buildRoot =
             root?.[0] === "." || !root
               ? root
-              : join(process.cwd(), dirname(name), "..", root),
-            { ...options, silent: true }
-          );
+              : join(process.cwd(), dirname(name), "..", root);
+          await new Promise((resolveBuild, rejectBuild) => {
+            const timer = setTimeout(() => {
+              buildProcess.kill();
+              rejectBuild(
+                new Error(
+                  `Build timed out after ${buildTimeout / 1000}s for ${name}`
+                )
+              );
+            }, buildTimeout);
+
+            const buildProcess = fork(
+              fileURLToPath(new URL("./build-worker.mjs", import.meta.url)),
+              {
+                cwd: process.cwd(),
+                stdio: ["ignore", "ignore", "pipe", "ipc"],
+                env: {
+                  ...process.env,
+                  NODE_ENV: "production",
+                  BUILD_ROOT: buildRoot ?? "",
+                  BUILD_OPTIONS: JSON.stringify(options),
+                },
+              }
+            );
+            let stderr = "";
+            buildProcess.stderr.on("data", (chunk) => {
+              stderr += chunk;
+            });
+            buildProcess.on("message", (msg) => {
+              if (msg.type === "done") {
+                clearTimeout(timer);
+                resolveBuild();
+              } else if (msg.type === "error") {
+                clearTimeout(timer);
+                rejectBuild(new Error(msg.error));
+              }
+            });
+            buildProcess.on("error", (e) => {
+              clearTimeout(timer);
+              rejectBuild(e);
+            });
+            buildProcess.on("exit", (code) => {
+              clearTimeout(timer);
+              if (code !== 0) {
+                rejectBuild(
+                  new Error(
+                    `Build process exited with code ${code} for ${name}${stderr ? `\n${stderr}` : ""}`
+                  )
+                );
+              }
+            });
+          });
         }
+
+        const serverTimeout = 60000;
+        const serverTimer = setTimeout(() => {
+          settle(() => {
+            terminating = true;
+            currentWorker?.terminate();
+            reject(
+              new Error(
+                `Server startup timed out after ${serverTimeout / 1000}s for ${name}`
+              )
+            );
+          });
+        }, serverTimeout);
+        serverTimer.unref();
 
         const worker = new Worker(
           new URL(
@@ -157,31 +230,42 @@ test.beforeAll(async (_context, suite) => {
         currentWorker = worker;
         worker.on("message", (msg) => {
           if (msg.port) {
+            clearTimeout(serverTimer);
             hostname = `http://localhost:${msg.port}`;
             process.env.ORIGIN = hostname;
             logs = [];
             serverLogs = [];
-            resolve();
+            settle(() => resolve());
           } else if (msg.console) {
             console.log(...msg.console);
           } else if (msg.error) {
-            terminating = true;
-            worker.terminate();
-            reject(new Error(msg.error));
+            clearTimeout(serverTimer);
+            settle(() => {
+              terminating = true;
+              worker.terminate();
+              reject(new Error(msg.error));
+            });
           }
         });
         worker.on("error", (e) => {
+          clearTimeout(serverTimer);
           consoleError(e);
-          reject(e);
+          settle(() => reject(e));
         });
         worker.on("exit", (code) => {
-          if (code !== 0 && !terminating) {
-            consoleError(new Error(`Worker stopped with exit code ${code}`));
-            reject(new Error(`Worker stopped with exit code ${code}`));
+          clearTimeout(serverTimer);
+          if (!terminating) {
+            settle(() => {
+              const err = new Error(
+                `Worker exited with code ${code} before server started for ${name}`
+              );
+              consoleError(err);
+              reject(err);
+            });
           }
         });
       } catch (e) {
-        reject(e);
+        settle(() => reject(e));
       }
     });
 });

@@ -31,6 +31,7 @@ export default (cli) =>
     .option("-n, --name <name>", "[string] server name", {
       default: "react-server",
     })
+    .option("--devtools", "enable built-in devtools", { default: false })
     .option("--inspect", "enable inspector", { default: false })
     .option("--mode <mode>", "[string] mode", { default: "development" })
     .action(async (...args) => {

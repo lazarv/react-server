@@ -78,7 +78,12 @@ test.beforeAll(async (_context, suite) => {
   page.on("console", (msg) => {
     logs.push(msg.text());
   });
-  server = (root, initialConfig, base, timeout = 60000) =>
+  server = (
+    root,
+    initialConfig,
+    base,
+    timeout = process.env.CI ? 120000 : 60000
+  ) =>
     new Promise(async (resolve, reject) => {
       let settled = false;
       const settle = (fn) => {

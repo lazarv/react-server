@@ -601,10 +601,6 @@ export default async function createServer(root, options) {
     // to direct recording for all future stdout/stderr writes.
     const { connectDevToolsOutput } = await import("./devtools-output.mjs");
     connectDevToolsOutput(devtoolsCtx);
-  } else {
-    // Devtools disabled — discard the early capture buffer.
-    const { discardOutputCapture } = await import("./devtools-output.mjs");
-    discardOutputCapture();
   }
 
   // ── Telemetry: Vite dev server creation span ──

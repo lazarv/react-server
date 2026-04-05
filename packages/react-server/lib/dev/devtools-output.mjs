@@ -84,14 +84,3 @@ export function connectDevToolsOutput(ctx) {
   }
   buffer = [];
 }
-
-/**
- * Call when devtools is NOT enabled — drops the buffer and restores the
- * original stdout/stderr.write to eliminate per-write overhead.
- */
-export function discardOutputCapture() {
-  buffer = [];
-  devtoolsCtx = null;
-  // No need to restore originals — the record() function becomes a no-op
-  // once buffer is empty and devtoolsCtx is null, with negligible overhead.
-}

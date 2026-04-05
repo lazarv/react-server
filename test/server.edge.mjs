@@ -104,6 +104,7 @@ try {
   const httpServer = createServer(async (req, res) => {
     try {
       let url = req.url;
+      originalConsoleLog(`[edge] ${req.method} ${url}`);
       if (workerData.base !== "/" && url.startsWith(workerData.base)) {
         url = url.slice(workerData.base.length - 1) || "/";
       }
@@ -111,7 +112,10 @@ try {
       // Try to serve static files first (CSS, JS, images, etc.)
       // The edge handler only handles SSR/RSC; in production a CDN serves static files
       if (req.method === "GET" || req.method === "HEAD") {
-        if (tryServeStatic(url, res)) return;
+        if (tryServeStatic(url, res)) {
+          originalConsoleLog(`[edge] static ${url}`);
+          return;
+        }
       }
 
       const origin = `http://localhost:${workerData.port}`;
@@ -131,7 +135,11 @@ try {
         duplex: hasBody ? "half" : undefined,
       });
 
+      originalConsoleLog(`[edge] fetch ${fullUrl.href}`);
       const response = await edgeWorker.fetch(webRequest, {}, {});
+      originalConsoleLog(
+        `[edge] response ${response.status} for ${fullUrl.pathname}`
+      );
 
       // Write status and headers
       res.statusCode = response.status;
@@ -147,12 +155,14 @@ try {
         res.setHeader("set-cookie", setCookies);
       }
 
+      let chunks = 0;
       if (response.body) {
         const reader = response.body.getReader();
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+            chunks++;
             res.write(value);
           }
         } finally {
@@ -160,8 +170,12 @@ try {
         }
       }
 
+      originalConsoleLog(
+        `[edge] done ${chunks} chunks for ${fullUrl.pathname}`
+      );
       res.end();
     } catch (e) {
+      originalConsoleLog(`[edge] ERROR ${e.message} for ${req.url}`);
       originalConsoleLog("Edge server error:", e);
       if (!res.headersSent) {
         res.writeHead(500, { "Content-Type": "text/plain" });

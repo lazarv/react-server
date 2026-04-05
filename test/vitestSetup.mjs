@@ -78,7 +78,7 @@ test.beforeAll(async (_context, suite) => {
   page.on("console", (msg) => {
     logs.push(msg.text());
   });
-  server = (root, initialConfig, base) =>
+  server = (root, initialConfig, base, timeout = 60000) =>
     new Promise(async (resolve, reject) => {
       let settled = false;
       const settle = (fn) => {
@@ -121,7 +121,7 @@ test.beforeAll(async (_context, suite) => {
               };
 
         if (process.env.NODE_ENV === "production") {
-          const buildTimeout = 60000;
+          const buildTimeout = timeout;
           const buildRoot =
             root?.[0] === "." || !root
               ? root
@@ -175,7 +175,7 @@ test.beforeAll(async (_context, suite) => {
           });
         }
 
-        const serverTimeout = 60000;
+        const serverTimeout = timeout;
         const serverTimer = setTimeout(() => {
           settle(() => {
             terminating = true;

@@ -26,7 +26,7 @@ beforeAll(async () => {
   if (!res.ok) {
     throw new Error("Failed to load page");
   }
-});
+}, 120000);
 
 // ── Home page ──
 

@@ -184,8 +184,10 @@ describe("typed-router — client-side navigation", () => {
     await waitForHydration();
 
     const prevUrl = page.url();
+    const prevBody = await page.textContent("body");
     await page.click('nav a:has-text("User 42")');
     await waitForChange(null, () => page.url(), prevUrl);
+    await waitForChange(null, () => page.textContent("body"), prevBody);
 
     expect(page.url()).toContain("/user/42");
     expect(await page.textContent("body")).toContain("User ID:");

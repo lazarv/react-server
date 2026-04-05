@@ -1,3 +1,4 @@
+import { platform } from "node:os";
 import { resolve } from "node:path";
 
 import { defineConfig } from "vitest/config";
@@ -33,7 +34,7 @@ export default defineConfig({
           ["junit", { outputFile: "test-results/junit.xml" }],
         ]
       : [process.env.REACT_SERVER_VERBOSE ? "verbose" : "default"],
-    pool: "threads",
+    pool: platform() === "win32" ? "forks" : "threads",
     retry: 3,
   },
   publicDir: false,

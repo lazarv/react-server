@@ -784,8 +784,9 @@ describe("typed-router — browser history", () => {
     expect(page.url()).toContain("/about");
 
     // Go back
+    const aboutUrl = page.url();
     await page.goBack();
-    await page.waitForLoadState("load");
+    await waitForChange(null, () => page.url(), aboutUrl);
     expect(page.url()).toBe(`${hostname}/`);
     expect(await page.textContent("body")).toContain("Home");
   });

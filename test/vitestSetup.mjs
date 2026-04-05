@@ -132,6 +132,19 @@ test.beforeAll(async (_context, suite) => {
           });
           currentWorker = null;
         }
+
+        // Create a fresh page between server() calls. When the previous
+        // server is killed, any in-flight requests or HMR WebSocket
+        // connections die, which can crash the Chromium renderer. A crashed
+        // page cannot be reused — all subsequent navigations fail with
+        // "Page crashed". A fresh page avoids cascading failures.
+        try {
+          await page.close();
+        } catch {}
+        page = await browser.newPage();
+        page.on("console", (msg) => {
+          logs.push(msg.text());
+        });
         logs = [];
         serverLogs = [];
         terminating = false;

@@ -13,8 +13,15 @@ process.on("error", (e) => {
 // Self-terminate when parent dies. With child processes (unlike Worker
 // threads), the child survives if the parent exits. Monitoring the IPC
 // channel is the most reliable signal — it fires even on SIGKILL of the parent.
+// We close the HTTP server and let the process exit naturally when no handles
+// remain — process.exit() and SIGTERM both race with libuv handle teardown
+// and cause native assertion failures / access violations on Windows.
+let _httpServer;
 process.on("disconnect", () => {
-  process.exit(0);
+  if (_httpServer) {
+    _httpServer.closeAllConnections();
+    _httpServer.close();
+  }
 });
 
 function safeSend(msg) {
@@ -48,29 +55,29 @@ export async function createReactServer(reactServer, useRoot = false) {
     }
     const { middlewares } = await reactServer(...params);
 
-    const httpServer = createServer((req, res) => {
+    _httpServer = createServer((req, res) => {
       if (workerData.base !== "/" && req.url.startsWith(workerData.base)) {
         req.url = req.url.slice(workerData.base.length - 1) || "/";
       }
       middlewares(req, res);
     });
-    httpServer.once("listening", () => {
-      const actualPort = httpServer.address().port;
+    _httpServer.once("listening", () => {
+      const actualPort = _httpServer.address().port;
       process.env.ORIGIN = `http://localhost:${actualPort}`;
       safeSend({ port: actualPort });
     });
-    httpServer.on("error", (e) => {
+    _httpServer.on("error", (e) => {
       safeSend({ error: e.message, stack: e.stack });
     });
     process.on("message", (msg) => {
       if (msg?.type === "shutdown") {
-        httpServer.closeAllConnections();
-        httpServer.close(() => {
+        _httpServer.closeAllConnections();
+        _httpServer.close(() => {
           process.disconnect();
         });
       }
     });
-    httpServer.listen(0);
+    _httpServer.listen(0);
   } catch (e) {
     safeSend({ error: e.message, stack: e.stack });
     throw e;

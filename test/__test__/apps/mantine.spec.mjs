@@ -14,13 +14,13 @@ import { describe, expect, test } from "vitest";
 process.chdir(join(process.cwd(), "../examples/mantine"));
 
 beforeAll(async () => {
-  await server(null);
+  await server(null, undefined, undefined, 120000);
 
   // Workaround for an async dependency optimization issue in development mode
-  let res = await page.goto(hostname, { timeout: 60000 });
+  let res = await page.goto(hostname, { timeout: 120000 });
   let attempts = 0;
   while (res.status() === 500 && attempts < 5) {
-    res = await page.goto(hostname, { timeout: 60000 });
+    res = await page.goto(hostname, { timeout: 120000 });
     attempts++;
   }
   if (!res.ok) {

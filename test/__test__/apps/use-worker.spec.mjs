@@ -1,13 +1,15 @@
-import { join } from "node:path";
-
-import { hostname, page, server, waitForHydration } from "playground/utils";
+import {
+  appDir,
+  hostname,
+  page,
+  server,
+  waitForHydration,
+} from "playground/utils";
 import { beforeAll } from "vitest";
 import { describe, expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/use-worker"));
-
 beforeAll(async () => {
-  await server("./App.jsx");
+  await server("./App.jsx", { cwd: appDir("examples/use-worker") });
 });
 
 describe("use worker", () => {

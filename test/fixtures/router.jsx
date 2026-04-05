@@ -1,10 +1,9 @@
-// import { Route } from "@lazarv/react-server/router";
+import { Route } from "@lazarv/react-server/router";
 
 export default function Router() {
   return (
     <>
-      <h1>Router Test</h1>
-      {/* <Route path="/" exact>
+      <Route path="/" exact>
         <div>Home</div>
       </Route>
       <Route path="/first">
@@ -18,7 +17,7 @@ export default function Router() {
       </Route>
       <Route fallback>
         <div>Not Found</div>
-      </Route> */}
+      </Route>
     </>
   );
 }

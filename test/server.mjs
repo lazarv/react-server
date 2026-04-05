@@ -1,16 +1,36 @@
 import { createServer } from "node:http";
-import { parentPort, workerData } from "node:worker_threads";
 
-const originalConsoleLog = console.log;
-console.log = (...args) => {
-  try {
-    parentPort.postMessage({ console: args });
-  } catch {
-    originalConsoleLog("Failed to send log to parent port:", ...args);
+// Suppress IPC channel closed errors during teardown.
+// When the parent kills this child process (e.g. Ctrl+C), the IPC channel
+// closes but async callbacks (listening, server actions) may still fire
+// and attempt process.send(). Node emits an unhandled 'error' event on
+// process when send() fails — without this handler, the process crashes.
+process.on("error", (e) => {
+  if (e.code === "ERR_IPC_CHANNEL_CLOSED") return;
+  throw e;
+});
+
+// Self-terminate when parent dies. With child processes (unlike Worker
+// threads), the child survives if the parent exits. Monitoring the IPC
+// channel is the most reliable signal — it fires even on SIGKILL of the parent.
+process.on("disconnect", () => {
+  process.exit(0);
+});
+
+function safeSend(msg) {
+  if (process.connected) {
+    try {
+      process.send(msg);
+    } catch {}
   }
+}
+
+console.log = (...args) => {
+  safeSend({ console: args });
 };
 
 export async function createReactServer(reactServer, useRoot = false) {
+  const workerData = JSON.parse(process.env.WORKER_DATA);
   try {
     const params = [
       workerData.options,
@@ -35,23 +55,24 @@ export async function createReactServer(reactServer, useRoot = false) {
       middlewares(req, res);
     });
     httpServer.once("listening", () => {
-      process.env.ORIGIN = `http://localhost:${workerData.port}`;
-      parentPort.postMessage({ port: workerData.port });
+      const actualPort = httpServer.address().port;
+      process.env.ORIGIN = `http://localhost:${actualPort}`;
+      safeSend({ port: actualPort });
     });
     httpServer.on("error", (e) => {
-      parentPort.postMessage({ error: e.message, stack: e.stack });
+      safeSend({ error: e.message, stack: e.stack });
     });
-    parentPort.on("message", (msg) => {
+    process.on("message", (msg) => {
       if (msg?.type === "shutdown") {
         httpServer.closeAllConnections();
         httpServer.close(() => {
-          parentPort.close();
+          process.disconnect();
         });
       }
     });
-    httpServer.listen(workerData.port);
+    httpServer.listen(0);
   } catch (e) {
-    parentPort.postMessage({ error: e.message, stack: e.stack });
+    safeSend({ error: e.message, stack: e.stack });
     throw e;
   }
 }

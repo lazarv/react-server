@@ -1,6 +1,5 @@
-import { join } from "node:path";
-
 import {
+  appDir,
   hostname,
   page,
   server,
@@ -10,10 +9,8 @@ import {
 import { beforeAll } from "vitest";
 import { describe, expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/typed-router"));
-
 beforeAll(async () => {
-  await server("./App.tsx");
+  await server("./App.tsx", { cwd: appDir("examples/typed-router") });
 });
 
 // ── Basic route rendering ──

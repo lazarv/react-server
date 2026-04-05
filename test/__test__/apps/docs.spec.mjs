@@ -1,9 +1,5 @@
-import { join } from "node:path";
-
-import { hostname, page, server } from "playground/utils";
+import { appDir, hostname, page, server } from "playground/utils";
 import { expect, test } from "vitest";
-
-process.chdir(join(process.cwd(), "../docs"));
 
 test(
   "docs load",
@@ -11,7 +7,7 @@ test(
     timeout: 120000,
   },
   async () => {
-    await server(null, undefined, undefined, 120000);
+    await server(null, { timeout: 120000, cwd: appDir("docs") });
     await page.goto(hostname);
     await page.waitForLoadState("networkidle");
 

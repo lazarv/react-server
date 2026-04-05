@@ -34,8 +34,8 @@ export default defineConfig({
           ["junit", { outputFile: "test-results/junit.xml" }],
         ]
       : [process.env.REACT_SERVER_VERBOSE ? "verbose" : "default"],
-    pool: "forks",
-    maxForks: Math.max(1, cpus().length - 1),
+    pool: "threads",
+    maxThreads: Math.max(1, cpus().length - 1),
     retry: 3,
   },
   publicDir: false,

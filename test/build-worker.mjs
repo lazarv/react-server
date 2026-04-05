@@ -7,7 +7,12 @@ const options = JSON.parse(process.env.BUILD_OPTIONS);
 
 try {
   const { build } = await import("@lazarv/react-server/build");
-  const result = await build(root || undefined, { ...options, silent: true });
+  const result = await build(root || undefined, {
+    ...options,
+    silent:
+      typeof process.env.REACT_SERVER_VERBOSE === "undefined" ||
+      typeof process.env.REACT_SERVER_BUILD_SILENT !== "undefined",
+  });
   if (result === 1) {
     process.send({ type: "error", error: "Build failed" });
     process.exit(1);

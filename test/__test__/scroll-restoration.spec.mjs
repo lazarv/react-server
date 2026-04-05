@@ -54,7 +54,7 @@ async function waitForPageTitle(expected, timeout = 5000) {
 
 test("scroll restoration: forward navigation scrolls to top", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname);
   await waitForHydration();
@@ -73,7 +73,7 @@ test("scroll restoration: forward navigation scrolls to top", async () => {
 
 test("scroll restoration: back navigation restores scroll position", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname);
   await waitForHydration();
@@ -98,7 +98,7 @@ test("scroll restoration: back navigation restores scroll position", async () =>
 
 test("scroll restoration: multiple back/forward preserves positions", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname);
   await waitForHydration();
@@ -139,7 +139,7 @@ test("scroll restoration: multiple back/forward preserves positions", async () =
 
 test("scroll restoration: query-param-only change preserves scroll", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname + "/page-c?filter=1");
   await waitForHydration();
@@ -160,7 +160,7 @@ test("scroll restoration: query-param-only change preserves scroll", async () =>
 
 test("scroll restoration: hash navigation scrolls to anchor", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname);
   await waitForHydration();
@@ -178,7 +178,7 @@ test("scroll restoration: hash navigation scrolls to anchor", async () => {
 
 test("scroll restoration: useScrollPosition handler can skip scrolling", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname);
   await waitForHydration();
@@ -200,7 +200,7 @@ test("scroll restoration: useScrollPosition handler can skip scrolling", async (
 
 test("scroll restoration: scroll container position is saved and restored", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname + "/page-e");
   await waitForHydration();
@@ -229,7 +229,7 @@ test("scroll restoration: scroll container position is saved and restored", asyn
 
 test("scroll restoration: browser history.scrollRestoration is set to manual", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname);
   await waitForHydration();
@@ -242,7 +242,7 @@ test("scroll restoration: browser history.scrollRestoration is set to manual", a
 
 test("scroll restoration: page refresh restores scroll position", async () => {
   await server("fixtures/scroll-restoration.jsx", {
-    scrollRestoration: true,
+    initialConfig: { scrollRestoration: true },
   });
   await page.goto(hostname);
   await waitForHydration();

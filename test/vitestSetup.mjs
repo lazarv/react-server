@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
 import { fork } from "node:child_process";
 import { readdir, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Worker } from "node:worker_threads";
 
 import { chromium } from "playwright-chromium";
 import { afterAll, inject, test } from "vitest";
@@ -16,7 +15,19 @@ export let logs;
 export let serverLogs;
 
 let currentWorker;
+let currentCwd;
 let terminating;
+
+// Ensure child server processes are killed when the fork exits.
+// Worker threads die with their parent process; child processes don't.
+function killCurrentWorker() {
+  try {
+    currentWorker?.kill();
+  } catch {}
+}
+process.on("exit", killCurrentWorker);
+process.on("SIGTERM", killCurrentWorker);
+process.on("SIGINT", killCurrentWorker);
 
 export const testCwd = process.cwd();
 
@@ -42,10 +53,10 @@ let portCounter = 0;
 
 async function cleanup() {
   try {
-    if (!process.env.CI && testCwd !== process.cwd()) {
+    if (!process.env.CI && currentCwd && currentCwd !== testCwd) {
       const files = [
-        ...(await readdir(process.cwd(), { withFileTypes: true })),
-        ...(await readdir(join(process.cwd(), "node_modules"), {
+        ...(await readdir(currentCwd, { withFileTypes: true })),
+        ...(await readdir(join(currentCwd, "node_modules"), {
           withFileTypes: true,
         })),
       ];
@@ -80,9 +91,12 @@ test.beforeAll(async (_context, suite) => {
   });
   server = (
     root,
-    initialConfig,
-    base,
-    timeout = process.env.CI ? 120000 : 60000
+    {
+      initialConfig,
+      base,
+      timeout = process.env.CI ? 120000 : 60000,
+      cwd = testCwd,
+    } = {}
   ) =>
     new Promise(async (resolve, reject) => {
       let settled = false;
@@ -94,12 +108,37 @@ test.beforeAll(async (_context, suite) => {
       };
 
       try {
+        // Kill previous server process before starting a new one.
+        // Unlike Worker threads, child processes survive independently
+        // and keep holding their ports until explicitly killed.
+        if (currentWorker) {
+          terminating = true;
+          await new Promise((res) => {
+            const t = setTimeout(() => {
+              try {
+                currentWorker?.kill("SIGKILL");
+              } catch {}
+              res();
+            }, 5000);
+            currentWorker.once("exit", () => {
+              clearTimeout(t);
+              res();
+            });
+            if (currentWorker.connected) {
+              currentWorker.send({ type: "shutdown" });
+            } else {
+              currentWorker.kill();
+            }
+          });
+          currentWorker = null;
+        }
         logs = [];
         serverLogs = [];
         terminating = false;
+        currentCwd = cwd;
         const hashValue = createHash("sha256")
           .update(
-            `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(process.cwd(), root) : root || process.cwd()}`
+            `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(cwd, root) : root || cwd}`
           )
           .digest();
         const hash = hashValue.toString("hex");
@@ -127,10 +166,7 @@ test.beforeAll(async (_context, suite) => {
 
         if (process.env.NODE_ENV === "production") {
           const buildTimeout = timeout;
-          const buildRoot =
-            root?.[0] === "." || !root
-              ? root
-              : join(process.cwd(), dirname(name), "..", root);
+          const buildRoot = root?.[0] === "." || !root ? root : join(cwd, root);
           await new Promise((resolveBuild, rejectBuild) => {
             const timer = setTimeout(() => {
               buildProcess.kill();
@@ -144,10 +180,11 @@ test.beforeAll(async (_context, suite) => {
             const buildProcess = fork(
               fileURLToPath(new URL("./build-worker.mjs", import.meta.url)),
               {
-                cwd: process.cwd(),
-                stdio: ["ignore", "ignore", "ignore", "ipc"],
+                cwd,
+                stdio: ["inherit", "inherit", "inherit", "ipc"],
                 env: {
                   ...process.env,
+                  CI: "true",
                   NODE_ENV: "production",
                   BUILD_ROOT: buildRoot ?? "",
                   BUILD_OPTIONS: JSON.stringify(options),
@@ -184,7 +221,7 @@ test.beforeAll(async (_context, suite) => {
         const serverTimer = setTimeout(() => {
           settle(() => {
             terminating = true;
-            currentWorker?.terminate();
+            currentWorker?.kill();
             reject(
               new Error(
                 `Server startup timed out after ${serverTimeout / 1000}s for ${name}`
@@ -194,7 +231,7 @@ test.beforeAll(async (_context, suite) => {
         }, serverTimeout);
         serverTimer.unref();
 
-        const worker = new Worker(
+        const serverScript = fileURLToPath(
           new URL(
             process.env.NODE_ENV === "production"
               ? process.env.EDGE_ENTRY
@@ -202,31 +239,35 @@ test.beforeAll(async (_context, suite) => {
                 : "./server.node.mjs"
               : "./server.dev.mjs",
             import.meta.url
-          ),
-          {
-            workerData: {
-              root:
-                root?.[0] === "." || !root
-                  ? root
-                  : join(process.cwd(), dirname(name), "..", root),
-              options,
-              initialConfig:
-                process.env.NODE_ENV === "production"
-                  ? initialConfig
-                  : {
-                      server: {
-                        hmr: {
-                          port: port + 1,
-                        },
-                      },
-                      ...initialConfig,
-                    },
-              port,
-              base,
-            },
-          }
+          )
         );
-        // Don't let the worker thread prevent the fork process from exiting
+
+        const serverWorkerData = {
+          root: root?.[0] === "." || !root ? root : join(cwd, root),
+          options,
+          initialConfig:
+            process.env.NODE_ENV === "production"
+              ? initialConfig
+              : {
+                  server: {
+                    hmr: {
+                      port: port + 1,
+                    },
+                  },
+                  ...initialConfig,
+                },
+          port,
+          base,
+        };
+
+        const worker = fork(serverScript, {
+          cwd,
+          stdio: ["inherit", "inherit", "inherit", "ipc"],
+          env: {
+            ...process.env,
+            WORKER_DATA: JSON.stringify(serverWorkerData),
+          },
+        });
         worker.unref();
         currentWorker = worker;
         worker.on("message", (msg) => {
@@ -243,7 +284,7 @@ test.beforeAll(async (_context, suite) => {
             clearTimeout(serverTimer);
             settle(() => {
               terminating = true;
-              worker.terminate();
+              worker.kill();
               reject(new Error(msg.error));
             });
           }
@@ -258,7 +299,7 @@ test.beforeAll(async (_context, suite) => {
           if (!terminating) {
             settle(() => {
               const err = new Error(
-                `Worker exited with code ${code} before server started for ${name}`
+                `Server process exited with code ${code} before server started for ${name}`
               );
               consoleError(err);
               reject(err);
@@ -274,12 +315,12 @@ test.beforeAll(async (_context, suite) => {
 afterAll(async () => {
   await page?.close();
   await browser?.close();
-  if (currentWorker && process.env.NODE_ENV === "production") {
+  if (currentWorker) {
     terminating = true;
     await new Promise((resolve) => {
       const timeout = setTimeout(() => {
         try {
-          currentWorker?.terminate();
+          currentWorker?.kill("SIGKILL");
         } catch {
           // ignore
         }
@@ -289,7 +330,11 @@ afterAll(async () => {
         clearTimeout(timeout);
         resolve();
       });
-      currentWorker.postMessage({ type: "shutdown" });
+      if (currentWorker.connected) {
+        currentWorker.send({ type: "shutdown" });
+      } else {
+        currentWorker.kill();
+      }
     });
   }
   currentWorker = null;

@@ -2,15 +2,29 @@ import { createServer } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { parentPort, workerData } from "node:worker_threads";
+
+const workerData = JSON.parse(process.env.WORKER_DATA);
+
+process.on("error", (e) => {
+  if (e.code === "ERR_IPC_CHANNEL_CLOSED") return;
+  throw e;
+});
+
+process.on("disconnect", () => {
+  process.exit(0);
+});
+
+function safeSend(msg) {
+  if (process.connected) {
+    try {
+      process.send(msg);
+    } catch {}
+  }
+}
 
 const originalConsoleLog = console.log;
 console.log = (...args) => {
-  try {
-    parentPort.postMessage({ console: args });
-  } catch {
-    originalConsoleLog("Failed to send log to parent port:", ...args);
-  }
+  safeSend({ console: args });
 };
 
 const MIME_TYPES = {
@@ -118,7 +132,7 @@ try {
         }
       }
 
-      const origin = `http://localhost:${workerData.port}`;
+      const origin = process.env.ORIGIN;
       const fullUrl = new URL(url, origin);
 
       // Convert Node.js IncomingMessage headers to Web Headers
@@ -185,22 +199,23 @@ try {
   });
 
   httpServer.once("listening", () => {
-    process.env.ORIGIN = `http://localhost:${workerData.port}`;
-    parentPort.postMessage({ port: workerData.port });
+    const actualPort = httpServer.address().port;
+    process.env.ORIGIN = `http://localhost:${actualPort}`;
+    safeSend({ port: actualPort });
   });
   httpServer.on("error", (e) => {
-    parentPort.postMessage({ error: e.message, stack: e.stack });
+    safeSend({ error: e.message, stack: e.stack });
   });
-  parentPort.on("message", (msg) => {
+  process.on("message", (msg) => {
     if (msg?.type === "shutdown") {
       httpServer.closeAllConnections();
       httpServer.close(() => {
-        parentPort.close();
+        process.disconnect();
       });
     }
   });
-  httpServer.listen(workerData.port);
+  httpServer.listen(0);
 } catch (e) {
-  parentPort.postMessage({ error: e.message, stack: e.stack });
+  safeSend({ error: e.message, stack: e.stack });
   throw e;
 }

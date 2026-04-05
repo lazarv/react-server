@@ -1,6 +1,5 @@
-import { join } from "node:path";
-
 import {
+  appDir,
   hostname,
   page,
   server,
@@ -9,10 +8,11 @@ import {
 } from "playground/utils";
 import { expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/express"));
-
 test("express load", async () => {
-  await server("./src/app/index.jsx", undefined, "/react-server/");
+  await server("./src/app/index.jsx", {
+    base: "/react-server/",
+    cwd: appDir("examples/express"),
+  });
   await page.goto(hostname + "/react-server/");
   await waitForHydration();
   expect(await page.textContent("body")).toContain("Hello World!");

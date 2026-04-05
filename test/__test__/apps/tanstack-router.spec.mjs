@@ -1,12 +1,14 @@
-import { join } from "node:path";
-
-import { hostname, page, server, waitForHydration } from "playground/utils";
+import {
+  appDir,
+  hostname,
+  page,
+  server,
+  waitForHydration,
+} from "playground/utils";
 import { expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/tanstack-router"));
-
 test("tanstack-router load", async () => {
-  await server(null);
+  await server(null, { cwd: appDir("examples/tanstack-router") });
   await page.goto(hostname);
   await page.waitForLoadState("networkidle");
   await waitForHydration();

@@ -10,7 +10,7 @@ console.log = (...args) => {
   }
 };
 
-export function createReactServer(reactServer, useRoot = false) {
+export async function createReactServer(reactServer, useRoot = false) {
   try {
     const params = [
       workerData.options,
@@ -26,10 +26,9 @@ export function createReactServer(reactServer, useRoot = false) {
     if (useRoot) {
       params.unshift(workerData.root);
     }
-    const server = reactServer(...params);
+    const { middlewares } = await reactServer(...params);
 
-    const httpServer = createServer(async (req, res) => {
-      const { middlewares } = await server;
+    const httpServer = createServer((req, res) => {
       if (workerData.base !== "/" && req.url.startsWith(workerData.base)) {
         req.url = req.url.slice(workerData.base.length - 1) || "/";
       }

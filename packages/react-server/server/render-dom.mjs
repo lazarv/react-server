@@ -199,6 +199,7 @@ export const createRenderer = ({
     body,
     requestCacheBuffer,
     httpContext,
+    devtools,
   }) => {
     if (!flight && !streamMap.has(id)) {
       flight = new ReadableStream({
@@ -546,8 +547,17 @@ export const createRenderer = ({
                               force = value[value.length - 1] !== 0x0a;
 
                               if (!bootstrapped && bytesHasLine0Colon(value)) {
+                                const flightInit = `self.__flightStream__${outlet}__=new TransformStream();self.__flightWriter__${outlet}__=self.__flightStream__${outlet}__.writable.getWriter();self.__flightEncoder__${outlet}__=new TextEncoder();`;
+                                // Dev mode: wrap the flight writer to buffer raw text for devtools.
+                                // Only active when --devtools flag is set (passed from render-rsc.jsx).
+                                const devtoolsHook = devtools
+                                  ? `self.__react_server_devtools_flight__=[];` +
+                                    `self.__react_server_pathname__=${JSON.stringify(new URL(httpContext.url).pathname)};` +
+                                    `(function(){var w=self.__flightWriter__${outlet}__,_w=w.write.bind(w),d=new TextDecoder();` +
+                                    `w.write=function(c){self.__react_server_devtools_flight__.push(d.decode(c,{stream:true}));return _w(c)};})();`
+                                  : "";
                                 bootstrapScripts.unshift(
-                                  `self.__flightStream__${outlet}__=new TransformStream();self.__flightWriter__${outlet}__=self.__flightStream__${outlet}__.writable.getWriter();self.__flightEncoder__${outlet}__=new TextEncoder();`
+                                  flightInit + devtoolsHook
                                 );
                                 bootstrapped = true;
                               }

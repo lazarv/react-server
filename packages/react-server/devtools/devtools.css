@@ -1,0 +1,1405 @@
+/* ── Reset ── */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Theme variables — aligned with react-server.dev docs colors.
+
+   Light: white bg, gray text, indigo-500 accent
+   Dark:  zinc-900 bg, gray-300 text, yellow-600 accent
+   ══════════════════════════════════════════════════════════════════ */
+:root {
+  --dt-bg: #ffffff;
+  --dt-bg-gradient: linear-gradient(to bottom, #ffffff, #e5e7eb);
+  --dt-fg: #111827;          /* gray-900 */
+  --dt-muted: #4b5563;       /* gray-600 */
+  --dt-dimmed: #9ca3af;      /* gray-400 */
+  --dt-faint: #d1d5db;       /* gray-300 */
+  --dt-border: #e5e7eb;      /* gray-200 */
+  --dt-surface: #f9fafb;     /* gray-50 */
+  --dt-row-border: #f3f4f6;  /* gray-100 */
+  --dt-accent: #6366f1;      /* indigo-500 */
+  --dt-accent-subtle: color-mix(in srgb, #6366f1 12%, transparent);
+  --dt-warn: #d97706;        /* amber-600 */
+  --dt-link: #4338ca;        /* indigo-700 */
+  --dt-link-underline: color-mix(in srgb, #4338ca 25%, transparent);
+  --dt-success: #16a34a;     /* green-600 */
+  --dt-toolbar-bg: #f9fafb;
+  --dt-toolbar-border: #e5e7eb;
+  --dt-toolbar-fg: #4b5563;
+  --dt-toolbar-title: #111827;
+}
+
+.dark {
+  --dt-bg: #18181b;          /* zinc-900 */
+  --dt-bg-gradient: linear-gradient(to bottom, #27272a, #18181b);
+  --dt-fg: #d1d5db;          /* gray-300 */
+  --dt-muted: #9ca3af;       /* gray-400 */
+  --dt-dimmed: #71717a;      /* zinc-500 */
+  --dt-faint: #52525b;       /* zinc-600 */
+  --dt-border: #3f3f46;      /* zinc-700 */
+  --dt-surface: #27272a;     /* zinc-800 */
+  --dt-row-border: #27272a;  /* zinc-800 */
+  --dt-accent: #ca8a04;      /* yellow-600 */
+  --dt-accent-subtle: color-mix(in srgb, #ca8a04 12%, transparent);
+  --dt-warn: #ca8a04;        /* yellow-600 */
+  --dt-link: #a5b4fc;        /* indigo-300 */
+  --dt-link-underline: color-mix(in srgb, #a5b4fc 25%, transparent);
+  --dt-success: #86efac;     /* green-300 */
+  --dt-toolbar-bg: #27272a;
+  --dt-toolbar-border: #3f3f46;
+  --dt-toolbar-fg: #9ca3af;
+  --dt-toolbar-title: #e5e7eb;
+}
+
+/* ── Shell ── */
+.dt-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--dt-fg);
+  background: var(--dt-bg);
+}
+
+/* ── Tab bar ── */
+.dt-tabs {
+  display: flex;
+  gap: 1px;
+  border-bottom: 1px solid var(--dt-border);
+  background-color: var(--dt-surface);
+  flex-shrink: 0;
+  padding: 0 8px;
+}
+
+.dt-tab {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 400;
+  background: none;
+  border: none;
+  color: var(--dt-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.dt-tab:hover {
+  color: var(--dt-fg);
+}
+
+.dt-tab[data-active="true"] {
+  font-weight: 600;
+  color: var(--dt-accent);
+  border-bottom-color: var(--dt-accent);
+}
+
+/* ── Tab overflow dropdown ── */
+.dt-tab-overflow-wrapper {
+  position: relative;
+  margin-left: auto;
+}
+
+.dt-tab-overflow-btn {
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dt-dimmed);
+  border-bottom-color: transparent;
+}
+
+.dt-tab-overflow-btn:hover {
+  color: var(--dt-fg);
+}
+
+.dt-tab-overflow-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  min-width: 120px;
+  padding: 4px 0;
+  background: var(--dt-bg);
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.dark .dt-tab-overflow-menu {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dt-tab-overflow-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--dt-muted);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dt-tab-overflow-item:hover {
+  background: var(--dt-surface);
+  color: var(--dt-fg);
+}
+
+.dt-tab-overflow-item[data-active="true"] {
+  font-weight: 600;
+  color: var(--dt-accent);
+}
+
+/* ── Panel area ── */
+.dt-main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.dt-panel {
+  display: none;
+  height: 100%;
+}
+
+.dt-panel::after {
+  content: "";
+  display: block;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.dt-panel[data-visible="true"] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Empty state ── */
+.dt-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--dt-dimmed);
+}
+
+.dt-empty-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.dt-empty-title {
+  font-size: 13px;
+}
+
+.dt-empty-subtitle {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* ── Badge ── */
+/* ── Unified tag/badge ──
+   Solid colored pill used across all panels.
+   Apply `.dt-tag` + a color modifier: `.dt-tag-indigo`, `.dt-tag-green`, etc.
+   ─────────────────────────────────────────── */
+.dt-tag {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: #fff;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dt-tag-indigo   { background: #6366f1; }
+.dt-tag-violet   { background: #8b5cf6; }
+.dt-tag-green    { background: #22c55e; }
+.dt-tag-amber    { background: #f59e0b; }
+.dt-tag-red      { background: #ef4444; }
+.dt-tag-cyan     { background: #06b6d4; }
+.dt-tag-teal     { background: #14b8a6; }
+.dt-tag-pink     { background: #ec4899; }
+.dt-tag-orange   { background: #f97316; }
+.dt-tag-sky      { background: #0ea5e9; }
+.dt-tag-gray     { background: #6b7280; }
+.dt-tag-purple   { background: #7c3aed; }
+
+/* ── Mono text ── */
+.dt-mono {
+  font-family: monospace;
+}
+
+/* ── Route table ── */
+.dt-route-table {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+}
+
+.dt-route-header,
+.dt-route-row {
+  display: grid;
+  grid-template-columns: 2fr 80px 60px 1fr;
+  gap: 8px;
+  padding: 6px 8px;
+  align-items: center;
+}
+
+.dt-route-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dt-muted);
+  border-bottom: 1px solid var(--dt-border);
+  background: var(--dt-surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.dt-route-row {
+  font-size: 12px;
+  border-bottom: 1px solid var(--dt-row-border);
+}
+
+.dt-route-row-active {
+  background: var(--dt-accent-subtle);
+  border-left: 3px solid var(--dt-success);
+}
+
+.dt-route-path {
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.dt-route-params {
+  margin-left: 6px;
+  font-size: 0.85em;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.dt-route-ext-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dt-route-ext-icon-generic {
+  color: var(--dt-dimmed);
+}
+
+.dt-route-src {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--dt-dimmed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dt-route-src-link {
+  color: var(--dt-link);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+.dt-route-src-link:hover {
+  text-decoration: underline;
+  color: var(--dt-accent);
+}
+
+/* ── Component routes table ── */
+.dt-comp-routes-header,
+.dt-comp-routes-row {
+  display: grid;
+  grid-template-columns: 2fr 80px 1fr;
+  gap: 8px;
+  padding: 6px 8px;
+  align-items: center;
+}
+
+.dt-comp-routes-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dt-muted);
+  border-bottom: 1px solid var(--dt-border);
+  background: var(--dt-surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.dt-comp-routes-row {
+  font-size: 12px;
+  border-bottom: 1px solid var(--dt-row-border);
+}
+
+.dt-comp-routes-row .dt-badges {
+  margin-top: 0;
+  align-items: center;
+}
+
+/* ── Section heading ── */
+.dt-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dt-muted);
+  margin-bottom: 8px;
+}
+
+.dt-section {
+  margin-top: 12px;
+}
+
+/* ── Filter bar ── */
+.dt-filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dt-input,
+.dt-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--dt-surface);
+  color: var(--dt-fg);
+  border: 1px solid var(--dt-border);
+  border-radius: 4px;
+}
+
+.dt-input:focus,
+.dt-select:focus {
+  outline: none;
+  border-color: var(--dt-accent);
+  box-shadow: 0 0 0 1px var(--dt-accent-subtle);
+}
+
+.dt-input {
+  flex: 1;
+  min-width: 150px;
+}
+
+.dt-filter-info {
+  font-size: 11px;
+  color: var(--dt-dimmed);
+}
+
+.dt-type-filters {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.dt-type-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dt-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dt-type-filter-btn:hover {
+  background: var(--dt-surface);
+}
+
+.dt-type-filter-btn[data-active="true"] {
+  color: var(--dt-fg);
+  background: var(--dt-surface);
+  border-color: var(--dt-border);
+}
+
+.dt-type-filter-btn .dt-tag {
+  font-size: 9px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* ── Collapsible details ── */
+.dt-details {
+  font-size: 12px;
+}
+
+.dt-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--dt-muted);
+}
+
+.dt-details-body {
+  padding: 4px 0 4px 12px;
+}
+
+.dt-details-row {
+  font-family: monospace;
+  font-size: 11px;
+  padding: 2px 0;
+}
+
+.dt-details-row-path {
+  color: var(--dt-warn);
+}
+
+.dt-details-row-src {
+  color: var(--dt-faint);
+  margin-left: 8px;
+}
+
+/* ── Card ── */
+.dt-card {
+  padding: 10px 12px;
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+}
+
+.dt-card-hover {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.dt-card-hover:hover {
+  border-color: var(--dt-accent);
+}
+
+/* ── Card grid ── */
+.dt-card-grid {
+  display: grid;
+  gap: 8px;
+}
+
+/* ── Card header row ── */
+.dt-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Card title ── */
+.dt-card-title {
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* ── Card subtitle / truncated mono text ── */
+.dt-card-sub {
+  font-size: 11px;
+  color: var(--dt-dimmed);
+  font-family: monospace;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dt-card-sub:first-of-type {
+  margin-top: 4px;
+}
+
+/* ── Card meta row ── */
+.dt-card-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--dt-dimmed);
+}
+
+.dt-card-meta strong {
+  font-family: monospace;
+  color: var(--dt-fg);
+  font-weight: 600;
+}
+
+/* ── Badge row ── */
+.dt-badges {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ── Error box ── */
+.dt-error-box {
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  color: #dc2626;
+}
+
+.dark .dt-error-box {
+  color: #fca5a5;
+}
+
+/* ── Outlet panel ── */
+.dt-outlet-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dt-outlet-info {
+  flex: 1;
+}
+
+.dt-outlet-name {
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.dt-outlet-url {
+  font-size: 11px;
+  color: var(--dt-dimmed);
+  font-family: monospace;
+  margin-top: 2px;
+}
+
+/* ── Remote panel title ── */
+.dt-remote-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dt-remote-url {
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--dt-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.dt-remote-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.dt-card:hover .dt-remote-actions {
+  opacity: 1;
+}
+
+.dt-remote-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-dimmed);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+
+.dt-remote-action:hover {
+  color: var(--dt-accent);
+  background: var(--dt-accent-subtle);
+}
+
+/* ── Card flash animation (used when navigating to an outlet) ── */
+@keyframes dt-flash {
+  0%   { box-shadow: 0 0 0 2px var(--dt-accent); }
+  100% { box-shadow: 0 0 0 2px transparent; }
+}
+
+.dt-card-flash {
+  animation: dt-flash 1.5s ease-out;
+}
+
+/* ── Host URL ── */
+.dt-host-url {
+  font-size: 12px;
+  color: var(--dt-dimmed);
+  margin-bottom: 12px;
+}
+
+/* ── Flex layout ── */
+.dt-flex-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+}
+
+/* ── Live state icon ── */
+.dt-live-icon {
+  font-size: 14px;
+}
+
+/* (outlet type badges now use unified .dt-tag classes) */
+
+.dt-outlet-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dt-outlet-actions .dt-badges {
+  margin-top: 0;
+}
+
+.dt-outlet-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dt-dimmed);
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.dt-outlet-card:hover .dt-outlet-refresh {
+  opacity: 1;
+}
+
+.dt-outlet-refresh:hover {
+  color: var(--dt-accent);
+  background: var(--dt-accent-subtle);
+}
+
+/* ── Chunk table (PayloadPanel) ── */
+.dt-chunk-header,
+.dt-chunk-row {
+  display: grid;
+  grid-template-columns: 48px 70px 60px 1fr;
+  gap: 8px;
+  padding: 4px 8px;
+  align-items: start;
+}
+
+.dt-chunk-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dt-muted);
+  border-bottom: 1px solid var(--dt-border);
+  background: var(--dt-surface);
+  position: sticky;
+  top: 0;
+  padding: 6px 8px;
+}
+
+.dt-chunk-row {
+  font-size: 12px;
+  border-bottom: 1px solid var(--dt-row-border);
+  transition: background 0.3s;
+}
+
+.dt-chunk-row-highlight {
+  background: color-mix(in srgb, #22c55e 8%, transparent);
+}
+
+.dt-chunk-id {
+  font-family: monospace;
+  color: var(--dt-muted);
+}
+
+.dt-chunk-size {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--dt-dimmed);
+}
+
+.dt-data-preview {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--dt-link);
+  word-break: break-all;
+}
+
+/* ── Client ref rows ── */
+.dt-client-ref {
+  all: unset;
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.dt-client-ref-id {
+  color: var(--dt-dimmed);
+}
+
+.dt-client-ref-module {
+  color: var(--dt-link);
+  text-decoration: underline;
+  text-decoration-color: var(--dt-link-underline);
+  text-underline-offset: 2px;
+}
+
+.dt-client-ref-arrow {
+  color: var(--dt-dimmed);
+}
+
+.dt-client-ref-name {
+  color: var(--dt-success);
+}
+
+/* ── Status panel ── */
+.dt-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.dt-stat-card {
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.dt-stat-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  color: var(--dt-muted);
+}
+
+.dt-kv-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.dt-kv-label {
+  color: var(--dt-muted);
+}
+
+.dt-kv-value {
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.dt-gauge {
+  margin-bottom: 12px;
+}
+
+.dt-gauge-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.dt-gauge-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--dt-border);
+  overflow: hidden;
+}
+
+.dt-gauge-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.dt-gauge-secondary {
+  color: var(--dt-muted);
+}
+
+/* ── Separator ── */
+.dt-separator {
+  border-top: 1px solid var(--dt-border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+/* ── Cache panel ── */
+.dt-cache-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.dt-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  background: var(--dt-toolbar-bg);
+  border-bottom: 1px solid var(--dt-toolbar-border);
+  flex-shrink: 0;
+}
+
+.dt-cache-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dt-cache-stat-hit { color: #22c55e; }
+.dt-cache-stat-miss { color: #f59e0b; }
+.dt-cache-stat-revalidate { color: #6366f1; }
+
+.dt-cache-filters {
+  display: flex;
+  gap: 2px;
+}
+
+.dt-filter-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid var(--dt-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dt-muted);
+  cursor: pointer;
+}
+
+.dt-filter-btn[data-active="true"] {
+  background: var(--dt-accent);
+  color: #fff;
+  border-color: var(--dt-accent);
+}
+
+.dt-filter-btn:hover:not([data-active="true"]) {
+  background: var(--dt-surface);
+}
+
+.dt-cache-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.dt-cache-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  border-bottom: 1px solid var(--dt-row-border);
+}
+
+.dt-cache-event:hover {
+  background: var(--dt-surface);
+}
+
+.dt-cache-time {
+  color: var(--dt-dimmed);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* (cache type badges now use unified .dt-tag classes) */
+
+.dt-cache-fn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.dt-cache-fn-name {
+  color: var(--dt-link);
+  font-weight: 600;
+}
+
+.dt-cache-fn-args {
+  color: var(--dt-muted);
+}
+
+a.dt-cache-loc {
+  color: var(--dt-link);
+  text-decoration: underline;
+  text-decoration-color: var(--dt-link-underline);
+  font-size: 11px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+a.dt-cache-loc:hover {
+  text-decoration-color: var(--dt-link);
+}
+
+/* (cache provider badges now use unified .dt-tag classes) */
+
+.dt-cache-ttl {
+  color: var(--dt-dimmed);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.dt-cache-invalidate {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dt-dimmed);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.dt-cache-event:hover .dt-cache-invalidate {
+  opacity: 1;
+}
+
+.dt-cache-invalidate:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* ── Cache hydration section ── */
+.dt-cache-hydration {
+  border-bottom: 1px solid var(--dt-border);
+  background: var(--dt-surface);
+}
+
+.dt-cache-hydration-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--dt-fg);
+  text-align: left;
+}
+
+.dt-cache-hydration-toggle:hover {
+  background: var(--dt-row-border);
+}
+
+.dt-cache-hydration-arrow {
+  font-size: 10px;
+  color: var(--dt-dimmed);
+  width: 10px;
+  flex-shrink: 0;
+}
+
+.dt-cache-hydration-summary {
+  color: var(--dt-muted);
+  font-size: 11px;
+}
+
+.dt-cache-hydration-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--dt-border);
+}
+
+.dt-cache-hydration-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 28px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--dt-row-border);
+}
+
+.dt-cache-hydration-entry:last-child {
+  border-bottom: none;
+}
+
+.dt-cache-hydration-key {
+  font-family: var(--dt-font-mono, monospace);
+  font-size: 10px;
+  color: var(--dt-accent);
+  flex-shrink: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dt-cache-hydration-size {
+  font-size: 10px;
+  color: var(--dt-dimmed);
+  flex-shrink: 0;
+  min-width: 48px;
+  text-align: right;
+}
+
+.dt-cache-hydration-preview {
+  font-family: var(--dt-font-mono, monospace);
+  font-size: 10px;
+  color: var(--dt-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Page size bar (iOS-style) ── */
+.dt-size-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dt-size-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--dt-bg-subtle);
+}
+
+.dt-size-bar-segment {
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+
+.dt-size-bar-segment:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.dt-size-bar-segment:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.dt-size-bar-segment:only-child {
+  border-radius: 4px;
+}
+
+.dt-size-bar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: var(--dt-fg-muted);
+}
+
+.dt-size-bar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.dt-size-bar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dt-size-bar-label {
+  color: var(--dt-fg-muted);
+}
+
+.dt-size-bar-total {
+  font-weight: 600;
+  color: var(--dt-fg);
+}
+
+.dt-size-bar-value {
+  font-family: var(--dt-font-mono);
+  color: var(--dt-fg);
+}
+
+/* ── Payload summary badges ── */
+.dt-payload-summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Workers panel
+   ══════════════════════════════════════════════════════════════════ */
+
+.dt-worker-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.dt-worker-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--dt-muted);
+}
+
+.dt-worker-stat-server { color: #8b5cf6; }
+.dt-worker-stat-client { color: #0ea5e9; }
+
+.dt-worker-filters {
+  display: flex;
+  gap: 4px;
+}
+
+.dt-worker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-top: 4px;
+}
+
+.dt-worker-entry {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--dt-row-border);
+  transition: background 0.1s;
+}
+
+.dt-worker-entry:hover {
+  background: var(--dt-surface);
+}
+
+.dt-worker-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+/* (worker type/state badges now use unified .dt-tag classes) */
+
+.dt-worker-id {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--dt-link);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.dt-worker-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--dt-muted);
+}
+
+.dt-worker-detail {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.dt-worker-detail-label {
+  font-weight: 600;
+  color: var(--dt-dimmed);
+}
+
+.dt-worker-detail-error {
+  color: #ef4444;
+}
+
+.dt-worker-detail-restart {
+  color: #f59e0b;
+}
+
+.dt-worker-active {
+  color: var(--dt-accent);
+  font-weight: 600;
+}
+
+.dt-worker-details code {
+  font-size: 11px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--dt-surface);
+  color: var(--dt-link);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Logs panel
+   ══════════════════════════════════════════════════════════════════ */
+.dt-logs-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.dt-logs-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dt-logs-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.dt-logs-search {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--dt-border);
+  background: var(--dt-bg);
+  color: var(--dt-fg);
+  width: 160px;
+}
+
+.dt-logs-search::placeholder {
+  color: var(--dt-dimmed);
+}
+
+.dt-logs-clear-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--dt-border);
+  background: var(--dt-surface);
+  color: var(--dt-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dt-logs-clear-btn:hover {
+  background: var(--dt-border);
+  color: var(--dt-fg);
+}
+
+.dt-logs-list {
+  flex: 1;
+  overflow-y: auto;
+  font-family: "SF Mono", "Cascadia Code", "Fira Code", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #1e1e1e;
+}
+
+.dark .dt-logs-list {
+  background: #0d0d0d;
+}
+
+.dt-logs-sentinel {
+  /* Provides the full scrollable height for the virtualizer.
+     Rows are absolutely positioned inside this container. */
+  width: 100%;
+}
+
+.dt-logs-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  min-height: 20px;
+  box-sizing: border-box;
+  /* will-change for rows that are absolutely positioned + translated */
+  will-change: transform;
+}
+
+.dt-logs-entry:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dt-logs-entry[data-stream="stderr"] {
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.dt-logs-entry[data-stream="stderr"]:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.dt-logs-time {
+  color: #666;
+  font-size: 10px;
+  flex-shrink: 0;
+  min-width: 80px;
+  user-select: none;
+}
+
+.dt-logs-entry .dt-tag {
+  flex-shrink: 0;
+  font-size: 9px;
+  padding: 0 4px;
+  line-height: 16px;
+}
+
+.dt-logs-message {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  color: #cccccc;
+}
+
+.dt-logs-scroll-btn {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--dt-border);
+  background: var(--dt-surface);
+  color: var(--dt-accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 10;
+}
+
+.dt-logs-scroll-btn:hover {
+  background: var(--dt-bg);
+}

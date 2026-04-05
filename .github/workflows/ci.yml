@@ -58,13 +58,10 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test dev base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -87,7 +84,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-dev-base-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-dev-base-${{ matrix.os }}-node${{ matrix.node_version }}
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -98,7 +95,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
-          flags: dev-base-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: dev-base-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-build-start-base:
@@ -111,13 +108,10 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test prod base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -140,7 +134,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-prod-base-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-prod-base-${{ matrix.os }}-node${{ matrix.node_version }}
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -151,7 +145,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
-          flags: prod-base-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: prod-base-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-build-start-base-edge:
@@ -164,13 +158,10 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test prod base (edge+node) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -195,7 +186,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-prod-base-edge-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-prod-base-edge-${{ matrix.os }}-node${{ matrix.node_version }}
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -206,7 +197,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
-          flags: prod-base-edge-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: prod-base-edge-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-build-start-base-edge-entry:
@@ -219,13 +210,10 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test prod base (edge entry) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -250,7 +238,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-prod-base-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-prod-base-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -261,7 +249,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
-          flags: prod-base-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: prod-base-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-dev-apps:
@@ -274,13 +262,10 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test dev apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -303,7 +288,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-dev-apps-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-dev-apps-${{ matrix.os }}-node${{ matrix.node_version }}
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -314,7 +299,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
-          flags: dev-apps-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: dev-apps-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-build-start-apps:
@@ -327,13 +312,10 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test prod apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -356,7 +338,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-prod-apps-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-prod-apps-${{ matrix.os }}-node${{ matrix.node_version }}
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -367,7 +349,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
-          flags: prod-apps-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: prod-apps-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-build-start-apps-edge:
@@ -380,13 +362,10 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test prod apps (edge+node) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -411,7 +390,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-prod-apps-edge-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-prod-apps-edge-${{ matrix.os }}-node${{ matrix.node_version }}
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -422,7 +401,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
-          flags: prod-apps-edge-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: prod-apps-edge-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-build-start-apps-edge-entry:
@@ -435,13 +414,10 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test prod apps (edge entry) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -466,7 +442,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-prod-apps-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-prod-apps-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
           path: test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -477,7 +453,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test/test-results/junit.xml
-          flags: prod-apps-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: prod-apps-edge-entry-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-rsc:
@@ -494,8 +470,6 @@ jobs:
             node_version: 24
           - os: windows-latest
             node_version: 24
-        shard: [1, 2, 3, 4, 5, 6]
-      max-parallel: 2
       fail-fast: false
 
     name: "Test rsc 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -543,7 +517,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-rsc-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          name: test-results-rsc-${{ matrix.os }}-node${{ matrix.node_version }}
           path: packages/rsc/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -554,7 +528,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: packages/rsc/test-results/junit.xml
-          flags: rsc-${{ matrix.os }}-node${{ matrix.node_version }}-shard${{ matrix.shard }}
+          flags: rsc-${{ matrix.os }}-node${{ matrix.node_version }}
           report_type: test_results
 
   test-results:

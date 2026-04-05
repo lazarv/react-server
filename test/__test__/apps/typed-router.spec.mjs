@@ -1,6 +1,5 @@
-import { join } from "node:path";
-
 import {
+  appDir,
   hostname,
   page,
   server,
@@ -10,10 +9,8 @@ import {
 import { beforeAll } from "vitest";
 import { describe, expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/typed-router"));
-
 beforeAll(async () => {
-  await server("./App.tsx");
+  await server("./App.tsx", { cwd: appDir("examples/typed-router") });
 });
 
 // ── Basic route rendering ──
@@ -187,8 +184,10 @@ describe("typed-router — client-side navigation", () => {
     await waitForHydration();
 
     const prevUrl = page.url();
+    const prevBody = await page.textContent("body");
     await page.click('nav a:has-text("User 42")');
     await waitForChange(null, () => page.url(), prevUrl);
+    await waitForChange(null, () => page.textContent("body"), prevBody);
 
     expect(page.url()).toContain("/user/42");
     expect(await page.textContent("body")).toContain("User ID:");
@@ -787,8 +786,9 @@ describe("typed-router — browser history", () => {
     expect(page.url()).toContain("/about");
 
     // Go back
+    const aboutUrl = page.url();
     await page.goBack();
-    await page.waitForLoadState("load");
+    await waitForChange(null, () => page.url(), aboutUrl);
     expect(page.url()).toBe(`${hostname}/`);
     expect(await page.textContent("body")).toContain("Home");
   });

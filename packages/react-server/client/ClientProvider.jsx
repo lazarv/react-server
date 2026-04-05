@@ -14,6 +14,7 @@ import {
   canNavigateClientOnly,
   hasLoadingForPath,
   loadRouteResources,
+  getAllRoutes,
 } from "./client-route-store.mjs";
 import { runNavigationGuards } from "./client-navigation.mjs";
 import {
@@ -34,12 +35,31 @@ const activeChunk = new Map();
 const cache = new Map();
 const listeners = new Map();
 const outlets = new Map();
+const outletMeta = new Map();
 const outletAbortControllers = new Map();
 const prefetching = new Map();
 const flightCache = new Map();
 const liveOutlets = new Set();
 const liveIO = new Map();
 const outletTemporaryReferences = new Map();
+
+if (import.meta.env.DEV) {
+  window.__react_server_devtools_outlets__ = () =>
+    Array.from(outlets.entries()).map(([name, url]) => {
+      const meta = outletMeta.get(name) || {};
+      return {
+        name,
+        url: typeof url === "string" ? url : (url?.toString?.() ?? ""),
+        remote: meta.remote || false,
+        live: meta.live || false,
+        defer: meta.defer || false,
+        isolate: meta.isolate || false,
+        ttl: meta.ttl ?? null,
+      };
+    });
+  window.__react_server_devtools_routes__ = getAllRoutes;
+  window.__react_server_devtools_refresh__ = (...args) => refresh(...args);
+}
 
 const connectLiveIO = async (origin) => {
   if (!liveIO.has(origin)) {
@@ -74,9 +94,18 @@ const registerOutlet = (
   remote,
   remoteProps,
   defer,
-  live = false
+  live = false,
+  isolate = false,
+  ttl
 ) => {
   outlets.set(outlet, url);
+  outletMeta.set(outlet, {
+    remote: !!remote,
+    defer: !!defer,
+    live: !!live,
+    isolate: !!isolate,
+    ttl: ttl ?? null,
+  });
   if (live) {
     liveOutlets.add(outlet);
     connectLiveIO(typeof live === "string" ? live : url.origin).then(
@@ -152,6 +181,7 @@ const registerOutlet = (
   }
   return () => {
     outlets.delete(outlet);
+    outletMeta.delete(outlet);
     liveOutlets.delete(outlet);
     outletTemporaryReferences.delete(outlet);
   };

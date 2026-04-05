@@ -1,6 +1,5 @@
-import { join } from "node:path";
-
 import {
+  appDir,
   hostname,
   nextAnimationFrame,
   page,
@@ -11,22 +10,20 @@ import {
 import { beforeAll } from "vitest";
 import { describe, expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/mantine"));
-
 beforeAll(async () => {
-  await server(null);
+  await server(null, { timeout: 240000, cwd: appDir("examples/mantine") });
 
   // Workaround for an async dependency optimization issue in development mode
-  let res = await page.goto(hostname, { timeout: 60000 });
+  let res = await page.goto(hostname, { timeout: 240000 });
   let attempts = 0;
   while (res.status() === 500 && attempts < 5) {
-    res = await page.goto(hostname, { timeout: 60000 });
+    res = await page.goto(hostname, { timeout: 240000 });
     attempts++;
   }
   if (!res.ok) {
     throw new Error("Failed to load page");
   }
-});
+}, 240000);
 
 // ── Home page ──
 

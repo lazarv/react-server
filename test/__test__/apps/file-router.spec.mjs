@@ -1,6 +1,5 @@
-import { join } from "node:path";
-
 import {
+  appDir,
   hostname,
   page,
   server,
@@ -11,10 +10,8 @@ import {
 import { beforeAll } from "vitest";
 import { describe, expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/file-router"));
-
 beforeAll(async () => {
-  await server(null);
+  await server(null, { cwd: appDir("examples/file-router") });
   await page.route("https://react-server.dev/**", (route) => {
     route.fulfill({
       status: 200,

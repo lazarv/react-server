@@ -72,3 +72,4 @@ export const SCROLL_RESTORATION_MODULE = Symbol.for(
 export const REQUEST_CACHE_CONTEXT = Symbol.for("REQUEST_CACHE_CONTEXT");
 export const REQUEST_CACHE_SHARED = Symbol.for("REQUEST_CACHE_SHARED");
 export const RESPONSE_BUFFER = Symbol.for("RESPONSE_BUFFER");
+export const DEVTOOLS_CONTEXT = Symbol.for("DEVTOOLS_CONTEXT");

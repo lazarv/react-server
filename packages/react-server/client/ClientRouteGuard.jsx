@@ -1,12 +1,20 @@
 "use client";
 
-import { Activity, Suspense, createElement, useEffect, useMemo } from "react";
+import {
+  Activity,
+  Suspense,
+  createElement,
+  useContext,
+  useEffect,
+  useMemo,
+} from "react";
 
 import { match } from "../lib/route-match.mjs";
 import {
   registerServerRoute,
   registerRouteResources,
 } from "./client-route-store.mjs";
+import { FlightContext } from "./context.mjs";
 import {
   usePathname,
   usePendingNavigation,
@@ -33,13 +41,17 @@ export default function ClientRouteGuard({
     [loadingComponent, loadingElement]
   );
 
+  const { remote, outlet } = useContext(FlightContext);
+
   useEffect(() => {
     return registerServerRoute(path, {
       exact,
       fallback: fallback ?? false,
       hasLoading: !!(loadingComponent || loadingElement),
+      remote: remote || false,
+      outlet: outlet || null,
     });
-  }, [path, exact, fallback, loadingComponent, loadingElement]);
+  }, [path, exact, fallback, loadingComponent, loadingElement, remote, outlet]);
 
   // Register route-resource bindings for client-only navigation.
   // Flatten: each entry may be an array (resolved client reference)
@@ -61,13 +73,18 @@ export default function ClientRouteGuard({
   // it's always correct for the tree being rendered.
   // For client-only navigation, pushState fires emitLocationChange
   // synchronously, so clientPathname is always in sync.
+  // For remote components, window.location.pathname reflects the host app,
+  // not the remote's URL — always trust serverPathname in that case.
   const clientPathname = usePathname();
   const browserPathname =
     typeof window !== "undefined"
       ? decodeURIComponent(window.location.pathname)
       : serverPathname;
-  const pathname =
-    clientPathname !== browserPathname ? serverPathname : clientPathname;
+  const pathname = remote
+    ? serverPathname
+    : clientPathname !== browserPathname
+      ? serverPathname
+      : clientPathname;
   // Fallback routes (global or scoped) — active when no other route matches.
   // On the client, treat them as always active (server already determined the match).
   // Scoped fallbacks have a path ending with "/*" — match via prefix.

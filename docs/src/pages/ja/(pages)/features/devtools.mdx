@@ -1,0 +1,399 @@
+---
+title: DevTools
+category: Features
+order: 17
+---
+
+import Link from "../../../../components/Link.jsx";
+import { EyeIcon, RefreshIcon, ExternalLinkIcon, ArrowRightIcon, SunIcon, MoonIcon, CloseIcon, OverflowIcon, DockBottomIcon, DockLeftIcon, DockRightIcon, DockFloatIcon } from "../../../../components/DevToolsIcon.jsx";
+import ThemedImage from "../../../../components/ThemedImage.jsx";
+
+# DevTools
+
+組み込みのDevToolsパネルを使うと、開発中にブラウザから離れることなくアプリケーションの動作を検査できます。サーバープロセスの状態、RSCペイロードの内容、キャッシュの動作、ルートツリー、アウトレットのレイアウト、リモート/ライブコンポーネント、ワーカースレッド、サーバーログをカバーしています。
+
+{/* Screenshot: the DevTools panel docked to the bottom of the browser, showing the Status tab with CPU, memory, and process gauges. The app content is visible above the panel. The toolbar shows the react-server logo, version, dock mode buttons (bottom/left/right/float), a dark mode toggle, and a close button. */}
+<ThemedImage light="/devtools-overview-light.webp" dark="/devtools-overview-dark.webp" alt="DevTools概要" />
+
+<Link name="enabling-devtools">
+## DevToolsの有効化
+</Link>
+
+開発サーバーの起動時に`--devtools`を渡します：
+
+```sh
+pnpm react-server ./App.jsx --devtools
+```
+
+または設定ファイルに追加して再起動時も維持されるようにします：
+
+```js
+// react-server.config.mjs
+export default {
+  devtools: true,
+};
+```
+
+DevToolsは開発専用です。プロダクションビルドには含まれません。
+
+<Link name="opening-the-panel">
+## パネルを開く
+</Link>
+
+有効にすると、右下にreact-serverのロゴが入った小さなフローティングボタンが表示されます。クリックするとパネルが開きます。キーボードショートカットも使えます：
+
+| ショートカット | プラットフォーム |
+|----------|----------|
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | Windows / Linux |
+| <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | macOS |
+
+同じショートカットでパネルを閉じます。
+
+<Link name="positioning-the-panel">
+## パネルの配置
+</Link>
+
+パネル上部のツールバーに4つのドッキングモードボタンがあります。クリックしてパネルの位置を切り替えます：
+
+- <DockBottomIcon /> **Bottom**（デフォルト）— パネルが下端にドッキングし、ページが垂直方向に縮小します。
+- <DockLeftIcon /> **Left** / <DockRightIcon /> **Right** — パネルが側面にドッキングし、ページが水平方向に縮小します。
+- <DockFloatIcon /> **Float** — パネルがフリーフローティングウィンドウになり、ツールバーをドラッグして移動、右下のコーナーからリサイズできます。
+
+ドッキングモードでは、パネルとページの間のハンドルをドラッグしてサイズを調整できます。
+
+パネルの状態（開閉、ドッキングモード、サイズ、フロート位置）はすべて`localStorage`に保存され、ページリロード後も維持されます。
+
+{/* Screenshot: the DevTools panel in float mode, positioned in the center of the screen as a draggable window with a resize grip in the bottom-right corner. The float dock mode icon in the toolbar is highlighted/active. */}
+<ThemedImage light="/devtools-float-mode-light.webp" dark="/devtools-float-mode-dark.webp" alt="フローティングパネル" />
+
+<Link name="dark-mode">
+## ダークモード
+</Link>
+
+ツールバーの <SunIcon /> / <MoonIcon /> ボタンでライトモードとダークモードを切り替えます。DevToolsは以下の順序でアプリのテーマを自動検出します：
+
+1. `<html>`の`dark`または`light`クラス
+2. `dark=1`または`dark=0` Cookie
+3. システムの`prefers-color-scheme`メディアクエリ
+
+トグルをクリックするとパネルとホストページの両方が更新され、Cookieで設定が保存されます。
+
+<Link name="tab-overflow">
+## タブのオーバーフロー
+</Link>
+
+パネルには9つのタブがあります。パネルの幅が狭くてすべて表示できない場合、収まらないタブはタブバーの右側にある <OverflowIcon /> ボタンのオーバーフローメニューに折りたたまれます。現在アクティブなタブは、通常オーバーフローする場合でも常に表示されます。
+
+<Link name="status-tab">
+## Statusタブ
+</Link>
+
+Statusタブは開発サーバーのリソース使用状況を表示します。毎秒新しいデータをストリーミングする`"use live"`コンポーネントです。
+
+3つのカードが表示されます：
+
+| カード | 表示内容 |
+|--------|----------|
+| Process | Node.jsバージョン、PID、プラットフォーム/アーキテクチャ、稼働時間 |
+| CPU | 使用率のゲージ（50%未満は緑、80%まで黄、それ以上は赤）、コア数、1/5/15分のロードアベレージ |
+| Memory | ヒープ使用量/合計、RSS、外部メモリ、ArrayBuffers、OS全体のメモリ — 各メトリクスにゲージバー付き |
+
+このタブで時間経過によるメモリの増加（リークの兆候）を監視したり、レンダリングの変更がCPUに負荷をかけていないか確認できます。
+
+{/* Screenshot: the Status tab showing three stat cards side by side — "Process" (Node.js version, PID, platform, uptime), "CPU" (a green gauge at ~15 %, core count, load average), and "Memory" (heap used/total gauge, RSS gauge, external, array buffers, OS memory gauge). */}
+<ThemedImage light="/devtools-status-light.webp" dark="/devtools-status-dark.webp" alt="Statusタブ" />
+
+<Link name="payload-tab">
+## Payloadタブ
+</Link>
+
+Payloadタブはすべての React Server Components Flightレスポンスをキャプチャしてデコードし、サーバーが送信した内容を正確に確認できます。
+
+{/* Screenshot: the Payload tab showing a page size bar at the top (green/purple/blue segments for RSC/Hydration/HTML), a payload selector dropdown showing "⚡ initial /", summary badges (size, chunks, client refs, server refs, promises, duration), an expanded "Client References" list, and several chunk rows with colored type tags (Model, Module, Hint). */}
+<ThemedImage light="/devtools-payload-light.webp" dark="/devtools-payload-dark.webp" alt="Payloadタブ" />
+
+<Link name="reading-the-page-size-bar">
+### ページサイズバーの見方
+</Link>
+
+タブの上部にある積み上げバーは、初期HTMLドキュメントを3つのセグメントに分解します：
+
+| セグメント | 色 | 内容 |
+|---------|-------|-----------------|
+| RSC Payload | 緑 | HTMLに埋め込まれたFlightストリーム |
+| Hydration | 紫 | クライアント用にインライン化された`"use cache"`エントリ |
+| HTML | 青 | その他すべて（マークアップ、スクリプト、スタイル） |
+
+合計サイズと転送サイズがバーの下に表示されます。転送サイズが小さい場合、サーバーがレスポンスを圧縮しています。
+
+<Link name="selecting-a-payload">
+### ペイロードの選択
+</Link>
+
+ドロップダウンにセッション中にキャプチャされたすべてのペイロードが表示されます。各エントリにはURL、合計バイトサイズ、チャンク数が表示されます。選択して検査します。
+
+| ラベル | キャプチャ内容 |
+|--------|---------------|
+| <span className="whitespace-nowrap">⚡ initial</span> | 最初のページロードのFlightデータ |
+| <span className="whitespace-nowrap">🔄 stream</span> | 初期レスポンスの後に到着した追加チャンク（Suspenseバウンダリを通じてストリーミング） |
+| <span className="whitespace-nowrap">🧭 nav</span> | クライアントサイドナビゲーションで発生したFlightレスポンス |
+
+<Link name="inspecting-chunks">
+### チャンクの検査
+</Link>
+
+サマリーバッジの下に、すべてのFlightプロトコル行がチャンクリストとして表示されます：
+
+| カラム | 意味 |
+|--------|---------|
+| ID | チャンク識別子 |
+| Type | 色付きタグ：Model（コンポーネントツリーデータ）、Module（クライアントコンポーネントインポート）、Error、Hint（リソースプリロード）、Debug、Text、Binary、Console |
+| Size | そのチャンクが占めるバイト数 |
+| Data | チャンク内容の切り詰められたプレビュー |
+
+フィルターフィールドにタグ名（例：`module`）やコンテンツの部分文字列を入力してリストを絞り込めます。
+
+<Link name="finding-client-components-in-the-payload">
+### ペイロード内のクライアントコンポーネントを見つける
+</Link>
+
+**Client References**セクションを展開すると、サーバーが参照したすべての`"use client"`モジュールが表示されます。各エントリにはモジュールパスとエクスポート名が表示されます。参照にホバーすると、ページ上の対応するDOM要素が緑のオーバーレイでハイライトされます。参照をクリックすると、チャンクリストの対応するModuleチャンクにスクロールします。
+
+<Link name="cache-tab">
+## Cacheタブ
+</Link>
+
+Cacheタブはサーバーとクライアントの両方で発生するすべての`"use cache"`呼び出しを記録し、ヒット、ミス、再検証のいずれかを表示します。
+
+{/* Screenshot: the Cache tab with a toolbar showing hit/miss counts and All/hit/miss/revalidate filter buttons, a collapsed "request cache" hydration section, and a list of cache events. Each event has a timestamp, a colored hit/miss tag, a request/default provider tag, a function name like "getUser(42)", a clickable source file link, and a TTL value. One entry shows the ✕ invalidate button. */}
+<ThemedImage light="/devtools-cache-light.webp" dark="/devtools-cache-dark.webp" alt="Cacheタブ" />
+
+<Link name="reading-cache-events">
+### キャッシュイベントの読み方
+</Link>
+
+イベントリストの各行には以下が含まれます：
+
+| カラム | 意味 |
+|--------|---------|
+| Time | 呼び出しが発生した時刻 |
+| Type | `hit`（キャッシュから提供）、`miss`（計算して保存）、`revalidate`（バックグラウンドで再計算） |
+| Provider | `request`（1リクエストのみ有効）または`default`（リクエスト間で永続） |
+| Function | キャッシュされた関数名と呼び出し引数 |
+| Source | ファイルパスと行番号 — クリックするとVS Codeで開く |
+| TTL | ミスと再検証で表示。エントリの有効期間 |
+
+ツールバーの上部にヒット/ミス/再検証の集計カウントが表示されます。フィルターボタンで1つのタイプのみ表示できます。
+
+<Link name="invalidating-a-cache-entry">
+### キャッシュエントリの無効化
+</Link>
+
+`default`プロバイダーのキャッシュイベントにホバーし、右側の <CloseIcon /> をクリックします。サーバー上のエントリが即座に無効化され、イベントリストから削除されます。その関数への次回の呼び出しはミスになります。リクエストスコープのキャッシュエントリはリクエスト終了時に破棄されるため、手動で無効化できません。
+
+<Link name="viewing-hydration-data">
+### ハイドレーションデータの確認
+</Link>
+
+リクエストスコープのキャッシュで`"use cache"`を使用している場合、サーバーはそれらのキャッシュエントリをHTMLにシリアライズし、クライアントが再フェッチなしでハイドレーションできるようにします。Cacheタブの上部にある折りたたみ可能な**request cache**セクションに、ハッシュキー、バイトサイズ、シリアライズされたデータのプレビューとともに表示されます。
+
+<Link name="routes-tab">
+## Routesタブ
+</Link>
+
+Routesタブはファイルシステムルーターが生成した完全なルートツリーを表示します。ページ、レイアウト、ミドルウェア、APIルート、エラーバウンダリ、ローディング状態、フォールバック、テンプレート、名前付きアウトレットがすべてリストされます。
+
+{/* Screenshot: the Routes tab with a filter input, type filter buttons (active, all, page, layout, middleware, api, etc.) with count badges, a "12 of 28 routes" counter, and a table with Route, Type, file-type icon, and Source columns. Some rows have a green left border indicating they match the current path. */}
+<ThemedImage light="/devtools-routes-light.webp" dark="/devtools-routes-dark.webp" alt="Routesタブ" />
+
+<Link name="filtering-routes">
+### ルートのフィルタリング
+</Link>
+
+| コントロール | 使い方 |
+|-------------|--------|
+| テキストフィルター | パスの断片、ファイル名、アウトレット名、HTTPメソッドを入力してリストを絞り込む |
+| タイプボタン | タイプ（page、layout、middleware、api、error、loading、fallback、template、outlet）をクリックしてそのタイプのみ表示。各ボタンのカウントバッジにそのタイプのルート数が表示される |
+| Activeトグル | 「active」をクリックすると、現在のサーバーパス名に一致しないものをすべて非表示にする。現在のURLのレンダリングに関与しているレイアウト、ミドルウェア、ページを正確に確認するのに便利 |
+
+<Link name="understanding-active-routes">
+### アクティブルートの理解
+</Link>
+
+現在のサーバーパス名に一致するルートは緑の左ボーダーでハイライトされます。マッチングは動的セグメント（`[param]`）、オプショナルパラメータ（`[[optional]]`）、キャッチオールパターン（`[...slug]`）を考慮します。レイアウト、ミドルウェア、テンプレートはプレフィックスとしてマッチし（すべての子パスに対してアクティブ）、ページは正確にマッチする必要があります。
+
+> 注意：マッチングに使用されるパス名はクライアントに表示されるURLではなく、**サーバーパス名**（リライト適用後）です。
+
+<Link name="opening-source-files">
+### ソースファイルを開く
+</Link>
+
+各ルート行にはファイルタイプアイコン（React/JSX、TypeScript、MDXなど）と相対ソースパスが表示されます。ソースパスをクリックするとVS Codeでファイルが開きます。
+
+<Link name="component-routes">
+### コンポーネントルート
+</Link>
+
+ファイルルーターツリーの下に、コード内の`<Route>`コンポーネントでルートを登録している場合、**Component Routes**セクションが表示されます。各エントリにはルートパターン、タイプ（server、client、fallback）、`remote`、`exact`、`loading`などのフラグが表示されます。アクティブなコンポーネントルートはマッチしたパスパラメータがインラインで表示されます。
+
+<Link name="outlets-tab">
+## Outletsタブ
+</Link>
+
+Outletsタブはページ上に現在レンダリングされているすべての名前付きアウトレットを一覧表示します。アウトレットとは、レイアウトがpropsとして受け取る名前付きスロット（`@sidebar`、`@content`など）と、ルートのレンダリングスロットである`PAGE_ROOT`です。
+
+{/* Screenshot: the Outlets tab showing "Host URL: http://localhost:3000/products" at the top and a grid of outlet cards. One card shows "@sidebar" with a "router" badge and eye/refresh icons. Another shows "PAGE_ROOT" with a "static" badge. A colored dashed overlay is visible on the page behind the panel, highlighting the "@sidebar" region with a label. */}
+<ThemedImage light="/devtools-outlets-light.webp" dark="/devtools-outlets-dark.webp" alt="Outletsタブ" />
+
+<Link name="what-each-outlet-card-shows">
+### 各アウトレットカードの表示内容
+</Link>
+
+| フィールド | 意味 |
+|-----------|---------|
+| Name | アウトレット識別子 |
+| URL | アウトレットコンテンツのロード元URL（該当する場合） |
+| Badge | アウトレットの管理方法：`router`（ファイルルーター）、`remote`（別のサーバーから取得）、`live`（ストリーミング）、`defer`（遅延ロード）、`static` |
+
+<Link name="highlighting-outlets-on-the-page">
+### ページ上のアウトレットをハイライトする
+</Link>
+
+任意のアウトレットカードにホバーします。ページ上のそのアウトレットのレンダリング領域の周りに、アウトレット名のラベル付きの色付き破線の矩形が表示されます。各アウトレットに異なる色が割り当てられるので、カードとページのセクションを視覚的にマッピングできます。
+
+ハイライトオーバーレイはエッジケースも処理します：隠しマーカー要素、複数の兄弟要素としてレンダリングされるアウトレット（オーバーレイはユニオン境界矩形をカバー）、フルスクリーンのバックドロップ要素（実際のコンテンツがハイライトされるようにフィルタリング）。
+
+<Link name="scrolling-and-refreshing">
+### スクロールとリフレッシュ
+</Link>
+
+| アクション | 動作 |
+|-----------|------|
+| <EyeIcon /> | ページをアウトレットの位置にスクロールする |
+| <RefreshIcon /> | ページ全体をリロードせずにそのアウトレットのみを再レンダリングする — ナビゲーションせずにページの一部分のサーバーサイドの変更をテストしたい場合に便利 |
+
+<Link name="remotes-tab">
+## Remotesタブ
+</Link>
+
+アプリが`<RemoteComponent>`を使って他のreact-serverインスタンスからRSCコンテンツをロードしている場合、Remotesタブに各コンポーネントが表示されます。
+
+{/* Screenshot: the Remotes tab showing two remote component cards. Each card has a URL like "http://localhost:3001/widget", an outlet name, and property badges (TTL, live). Action buttons for external link, eye, and arrow-right are visible. */}
+<ThemedImage light="/devtools-remotes-light.webp" dark="/devtools-remotes-dark.webp" alt="Remotesタブ" />
+
+各カードには以下が表示されます：
+
+| フィールド | 意味 |
+|-----------|---------|
+| リモートURL | コンポーネントの取得元URL。<ExternalLinkIcon /> をクリックして新しいブラウザタブで開ける |
+| アウトレット名 | このリモートコンポーネントがレンダリングされるアウトレット |
+| TTLバッジ | レスポンスのキャッシュ期間 |
+| `isolate`バッジ | コンポーネントがサンドボックスでレンダリングされる |
+| `defer`バッジ | コンポーネントが遅延ロードされる |
+| `live`バッジ | コンポーネントがリアルタイム更新をストリーミングする |
+
+ホバーするとページ上のリモートコンポーネントがハイライトされます。<EyeIcon /> をクリックしてスクロール、<ArrowRightIcon /> をクリックしてOutletsタブのアウトレットにジャンプします。
+
+<Link name="live-tab">
+## Liveタブ
+</Link>
+
+Liveタブはすべての`"use live"`コンポーネント — クライアントに連続的なレンダリングをyieldするサーバー上の非同期ジェネレーター関数 — を監視します。
+
+{/* Screenshot: the Live tab showing two component cards. The first shows "StatusPanel" with a green "running" badge, a "streaming" cyan badge, "yields: 42", "last yield: 2s ago", "started: 5m ago". The second shows "PriceTracker" with a violet "waiting" badge. */}
+<ThemedImage light="/devtools-live-light.webp" dark="/devtools-live-dark.webp" alt="Liveタブ" />
+
+各カードにはコンポーネントの名前、現在の状態、ランタイム統計が表示されます：
+
+| 状態 | 意味 |
+|-------|---------|
+| `starting` | ジェネレーターを初期化中 |
+| `waiting` | 次のyieldまで待機中 |
+| `running` / `connected` | クライアントにアクティブにストリーミング中 |
+| `finished` | ジェネレーターが正常に終了 |
+| `aborted` | クライアントが切断 |
+| `error` | ジェネレーターが例外をスロー（エラーメッセージがインラインで表示） |
+
+データ送信中は`streaming`バッジが表示されます。カードにはジェネレーターのyield回数、最後のyield時刻、コンポーネントの開始時刻も表示されます。リモートサーバーからロードされたコンポーネントには`remote`バッジが表示されます。
+
+<Link name="workers-tab">
+## Workersタブ
+</Link>
+
+Workersタブは`"use worker"`スレッド — サーバーサイドのWorker Threads（Node.js）とクライアントサイドのWeb Workers — を追跡します。
+
+{/* Screenshot: the Workers tab with a toolbar showing "3 workers · 2 server · 1 client" and All/server/client filter buttons. Below, worker entries show type tags (server/client), state tags (Ready/Spawning), module paths, call counts, error counts, last function name, spawn time, and last call time. */}
+<ThemedImage light="/devtools-workers-light.webp" dark="/devtools-workers-dark.webp" alt="Workersタブ" />
+
+ツールバーにワーカーの総数がタイプ別の内訳とともに表示されます。フィルターボタンでサーバーまたはクライアントのワーカーのみを表示できます。
+
+各ワーカーエントリには以下が表示されます：
+
+| フィールド | 意味 |
+|-----------|---------|
+| Type | `server`または`client` |
+| State | `Spawning`（スレッド起動中）、`Ready`（アイドル）、`Error`（最後の呼び出しが失敗）、`Restarting` |
+| Module path | ワーカーを定義するファイル。最後のいくつかのパスセグメントに短縮される |
+| Call count | 合計呼び出し数と現在実行中の数 |
+| Error / restart counts | 不安定なワーカーを発見するため |
+| Last function | 最後に呼び出されたエクスポート関数の名前 |
+| Timing | ワーカーのスポーン時刻と最終呼び出し時刻 |
+
+<Link name="logs-tab">
+## Logsタブ
+</Link>
+
+Logsタブはすべてのサーバーターミナル出力（`stdout`と`stderr`）をブラウザにストリーミングするので、ターミナルに切り替える必要がありません。
+
+{/* Screenshot: the Logs tab with a toolbar showing "All (156)" / "stdout (140)" / "stderr (16)" filter buttons, a search input, and a "Clear" button. The log list shows timestamped entries with colorful ANSI-rendered text (green "[vite]" prefix, yellow warnings). A few stderr entries are tagged in red. */}
+<ThemedImage light="/devtools-logs-light.webp" dark="/devtools-logs-dark.webp" alt="Logsタブ" />
+
+<Link name="filtering-logs">
+### ログのフィルタリング
+</Link>
+
+| コントロール | 使い方 |
+|-------------|--------|
+| ストリームボタン | `stdout`または`stderr`をクリックしてそのストリームのみ表示する。各ボタンのカウントにそのタイプのエントリ数が表示される |
+| 検索フィールド | テキストを入力してログエントリをフィルタリングする。検索はANSIコードを除去したプレーンテキストに対してマッチする |
+
+<Link name="reading-ansi-output">
+### ANSI出力の表示
+</Link>
+
+サーバーログには色やテキストスタイリングのためのANSIエスケープコードが含まれることがよくあります。Logsタブはこれらを忠実にレンダリングします — 4ビット、8ビット、24ビット（トゥルーカラー）シーケンスがすべてサポートされ、太字、イタリック、下線、薄字も含まれます。パネルに表示される内容はターミナルで見えるものと同じです。
+
+<Link name="auto-scroll-behavior">
+### 自動スクロールの動作
+</Link>
+
+デフォルトではログビューは最下部に固定され、新しいエントリが到着するとスクロールします。上にスクロールすると自動スクロールが一時停止します。パネルの下部に**Scroll to bottom**ボタンが表示されます — クリックして再開します。
+
+ツールバーの**Clear**をクリックしてログバッファを空にします。
+
+<Link name="element-highlighting">
+## 要素ハイライト
+</Link>
+
+いくつかのタブでは、アイテムにホバーしてページ上の対応する要素をハイライトできます：
+
+- **Payload**タブで、クライアント参照にホバーすると、そのクライアントコンポーネントがレンダリングしたDOM要素がハイライトされます（緑のオーバーレイ）。
+- **Outlets**タブで、アウトレットカードにホバーすると、そのレンダリング領域がハイライトされます（各アウトレットに固有の色）。
+- **Remotes**タブで、リモートカードにホバーすると、同じ方法でレンダリング領域がハイライトされます。
+
+オーバーレイは名前を示すラベルバッジ付きの色付き破線の矩形です。ページをスクロールやリサイズするとリアルタイムで位置が更新されます。
+
+{/* Screenshot: a page with the Outlets tab open. One outlet card is being hovered, and on the page a colored dashed rectangle with rounded corners outlines the outlet's rendered area, with a label badge reading "@sidebar" above it. */}
+<ThemedImage light="/devtools-highlighting-light.webp" dark="/devtools-highlighting-dark.webp" alt="要素ハイライト" />
+
+<Link name="how-devtools-works">
+## DevToolsの仕組み
+</Link>
+
+パネルUIは`/__react_server_devtools__/*`から提供されるiframe内で実行されます。これによりDevToolsのReactツリーがアプリから分離され、コンポーネントの状態やスタイリングに干渉しません。
+
+3つの通信チャネルが各部分を接続します：
+
+- **ホストページ → Iframe**（`postMessage`）：RSCペイロード（`fetch`のインターセプトによりキャプチャ）、アウトレット登録、コンポーネントルート、ページレベルのサイズ統計、ナビゲーションイベント、テーマ変更。
+- **サーバー → Iframe**（Socket.IO、`/__devtools__`ネームスペース）：ライブコンポーネントの状態、サーバーサイドのキャッシュイベント、ワーカーの状態、サーバーログ、ファイルルーターマニフェスト。パネルが開くと自動的に接続が確立されます。
+- **Iframe → サーバー**（Socket.IO）：キャッシュ無効化リクエストとアウトレットリフレッシュコマンドが同じソケットを通じて送信されます。

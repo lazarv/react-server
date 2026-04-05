@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
+import { fork } from "node:child_process";
 import { readdir, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { Worker } from "node:worker_threads";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright-chromium";
 import { afterAll, inject, test } from "vitest";
@@ -14,7 +15,19 @@ export let logs;
 export let serverLogs;
 
 let currentWorker;
+let currentCwd;
 let terminating;
+
+// Ensure child server processes are killed when the fork exits.
+// Worker threads die with their parent process; child processes don't.
+function killCurrentWorker() {
+  try {
+    currentWorker?.kill();
+  } catch {}
+}
+process.on("exit", killCurrentWorker);
+process.on("SIGTERM", killCurrentWorker);
+process.on("SIGINT", killCurrentWorker);
 
 export const testCwd = process.cwd();
 
@@ -40,10 +53,10 @@ let portCounter = 0;
 
 async function cleanup() {
   try {
-    if (!process.env.CI && testCwd !== process.cwd()) {
+    if (!process.env.CI && currentCwd && currentCwd !== testCwd) {
       const files = [
-        ...(await readdir(process.cwd(), { withFileTypes: true })),
-        ...(await readdir(join(process.cwd(), "node_modules"), {
+        ...(await readdir(currentCwd, { withFileTypes: true })),
+        ...(await readdir(join(currentCwd, "node_modules"), {
           withFileTypes: true,
         })),
       ];
@@ -76,15 +89,69 @@ test.beforeAll(async (_context, suite) => {
   page.on("console", (msg) => {
     logs.push(msg.text());
   });
-  server = (root, initialConfig, base) =>
+  server = (
+    root,
+    {
+      initialConfig,
+      base,
+      timeout = process.env.CI ? 120000 : 60000,
+      cwd = testCwd,
+    } = {}
+  ) =>
     new Promise(async (resolve, reject) => {
+      let settled = false;
+      const settle = (fn) => {
+        if (!settled) {
+          settled = true;
+          fn();
+        }
+      };
+
       try {
+        // Kill previous server process before starting a new one.
+        // Unlike Worker threads, child processes survive independently
+        // and keep holding their ports until explicitly killed.
+        if (currentWorker) {
+          terminating = true;
+          await new Promise((res) => {
+            const t = setTimeout(() => {
+              try {
+                currentWorker?.kill("SIGKILL");
+              } catch {}
+              res();
+            }, 5000);
+            currentWorker.once("exit", () => {
+              clearTimeout(t);
+              res();
+            });
+            if (currentWorker.connected) {
+              currentWorker.send({ type: "shutdown" });
+            } else {
+              currentWorker.kill();
+            }
+          });
+          currentWorker = null;
+        }
+
+        // Create a fresh page between server() calls. When the previous
+        // server is killed, any in-flight requests or HMR WebSocket
+        // connections die, which can crash the Chromium renderer. A crashed
+        // page cannot be reused — all subsequent navigations fail with
+        // "Page crashed". A fresh page avoids cascading failures.
+        try {
+          await page.close();
+        } catch {}
+        page = await browser.newPage();
+        page.on("console", (msg) => {
+          logs.push(msg.text());
+        });
         logs = [];
         serverLogs = [];
         terminating = false;
+        currentCwd = cwd;
         const hashValue = createHash("sha256")
           .update(
-            `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(process.cwd(), root) : root || process.cwd()}`
+            `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(cwd, root) : root || cwd}`
           )
           .digest();
         const hash = hashValue.toString("hex");
@@ -111,16 +178,73 @@ test.beforeAll(async (_context, suite) => {
               };
 
         if (process.env.NODE_ENV === "production") {
-          const { build } = await import("@lazarv/react-server/build");
-          await build(
-            root?.[0] === "." || !root
-              ? root
-              : join(process.cwd(), dirname(name), "..", root),
-            { ...options, silent: true }
-          );
+          const buildTimeout = timeout;
+          const buildRoot = root?.[0] === "." || !root ? root : join(cwd, root);
+          await new Promise((resolveBuild, rejectBuild) => {
+            const timer = setTimeout(() => {
+              buildProcess.kill();
+              rejectBuild(
+                new Error(
+                  `Build timed out after ${buildTimeout / 1000}s for ${name}`
+                )
+              );
+            }, buildTimeout);
+
+            const buildProcess = fork(
+              fileURLToPath(new URL("./build-worker.mjs", import.meta.url)),
+              {
+                cwd,
+                stdio: ["inherit", "inherit", "inherit", "ipc"],
+                env: {
+                  ...process.env,
+                  CI: "true",
+                  NODE_ENV: "production",
+                  BUILD_ROOT: buildRoot ?? "",
+                  BUILD_OPTIONS: JSON.stringify(options),
+                },
+              }
+            );
+            buildProcess.on("message", (msg) => {
+              if (msg.type === "done") {
+                clearTimeout(timer);
+                resolveBuild();
+              } else if (msg.type === "error") {
+                clearTimeout(timer);
+                rejectBuild(new Error(msg.error));
+              }
+            });
+            buildProcess.on("error", (e) => {
+              clearTimeout(timer);
+              rejectBuild(e);
+            });
+            buildProcess.on("exit", (code) => {
+              clearTimeout(timer);
+              if (code !== 0) {
+                rejectBuild(
+                  new Error(
+                    `Build process exited with code ${code} for ${name}`
+                  )
+                );
+              }
+            });
+          });
         }
 
-        const worker = new Worker(
+        const serverTimeout = timeout;
+        const serverTimer = setTimeout(() => {
+          settle(() => {
+            terminating = true;
+            currentWorker?.kill();
+            reject(
+              new Error(
+                `Server startup timed out after ${serverTimeout / 1000}s for ${name}`
+              )
+            );
+          });
+        }, serverTimeout);
+        serverTimer.unref();
+
+        const serverScript = fileURLToPath(
           new URL(
             process.env.NODE_ENV === "production"
               ? process.env.EDGE_ENTRY
@@ -128,60 +252,75 @@ test.beforeAll(async (_context, suite) => {
                 : "./server.node.mjs"
               : "./server.dev.mjs",
             import.meta.url
-          ),
-          {
-            workerData: {
-              root:
-                root?.[0] === "." || !root
-                  ? root
-                  : join(process.cwd(), dirname(name), "..", root),
-              options,
-              initialConfig:
-                process.env.NODE_ENV === "production"
-                  ? initialConfig
-                  : {
-                      server: {
-                        hmr: {
-                          port: port + 1,
-                        },
-                      },
-                      ...initialConfig,
-                    },
-              port,
-              base,
-            },
-          }
+          )
         );
-        // Don't let the worker thread prevent the fork process from exiting
+
+        const serverWorkerData = {
+          root: root?.[0] === "." || !root ? root : join(cwd, root),
+          options,
+          initialConfig:
+            process.env.NODE_ENV === "production"
+              ? initialConfig
+              : {
+                  server: {
+                    hmr: {
+                      port: port + 1,
+                    },
+                  },
+                  ...initialConfig,
+                },
+          port,
+          base,
+        };
+
+        const worker = fork(serverScript, {
+          cwd,
+          stdio: ["inherit", "inherit", "inherit", "ipc"],
+          env: {
+            ...process.env,
+            WORKER_DATA: JSON.stringify(serverWorkerData),
+          },
+        });
         worker.unref();
         currentWorker = worker;
         worker.on("message", (msg) => {
           if (msg.port) {
+            clearTimeout(serverTimer);
             hostname = `http://localhost:${msg.port}`;
             process.env.ORIGIN = hostname;
             logs = [];
             serverLogs = [];
-            resolve();
+            settle(() => resolve());
           } else if (msg.console) {
             console.log(...msg.console);
           } else if (msg.error) {
-            terminating = true;
-            worker.terminate();
-            reject(new Error(msg.error));
+            clearTimeout(serverTimer);
+            settle(() => {
+              terminating = true;
+              worker.kill();
+              reject(new Error(msg.error));
+            });
           }
         });
         worker.on("error", (e) => {
+          clearTimeout(serverTimer);
           consoleError(e);
-          reject(e);
+          settle(() => reject(e));
         });
         worker.on("exit", (code) => {
-          if (code !== 0 && !terminating) {
-            consoleError(new Error(`Worker stopped with exit code ${code}`));
-            reject(new Error(`Worker stopped with exit code ${code}`));
+          clearTimeout(serverTimer);
+          if (!terminating) {
+            settle(() => {
+              const err = new Error(
+                `Server process exited with code ${code} before server started for ${name}`
+              );
+              consoleError(err);
+              reject(err);
+            });
           }
         });
       } catch (e) {
-        reject(e);
+        settle(() => reject(e));
       }
     });
 });
@@ -189,12 +328,12 @@ test.beforeAll(async (_context, suite) => {
 afterAll(async () => {
   await page?.close();
   await browser?.close();
-  if (currentWorker && process.env.NODE_ENV === "production") {
+  if (currentWorker) {
     terminating = true;
     await new Promise((resolve) => {
       const timeout = setTimeout(() => {
         try {
-          currentWorker?.terminate();
+          currentWorker?.kill("SIGKILL");
         } catch {
           // ignore
         }
@@ -204,7 +343,11 @@ afterAll(async () => {
         clearTimeout(timeout);
         resolve();
       });
-      currentWorker.postMessage({ type: "shutdown" });
+      if (currentWorker.connected) {
+        currentWorker.send({ type: "shutdown" });
+      } else {
+        currentWorker.kill();
+      }
     });
   }
   currentWorker = null;

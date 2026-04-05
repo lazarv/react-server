@@ -6,11 +6,11 @@
   "license": "ISC",
   "author": "",
   "scripts": {
-    "dev:host": "react-server ./index.jsx --port 3000 --name host",
+    "dev:host": "react-server ./index.jsx --port 3000 --name host --devtools",
     "dev:remote": "react-server ./remote.jsx --host ::1 --port 3001 --name remote",
     "dev:static": "react-server ./static.jsx --port 3002 --name static",
     "dev:streaming": "react-server ./streaming.jsx --port 3003 --name streaming",
-    "dev:live": "react-server ./live.jsx --port 3004 --name live",
+    "dev:live": "react-server ./live.jsx --port 3004 --name live --devtools",
     "dev:navigation": "react-server ./navigation.jsx --port 3005 --name navigation",
     "dev:form": "react-server ./form.jsx --port 3006 --name form",
     "dev:context": "react-server ./context.jsx --port 3007 --name context",

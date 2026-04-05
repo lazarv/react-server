@@ -27,6 +27,7 @@ import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   IMPORT_MAP,
+  DEVTOOLS_CONTEXT,
   LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
@@ -169,8 +170,12 @@ export default async function createServer(root, options) {
         ? config.cors
         : false;
 
+  // Strip react-server-specific keys that would confuse Vite
+  // (e.g. `devtools: true` triggers Vite's @vitejs/devtools loader)
+  // oxlint-disable-next-line no-unused-vars
+  const { devtools: _devtools, ...viteCompatConfig } = config;
   const devServerConfig = {
-    ...config,
+    ...viteCompatConfig,
     json: {
       namedExports: true,
     },
@@ -582,6 +587,20 @@ export default async function createServer(root, options) {
     } catch {
       // ignore
     }
+  }
+
+  // Initialize devtools context before Vite so file-router plugin can
+  // push its manifest during createViteDevServer().
+  if (config.devtools) {
+    const { createDevToolsContext } =
+      await import("../../devtools/context.mjs");
+    const devtoolsCtx = createDevToolsContext();
+    runtime$(DEVTOOLS_CONTEXT, devtoolsCtx);
+
+    // Flush any output buffered since installOutputCapture() and switch
+    // to direct recording for all future stdout/stderr writes.
+    const { connectDevToolsOutput } = await import("./devtools-output.mjs");
+    connectDevToolsOutput(devtoolsCtx);
   }
 
   // ── Telemetry: Vite dev server creation span ──

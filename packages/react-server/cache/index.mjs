@@ -15,6 +15,7 @@ import {
   CACHE_KEY,
   CACHE_MISS,
   CACHE_PROVIDER,
+  DEVTOOLS_CONTEXT,
   HTTP_CONTEXT,
   LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
@@ -23,6 +24,7 @@ import {
   REQUEST_CACHE_SHARED,
 } from "../server/symbols.mjs";
 import { getTracer, getOtelContext } from "../server/telemetry.mjs";
+import { getRuntime } from "../server/runtime.mjs";
 
 export { StorageCache, memoryDriver as default, CACHE_MISS };
 
@@ -48,6 +50,22 @@ export async function init$() {
     );
   }
   const cache = cacheInstances.get("default");
+
+  // Register devtools invalidation handler
+  if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
+    try {
+      const devtools = getRuntime(DEVTOOLS_CONTEXT);
+      devtools?.onCacheInvalidate(async (keys, provider) => {
+        const instance = cacheInstances.get(provider ?? "default");
+        if (instance) {
+          await instance.deleteExact(keys);
+        }
+      });
+    } catch {
+      // devtools not available
+    }
+  }
+
   try {
     return context$(CACHE_CONTEXT, cache);
   } catch {
@@ -56,6 +74,15 @@ export async function init$() {
 }
 
 export function dispose$(provider) {
+  // Bump devtools generation so next request's events replace old ones
+  if (provider === "request") {
+    try {
+      getRuntime(DEVTOOLS_CONTEXT)?.disposeRequestCache();
+    } catch {
+      // devtools not available
+    }
+  }
+
   if (provider && cacheInstances.has(provider)) {
     const cache = cacheInstances.get(provider);
     cacheInstances.delete(provider);
@@ -87,6 +114,22 @@ export async function useCache(
   // cached values would leak across requests.
   let cache;
   if (provider?.name === "request") {
+    // ── Devtools helper for request-scoped fast paths ──
+    let _devtools;
+    function devtoolsRecord(type) {
+      try {
+        _devtools ??= getRuntime(DEVTOOLS_CONTEXT);
+        _devtools?.recordCacheEvent({
+          type,
+          keys,
+          provider: "request",
+          ...(type !== "hit" ? { ttl: ttl ?? Infinity } : {}),
+        });
+      } catch {
+        // devtools not available
+      }
+    }
+
     cache = getContext(REQUEST_CACHE_CONTEXT);
     if (!cache) {
       // Edge SSR mode: no per-request StorageCache available (the SSR runs
@@ -99,10 +142,12 @@ export async function useCache(
         const key = rawCanonicalKey(keys);
         const result = sharedCache.read(key);
         if (result !== CACHE_MISS) {
+          devtoolsRecord("hit");
           return result;
         }
       }
       // Shared cache miss — compute synchronously
+      devtoolsRecord("miss");
       return typeof promise === "function" ? promise() : promise;
     }
 
@@ -120,7 +165,10 @@ export async function useCache(
       // The stored value may be a thenable (async case) — returning it
       // from this async function automatically awaits it.
       const hit = sharedCache.read(key);
-      if (hit !== CACHE_MISS) return hit;
+      if (hit !== CACHE_MISS) {
+        devtoolsRecord("hit");
+        return hit;
+      }
 
       // Compute value — synchronous when the plugin preserves the original
       // function's non-async nature (see use-cache-inline.mjs).
@@ -146,6 +194,7 @@ export async function useCache(
         });
         pending.status = "pending";
         sharedCache.write(key, pending);
+        devtoolsRecord("miss");
         return pending;
       }
 
@@ -158,6 +207,7 @@ export async function useCache(
       // Fire-and-forget write to per-request StorageCache
       cache.set(keys, value, ttl ?? Infinity).catch(() => {});
 
+      devtoolsRecord("miss");
       return value;
     }
   } else if (provider) {
@@ -255,9 +305,38 @@ export async function useCache(
         ttl: ttl ?? Infinity,
         provider,
       });
+
+      // ── Devtools: record cache miss ──
+      if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
+        try {
+          const devtools = getRuntime(DEVTOOLS_CONTEXT);
+          devtools?.recordCacheEvent({
+            type: force ? "revalidate" : "miss",
+            keys,
+            provider: providerName,
+            ttl: ttl ?? Infinity,
+          });
+        } catch {
+          // devtools not available
+        }
+      }
     } else {
       cacheSpan.setAttribute("react_server.cache.hit", true);
       cacheSpan.updateName("Cache Hit");
+
+      // ── Devtools: record cache hit ──
+      if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
+        try {
+          const devtools = getRuntime(DEVTOOLS_CONTEXT);
+          devtools?.recordCacheEvent({
+            type: "hit",
+            keys,
+            provider: providerName,
+          });
+        } catch {
+          // devtools not available
+        }
+      }
     }
 
     lock.delete(key);

@@ -148,7 +148,7 @@ test("style assets", async () => {
 });
 
 test("style assets with base url", async () => {
-  await server("fixtures/styles.jsx", undefined, "/react-server/");
+  await server("fixtures/styles.jsx", { base: "/react-server/" });
   await page.goto(hostname + "/react-server");
   const h1 = await page.getByText("This text should be yellow");
   await expect

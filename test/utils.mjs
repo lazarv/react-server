@@ -1,8 +1,21 @@
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { expect } from "vitest";
 
 import { logs, page } from "./vitestSetup.mjs";
 
 export * from "./vitestSetup.mjs";
+
+const __testDir = resolve(fileURLToPath(import.meta.url), "..");
+
+/**
+ * Resolve a path relative to the repo root for use as `cwd` in server().
+ * e.g. appDir("examples/file-router") or appDir("docs")
+ */
+export function appDir(relPath) {
+  return join(__testDir, "..", relPath);
+}
 
 export function nextAnimationFrame() {
   return page.evaluate(() => new Promise(requestAnimationFrame));

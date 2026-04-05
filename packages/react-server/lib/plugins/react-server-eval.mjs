@@ -1,3 +1,19 @@
+import { fstatSync } from "node:fs";
+
+// Check whether stdin is an actual pipe or file redirect (i.e. the user
+// is piping code into react-server), as opposed to a TTY, /dev/null
+// (background process), or a closed fd (spawned subprocess).
+// `isFIFO()` catches `echo "code" | react-server`
+// `isFile()` catches `react-server < file.jsx`
+function isStdinPiped() {
+  try {
+    const stat = fstatSync(0);
+    return stat.isFIFO() || stat.isFile();
+  } catch {
+    return false;
+  }
+}
+
 export default function reactServerEval(options) {
   return {
     name: "react-server:eval",
@@ -16,7 +32,7 @@ export default function reactServerEval(options) {
       async handler() {
         if (options.eval) {
           return options.eval;
-        } else if (!process.env.CI && !process.stdin.isTTY) {
+        } else if (isStdinPiped()) {
           let code = "";
           process.stdin.setEncoding("utf8");
           for await (const chunk of process.stdin) {

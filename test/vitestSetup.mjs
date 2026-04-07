@@ -96,6 +96,17 @@ test.beforeAll(async (_context, suite) => {
       base,
       timeout = process.env.CI ? 120000 : 60000,
       cwd = testCwd,
+      // Optional phase split for diagnosing build-vs-start failures.
+      //   undefined → both phases run in one call (default — every existing
+      //               spec uses this and is unaffected).
+      //   "build"   → run only the production build phase. No-op in dev.
+      //               Does NOT kill the previous server or open a new page,
+      //               so it's safe to call from a standalone `test()` block
+      //               that exists purely to attribute build failures.
+      //   "start"   → skip the build, then start the server. Reuses the
+      //               outDir/port produced by a prior `phase: "build"` call
+      //               with matching `(name, id, root, cwd)` inputs.
+      phase,
     } = {}
   ) =>
     new Promise(async (resolve, reject) => {
@@ -108,6 +119,84 @@ test.beforeAll(async (_context, suite) => {
       };
 
       try {
+        // Build-only phase: do not touch the running server or browser page —
+        // we're just compiling, and the server-startup phase (a separate test)
+        // will handle the worker-kill / fresh-page housekeeping.
+        if (phase === "build") {
+          // ── Build phase (production only). In dev mode this is a no-op so
+          // a `phase: "build"` test can exist unconditionally in the spec.
+          if (process.env.NODE_ENV !== "production") {
+            settle(() => resolve());
+            return;
+          }
+          // Stable hash from suite identity + root, so the matching
+          // `phase: "start"` call lands on the same outDir/port.
+          const hashSeed = `${name}-${id}-${root?.[0] === "." ? join(cwd, root) : root || cwd}`;
+          const hashValue = createHash("sha256").update(hashSeed).digest();
+          const hash = hashValue.toString("hex");
+          const buildOptions = {
+            outDir: `.react-server-build-${id}-${hash}`,
+            server: true,
+            client: true,
+            export: false,
+            adapter: ["false"],
+            minify: false,
+            edge: process.env.EDGE || process.env.EDGE_ENTRY ? true : undefined,
+          };
+          const buildTimeout = timeout;
+          const buildRoot = root?.[0] === "." || !root ? root : join(cwd, root);
+          await new Promise((resolveBuild, rejectBuild) => {
+            const timer = setTimeout(() => {
+              buildProcess.kill();
+              rejectBuild(
+                new Error(
+                  `Build timed out after ${buildTimeout / 1000}s for ${name}`
+                )
+              );
+            }, buildTimeout);
+
+            const buildProcess = fork(
+              fileURLToPath(new URL("./build-worker.mjs", import.meta.url)),
+              {
+                cwd,
+                stdio: ["inherit", "inherit", "inherit", "ipc"],
+                env: {
+                  ...process.env,
+                  CI: "true",
+                  NODE_ENV: "production",
+                  BUILD_ROOT: buildRoot ?? "",
+                  BUILD_OPTIONS: JSON.stringify(buildOptions),
+                },
+              }
+            );
+            buildProcess.on("message", (msg) => {
+              if (msg.type === "done") {
+                clearTimeout(timer);
+                resolveBuild();
+              } else if (msg.type === "error") {
+                clearTimeout(timer);
+                rejectBuild(new Error(msg.error));
+              }
+            });
+            buildProcess.on("error", (e) => {
+              clearTimeout(timer);
+              rejectBuild(e);
+            });
+            buildProcess.on("exit", (code) => {
+              clearTimeout(timer);
+              if (code !== 0) {
+                rejectBuild(
+                  new Error(
+                    `Build process exited with code ${code} for ${name}`
+                  )
+                );
+              }
+            });
+          });
+          settle(() => resolve());
+          return;
+        }
+
         // Kill previous server process before starting a new one.
         // Unlike Worker threads, child processes survive independently
         // and keep holding their ports until explicitly killed.
@@ -149,11 +238,17 @@ test.beforeAll(async (_context, suite) => {
         serverLogs = [];
         terminating = false;
         currentCwd = cwd;
-        const hashValue = createHash("sha256")
-          .update(
-            `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(cwd, root) : root || cwd}`
-          )
-          .digest();
+        // When called via `phase: "start"`, the hash MUST match the
+        // `phase: "build"` call that ran before it, so the server worker
+        // points at the existing build output. Use a deterministic seed
+        // (no per-call counter) in that case. The default path keeps the
+        // counter so existing call sites that re-invoke server() multiple
+        // times in the same suite continue to get fresh outDirs/ports.
+        const hashSeed =
+          phase === "start"
+            ? `${name}-${id}-${root?.[0] === "." ? join(cwd, root) : root || cwd}`
+            : `${name}-${id}-${portCounter++}-${root?.[0] === "." ? join(cwd, root) : root || cwd}`;
+        const hashValue = createHash("sha256").update(hashSeed).digest();
         const hash = hashValue.toString("hex");
         const port =
           BASE_PORT + (hashValue.readUInt32BE(0) % (MAX_PORT - BASE_PORT));
@@ -177,7 +272,9 @@ test.beforeAll(async (_context, suite) => {
                 cacheDir: `.reaact-server-dev-${id}-${hash}-vite-cache`,
               };
 
-        if (process.env.NODE_ENV === "production") {
+        // Skip build when called via `phase: "start"` — the matching
+        // `phase: "build"` call has already produced the outDir we point at.
+        if (process.env.NODE_ENV === "production" && phase !== "start") {
           const buildTimeout = timeout;
           const buildRoot = root?.[0] === "." || !root ? root : join(cwd, root);
           await new Promise((resolveBuild, rejectBuild) => {

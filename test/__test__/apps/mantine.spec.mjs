@@ -7,23 +7,43 @@ import {
   waitForChange,
   waitForHydration,
 } from "playground/utils";
-import { beforeAll } from "vitest";
 import { describe, expect, test } from "vitest";
 
-beforeAll(async () => {
-  await server(null, { timeout: 240000, cwd: appDir("examples/mantine") });
+// The Mantine example has historically been the slowest build-mode test in
+// CI and intermittently times out. Split the work into two attributable
+// `test()` blocks so a failure points cleanly at *which* phase blew its
+// budget — the cold production build, or the server-startup handshake.
+// In dev mode the build phase is a no-op, so the same shape works there.
+//
+// IMPORTANT: these MUST be wrapped in a `describe` declared before the
+// other describes in this file. Vitest only guarantees ordering of tests
+// across describes by declaration order — top-level `test()` blocks mixed
+// with `describe()` blocks are collected separately and can run after the
+// describes, which would leave `hostname` undefined when the real tests
+// run and produce cascade `Invalid URL` failures.
+const MANTINE = { cwd: appDir("examples/mantine") };
 
-  // Workaround for an async dependency optimization issue in development mode
-  let res = await page.goto(hostname, { timeout: 240000 });
-  let attempts = 0;
-  while (res.status() === 500 && attempts < 5) {
-    res = await page.goto(hostname, { timeout: 240000 });
-    attempts++;
-  }
-  if (!res.ok) {
-    throw new Error("Failed to load page");
-  }
-}, 240000);
+describe("mantine — setup", () => {
+  test("build", async () => {
+    await server(null, { ...MANTINE, phase: "build", timeout: 30000 });
+  }, 30000);
+
+  test("start server", async () => {
+    await server(null, { ...MANTINE, phase: "start", timeout: 30000 });
+
+    // Workaround for an async dependency optimization issue in dev mode —
+    // harmless in production but kept here so the same spec works in both.
+    let res = await page.goto(hostname, { timeout: 30000 });
+    let attempts = 0;
+    while (res.status() === 500 && attempts < 5) {
+      res = await page.goto(hostname, { timeout: 30000 });
+      attempts++;
+    }
+    if (!res.ok) {
+      throw new Error("Failed to load page");
+    }
+  }, 30000);
+});
 
 // ── Home page ──
 

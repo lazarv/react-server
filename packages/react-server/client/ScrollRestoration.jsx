@@ -530,8 +530,23 @@ export function ScrollRestoration({ behavior } = {}) {
     }
   }, [url, pathname, behavior]);
 
-  // Restore or reset scroll on URL change (client navigation)
+  // Restore or reset scroll on URL change (client navigation).
+  //
+  // CRITICAL: `useUrl()` is backed by `useSyncExternalStore`, whose
+  // getServerSnapshot returns "/" on SSR and during the initial client
+  // render. React then re-renders with the real `window.location` URL on
+  // commit, which would otherwise appear as a spurious "/" → "/real/url"
+  // navigation here and scroll the window to (0,0) — wiping the user's
+  // scroll position on any landing page that isn't the root. Skip this
+  // effect on the first commit and sync `prevUrl` to the real URL so the
+  // next genuine navigation sees the correct "from".
+  const mountedRef = useRef(false);
   useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      prevUrl.current = url;
+      return;
+    }
     if (url === prevUrl.current) return;
     const fromUrl = prevUrl.current;
     prevUrl.current = url;

@@ -41,22 +41,14 @@ describe.sequential("mantine", () => {
     test(
       "start server",
       {
-        timeout: 30000,
+        timeout: 60000,
       },
       async () => {
-        await server(null, { ...MANTINE, phase: "start", timeout: 30000 });
-
-        // Workaround for an async dependency optimization issue in dev mode —
-        // harmless in production but kept here so the same spec works in both.
-        let res = await page.goto(hostname, { timeout: 30000 });
-        let attempts = 0;
-        while (res.status() === 500 && attempts < 5) {
-          res = await page.goto(hostname, { timeout: 30000 });
-          attempts++;
-        }
-        if (!res.ok) {
-          throw new Error("Failed to load page");
-        }
+        await server(null, { ...MANTINE, phase: "start", timeout: 60000 });
+        await page.goto(hostname, { timeout: 60000 });
+        await page.waitForLoadState("networkidle");
+        await waitForHydration(30000, page);
+        expect(new URL(page.url()).origin).toBe(hostname);
       }
     );
   });

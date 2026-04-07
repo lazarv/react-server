@@ -2143,7 +2143,7 @@ ${lazyValidateLines.join("\n")}
             viteCommand === "build" ? "MANIFEST, " : ""
           }COLLECT_STYLESHEETS, STYLES_CONTEXT, COLLECT_CLIENT_MODULES, CLIENT_MODULES_CONTEXT, POSTPONE_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
           import { useMatch } from "@lazarv/react-server/router";
-          ${hasClientRoutes || hasResources ? `import { Route } from "@lazarv/react-server/router";` : ""}
+          ${hasClientRoutes || hasResources || clientSiblings.length > 0 ? `import { Route } from "@lazarv/react-server/router";` : ""}
           ${
             errorBoundaries.length > 0
               ? `import ErrorBoundary from "@lazarv/react-server/error-boundary";
@@ -2555,7 +2555,34 @@ ${lazyValidateLines.join("\n")}
                     const loadingProp = sibLoading
                       ? ` loading={<__react_server_router_loading_${loadings.indexOf(sibLoading)}__/>}`
                       : "";
-                    return `<Route path="${sibPath}" exact={true}${loadingProp} element={<__client_page_${i}__ />} />`;
+                    // Pass the client page via:
+                    //   componentId      — the $$id string (read at JSX-
+                    //                      construction time, becomes a plain
+                    //                      string prop value)
+                    //   componentLoader  — a closure that returns the imported
+                    //                      module reference. The closure is a
+                    //                      function value, so React's RSC
+                    //                      encoder (which walks every element's
+                    //                      props for client references) walks
+                    //                      past it without registering anything
+                    //                      — the live client reference stays
+                    //                      hidden inside the closure body.
+                    //
+                    // Route reads componentId for non-matching siblings (lazy-
+                    // loaded on first client navigation via React.lazy in
+                    // ClientRouteRegistration) and calls componentLoader() only
+                    // for the matching route, JSX-instantiating exactly one
+                    // client reference per request. Non-matching siblings
+                    // therefore produce zero module map entries, zero SSR-
+                    // worker chunk imports, and zero browser preloads.
+                    //
+                    // Never write `element={<__client_page_${i}__/>}` or
+                    // `component={__client_page_${i}__}` here — both forms
+                    // place the live client reference into a React element's
+                    // prop value (or createElement type), which causes the
+                    // RSC encoder to register it eagerly even for sibling
+                    // routes that don't match the current request.
+                    return `<Route path="${sibPath}" exact={true}${loadingProp} componentId={__client_page_${i}__.$$id} componentLoader={() => __client_page_${i}__} />`;
                   })
                   .join("\n                ")}
               ${layouts

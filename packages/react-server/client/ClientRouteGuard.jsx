@@ -32,7 +32,6 @@ export default function ClientRouteGuard({
   resources,
   children,
 }) {
-  // Memoize the loading fallback element so it's referentially stable
   const loading = useMemo(
     () =>
       loadingComponent

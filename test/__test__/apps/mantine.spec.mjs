@@ -37,11 +37,11 @@ const MANTINE = { cwd: appDir("examples/mantine") };
 //
 // Dev mode is unaffected (the build phase is a no-op), so we only skip under
 // NODE_ENV=production (the test-build-start suite).
-const SKIP_MANTINE_BUILD = process.env.NODE_ENV === "production";
+const SKIP_MANTINE = process.env.NODE_ENV === "production";
 
-describe.sequential("mantine", () => {
+describe.skipIf(SKIP_MANTINE).sequential("mantine", () => {
   describe.sequential("setup", () => {
-    test.skipIf(SKIP_MANTINE_BUILD)(
+    test(
       "build",
       {
         timeout: 120000,
@@ -51,7 +51,7 @@ describe.sequential("mantine", () => {
       }
     );
 
-    test.skipIf(SKIP_MANTINE_BUILD)(
+    test(
       "start server",
       {
         timeout: 180000,

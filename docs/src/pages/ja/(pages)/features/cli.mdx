@@ -140,7 +140,18 @@ export default {
 ### --eval
 </Link>
 
-`node -e`と同じように引数からサーバーのエントリーポイントを評価します。または標準入力も指定することが出来ます。このエントリーポイントは仮想化エントリーポイントとなり、ファイルシステムには書き込まれません。
+`node -e`と同じように引数からサーバーのエントリーポイントを評価します。値を指定せずに `--eval` だけを渡すと、エントリーポイントを _標準入力_ から読み込みます。標準入力は **自動的には消費されません** — `--eval` が明示的に指定された場合にのみ読み込まれます。このエントリーポイントは仮想化エントリーポイントとなり、ファイルシステムには書き込まれません。
+
+```sh
+# インラインコード
+pnpm exec react-server --eval "export default () => <h1>Hello</h1>;"
+
+# 標準入力から（値を指定しない `--eval` に注意）
+echo 'export default () => <h1>Hello from stdin</h1>;' | pnpm exec react-server --eval
+
+# シェルのリダイレクトでファイルから
+pnpm exec react-server --eval < ./entry.jsx
+```
 
 <Link name="dev-version">
 ### --version
@@ -259,7 +270,18 @@ pnpm react-server build --deploy '{"project": "my-project"}'
 ### --eval
 </Link>
 
-`node -e`と同じように引数に指定したエントリーポイントを評価します。または標準入力も指定することが出来ます。このエントリーポイントはファイルシステムに書き込んだものではなく仮想的なエントリーポイントです。
+`node -e`と同じように引数に指定したエントリーポイントを評価します。値を指定せずに `--eval` だけを渡すと、エントリーポイントを _標準入力_ から読み込みます。標準入力は **自動的には消費されません** — `--eval` が明示的に指定された場合にのみ読み込まれます。このエントリーポイントはファイルシステムに書き込んだものではなく仮想的なエントリーポイントです。
+
+```sh
+# インラインコード
+pnpm exec react-server build --eval "export default () => <h1>Hello</h1>;"
+
+# 標準入力から
+echo 'export default () => <h1>Hi</h1>;' | pnpm exec react-server build --eval
+
+# シェルのリダイレクトでファイルから
+pnpm exec react-server build --eval < ./entry.jsx
+```
 
 <Link name="build-outdir">
 ### --outDir

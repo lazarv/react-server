@@ -167,10 +167,16 @@ test("scroll restoration: multiple back/forward preserves positions", async () =
 test("scroll restoration: query-param-only change preserves scroll", async () => {
   await page.goto(hostname + "/page-c?filter=1");
   await waitForHydration();
+  // Let any post-hydration scroll-restoration effect flush before we scroll,
+  // otherwise an async restore-to-0 can race with our scrollTo.
+  await page.waitForTimeout(SCROLL_SETTLE_MS);
 
-  // Scroll down on Page C
-  await scrollTo(600);
-  const beforeY = await getScrollY();
+  // Scroll down on Page C — retry to beat any late restore resetting us to 0.
+  let beforeY = 0;
+  for (let i = 0; i < 5 && beforeY <= 500; i++) {
+    await scrollTo(600);
+    beforeY = await getScrollY();
+  }
   expect(beforeY).toBeGreaterThan(500);
 
   // Navigate to same page with different query param

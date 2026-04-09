@@ -93,12 +93,15 @@ export default async function ssrHandler(root) {
             [MODULE_LOADER]: ssrLoadModule,
             [IMPORT_MAP]: importMap,
             [LOGGER_CONTEXT]: logger,
-            [MAIN_MODULE]: ["@vite/client", `@hmr`, `@__webpack_require__`].map(
-              (mod) =>
-                `${viteDevServer.config.base || "/"}/${mod}`.replace(
-                  /\/+/g,
-                  "/"
-                )
+            [MAIN_MODULE]: [
+              ...(configRoot?.server?.hmr === false
+                ? ["@__disable_hmr__"]
+                : []),
+              "@vite/client",
+              `@hmr`,
+              `@__webpack_require__`,
+            ].map((mod) =>
+              `${viteDevServer.config.base || "/"}/${mod}`.replace(/\/+/g, "/")
             ),
             ...(configRoot.scrollRestoration
               ? {

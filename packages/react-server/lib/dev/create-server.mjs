@@ -1200,7 +1200,9 @@ export default async function createServer(root, options) {
   return {
     listen: (...args) => {
       return viteDevServer.middlewares.listen(...args).once("listening", () => {
-        viteDevServer.environments.client.hot.listen();
+        if (config?.server?.hmr !== false) {
+          viteDevServer.environments.client.hot.listen();
+        }
       });
     },
     close: () => {

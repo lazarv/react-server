@@ -73,6 +73,49 @@ export default function viteReactServerRuntime() {
           }
           return moduleCache.get(id);
           };`;
+        } else if (id.endsWith("@__disable_hmr__")) {
+          return `(function () {
+            if (typeof WebSocket === 'undefined') return;
+            const Orig = WebSocket;
+            function isViteHmr(protocols) {
+              if (protocols === 'vite-hmr') return true;
+              if (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1) return true;
+              return false;
+            }
+            function InertSocket() {
+              // Matches the surface @vite/client touches: readyState, send, close,
+              // addEventListener, removeEventListener, onopen/onmessage/onerror/onclose.
+              const listeners = {};
+              this.readyState = 3; // CLOSED
+              this.url = '';
+              this.protocol = 'vite-hmr';
+              this.send = function () {};
+              this.close = function () {};
+              this.addEventListener = function (type, fn) {
+                (listeners[type] || (listeners[type] = [])).push(fn);
+              };
+              this.removeEventListener = function (type, fn) {
+                var l = listeners[type]; if (!l) return;
+                var i = l.indexOf(fn); if (i !== -1) l.splice(i, 1);
+              };
+              this.onopen = this.onmessage = this.onerror = this.onclose = null;
+            }
+            InertSocket.CONNECTING = 0;
+            InertSocket.OPEN = 1;
+            InertSocket.CLOSING = 2;
+            InertSocket.CLOSED = 3;
+
+            window.WebSocket = function (url, protocols) {
+              if (isViteHmr(protocols)) return new InertSocket();
+              return new Orig(url, protocols);
+            };
+            // Preserve statics so libraries that read WebSocket.OPEN etc. keep working.
+            window.WebSocket.CONNECTING = Orig.CONNECTING;
+            window.WebSocket.OPEN = Orig.OPEN;
+            window.WebSocket.CLOSING = Orig.CLOSING;
+            window.WebSocket.CLOSED = Orig.CLOSED;
+            window.WebSocket.prototype = Orig.prototype;
+          })();`;
         }
       },
     },

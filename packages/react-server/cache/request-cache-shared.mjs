@@ -37,7 +37,8 @@ const HEADER_BYTES = 8;
 const ENTRY_COUNT_INDEX = 0; // Int32Array index
 const WRITE_OFFSET_INDEX = 1; // Int32Array index
 const DATA_START = HEADER_BYTES;
-const DEFAULT_BUFFER_SIZE = 256 * 1024; // 256 KB
+const DEFAULT_BUFFER_SIZE = 256 * 1024; // 256 KB (max)
+const INITIAL_BUFFER_SIZE = 512; // tiny initial; grows on demand
 const WAIT_TIMEOUT_MS = 5000;
 
 // Per-entry flags (stored as a single byte per entry)
@@ -56,16 +57,33 @@ const textDecoder = new TextDecoder();
  * @returns {{ buffer: SharedArrayBuffer, write: (key: string, value: any) => boolean }}
  */
 export function createSharedRequestCache(size = DEFAULT_BUFFER_SIZE) {
-  const buffer = new SharedArrayBuffer(size);
+  // Growable SAB: start tiny (one OS page or less) and grow on demand up
+  // to `size`. Most requests never touch "use cache: request" and only pay
+  // for the tiny initial allocation. Length-tracking views (no explicit
+  // length) automatically observe grown byteLength.
+  const maxSize = size;
+  const initial = Math.min(INITIAL_BUFFER_SIZE, maxSize);
+  const buffer = new SharedArrayBuffer(initial, { maxByteLength: maxSize });
   const header = new Int32Array(buffer, 0, 2);
-  const data = new Uint8Array(buffer, DATA_START);
-
-  // Initialize header
+  const data = new Uint8Array(buffer, DATA_START); // length-tracking
   Atomics.store(header, ENTRY_COUNT_INDEX, 0);
   Atomics.store(header, WRITE_OFFSET_INDEX, 0);
 
+  function ensureCapacity(requiredDataBytes) {
+    const needed = DATA_START + requiredDataBytes;
+    if (buffer.byteLength >= needed) return true;
+    if (needed > maxSize) return false;
+    let next = buffer.byteLength * 2 || initial;
+    while (next < needed) next *= 2;
+    if (next > maxSize) next = maxSize;
+    buffer.grow(next);
+    return true;
+  }
+
   return {
-    buffer,
+    get buffer() {
+      return buffer;
+    },
     /**
      * Write a cache entry. Returns false if the buffer is full.
      * @param {string} key
@@ -85,8 +103,8 @@ export function createSharedRequestCache(size = DEFAULT_BUFFER_SIZE) {
       const entrySize = 4 + keyBytes.length + 1 + 4 + valueBytes.length;
       const offset = Atomics.load(header, WRITE_OFFSET_INDEX);
 
-      if (offset + entrySize > data.length) {
-        // Buffer full
+      if (!ensureCapacity(offset + entrySize)) {
+        // Exceeds max — buffer full
         return false;
       }
 

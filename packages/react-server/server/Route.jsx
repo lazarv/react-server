@@ -44,6 +44,8 @@ export default async function Route({
   exact,
   matchers,
   element,
+  componentId,
+  componentLoader,
   render,
   fallback,
   loading,
@@ -156,9 +158,37 @@ export default async function Route({
     }
   }
 
-  // Detect if the route target is a client component
-  const target = element ?? children;
-  const clientComponent = target ? getClientComponent(target) : null;
+  // Detect if the route target is a client component.
+  // Three input forms are supported, in priority order:
+  //
+  //   1. componentId + componentLoader  — fast path (file-router emits this).
+  //      `componentId` is a plain string ($$id) read at JSX-construction time.
+  //      `componentLoader` is a closure `() => importedClientRef`. The live
+  //      client reference NEVER appears as a prop value of any React element,
+  //      so React's RSC encoder does not register it for non-matching routes.
+  //      For the matching route only, Route calls the loader to retrieve the
+  //      client reference and JSX-instantiates it exactly once below.
+  //
+  //   2. element={<X/>}   — legacy / hand-written. Pre-instantiated JSX
+  //      element. The createElement call has already happened in the parent's
+  //      render scope, so the encoder has already registered the client
+  //      reference; non-matching siblings using this form do NOT get the
+  //      deferred-load benefit (matches today's behaviour).
+  //
+  //   3. children — page tree containing a client component at the root.
+  //      Same caveat as (2).
+  let clientComponent = null;
+  if (componentId && typeof componentLoader === "function") {
+    // Fast path: do NOT call componentLoader for non-matching routes —
+    // calling it would pull the live client reference into local scope,
+    // and any subsequent JSX use would register it. We only call it
+    // below in the `params` branch when JSX-instantiating the matched page.
+    // For non-matching routes the only thing we need is the string id.
+    clientComponent = null; // intentionally — see fast-path render below
+  } else {
+    const target = element ?? children;
+    clientComponent = target ? getClientComponent(target) : null;
+  }
 
   // Client references resolve on the client — pass them through.
   // Plain server-side bindings contain mapFn functions that can't be
@@ -171,9 +201,74 @@ export default async function Route({
       ? resources
       : undefined;
 
+  // ── Fast path: componentId + componentLoader ──
+  // For non-matching siblings we never call componentLoader, so the live
+  // client reference is never pulled into local scope and never appears in
+  // any JSX prop. Only the matching route calls the loader and JSX-
+  // instantiates the client component, producing exactly one client-
+  // reference registration per request.
+  if (componentId && typeof componentLoader === "function" && !render) {
+    let matchedChildren = null;
+    let matchedClientComponent = null;
+    if (params) {
+      matchedClientComponent = componentLoader();
+      const Comp = matchedClientComponent;
+      matchedChildren = <Comp />;
+    }
+    // Resolve the source-relative $$id (e.g. "/path/page.jsx#default") to
+    // the actual chunk URL the browser-side __webpack_require__ expects
+    // (e.g. "/assets/page-abc123.mjs"). In dev these coincide; in prod the
+    // raw $$id misses the manifest and the lazy import crashes the wrapper.
+    // We pass the resolved chunk id and the export name as separate props
+    // so the client lazy factory can do __webpack_require__(chunk)[name].
+    let resolvedChunkId;
+    let resolvedExportName;
+    if (!params) {
+      // Resolve via clientReferenceMap. Prefer the dist re-export (which
+      // routes through the build output via importDist) for prod, but fall
+      // back to the source module in dev where `.react-server/` doesn't
+      // exist yet. Both modules share the same global clientCache, so the
+      // resolution is consistent regardless of which path loads.
+      let clientReferenceMap;
+      try {
+        ({ clientReferenceMap } =
+          await import("@lazarv/react-server/dist/server/client-reference-map"));
+      } catch {
+        ({ clientReferenceMap } =
+          await import("@lazarv/react-server/server/client-reference-map.mjs"));
+      }
+      const def = clientReferenceMap()[componentId];
+      resolvedChunkId = def?.id;
+      resolvedExportName = def?.name ?? "default";
+    }
+    return (
+      <ClientRouteRegistration
+        path={path}
+        exact={exact ?? false}
+        fallback={fallback ?? false}
+        component={params ? matchedClientComponent : undefined}
+        componentChunk={params ? undefined : resolvedChunkId}
+        componentExport={params ? undefined : resolvedExportName}
+        pathname={pathname}
+        loadingComponent={loadingComponent}
+        loadingElement={loadingElement}
+        resources={resolvedClientResources}
+        hydrationData={hydrationData}
+      >
+        {matchedChildren}
+      </ClientRouteRegistration>
+    );
+  }
+
   if (clientComponent && !render) {
-    // Client component route: always render the registration component.
-    // It self-manages visibility based on URL matching on the client.
+    // Legacy path: element={<X/>} or children-as-client-component. The client
+    // reference has already been registered by the parent's createElement
+    // call, so this path does not get the deferred-load benefit and must NOT
+    // engage ClientRouteRegistration's lazy mode. Always pass the live
+    // `component` (matching and non-matching alike) so the existing
+    // active/visibility/fallback logic — including hand-written fallback
+    // routes (typed-router) that depend on createElement(component) being
+    // a real function, not undefined — keeps working as before.
     return (
       <ClientRouteRegistration
         path={path}

@@ -35,6 +35,15 @@ const pendingContainerRestores = new Map();
 // saveScrollWithKey uses the target instead of the live DOM value for these.
 const restoringContainers = new Map();
 
+// Module-level "scroll observed" flag — set by the window scroll listener
+// in the ScrollRestoration save effect AND by every container scroll listener
+// registered via registerScrollContainer. The save effect resets it at setup
+// and consults it at cleanup time: if no scroll event was observed for this
+// route, the existing storage entry (if any) is correct and must not be
+// overwritten with a stale init value carried over from a previous route on
+// popstate. See the long comment on the save effect for the full rationale.
+let scrollObserved = false;
+
 /**
  * Start a container scroll and track it until the animation finishes.
  * Uses the `scrollend` event with a timeout fallback.
@@ -82,6 +91,9 @@ export function registerScrollContainer(id, element) {
       x: element.scrollLeft,
       y: element.scrollTop,
     });
+    // Mark that we've observed a real scroll event for the current route —
+    // unblocks the save effect cleanup so container-only scrolls are persisted.
+    scrollObserved = true;
   }
   element.addEventListener("scroll", onScroll, { passive: true });
   containerScrollListeners.set(id, { element, onScroll });
@@ -396,8 +408,21 @@ export function ScrollRestoration({ behavior } = {}) {
     // Track the last known scroll position so that the cleanup can save it
     // without reading window.scrollY — by cleanup time the DOM may have
     // already changed (Activity display:none) making the live value wrong.
-    let lastX = window.scrollX;
-    let lastY = window.scrollY;
+    //
+    // CRITICAL: do NOT initialise lastX/lastY from window.scrollY at setup.
+    // On popstate (back/forward) the browser carries the previous page's
+    // scroll position over because history.scrollRestoration === "manual",
+    // so window.scrollY at this moment reflects the *previous* route, not
+    // this one. If we then race a fast follow-up navigation that runs the
+    // cleanup before any real scroll event has fired, we would clobber this
+    // route's correctly-saved entry with the previous route's stale value.
+    // Instead, only save in cleanup when we actually observed a scroll
+    // event during the effect's lifetime (window OR container — both feed
+    // the module-level `scrollObserved` flag). If no scroll happened, the
+    // value already in storage is the correct one and must not be touched.
+    let lastX = 0;
+    let lastY = 0;
+    scrollObserved = false;
 
     function save() {
       if (isRestoring) return;
@@ -410,11 +435,10 @@ export function ScrollRestoration({ behavior } = {}) {
       // even if the debounced save hasn't fired yet.
       // We update unconditionally — even during restoration — so that
       // lastX/lastY reflect the actual final position after restoreScroll
-      // completes. This is safe because Activity display:none scroll events
-      // fire asynchronously (next animation frame), well after React's
-      // synchronous effect cleanup has already read the cached values.
+      // completes.
       lastX = window.scrollX;
       lastY = window.scrollY;
+      scrollObserved = true;
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(save);
     }
@@ -426,7 +450,11 @@ export function ScrollRestoration({ behavior } = {}) {
       cancelAnimationFrame(rafId);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("beforeunload", save);
-      if (!isRestoring) {
+      // Only persist if a real scroll event was observed for this route —
+      // see the comment above on why init-time window.scrollY is unsafe.
+      // Container scrolls also flip `scrollObserved` so container-only
+      // scrolls are persisted even when the window itself never moved.
+      if (!isRestoring && scrollObserved) {
         saveScrollWithKey(scrollKey, lastX, lastY);
       }
     };
@@ -502,8 +530,23 @@ export function ScrollRestoration({ behavior } = {}) {
     }
   }, [url, pathname, behavior]);
 
-  // Restore or reset scroll on URL change (client navigation)
+  // Restore or reset scroll on URL change (client navigation).
+  //
+  // CRITICAL: `useUrl()` is backed by `useSyncExternalStore`, whose
+  // getServerSnapshot returns "/" on SSR and during the initial client
+  // render. React then re-renders with the real `window.location` URL on
+  // commit, which would otherwise appear as a spurious "/" → "/real/url"
+  // navigation here and scroll the window to (0,0) — wiping the user's
+  // scroll position on any landing page that isn't the root. Skip this
+  // effect on the first commit and sync `prevUrl` to the real URL so the
+  // next genuine navigation sees the correct "from".
+  const mountedRef = useRef(false);
   useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      prevUrl.current = url;
+      return;
+    }
     if (url === prevUrl.current) return;
     const fromUrl = prevUrl.current;
     prevUrl.current = url;

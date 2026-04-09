@@ -344,7 +344,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     { paths: [cwd] }
   );
   const rootModulePath =
-    !root && (options.eval || (!process.stdin.isTTY && !process.env.CI))
+    !root && options.eval != null && options.eval !== false
       ? "virtual:react-server-eval.jsx"
       : root?.startsWith("virtual:")
         ? root

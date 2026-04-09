@@ -1,4 +1,3 @@
-import { fstatSync } from "node:fs";
 import { isIPv6 } from "node:net";
 
 import open from "open";
@@ -132,25 +131,11 @@ export default async function dev(root, options) {
             await import("../../server/action-crypto.mjs");
           await initSecretFromConfig(configRoot);
 
-          // Detect whether the user is piping code via stdin.
-          // Use fstat on fd 0 to distinguish a real pipe/file redirect
-          // from a non-TTY background process, Docker, or CI runner
-          // where stdin is /dev/null or closed.
-          // Only relevant when no explicit root module was provided —
-          // if the user passed `react-server ./app.jsx`, use that even
-          // when stdin happens to be piped (e.g. via npm-run-all/run-p).
-          let isStdinPiped = false;
-          if (!root) {
-            try {
-              const stat = fstatSync(0);
-              isStdinPiped = stat.isFIFO() || stat.isFile();
-            } catch {
-              // fd 0 not available — not piped
-            }
-          }
-
+          // Stdin is never auto-detected as the entrypoint — the user must
+          // explicitly opt in by passing `--eval` (with a string value, or
+          // bare to read the entrypoint from stdin).
           server = await createServer(
-            options.eval || isStdinPiped
+            options.eval != null && options.eval !== false
               ? "virtual:react-server-eval.jsx"
               : root,
             options

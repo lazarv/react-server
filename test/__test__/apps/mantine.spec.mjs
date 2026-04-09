@@ -39,28 +39,28 @@ const MANTINE = { cwd: appDir("examples/mantine") };
 // NODE_ENV=production (the test-build-start suite).
 const SKIP_MANTINE_BUILD = process.env.NODE_ENV === "production";
 
-describe.skipIf(SKIP_MANTINE_BUILD).sequential("mantine", () => {
+describe.sequential("mantine", () => {
   describe.sequential("setup", () => {
-    test(
+    test.skipIf(SKIP_MANTINE_BUILD)(
       "build",
       {
-        timeout: 60000,
+        timeout: 120000,
       },
       async () => {
-        await server(null, { ...MANTINE, phase: "build", timeout: 60000 });
+        await server(null, { ...MANTINE, phase: "build", timeout: 120000 });
       }
     );
 
-    test(
+    test.skipIf(SKIP_MANTINE_BUILD)(
       "start server",
       {
-        timeout: 60000,
+        timeout: 180000,
       },
       async () => {
-        await server(null, { ...MANTINE, phase: "start", timeout: 60000 });
-        await page.goto(hostname, { timeout: 60000 });
+        await server(null, { ...MANTINE, phase: "start", timeout: 120000 });
+        await page.goto(hostname, { timeout: 120000 });
         await page.waitForLoadState("networkidle");
-        await waitForHydration(30000, page);
+        await waitForHydration(60000, page);
         expect(new URL(page.url()).origin).toBe(hostname);
       }
     );

@@ -25,7 +25,10 @@ export default (cli) =>
       "[boolean|json] deploy using adapter, optionally pass JSON adapter options",
       { default: false }
     )
-    .option("-e, --eval <code>", "evaluate code", { type: "string" })
+    .option(
+      "-e, --eval [code]",
+      "evaluate code as the server entrypoint; pass without a value to read from stdin"
+    )
     .option("--outDir <dir>", "[string] output directory", {
       default: ".react-server",
     })

@@ -28,6 +28,15 @@ const saveLabel = args.includes("--save")
 const compareFile = args.includes("--compare")
   ? args[args.indexOf("--compare") + 1]
   : null;
+const filterArg = args.includes("--filter")
+  ? args[args.indexOf("--filter") + 1]
+  : null;
+const filters = filterArg
+  ? filterArg
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  : null;
 
 function parseCluster() {
   const idx = args.findIndex((a) => a.startsWith("--cluster"));
@@ -161,7 +170,48 @@ const BENCHMARKS = [
     desc: "Static file (JS bundle)",
   },
   { name: "404-miss", path: "/nonexistent", desc: "404 miss → SSR" },
-];
+  {
+    name: "hybrid-min",
+    path: "/hybrid",
+    desc: "Hybrid server+6 client siblings (min)",
+  },
+  { name: "hybrid-small", path: "/hybrid/small", desc: "Hybrid small" },
+  { name: "hybrid-medium", path: "/hybrid/medium", desc: "Hybrid medium" },
+  { name: "hybrid-large", path: "/hybrid/large", desc: "Hybrid large" },
+  { name: "hybrid-deep", path: "/hybrid/deep", desc: "Hybrid deep" },
+  { name: "hybrid-wide", path: "/hybrid/wide", desc: "Hybrid wide" },
+  { name: "hybrid-cached", path: "/hybrid/cached", desc: "Hybrid cached" },
+  {
+    name: "hybrid-client-min",
+    path: "/hybrid/client",
+    desc: "Hybrid client minimal",
+  },
+  {
+    name: "hybrid-client-small",
+    path: "/hybrid/client/small",
+    desc: "Hybrid client small",
+  },
+  {
+    name: "hybrid-client-medium",
+    path: "/hybrid/client/medium",
+    desc: "Hybrid client medium",
+  },
+  {
+    name: "hybrid-client-large",
+    path: "/hybrid/client/large",
+    desc: "Hybrid client large",
+  },
+  {
+    name: "hybrid-client-deep",
+    path: "/hybrid/client/deep",
+    desc: "Hybrid client deep",
+  },
+  {
+    name: "hybrid-client-wide",
+    path: "/hybrid/client/wide",
+    desc: "Hybrid client wide",
+  },
+].filter((b) => !filters || filters.some((f) => b.name.includes(f)));
 
 // ── Find an actual JS bundle path ───────────────────────────────────────────
 

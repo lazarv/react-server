@@ -1,0 +1,862 @@
+---
+title: Typed router
+category: Router
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Typed router
+
+`@lazarv/react-server` includes a fully typed routing solution. Every route, link, parameter, and search param can be type-checked at compile time — with IDE autocompletion for route paths, params, and search values. No code generation step to run manually, no external tooling required.
+
+Route descriptors work everywhere — server components, client components, and shared modules. The same `createRoute` call gives you typed `Link` components, typed hooks (`useParams`, `useSearchParams`), typed programmatic navigation, and optional runtime validation with any schema library — Zod, ArkType, Valibot, or anything else that satisfies the `ValidateSchema` interface — or lightweight parse functions.
+
+For file-system based routing, see the [file-system based router](/router/file-router) which builds on these primitives automatically. For typed, schema-validated data fetching that integrates with routes, see [Resources](/router/resources). For the lower-level `Route` component API, see [Route component](#route-component) below.
+
+<Link name="create-route">
+## Defining routes with createRoute
+</Link>
+
+Use `createRoute` to define route descriptors with full type safety. Route descriptors carry the route's path, validation rules, and typed helpers — and can be imported from both server and client components.
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+
+// Static route — no params
+export const home = createRoute("/", { exact: true });
+
+// Dynamic route — params extracted from pattern
+export const user = createRoute("/user/[id]", { exact: true });
+
+// Catch-all route — params are string[]
+export const docs = createRoute("/docs/[...slug]");
+
+// Fallback route — matches when nothing else does
+export const notFound = createRoute("*");
+
+// Scoped fallback — matches anything under /user/ that no other route handles
+export const userNotFound = createRoute("/user/*");
+```
+
+The path pattern determines the param types automatically:
+
+| Pattern | Extracted type |
+|---------|---------------|
+| `/user/[id]` | `{ id: string }` |
+| `/blog/[slug]/[commentId]` | `{ slug: string; commentId: string }` |
+| `/files/[...path]` | `{ path: string[] }` |
+| `*` | `{}` |
+
+Scoped fallbacks only match URLs under their prefix when no other route handles them. This is useful for showing context-specific 404 pages — for example, a user-not-found page can display a "search for users" UI, while the global `*` fallback shows a generic message.
+
+<Link name="create-router">
+## Composing routes with createRouter
+</Link>
+
+On the server side, bind route descriptors to React elements and collect them into a router. The router provides a `<Routes />` component that renders the matched route. Separating the router definition from the layout keeps each file focused on a single concern.
+
+```tsx filename="router.tsx"
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import * as routes from "./routes";
+
+import Home from "./Home";
+import UserPage from "./UserPage";
+import NotFound from "./NotFound";
+
+const router = createRouter({
+  home: createRoute(routes.home, <Home />),
+  user: createRoute(routes.user, <UserPage />),
+  notFound: createRoute(routes.notFound, <NotFound />),
+});
+
+export default router;
+```
+
+```tsx filename="App.tsx"
+import router from "./router";
+
+export default function App() {
+  return (
+    <div>
+      <nav>
+        <router.home.Link>Home</router.home.Link>
+        <router.user.Link params={{ id: 42 }}>User 42</router.user.Link>
+      </nav>
+
+      <router.Routes />
+    </div>
+  );
+}
+```
+
+The `createRoute(descriptor, element)` overload takes an existing route descriptor and binds a React element to it, producing a full `TypedRoute` with a `.Route` component. The `createRouter` function collects these into a router object where each route is accessible by name.
+
+<Link name="client-only-routes">
+## Client-only routes
+</Link>
+
+Route descriptors don't require a server component. You can create routes that exist entirely on the client — useful for tabs, modal states, filters, or any UI that changes based on the URL without needing a server round-trip.
+
+When you call `createRoute` with just a path and options (no element), you get a route descriptor with `.Link`, `.href()`, `.useParams()`, and `.useSearchParams()`. Use these descriptors in `"use client"` components and the routing happens entirely on the client.
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+export const settings = createRoute("/settings/[tab]", {
+  exact: true,
+  validate: {
+    params: z.object({
+      tab: z.enum(["profile", "security", "billing"]),
+    }),
+  },
+});
+```
+
+```tsx filename="SettingsPage.tsx"
+"use client";
+
+import { settings } from "./routes";
+
+export default function SettingsPage() {
+  const params = settings.useParams();
+  const tab = params?.tab ?? "profile";
+
+  return (
+    <div>
+      <nav>
+        <settings.Link params={{ tab: "profile" }}>Profile</settings.Link>
+        <settings.Link params={{ tab: "security" }}>Security</settings.Link>
+        <settings.Link params={{ tab: "billing" }}>Billing</settings.Link>
+      </nav>
+
+      {tab === "profile" && <ProfileForm />}
+      {tab === "security" && <SecuritySettings />}
+      {tab === "billing" && <BillingInfo />}
+    </div>
+  );
+}
+```
+
+<Link name="client-only-file-router">
+### File-system router
+</Link>
+
+In the file-system based router, any page with `"use client"` at the top is automatically a client-only route. Just create a page file with the directive and a default export:
+
+```tsx filename="pages/counter.tsx"
+"use client";
+
+import { useState } from "react";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>Count: {count}</button>;
+}
+```
+
+```tsx filename="pages/clock.tsx"
+"use client";
+
+import { useState, useEffect } from "react";
+
+export default function Clock() {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <p>Current time: {time.toLocaleTimeString()}</p>;
+}
+```
+
+These pages are registered in the client route store automatically. Navigating between them happens entirely on the client — no server round-trip, and component state is preserved using React's `Activity` component for instant show/hide transitions.
+
+When a route is registered as a client component — whether through the file-system router, the `<Route>` component, or `createRouter` — the runtime tracks it in a client-side route store. If all routes at the target URL are client-only, navigation happens **entirely on the client** — no server request needed. This makes client-only routes ideal for fast, interactive UI patterns like tabs, counters, clocks, or any stateful UI that should survive navigation.
+
+You can mix client-only and server routes freely. Define shared route descriptors in a plain `.ts` file and import them in both environments:
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+
+// Works in both server and client — descriptor only (no element)
+export const home = createRoute("/");
+export const user = createRoute("/user/[id]");
+```
+
+When imported from a server component, `useParams()` reads from the HTTP request context. When imported from a client component, it reads from the browser location. The runtime resolves the correct implementation via a Vite alias — you write the same code everywhere.
+
+<Link name="typed-link">
+## Typed Link components
+</Link>
+
+Every route descriptor has a `.Link` component that enforces the correct params and search types at compile time. Routes without dynamic segments don't accept `params`. Routes with dynamic segments require them.
+
+```tsx
+// No params — TypeScript errors if you pass params
+<home.Link>Home</home.Link>
+
+// Required params — TypeScript errors if you omit params
+<user.Link params={{ id: 42 }}>User 42</user.Link>
+
+// With search params
+<post.Link params={{ slug: "hello" }} search={{ tab: "comments" }}>
+  Post
+</post.Link>
+
+// All standard Link props (prefetch, rollback, etc.) are supported
+<user.Link params={{ id: 1 }} prefetch>User 1</user.Link>
+```
+
+Fallback routes (`*`) don't have a `.Link` component since they have no addressable path.
+
+<Link name="typed-hooks">
+## Typed hooks
+</Link>
+
+Route descriptors provide hooks that return typed, validated params and search params. These hooks work in both server components (RSC) and client components.
+
+```tsx filename="UserPage.tsx"
+import { user } from "./routes";
+
+export default function UserPage() {
+  // Returns typed params or null if the route doesn't match
+  const params = user.useParams();
+  // params: { id: string } | null
+
+  if (!params) return <p>No match</p>;
+
+  return <h2>User {params.id}</h2>;
+}
+```
+
+```tsx filename="ProductList.tsx"
+"use client";
+
+import { products } from "./routes";
+
+export default function ProductList() {
+  // Returns validated search params with defaults
+  const { sort, page } = products.useSearchParams();
+  // sort: "name" | "price" | "rating", page: number
+
+  return <div>Sorted by {sort}, page {page}</div>;
+}
+```
+
+On the server, `useParams()` reads params from the HTTP request context. On the client, it reads from the browser location. The same route descriptor works in both environments — the runtime resolves the correct implementation via a Vite alias.
+
+<Link name="href">
+## Building URLs with href
+</Link>
+
+Each route descriptor has an `href()` method that builds a URL pathname from typed params:
+
+```ts
+user.href({ id: 42 });        // → "/user/42"
+post.href({ slug: "hello" }); // → "/post/hello"
+home.href();                   // → "/"
+```
+
+This is useful for generating URLs outside of JSX — in server functions, API handlers, redirects, or metadata.
+
+<Link name="programmatic-navigation">
+## Typed programmatic navigation
+</Link>
+
+The `useNavigate` hook from `@lazarv/react-server/navigation` accepts route descriptors for type-safe programmatic navigation:
+
+```tsx
+"use client";
+
+import { useNavigate } from "@lazarv/react-server/navigation";
+import { user, products } from "./routes";
+
+export default function SearchButton() {
+  const navigate = useNavigate();
+
+  return (
+    <button onClick={() => navigate(user, { params: { id: 42 } })}>
+      Go to User 42
+    </button>
+  );
+}
+```
+
+When navigating to a typed route, search params are **merged** with the current URL search params — you only specify the params you want to change.
+
+<Link name="validation">
+## Schema validation
+</Link>
+
+Route params and search params can be validated at runtime using any schema library that satisfies the `ValidateSchema` interface. The runtime supports three validation strategies, tried in order:
+
+1. **`.safeParse(data)`** — Zod, Valibot, and compatible libraries
+2. **`.assert(data)`** — ArkType (throws on failure, returns `T` on success)
+3. **`.parse(data)`** — generic fallback (throws on failure)
+
+```ts
+// Any ONE of these shapes satisfies ValidateSchema<T>:
+
+// Zod / Valibot style
+interface SafeParseSchema<T> {
+  parse(data: unknown): T;
+  safeParse(data: unknown): { success: true; data: T } | { success: false; error: unknown };
+}
+
+// ArkType style
+interface AssertSchema<T> {
+  assert(data: unknown): T;
+}
+
+// Generic parse style
+interface ParseSchema<T> {
+  parse(data: unknown): T;
+}
+```
+
+TypeScript infers the param and search types from the schema's output type. For example, when you pass `z.object({ id: z.coerce.number() })`, TypeScript sees that `.parse()` returns `{ id: number }` and flows that type through to `useParams()`, `.Link`, and `.href()`. This is structural typing — there is no dependency on any specific library.
+
+**With Zod:**
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+export const user = createRoute("/user/[id]", {
+  exact: true,
+  validate: {
+    params: z.object({
+      id: z.coerce.number().int().positive(),
+    }),
+  },
+});
+
+export const products = createRoute("/products", {
+  exact: true,
+  validate: {
+    search: z.object({
+      sort: z.enum(["name", "price", "rating"]).catch("name"),
+      page: z.coerce.number().int().positive().catch(1),
+    }),
+  },
+});
+```
+
+**With ArkType:**
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+import { type } from "arktype";
+
+export const user = createRoute("/user/[id]", {
+  exact: true,
+  validate: {
+    params: type({ id: "string.numeric.parse" }),
+  },
+});
+
+export const products = createRoute("/products", {
+  exact: true,
+  validate: {
+    search: type({
+      "sort?": "'name' | 'price' | 'rating'",
+      "page?": "string.numeric.parse",
+    }),
+  },
+});
+```
+
+With this configuration:
+- `/user/42` → `user.useParams()` returns `{ id: 42 }` (coerced to number)
+- `/user/abc` → `user.useParams()` returns `null` (validation failed)
+- `/products?sort=price&page=2` → `products.useSearchParams()` returns `{ sort: "price", page: 2 }`
+- `/products?sort=invalid` → `products.useSearchParams()` returns `{}` (validation failed, returns fallback)
+
+Validated types flow through to the hooks and `.Link` component — your IDE shows the validated types, not raw strings.
+
+<Link name="parse">
+## Lightweight parse functions
+</Link>
+
+When you don't need a full schema library, use `parse` for lightweight type coercion and validation. Each key maps to a function that converts the raw string to the desired type.
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+
+export const post = createRoute("/post/[slug]", {
+  exact: true,
+  parse: {
+    params: { slug: String },
+    search: {
+      tab: (v) =>
+        ["content", "comments", "related"].includes(v) ? v : "content",
+      q: String,
+    },
+  },
+});
+```
+
+Built-in constructors like `Number`, `Boolean`, `String`, and `Date` work directly as parse functions. Custom functions can enforce constraints — in the example above, `tab` validates against an allowlist and falls back to `"content"` for unknown values.
+
+Parse functions are a good fit when:
+- You want simple type coercion without adding a dependency
+- You need a lightweight fallback for invalid values
+- Your validation logic is straightforward
+
+Use `validate` with a schema library when you need complex schemas, nested objects, or detailed error messages.
+
+<Link name="functional-search-updaters">
+## Functional search param updaters
+</Link>
+
+Both typed `Link` components and `useNavigate` support functional updaters for search params. Instead of passing a static object, pass a function that receives the current search params and returns the new values:
+
+```tsx
+// Link with functional updater
+<products.Link search={(prev) => ({ ...prev, page: prev.page + 1 })}>
+  Next Page
+</products.Link>
+
+// useNavigate with functional updater
+navigate(products, {
+  search: (prev) => ({ ...prev, sort: "price", page: 1 }),
+});
+```
+
+Functional updaters read the current params at click time, avoiding stale-closure bugs when multiple updates happen in quick succession. They also make it easy to do delta updates — change one param while preserving the rest — without needing to know the full current state upfront.
+
+<Link name="search-params-transform">
+## SearchParams transform boundary
+</Link>
+
+The `SearchParams` component provides a bidirectional transform layer between the URL and your application. Use it to decode compact URL formats into structured params, or to strip tracking params before your components see them.
+
+Each route descriptor has a route-scoped `SearchParams` component that only activates when that route matches:
+
+```tsx filename="StripTrackingParams.tsx"
+"use client";
+
+import { products } from "./routes";
+
+// Stores ?price=min-max in the URL but exposes ?min_price & ?max_price to the app
+function decode(sp) {
+  const range = sp.get("price");
+  if (!range) return sp;
+  const [min, max] = range.split("-");
+  const result = new URLSearchParams(sp);
+  result.delete("price");
+  result.set("min_price", min);
+  result.set("max_price", max);
+  return result;
+}
+
+function encode(sp) {
+  const min = sp.get("min_price");
+  const max = sp.get("max_price");
+  if (min == null && max == null) return sp;
+  const result = new URLSearchParams(sp);
+  result.delete("min_price");
+  result.delete("max_price");
+  result.set("price", `${min ?? 0}-${max ?? 10000}`);
+  return result;
+}
+
+export default function ProductPriceRange({ children }) {
+  return (
+    <products.SearchParams decode={decode} encode={encode}>
+      {children}
+    </products.SearchParams>
+  );
+}
+```
+
+- **decode** — intercepts reading: transforms raw URL params before hooks and validation see them
+- **encode** — intercepts writing: transforms merged params before they go into the URL
+
+Nesting is supported — decode chains outer→inner, encode chains inner→outer. The router also exposes a global `SearchParams` component via `createRouter` for transforms that apply to all routes.
+
+<Link name="example">
+## Complete example
+</Link>
+
+Here's a complete typed router setup with schema validation, lightweight parse, and a `createRouter`:
+
+```ts filename="routes.ts"
+import { createRoute } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+export const home = createRoute("/", { exact: true });
+export const about = createRoute("/about", { exact: true });
+
+export const user = createRoute("/user/[id]", {
+  exact: true,
+  validate: {
+    params: z.object({ id: z.coerce.number().int().positive() }),
+  },
+});
+
+export const post = createRoute("/post/[slug]", {
+  exact: true,
+  parse: {
+    params: { slug: String },
+    search: {
+      tab: (v) =>
+        ["content", "comments", "related"].includes(v) ? v : "content",
+      q: String,
+    },
+  },
+});
+
+export const notFound = createRoute("*");
+```
+
+```tsx filename="router.tsx"
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import * as routes from "./routes";
+
+import Home from "./Home";
+import About from "./About";
+import UserPage from "./UserPage";
+import PostPage from "./PostPage";
+import NotFound from "./NotFound";
+
+const router = createRouter({
+  home: createRoute(routes.home, <Home />),
+  about: createRoute(routes.about, <About />),
+  user: createRoute(routes.user, <UserPage />),
+  post: createRoute(routes.post, <PostPage />),
+  notFound: createRoute(routes.notFound, <NotFound />),
+});
+
+export default router;
+```
+
+```tsx filename="App.tsx"
+import router from "./router";
+
+export default function App() {
+  return (
+    <div>
+      <nav>
+        <router.home.Link>Home</router.home.Link>
+        <router.about.Link>About</router.about.Link>
+        <router.user.Link params={{ id: 42 }}>User 42</router.user.Link>
+        <router.post.Link
+          params={{ slug: "hello-world" }}
+          search={{ tab: "comments" }}
+        >
+          Hello World
+        </router.post.Link>
+      </nav>
+
+      <router.Routes />
+    </div>
+  );
+}
+```
+
+> **Note:** check out the full [typed-router](https://github.com/lazarv/react-server/tree/main/examples/typed-router) and [typed-file-router](https://github.com/lazarv/react-server/tree/main/examples/typed-file-router) examples in the repository for complete working applications.
+
+<Link name="api-reference">
+## API reference
+</Link>
+
+All typed router exports are available from `@lazarv/react-server/router`.
+
+<Link name="api-create-route">
+### createRoute
+</Link>
+
+Creates a route descriptor or a full typed route. The return type depends on the arguments:
+
+**Route descriptor** (no element) — returns `RouteDescriptor`. Has `.Link`, `.href()`, `.useParams()`, `.useSearchParams()`, and `.SearchParams`, but no `.Route`. Safe to import in both server and client components.
+
+```ts
+createRoute(path, options?)             // → RouteDescriptor
+createRoute("*", options?)              // → RouteDescriptor (fallback)
+createRoute("/prefix/*", options?)      // → RouteDescriptor (scoped fallback)
+```
+
+**Typed route** (with element) — returns `TypedRoute` which extends `RouteDescriptor` and adds a `.Route` component. Use this in your server entrypoint to bind a React element to a route.
+
+```ts
+createRoute(path, element, options?)    // → TypedRoute
+createRoute("*", element, options?)     // → TypedRoute (fallback)
+createRoute("/prefix/*", element, options?) // → TypedRoute (scoped fallback)
+createRoute(element, options?)          // → TypedRoute (global fallback)
+```
+
+**From descriptor** — takes an existing `RouteDescriptor` and binds an element to it, producing a `TypedRoute`. This is the recommended pattern: define descriptors in a shared file, then bind elements in the server entrypoint.
+
+```ts
+createRoute(descriptor, element)        // → TypedRoute
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `exact` | `boolean` | Match the full path instead of prefix matching. Default: `false` |
+| `validate` | `{ params?, search? }` | Schema objects for runtime validation. Any library satisfying the `ValidateSchema<T>` interface works (Zod, ArkType, Valibot, etc.) — TypeScript infers param/search types from the schema's output type |
+| `parse` | `{ params?, search? }` | Lightweight parser functions map. Each key maps a raw string to the desired type |
+| `loading` | `ReactNode \| ComponentType` | Suspense fallback shown while the route loads |
+| `matchers` | `Record<string, (value: string) => boolean>` | Custom matchers for `[param=matcher]` syntax |
+| `render` | `(params) => ReactNode` | Layout function receiving params and `children` |
+| `children` | `ReactNode` | Nested content rendered inside the route |
+
+> `validate` and `parse` are mutually exclusive strategies. Use `validate` for schema-based validation with any compatible library, and `parse` for lightweight function-based coercion.
+
+<Link name="api-route-descriptor">
+### RouteDescriptor
+</Link>
+
+The object returned by `createRoute(path, options?)` — a route without a bound element. This is the shape you work with in client components and shared route definition files.
+
+| Property / Method | Type | Description |
+|-------------------|------|-------------|
+| `path` | `string \| undefined` | The route path pattern |
+| `exact` | `boolean` | Whether the route requires an exact match |
+| `fallback` | `boolean` | Whether this is a fallback route |
+| `validate` | `RouteValidate \| null` | The validation schemas, if provided |
+| `parse` | `RouteParse \| null` | The parse functions, if provided |
+| `Link` | `React.FC<...>` | Typed Link component. Requires `params` when the path has dynamic segments. Accepts `search` as an object or functional updater. Not available on fallback routes |
+| `href(params?)` | `(params?) => string` | Builds a URL pathname from typed params. Not available on fallback routes |
+| `useParams()` | `() => TParams \| null` | Hook returning typed params, or `null` if the route doesn't match or validation fails. Works in both server and client components |
+| `useSearchParams()` | `() => TSearch` | Hook returning typed search params. Applies validation or parse if configured |
+| `SearchParams` | `React.FC<SearchParamsProps>` | Route-scoped search param transform boundary. Only active when this route matches |
+
+<Link name="api-typed-route">
+### TypedRoute
+</Link>
+
+Extends `RouteDescriptor` with a `.Route` component. Returned by `createRoute` when an element is provided.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| *...all RouteDescriptor properties* | | |
+| `Route` | `React.FC<...>` | Route component that renders the bound element. Accepts optional overrides: `element`, `loading`, `render`, `children`, `exact`, `fallback` |
+
+<Link name="api-create-router">
+### createRouter
+</Link>
+
+Collects typed routes into a router object. Returns a `TypedRouter` that spreads all routes by name and adds `Routes` and `SearchParams` components.
+
+```ts
+const router = createRouter({
+  home: createRoute(routes.home, <Home />),
+  user: createRoute(routes.user, <UserPage />),
+  notFound: createRoute(routes.notFound, <NotFound />),
+});
+```
+
+**TypedRouter properties:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Routes` | `React.FC` | Renders all routes in declaration order. Place this where you want route content to appear |
+| `SearchParams` | `React.FC<SearchParamsProps>` | Global search param transform boundary — applies to all routes |
+| `[routeName]` | `TypedRoute` | Each route is accessible by the key you passed to `createRouter`. Use `router.user.Link`, `router.user.useParams()`, etc. |
+
+<Link name="api-search-params">
+### SearchParams
+</Link>
+
+Bidirectional search param transform boundary. Available as a standalone component, on each route descriptor, and on the router object.
+
+```tsx
+import { SearchParams } from "@lazarv/react-server/router";
+
+// Standalone — applies to all routes within
+<SearchParams decode={decode} encode={encode}>
+  {children}
+</SearchParams>
+
+// Route-scoped — only applies when this route matches
+<products.SearchParams decode={decode} encode={encode}>
+  {children}
+</products.SearchParams>
+
+// Router-level — applies to all routes in the router
+<router.SearchParams decode={decode} encode={encode}>
+  {children}
+</router.SearchParams>
+```
+
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `decode` | `(sp: URLSearchParams) => URLSearchParams` | Transforms URL params before hooks and validation read them |
+| `encode` | `(sp: URLSearchParams, current: URLSearchParams) => URLSearchParams` | Transforms merged params before they are written to the URL |
+| `children` | `ReactNode` | |
+
+<Link name="route-component">
+## Route component
+</Link>
+
+The low-level `Route` component provides basic path matching with JSX. It's useful for simple use cases or when you want direct control over route rendering without typed descriptors.
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+export default function App() {
+  return (
+    <Route path="/about">
+      <About />
+    </Route>
+    <Route path="/readme" element={<Readme />} />
+  );
+}
+```
+
+When you define a route, it will match any path that starts with the defined path. Use the `exact` prop to match only the exact path:
+
+```tsx
+<Route path="/about" exact>
+  <About />
+</Route>
+```
+
+You can nest routes, define layouts with the `render` prop, and use route parameters:
+
+```tsx
+import { Route } from '@lazarv/react-server/router';
+
+function Layout({ children }) {
+  return (
+    <div>
+      <h1>Layout</h1>
+      {children}
+    </div>
+  );
+}
+
+function User({ id }) {
+  return <h2>User {id}</h2>;
+}
+
+export default function App() {
+  return (
+    <Route path="/" render={Layout}>
+      <Route path="/" exact element={<Home />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/users/[id]" render={User} />
+      <Route path="/files/[...path]" render={File} />
+      <Route fallback element={<NotFound />} />
+    </Route>
+  );
+}
+```
+
+Route parameters use the same bracket syntax as `createRoute`: `[id]` for single params, `[...path]` for catch-all params. You can also define custom matchers:
+
+```tsx
+const matchers = {
+  number: (value) => /^\d+$/.test(value),
+};
+
+<Route path="/files/[id=number]" render={File} matchers={matchers} />
+```
+
+Fallback routes match when no other route matches. Use `path="*"` or the `fallback` prop:
+
+```tsx
+<Route path="/about" element={<About />} />
+<Route fallback element={<NotFound />} />
+```
+
+> For more complex applications, use `createRoute` and `createRouter` instead — they provide type safety, validation, and a better developer experience. The `Route` component is best suited for quick prototypes or simple apps.
+
+<Link name="redirects">
+## Redirects
+</Link>
+
+You can redirect to any other location by using the `redirect` function in a component. More precisely, you can use `redirect` anywhere during server-side rendering, but it will throw a `RedirectError`. The runtime will catch this error and send a redirect response to the client.
+
+```tsx
+import { redirect } from "@lazarv/react-server";
+
+export default function App() {
+  return redirect("/user");
+}
+```
+
+You can also specify a `kind` parameter to control how the redirect behaves on the client:
+
+```tsx
+import { redirect } from "@lazarv/react-server";
+
+export default function ProtectedPage() {
+  // Redirect with pushState so the user can navigate back
+  redirect("/login", 302, "push");
+}
+```
+
+Available redirect kinds: `"navigate"` (default, replaceState), `"push"` (pushState), `"location"` (full browser navigation), and `"error"` (throw on client for custom handling). See the [HTTP redirect documentation](/features/http#redirect) for details.
+
+<Link name="rewrites">
+## Rewrites
+</Link>
+
+You can use the `rewrite` function to change the pathname in the URL of the current request. This is useful when you want to change the URL of the current request without redirecting the client. Best used in a middleware.
+
+```tsx
+import { rewrite } from "@lazarv/react-server";
+
+export default function App() {
+  return rewrite("/user");
+}
+```
+
+<Link name="reload">
+## Reload
+</Link>
+
+In server functions, you can use the `reload` function to reload the current page or an outlet. This is useful when you want to reload the page or an outlet after a mutation to refresh the elements in your app.
+
+```tsx
+"use server";
+
+import { reload } from "@lazarv/react-server";
+
+export async function addTodo(todo) {
+  await addTodo(todo);
+  reload();
+}
+```
+
+You can also pass an URL and an outlet name to the `reload` function to render a different route and outlet. You can use this approach to optimize the performance of your app by avoiding unnecessary re-renders of the entire app even when using server functions to mutate data.
+
+```tsx
+"use server";
+
+import { reload } from "@lazarv/react-server";
+
+export async function addTodo(todo) {
+  await addTodo(todo);
+  reload("/todos", "todo-list");
+}
+```
+
+<Link name="middlewares">
+## Middlewares
+</Link>
+
+Middlewares are functions that are executed before the route handler. They can be used for many things, like authentication, logging, parsing, etc.
+
+Export an async function named `init$` from your entry module. This function can initialize your request handler that will be the middleware runner. The `init$` function needs to return with an async function. This function will be the middleware runner.
+
+```jsx
+// index.jsx
+
+export async function init$() {
+  return async (context) {
+    // do something
+  };
+}
+```
+
+You can use all functions available from the `@lazarv/react-server` module in your middleware. You can redirect or rewrite the request, manage cookies or add headers to the response. Everything is available and possible that would be available in a React server component.

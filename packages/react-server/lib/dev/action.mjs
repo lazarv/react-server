@@ -3,6 +3,12 @@ import { isIPv6 } from "node:net";
 import open from "open";
 import colors from "picocolors";
 
+import { installOutputCapture } from "./devtools-output.mjs";
+
+// Install stdout/stderr capture at module load time so that even the
+// earliest output (logo, banner, config validation) is captured.
+installOutputCapture();
+
 import logo from "../../bin/logo.mjs";
 import { loadConfig } from "../../config/index.mjs";
 import {
@@ -112,6 +118,11 @@ export default async function dev(root, options) {
             }
           }
 
+          // Merge CLI --devtools flag into config (CLI wins over config file)
+          if (options.devtools) {
+            configRoot.devtools = true;
+          }
+
           runtime$(CONFIG_CONTEXT, config);
 
           // Resolve the action encryption secret once at startup
@@ -120,13 +131,11 @@ export default async function dev(root, options) {
             await import("../../server/action-crypto.mjs");
           await initSecretFromConfig(configRoot);
 
-          const isNonInteractiveEnvironment =
-            !process.stdin.isTTY ||
-            process.env.CI === "true" ||
-            process.env.DOCKER_CONTAINER === "true";
-
+          // Stdin is never auto-detected as the entrypoint — the user must
+          // explicitly opt in by passing `--eval` (with a string value, or
+          // bare to read the entrypoint from stdin).
           server = await createServer(
-            options.eval || isNonInteractiveEnvironment
+            options.eval != null && options.eval !== false
               ? "virtual:react-server-eval.jsx"
               : root,
             options

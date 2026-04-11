@@ -7,7 +7,22 @@ import {
 import {
   ClientContext as _ClientContext,
   PAGE_ROOT as _PAGE_ROOT_,
+  FlightNavigationAbortError,
 } from "./context.mjs";
+
+import {
+  canNavigateClientOnly,
+  hasLoadingForPath,
+  loadRouteResources,
+  getAllRoutes,
+} from "./client-route-store.mjs";
+import { runNavigationGuards } from "./client-navigation.mjs";
+import {
+  pushStateSilent,
+  replaceStateSilent,
+  setPendingNavigation,
+  clearPendingNavigation,
+} from "./client-location.mjs";
 
 if (typeof ReadableByteStreamController === "undefined") {
   await import("web-streams-polyfill/polyfill");
@@ -20,12 +35,31 @@ const activeChunk = new Map();
 const cache = new Map();
 const listeners = new Map();
 const outlets = new Map();
+const outletMeta = new Map();
 const outletAbortControllers = new Map();
 const prefetching = new Map();
 const flightCache = new Map();
 const liveOutlets = new Set();
 const liveIO = new Map();
 const outletTemporaryReferences = new Map();
+
+if (import.meta.env.DEV) {
+  window.__react_server_devtools_outlets__ = () =>
+    Array.from(outlets.entries()).map(([name, url]) => {
+      const meta = outletMeta.get(name) || {};
+      return {
+        name,
+        url: typeof url === "string" ? url : (url?.toString?.() ?? ""),
+        remote: meta.remote || false,
+        live: meta.live || false,
+        defer: meta.defer || false,
+        isolate: meta.isolate || false,
+        ttl: meta.ttl ?? null,
+      };
+    });
+  window.__react_server_devtools_routes__ = getAllRoutes;
+  window.__react_server_devtools_refresh__ = (...args) => refresh(...args);
+}
 
 const connectLiveIO = async (origin) => {
   if (!liveIO.has(origin)) {
@@ -60,9 +94,18 @@ const registerOutlet = (
   remote,
   remoteProps,
   defer,
-  live = false
+  live = false,
+  isolate = false,
+  ttl
 ) => {
   outlets.set(outlet, url);
+  outletMeta.set(outlet, {
+    remote: !!remote,
+    defer: !!defer,
+    live: !!live,
+    isolate: !!isolate,
+    ttl: ttl ?? null,
+  });
   if (live) {
     liveOutlets.add(outlet);
     connectLiveIO(typeof live === "string" ? live : url.origin).then(
@@ -138,6 +181,7 @@ const registerOutlet = (
   }
   return () => {
     outlets.delete(outlet);
+    outletMeta.delete(outlet);
     liveOutlets.delete(outlet);
     outletTemporaryReferences.delete(outlet);
   };
@@ -248,10 +292,68 @@ const refresh = async (outlet = PAGE_ROOT, options = {}) => {
 };
 
 let prevLocation = new URL(location);
-const navigateOutlet = (
+const navigateOutlet = async (
   to,
   { outlet = PAGE_ROOT, push, rollback = 0, revalidate, noCache, ...options }
 ) => {
+  // Check if navigation can be handled entirely on the client
+  const targetUrl = new URL(to, location.origin);
+  const fromPathname = decodeURIComponent(location.pathname);
+  const toPathname = decodeURIComponent(targetUrl.pathname);
+  // Run navigation guards before proceeding (awaited BEFORE we enter the
+  // synchronous Promise executor so that emit() fires inside the same
+  // startTransition scope the caller set up — React keeps the old page
+  // visible while the new one streams in).
+  if (outlet === PAGE_ROOT) {
+    const guardResult = await runNavigationGuards(fromPathname, toPathname);
+    if (!guardResult.allowed) {
+      if (guardResult.redirect) {
+        return navigate(guardResult.redirect, { replace: true });
+      }
+      // Guard blocked navigation
+      return;
+    }
+  }
+
+  if (outlet === PAGE_ROOT && canNavigateClientOnly(fromPathname, toPathname)) {
+    // Client-only route: just update the URL, ClientRouteRegistration
+    // components will re-match and update themselves.
+    // Abort any in-flight server request (e.g. user clicked a server route
+    // with a loading skeleton, then navigated to a client route before the
+    // server responded) and clear the pending navigation state so the
+    // loading skeleton is removed.
+    abort(PAGE_ROOT, new FlightNavigationAbortError());
+    clearPendingNavigation();
+
+    // Start loading route-bound resources before the URL update so data
+    // is already in flight (or cached) when the component renders and
+    // calls .use().  Fire-and-forget — the component's React.use() will
+    // suspend on the same thenable if the data isn't ready yet.
+    loadRouteResources(toPathname, targetUrl.search);
+
+    outlets.set(outlet, to);
+    if (push !== false) {
+      history.pushState(Object.fromEntries(outlets.entries()), "", to);
+    } else {
+      history.replaceState(Object.fromEntries(outlets.entries()), "", to);
+    }
+    prevLocation = new URL(location);
+    return;
+  }
+
+  // When the target route has a loading skeleton, signal pending navigation
+  // BEFORE creating the fetch Promise and yield to the event loop so React
+  // can flush the skeleton render.  Without this yield, emit() → subscriber
+  // → getFlightResponse resolves componentPromise synchronously → its
+  // microtask continuation calls startTransition(setComponent) before React
+  // ever processes the pending useSyncExternalStore update.
+  const targetHasLoading =
+    outlet === PAGE_ROOT && hasLoadingForPath(toPathname);
+  if (targetHasLoading) {
+    setPendingNavigation(toPathname, true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
   return new Promise((resolve, reject) => {
     if (typeof rollback === "number" && rollback > 0) {
       const key = `${outlet}:${outlets.get(outlet) || location.href}`;
@@ -273,14 +375,7 @@ const navigateOutlet = (
       }
     }
     outlets.set(outlet, to);
-    if (outlet === PAGE_ROOT) {
-      if (push !== false) {
-        history.pushState(Object.fromEntries(outlets.entries()), "", to);
-      } else {
-        history.replaceState(Object.fromEntries(outlets.entries()), "", to);
-      }
-      prevLocation = new URL(location);
-    }
+
     const key = `${outlet}:${to}`;
     if (flightCache.has(key)) {
       cache.set(outlet, flightCache.get(key));
@@ -302,6 +397,13 @@ const navigateOutlet = (
       cache.delete(to);
       cache.delete(outlet);
     }
+
+    // For routes without loading, signal pending navigation here (no yield
+    // needed since startTransition in Link keeps old page visible).
+    if (outlet === PAGE_ROOT && !targetHasLoading) {
+      setPendingNavigation(toPathname, false);
+    }
+
     emit(
       outlet,
       to,
@@ -311,8 +413,25 @@ const navigateOutlet = (
         fromCache: true,
       },
       (err) => {
-        if (err) reject(err);
-        else {
+        if (err) {
+          clearPendingNavigation();
+          reject(err);
+        } else {
+          // Update the URL silently (without notifying useSyncExternalStore)
+          // so that ClientRouteGuard doesn't hide the old page during the
+          // startTransition in ReactServerComponent.  The location store is
+          // synced by a useLayoutEffect in ReactServerComponent after the
+          // transition commits (before paint).
+          if (outlet === PAGE_ROOT) {
+            const state = Object.fromEntries(outlets.entries());
+            if (push !== false) {
+              pushStateSilent(state, "", to);
+            } else {
+              replaceStateSilent(state, "", to);
+            }
+            prevLocation = new URL(location);
+          }
+
           activeChunk.set(outlet, cache.get(outlet));
 
           if (!isStale(revalidate, { outlet, url: to })) {
@@ -374,7 +493,7 @@ const invalidate = (outlet, options = {}) => {
   });
 };
 
-window.addEventListener("popstate", () => {
+window.addEventListener("popstate", async () => {
   const newLocation = new URL(location);
   if (
     prevLocation.pathname === newLocation.pathname &&
@@ -384,7 +503,31 @@ window.addEventListener("popstate", () => {
   ) {
     return;
   }
+
+  const fromPathname = decodeURIComponent(prevLocation.pathname);
+  const toPathname = decodeURIComponent(newLocation.pathname);
+
+  // Run navigation guards for back/forward navigation
+  const guardResult = await runNavigationGuards(fromPathname, toPathname);
+  if (!guardResult.allowed) {
+    // Guard blocked — push the old URL back to undo the popstate
+    history.pushState(history.state, "", prevLocation.href);
+    if (guardResult.redirect) {
+      navigate(guardResult.redirect, { replace: true });
+    }
+    return;
+  }
+
   prevLocation = newLocation;
+
+  // Check if the navigation can be handled entirely on the client.
+  // All server route boundaries must remain stable.
+  if (canNavigateClientOnly(fromPathname, toPathname)) {
+    // Abort any in-flight server request and clear loading skeleton
+    abort(PAGE_ROOT, new FlightNavigationAbortError());
+    clearPendingNavigation();
+    return;
+  }
 
   const rootKey = `${PAGE_ROOT}:${location.href}`;
   if (flightCache.has(rootKey)) {
@@ -584,10 +727,10 @@ export const streamOptions = ({
 };
 
 const abort = (outlet = PAGE_ROOT, reason, prefetch) => {
-  if (
-    outletAbortControllers.has(outlet) ||
-    (prefetch !== false && outletAbortControllers.has(`prefetch:${outlet}`))
-  ) {
+  const hasControllers = outletAbortControllers.has(outlet);
+  const hasPrefetchControllers =
+    prefetch !== false && outletAbortControllers.has(`prefetch:${outlet}`);
+  if (hasControllers || hasPrefetchControllers) {
     const abortControllers = outletAbortControllers.get(outlet);
     const prefetchAbortControllers = outletAbortControllers.get(
       `prefetch:${outlet}`
@@ -664,7 +807,7 @@ function getFlightResponse(url, options = {}) {
       if (!options.callServer) {
         abort(
           options.outlet || url,
-          new DOMException("navigation", "AbortError"),
+          new FlightNavigationAbortError(),
           !options.prefetch
         );
 
@@ -742,7 +885,8 @@ function getFlightResponse(url, options = {}) {
               options.onFetch?.(response);
 
               if (abortController?.signal.aborted) {
-                controller.error(abortController.signal.reason);
+                body.cancel();
+                controller.error(new FlightNavigationAbortError());
                 return;
               }
 
@@ -753,9 +897,7 @@ function getFlightResponse(url, options = {}) {
 
               abortController?.signal?.addEventListener(
                 "abort",
-                () => {
-                  reader.cancel();
-                },
+                () => reader.cancel(),
                 { once: true }
               );
 
@@ -783,6 +925,9 @@ function getFlightResponse(url, options = {}) {
               }
 
               if (abortController?.signal.aborted) {
+                cache.delete(options.outlet || url);
+                flightCache.delete(`${options.outlet || PAGE_ROOT}:${url}`);
+                controller.error(new FlightNavigationAbortError());
                 return;
               }
 
@@ -824,9 +969,18 @@ function getFlightResponse(url, options = {}) {
                 }
               }
             } catch (e) {
-              if (e instanceof DOMException && e.name === "AbortError") {
+              if (
+                e instanceof FlightNavigationAbortError ||
+                (e instanceof DOMException && e.name === "AbortError")
+              ) {
                 cache.delete(options.outlet || url);
                 flightCache.delete(`${options.outlet || PAGE_ROOT}:${url}`);
+                controller.error(
+                  e instanceof FlightNavigationAbortError
+                    ? e
+                    : new FlightNavigationAbortError()
+                );
+
                 return;
               }
 

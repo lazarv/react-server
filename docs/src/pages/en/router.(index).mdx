@@ -1,12 +1,12 @@
 # Router
 
-The `@lazarv/react-server` runtime includes a file-system based router which is building on top of the runtime's own low-level routing solutions and it's very easy to use and configure. If you think this router is too much for your needs, you can use the built-in low-level [server-side router](/router/server-routing) and [client-side navigation](/router/client-navigation) components or use a third-party router like [React Router](https://reactrouter.com/) or [TanStack Router](https://tanstack.com/router). You can check out the [examples](https://github.com/lazarv/react-server/tree/main/examples) collection on how to use these third-party routers.
+The `@lazarv/react-server` runtime includes a [fully typed router](/router/typed-router) with compile-time type safety for every route, link, parameter, and search param. Define routes with `createRoute` and `createRouter` for typed `Link` components, typed hooks, schema validation, and IDE autocompletion — on both server and client. Routes can be server-rendered, [client-only](/router/typed-router#client-only-routes), or shared between environments.
 
-Using the [file-system based router](/router/file-router) is extremely easy and simple. You just omit the entrypoint when using the `react-server` CLI and the router will be used automatically.
+The runtime also includes a [file-system based router](/router/file-router) which builds on top of the typed routing primitives. You just omit the entrypoint when using the `react-server` CLI and the router will be used automatically. If you prefer a third-party solution, you can use [React Router](https://reactrouter.com/) or [TanStack Router](https://tanstack.com/router) instead. Check out the [examples](https://github.com/lazarv/react-server/tree/main/examples) collection for how to use these third-party routers.
 
 You can learn about how to [define your routes](/router/define-routes) and how to [configure the router](/router/configuration) to create layouts, pages and different types of routes like nested routes, dynamic routes and catch-all routes.
 
-You can also create [outlets](/router/outlets) to create reusable parts of your application that can be used in different layouts, while[error handling](/router/error-handling) and [loading](/router/loading) components are also supported in the router.
+You can also create [outlets](/router/outlets) to create reusable parts of your application that can be used in different layouts, while [error handling](/router/error-handling) and [loading](/router/loading) components are also supported in the router.
 
 This router also supports creating [middlewares](/router/middlewares) and [API route handlers](/router/api) to create middlewares and API endpoints using the file-system and all the rules you already learned when creating pages and layouts.
 
@@ -14,4 +14,8 @@ This documentation is also the best example that you can use [Markdown](/router/
 
 Next you can learn how to generate a [static](/router/static) website using the combination of the router and the runtime. You can define all the routes you want to generate and the router will generate the static files for you. Not only for pages, but any static file, like a `sitemap.xml` for your website.
 
+The router includes built-in [scroll restoration](/router/scroll-restoration) with zero-flash page reload, nested container support, and per-route customization — enable it with a single config option or the `<ScrollRestoration>` component.
+
 Finally learn how to [configure](/router/configuration) the router to fit your needs. You can define the root path for your routes, the public path for your static files and you can include specific files in the routing or exclude files and directories from the routing using glob patterns.
+
+See how `@lazarv/react-server` stacks up against Next.js, TanStack Router, and React Router in the [comparison table](/features/comparison).

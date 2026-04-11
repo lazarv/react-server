@@ -1,6 +1,6 @@
 import { loadConfig } from "../../config/index.mjs";
 import { init$ as runtime_init$, runtime$ } from "../../server/runtime.mjs";
-import { CONFIG_CONTEXT } from "../../server/symbols.mjs";
+import { CONFIG_CONTEXT, CONFIG_ROOT } from "../../server/symbols.mjs";
 import { experimentalWarningSilence } from "../sys.mjs";
 
 export function reactServer(root, options = {}, initialConfig = {}) {
@@ -13,13 +13,18 @@ export function reactServer(root, options = {}, initialConfig = {}) {
       const { default: createServer } = await import("./create-server.mjs");
       const config = await loadConfig(initialConfig, options);
 
+      // Install stdout/stderr capture only when devtools is enabled
+      if (config[CONFIG_ROOT]?.devtools) {
+        const { installOutputCapture } = await import("./devtools-output.mjs");
+        installOutputCapture();
+      }
+
       await runtime_init$(async () => {
         runtime$(CONFIG_CONTEXT, config);
 
         // Resolve the action encryption secret once at startup.
         const { initSecretFromConfig } =
           await import("../../server/action-crypto.mjs");
-        const { CONFIG_ROOT } = await import("../../server/symbols.mjs");
         await initSecretFromConfig(config[CONFIG_ROOT]);
 
         const server = await createServer(root, options);

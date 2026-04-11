@@ -3124,3 +3124,69 @@ export function createServerReference(id, callServer) {
 export function createTemporaryReferenceSet() {
   return new Map();
 }
+
+/**
+ * Synchronously deserialize a value from an RSC Flight protocol buffer.
+ *
+ * Processes all rows in a single pass — no streams, no async iteration.
+ * Sync-compatible types (primitives, Date, Map, Set, RegExp, URL, Error,
+ * TypedArray, plain objects, arrays, React elements, etc.) are returned
+ * as their concrete values.
+ *
+ * Async types remain as Promises in the output value tree:
+ *  - Promise references ($@) → Promise
+ *  - ReadableStream ($r) → ReadableStream (streaming wrapper)
+ *  - AsyncIterable ($i) → AsyncIterable (streaming wrapper)
+ *  - Blob ($B) → Promise<Blob>
+ *  - Large binary ($b) → Promise<TypedArray>
+ *  - Client references ($L) → React.lazy wrapper
+ *
+ * The consumer can use React's use() for Promise values or pass them
+ * to client components for dehydration.
+ *
+ * @param {Uint8Array | ArrayBuffer} buffer - The RSC payload buffer
+ * @param {import('../types').CreateFromReadableStreamOptions} [options] - Options
+ * @returns {unknown} The deserialized root value (synchronous)
+ */
+export function syncFromBuffer(buffer, options = {}) {
+  const response = new FlightResponse(options);
+
+  // Ensure we have a Uint8Array
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+
+  // Process all data in one shot
+  response.processData(bytes);
+
+  // Process any remaining binary buffer
+  if (response.binaryBuffer && response.binaryBuffer.length > 0) {
+    const line = new TextDecoder().decode(response.binaryBuffer);
+    response.processLine(line);
+    response.binaryBuffer = null;
+  }
+
+  // Resolve all deferred chunks (forward references, path refs, etc.)
+  response.resolveDeferredChunks();
+
+  // The root chunk (id 0) should be resolved synchronously now.
+  // For sync values, chunk.value is the deserialized result.
+  // For async values nested inside, they remain as Promises in the tree.
+  const rootChunk = response.rootChunk;
+  if (rootChunk.status === RESOLVED) {
+    return rootChunk.value;
+  }
+
+  // If the root itself is a promise reference, return the promise
+  if (rootChunk.status === PENDING) {
+    return rootChunk.promise;
+  }
+
+  // Rejected — throw the error.
+  // Suppress the unhandled rejection on the internal chunk promise
+  // since we are re-throwing synchronously.
+  if (rootChunk.status === REJECTED) {
+    rootChunk.promise?.catch?.(() => {});
+    throw rootChunk.value;
+  }
+
+  return rootChunk.value;
+}

@@ -85,6 +85,10 @@
       "types": "./server/router.d.ts",
       "default": "./server/router.jsx"
     },
+    "./resources": {
+      "types": "./server/resources.d.ts",
+      "default": "./server/resources.jsx"
+    },
     "./remote": {
       "types": "./server/remote.d.ts",
       "default": "./server/remote.jsx"
@@ -96,6 +100,10 @@
     "./dev": {
       "types": "./lib/dev/index.d.ts",
       "default": "./lib/dev/index.mjs"
+    },
+    "./devtools": {
+      "types": "./devtools/index.d.ts",
+      "default": "./devtools/index.jsx"
     },
     "./node": {
       "types": "./lib/start/node.d.ts",
@@ -223,15 +231,15 @@
     "parse5": "^7.1.2",
     "picocolors": "^1.0.1",
     "pino": "^8.14.1",
-    "react": "0.0.0-experimental-46103596-20260305",
-    "react-dom": "0.0.0-experimental-46103596-20260305",
-    "react-is": "0.0.0-experimental-46103596-20260305",
+    "react": "0.0.0-experimental-705268dc-20260409",
+    "react-dom": "0.0.0-experimental-705268dc-20260409",
+    "react-is": "0.0.0-experimental-705268dc-20260409",
     "react-property": "^2.0.2",
     "react-refresh": "^0.14.2",
-    "react-server-dom-webpack": "0.0.0-experimental-46103596-20260305",
+    "react-server-dom-webpack": "0.0.0-experimental-705268dc-20260409",
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",
-    "rolldown": "1.0.0-rc.10",
+    "rolldown": "1.0.0-rc.15",
     "sass": "^1.86.0",
     "semver": "^7.6.3",
     "smol-toml": "^1.6.0",
@@ -242,7 +250,7 @@
     "strip-ansi": "^7.1.0",
     "style-to-js": "^1.1.12",
     "unstorage": "^1.16.0",
-    "vite": "8.0.1",
+    "vite": "8.0.8",
     "vite-plugin-inspect": "^11.3.3",
     "web-streams-polyfill": "^4.2.0",
     "zod": "^3.23.8"

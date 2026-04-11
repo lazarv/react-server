@@ -2,15 +2,32 @@ import { createServer } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { parentPort, workerData } from "node:worker_threads";
 
-const originalConsoleLog = console.log;
-console.log = (...args) => {
-  try {
-    parentPort.postMessage({ console: args });
-  } catch {
-    originalConsoleLog("Failed to send log to parent port:", ...args);
+const workerData = JSON.parse(process.env.WORKER_DATA);
+
+process.on("error", (e) => {
+  if (e.code === "ERR_IPC_CHANNEL_CLOSED") return;
+  throw e;
+});
+
+let _httpServer;
+process.on("disconnect", () => {
+  if (_httpServer) {
+    _httpServer.closeAllConnections();
+    _httpServer.close();
   }
+});
+
+function safeSend(msg) {
+  if (process.connected) {
+    try {
+      process.send(msg);
+    } catch {}
+  }
+}
+
+console.log = (...args) => {
+  safeSend({ console: args });
 };
 
 const MIME_TYPES = {
@@ -41,6 +58,19 @@ try {
   // Tell the edge entry where the build output lives
   // (it defaults to "." assuming cwd IS the outDir, e.g. in Cloudflare Workers)
   process.env.REACT_SERVER_EDGE_OUTDIR = outDir;
+
+  // Pass runtime initialConfig to the edge entry via env var.
+  // In production, config like scrollRestoration is in the config file and
+  // baked into the prebuilt config at build time. In tests, it's passed as
+  // initialConfig at runtime, so we need to communicate it to the edge entry.
+  if (
+    workerData.initialConfig &&
+    Object.keys(workerData.initialConfig).length > 0
+  ) {
+    process.env.REACT_SERVER_INITIAL_CONFIG = JSON.stringify(
+      workerData.initialConfig
+    );
+  }
 
   const edgeEntryPath = join(absOutDir, "server/edge.mjs");
   const edgeModule = await import(pathToFileURL(edgeEntryPath).href);
@@ -88,7 +118,7 @@ try {
     return false;
   }
 
-  const httpServer = createServer(async (req, res) => {
+  _httpServer = createServer(async (req, res) => {
     try {
       let url = req.url;
       if (workerData.base !== "/" && url.startsWith(workerData.base)) {
@@ -98,10 +128,12 @@ try {
       // Try to serve static files first (CSS, JS, images, etc.)
       // The edge handler only handles SSR/RSC; in production a CDN serves static files
       if (req.method === "GET" || req.method === "HEAD") {
-        if (tryServeStatic(url, res)) return;
+        if (tryServeStatic(url, res)) {
+          return;
+        }
       }
 
-      const origin = `http://localhost:${workerData.port}`;
+      const origin = process.env.ORIGIN;
       const fullUrl = new URL(url, origin);
 
       // Convert Node.js IncomingMessage headers to Web Headers
@@ -149,7 +181,6 @@ try {
 
       res.end();
     } catch (e) {
-      originalConsoleLog("Edge server error:", e);
       if (!res.headersSent) {
         res.writeHead(500, { "Content-Type": "text/plain" });
       }
@@ -157,23 +188,24 @@ try {
     }
   });
 
-  httpServer.once("listening", () => {
-    process.env.ORIGIN = `http://localhost:${workerData.port}`;
-    parentPort.postMessage({ port: workerData.port });
+  _httpServer.once("listening", () => {
+    const actualPort = _httpServer.address().port;
+    process.env.ORIGIN = `http://localhost:${actualPort}`;
+    safeSend({ port: actualPort });
   });
-  httpServer.on("error", (e) => {
-    parentPort.postMessage({ error: e.message, stack: e.stack });
+  _httpServer.on("error", (e) => {
+    safeSend({ error: e.message, stack: e.stack });
   });
-  parentPort.on("message", (msg) => {
+  process.on("message", (msg) => {
     if (msg?.type === "shutdown") {
-      httpServer.closeAllConnections();
-      httpServer.close(() => {
-        parentPort.close();
+      _httpServer.closeAllConnections();
+      _httpServer.close(() => {
+        process.disconnect();
       });
     }
   });
-  httpServer.listen(workerData.port);
+  _httpServer.listen(0);
 } catch (e) {
-  parentPort.postMessage({ error: e.message, stack: e.stack });
+  safeSend({ error: e.message, stack: e.stack });
   throw e;
 }

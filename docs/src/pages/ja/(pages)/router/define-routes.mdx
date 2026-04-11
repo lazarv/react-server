@@ -29,7 +29,7 @@ export default {
 
 ディレクトリとファイルは、アプリケーションが使用するルートを指定します。ルーターには、ディレクトリとファイルの名前をルートパスとルートパラメータに変換する規則が組み込まれています。新しいルートを作成するには、ルートディレクトリにファイルを作成する必要があります。
 
-ルートファイルは、ルートをレンダリングするために使用されるReact Server Componentをデフォルトでエクスポートする必要があります。
+ルートファイルは、ルートをレンダリングするために使用されるReactコンポーネントをデフォルトでエクスポートする必要があります。デフォルトではページはサーバーコンポーネントです。ページの先頭に`"use client"`ディレクティブがある場合、[クライアント専用ルート](/router/typed-router#client-only-routes)になります — ナビゲーションはサーバーラウンドトリップなしで完全にクライアント上で行われ、コンポーネントの状態はナビゲーション間で保持されます。
 
 ```jsx
 export default function Home() {
@@ -140,3 +140,323 @@ src
 ルートセグメントを中括弧で囲むことで、ルートセグメントをエスケープできます。たとえば、ルートディレクトリに`{sitemap.xml}.server.mjs`という名前のファイルを作成すると、パス`/sitemap.xml`を持つ名前付きルートとして扱われます。
 
 > **例:** ファイルシステムベースのルーティングの基本的な例については、[examples](https://github.com/lazarv/react-server/tree/main/examples/photos) ディレクトリのPhotosの例を参照してください。
+
+<Link name="route-validation">
+## ルートバリデーション
+</Link>
+
+ファイルシステムベースのルーターでは、ページファイルから`validate`オブジェクトをエクスポートすることで、ルートパラメータと検索パラメータをランタイムでバリデーションできます。ランタイムがこのエクスポートを自動的に検出します — 追加の設定は不要です。
+
+`validate`エクスポートは、オプションの`params`と`search`キーを持つオブジェクトで、各キーには任意の互換ライブラリ（Zod、ArkType、Valibot、または[`ValidateSchema`](/router/typed-router#validation)インターフェースを満たすもの）のスキーマを設定します。
+
+```tsx filename="pages/user/[id].page.tsx"
+import { z } from "zod";
+import { user } from "@lazarv/react-server/routes";
+
+export const validate = {
+  params: z.object({
+    id: z.string().regex(/^\d+$/, "ID must be numeric"),
+  }),
+};
+
+export default user.createPage(({ id }) => {
+  // idはstring型で、/^\d+$/にマッチすることが保証される
+  return <h1>User {id}</h1>;
+});
+```
+
+バリデーションが存在する場合、生成されたTypeScript型はスキーマからパラメータと検索型を推論します — そのため`useParams()`、`.Link`、`createPage`はすべて生の文字列ではなくバリデーション済みの型を受け取ります。
+
+**ArkTypeの場合：**
+
+```tsx filename="pages/user/[id].page.tsx"
+import { type } from "arktype";
+import { user } from "@lazarv/react-server/routes";
+
+export const validate = {
+  params: type({ id: /^\d+$/ }),
+};
+
+export default user.createPage(({ id }) => {
+  return <h1>User {id}</h1>;
+});
+```
+
+**検索パラメータのバリデーション：**
+
+```tsx filename="pages/products.page.tsx"
+import { z } from "zod";
+import { products } from "@lazarv/react-server/routes";
+
+export const validate = {
+  search: z.object({
+    sort: z.enum(["name", "price", "rating"]).catch("name"),
+    page: z.coerce.number().int().positive().catch(1),
+  }),
+};
+
+export default products.createPage(() => {
+  const { sort, page } = products.useSearchParams();
+  return <div>Sorted by {sort}, page {page}</div>;
+});
+```
+
+バリデーションが失敗した場合（例：上記の数値バリデーションで`/user/abc`）、`useParams()`は`null`を返し、`useSearchParams()`は空のオブジェクト`{}`を返します。これにより、コンポーネントでエラーを処理したり、フォールバックルートに遷移させたりできます。
+
+<Link name="routes-module">
+## ルートモジュール
+</Link>
+
+ファイルシステムベースのルーターを使用すると、ランタイムは仮想的な`@lazarv/react-server/routes`モジュールを自動的に生成します。このモジュールはアプリケーション内のすべてのルートに対して名前付きルートディスクリプタをエクスポートします — ファイル構造から導出され、開発中はリアルタイムで更新され、各ビルドで再生成されます。
+
+```tsx
+import { index, about, user, dashboard } from "@lazarv/react-server/routes";
+```
+
+各エクスポートされたディスクリプタは、`createRoute`で作成されたものと同じ機能を持つ完全な[`RouteDescriptor`](/router/typed-router#api-route-descriptor)です：
+
+- **`.Link`** — コンパイル時のパラメータチェック付き型付きLinkコンポーネント
+- **`.href(params?)`** — 型付きパラメータからURLパス名を構築
+- **`.useParams()`** — 型付きでバリデーション済みのパラメータを読み取る（サーバーとクライアントコンポーネントで動作）
+- **`.useSearchParams()`** — 型付きでバリデーション済みの検索パラメータを読み取る
+- **`.SearchParams`** — ルートスコープの検索パラメータ変換境界
+
+さらに、ページコンポーネントの型付けのためのコンテキスト対応ヘルパー関数：
+
+- **`.createPage(component)`** — バリデーション済みパラメータをプロップとする型付きページコンポーネント
+- **`.createLayout(component)`** — `children`とブランド付きアウトレットプロップを持つ型付きレイアウト
+- **`.createLoading(component)`** — 型付きローディングフォールバックコンポーネント
+- **`.createError(component)`** — 型付きエラーバウンダリコンポーネント
+- **`.createFallback(component)`** — 型付きフォールバックコンポーネント
+- **`.createMiddleware(handler)`** — リクエストパラメータ付きの型付きミドルウェア
+
+これらのヘルパーはランタイムではアイデンティティ関数です — コンポーネントをそのまま返します。ルートパス、`validate`エクスポート、アウトレット構造から正しいプロップ型を推論するためにTypeScript専用で存在します。
+
+<Link name="routes-module-naming">
+### ルート命名
+</Link>
+
+ルート名はファイルパスからキャメルケースで自動的に導出されます：
+
+| ファイルパス | エクスポート名 |
+|-----------|--------------|
+| `pages/page.tsx` or `pages/index.tsx` | `index` |
+| `pages/about.tsx` | `about` |
+| `pages/user/[id].page.tsx` | `user` |
+| `pages/user/posts.page.tsx` | `userPosts` |
+| `pages/dashboard/settings.page.tsx` | `dashboardSettings` |
+
+`[id]`のような動的セグメントは名前から除去されます。`pages/[id].page.tsx`のような純粋に動的なパスでは、パラメータ名（`id`）がルート名として使用されます。
+
+ページファイルから`route`定数をエクスポートすることで、自動導出された名前をオーバーライドできます：
+
+```tsx
+export const route = "userProfile";
+```
+
+エクスポートされる名前は自動導出された名前の代わりに`userProfile`になります：
+
+```tsx
+import { userProfile } from "@lazarv/react-server/routes";
+```
+
+<Link name="routes-module-pages">
+### 型付きページ
+</Link>
+
+`createPage`を使用して、ルートのパスパラメータと`validate`エクスポートから推論された型付きプロップを取得します：
+
+```tsx filename="pages/user/[id].page.tsx"
+import { z } from "zod";
+import { user } from "@lazarv/react-server/routes";
+
+export const route = "user";
+
+export const validate = {
+  params: z.object({ id: z.string().regex(/^\d+$/, "ID must be numeric") }),
+};
+
+// TypeScriptが推論: ({ id: string }) => ReactNode
+export default user.createPage(({ id }) => {
+  return <h1>User {id}</h1>;
+});
+```
+
+`validate`なしの場合、パラメータ型はパスパターンから来ます — `[id]`は`{ id: string }`、`[...slug]`は`{ slug: string[] }`を返します。`validate`ありの場合、型はスキーマの出力型から推論され、より狭い型になり得ます（例：正規表現制約付きの文字列、変換後の数値）。
+
+動的パラメータのないページの場合、`createPage`は空のプロップオブジェクトを受け取ります：
+
+```tsx filename="pages/about.tsx"
+import { about } from "@lazarv/react-server/routes";
+
+export default about.createPage(() => {
+  return <h1>About</h1>;
+});
+```
+
+<Link name="routes-module-layouts">
+### 型付きレイアウトとアウトレット
+</Link>
+
+`createLayout`を使用して、型付き`children`とアウトレットプロップを取得します。アウトレットはレイアウトのディレクトリ配下の`@outletName`ディレクトリにファイルを配置して作成します：
+
+```
+pages/
+├── dashboard/
+│   ├── (dashboard).layout.tsx
+│   ├── index.page.tsx
+│   ├── @sidebar/
+│   │   └── nav.page.tsx
+│   └── @content/
+│       ├── @content.default.tsx    # ルートがマッチしない時のデフォルトコンテンツ
+│       └── feed.page.tsx
+```
+
+レイアウトは型付きアウトレットプロップを受け取ります — 各アウトレットはTypeScriptが個別に追跡するブランド付き`React.ReactElement`で、混在を防ぎます：
+
+```tsx filename="pages/dashboard/(dashboard).layout.tsx"
+import { dashboard } from "@lazarv/react-server/routes";
+
+export default dashboard.createLayout(({ children, sidebar, content }) => {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr" }}>
+        <aside>{sidebar}</aside>
+        <main>
+          <div>{content}</div>
+          <div>{children}</div>
+        </main>
+      </div>
+    </div>
+  );
+});
+```
+
+**Nullableアウトレット：** アウトレットディレクトリに`@outletName.default.tsx`ファイルがある場合、アウトレットは常にレンダリングされます（non-nullable）。デフォルトがない場合、アウトレットは`ReactElement | null`になります — TypeScriptがnullチェックを強制します。
+
+上の例では、`content`にはデフォルト（`@content.default.tsx`）があるため常に`ReactElement`です。`sidebar`にデフォルトがない場合、`ReactElement | null`として型付けされます。
+
+<Link name="routes-module-loading">
+### 型付きローディングとエラーコンポーネント
+</Link>
+
+ローディングとエラーコンポーネントも同じパターンに従います：
+
+```tsx filename="pages/user/[id].loading.tsx"
+import { user } from "@lazarv/react-server/routes";
+
+export default user.createLoading(() => {
+  return <div>Loading user profile...</div>;
+});
+```
+
+```tsx filename="pages/user/[id].error.tsx"
+import { user } from "@lazarv/react-server/routes";
+
+export default user.createError(({ error }) => {
+  return <div>Error loading user: {error.message}</div>;
+});
+```
+
+<Link name="routes-module-link">
+### Linkとhrefの使用
+</Link>
+
+ルートモジュールからのルートディスクリプタは`createRoute`ディスクリプタと同様に動作します — ナビゲーションには`.Link`を、URL構築には`.href()`を使用します：
+
+```tsx filename="pages/(root).layout.tsx"
+import { index, about, user, dashboard } from "@lazarv/react-server/routes";
+
+export default index.createLayout(({ children }) => {
+  return (
+    <html lang="en">
+      <body>
+        <nav>
+          <index.Link>Home</index.Link>
+          <about.Link>About</about.Link>
+          <user.Link params={{ id: "42" }}>User 42</user.Link>
+          <dashboard.Link>Dashboard</dashboard.Link>
+        </nav>
+        {children}
+      </body>
+    </html>
+  );
+});
+```
+
+動的セグメントのないルート（`index`、`about`など）は`params`を受け付けません。動的セグメントを持つルート（`user`など）は必須です — TypeScriptがコンパイル時にこれを強制します。
+
+<Link name="routes-module-generated-types">
+### 生成される型
+</Link>
+
+ランタイムは`.react-server`ディレクトリに`react-server-routes.d.ts`ファイルを書き込みます。このファイルはルートごとのインターフェースで`@lazarv/react-server/routes`モジュールを宣言します：
+
+```ts
+// 自動生成 — 手動で編集しないでください
+declare module "@lazarv/react-server/routes" {
+  import type { RouteDescriptor, ValidateSchema } from "@lazarv/react-server/router";
+
+  // ── /user/[id] ──
+  interface UserRoute extends RouteDescriptor<"/user/[id]",
+    typeof import("../pages/user/[id].page").validate extends
+      { params: ValidateSchema<infer T> } ? T : { id: string },
+    Record<string, string>
+  > {
+    createPage(
+      component: (props: /* 推論されたパラメータ型 */) => React.ReactNode
+    ): typeof component;
+    createLoading(
+      component: () => React.ReactNode
+    ): typeof component;
+  }
+  export const user: UserRoute;
+}
+```
+
+生成される型には、各ルートに存在するヘルパーのみが含まれます — ルートにページファイルがあれば`createPage`が、レイアウトがあれば正しいアウトレットプロップ付きの`createLayout`が得られます。このファイルは開発中とビルド時に自動的に再生成されるため、常にファイル構造と一致します。
+
+> **注意:** ルートモジュールをバリデーション、レイアウト、アウトレット、ローディング状態、クライアント専用ルートと組み合わせた完全な動作アプリケーションについては、[typed-file-router](https://github.com/lazarv/react-server/tree/main/examples/typed-file-router)のサンプルをチェックしてください。
+
+> プログラム的な型付きルーティングAPI（`createRoute`、`createRouter`、スキーマバリデーション戦略、パース関数など）については、[型付きルーター](/router/typed-router#create-route)ページを参照してください。
+
+<Link name="typed-routes">
+## 型付きルート
+</Link>
+
+TypeScriptでファイルシステムベースのルーターを使用すると、ランタイムはファイル構造から型定義を自動的に生成します。これらの型は以下をカバーします：
+
+- `Link`、`navigate`、`replace`、`prefetch`のすべての静的および動的ルートパス
+- `[id]`や`[...slug]`などの動的セグメントから抽出されたルートパラメータ型
+- `ReactServerComponent`で利用可能なアウトレット名
+
+型チェックを有効にするには、生成された型をTypeScript設定に追加します：
+
+```json filename="tsconfig.json"
+{
+  "compilerOptions": {
+    // ...
+  },
+  "include": [/* ... */, ".react-server/**/*.ts"]
+}
+```
+
+それだけです。ランタイムはファイル構造が変更されるたびに開発中に自動的に型を再生成し、ビルド時にも再生成します。IDEはすべてのルートパスのオートコンプリートを即座に表示し、無効なルートをコンパイル時にフラグします。
+
+例えば、次のファイル構造がある場合：
+
+```
+app/
+├── page.tsx          # /
+├── about.tsx         # /about
+├── user/
+│   ├── [id].tsx      # /user/:id
+│   └── page.tsx      # /user
+└── posts/
+    └── [...slug].tsx # /posts/*
+```
+
+`Link`コンポーネントと`navigate`関数は、`/`、`/about`、`/user`、`/posts`を静的ルートとしてオートコンプリートし、`/user/[id]`と`/posts/[...slug]`の型付きパラメータを提供します。
+
+プログラム的な型付きルーティングAPI（`createRoute`、`createRouter`、型付きフック、スキーマバリデーションなど）については、[型付きルーター](/router/typed-router#create-route)を参照してください。

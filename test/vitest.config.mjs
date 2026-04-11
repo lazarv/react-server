@@ -1,3 +1,4 @@
+import { platform } from "node:os";
 import { resolve } from "node:path";
 
 import { defineConfig } from "vitest/config";
@@ -32,9 +33,8 @@ export default defineConfig({
           "github-actions",
           ["junit", { outputFile: "test-results/junit.xml" }],
         ]
-      : ["default"],
-    pool: "forks",
-    fileParallelism: !process.env.CI,
+      : [process.env.REACT_SERVER_VERBOSE ? "verbose" : "default"],
+    pool: platform() === "win32" ? "forks" : "threads",
     retry: 3,
   },
   publicDir: false,

@@ -1,0 +1,185 @@
+"use client";
+
+import { useMemo, useSyncExternalStore } from "react";
+
+import { match } from "../lib/route-match.mjs";
+
+const locationListeners = new Set();
+let currentPathname =
+  typeof window !== "undefined"
+    ? decodeURIComponent(window.location.pathname)
+    : "/";
+let currentUrl =
+  typeof window !== "undefined"
+    ? decodeURIComponent(window.location.pathname) + window.location.search
+    : "/";
+
+function emitLocationChange() {
+  currentPathname = decodeURIComponent(window.location.pathname);
+  currentUrl =
+    decodeURIComponent(window.location.pathname) + window.location.search;
+  for (const listener of locationListeners) {
+    listener();
+  }
+}
+
+let origPushState;
+let origReplaceState;
+
+// Symbol guard ensures idempotent patching — if two copies of this module
+// load (e.g. different bundle chunks), the second one reuses the existing
+// patch instead of wrapping it (which would double-dispatch events).
+const PATCHED = Symbol.for("react-server.history-patched");
+
+if (typeof window !== "undefined") {
+  window.addEventListener("popstate", emitLocationChange);
+
+  if (!history[PATCHED]) {
+    // Patch history.pushState/replaceState to notify subscribers and dispatch
+    // custom events so useLocation (and any external listener) picks up changes.
+    const _origPush = history.pushState.bind(history);
+    const _origReplace = history.replaceState.bind(history);
+
+    history.pushState = function (...args) {
+      const prevHref = location.href;
+      _origPush(...args);
+      window.dispatchEvent(
+        new CustomEvent("pushstate", { detail: { prevHref } })
+      );
+      emitLocationChange();
+    };
+
+    history.replaceState = function (...args) {
+      const prevHref = location.href;
+      _origReplace(...args);
+      window.dispatchEvent(
+        new CustomEvent("replacestate", { detail: { prevHref } })
+      );
+      emitLocationChange();
+    };
+
+    // Stash the original (unpatched) references on the patched functions
+    // so any copy of this module can access them for silent navigation.
+    history.pushState._orig = _origPush;
+    history.replaceState._orig = _origReplace;
+
+    history[PATCHED] = true;
+  }
+
+  // Always resolve origPushState/origReplaceState from the stashed references
+  // so silent navigation works even if this is a second copy of the module.
+  origPushState = history.pushState._orig;
+  origReplaceState = history.replaceState._orig;
+}
+
+/**
+ * Push/replace history state WITHOUT triggering useSyncExternalStore
+ * subscribers. Use during server navigation inside startTransition to
+ * prevent ClientRouteGuard from hiding the old page before the new
+ * tree commits.
+ */
+export function pushStateSilent(...args) {
+  origPushState?.(...args);
+}
+
+export function replaceStateSilent(...args) {
+  origReplaceState?.(...args);
+}
+
+export { emitLocationChange };
+
+// ── Pending navigation store ────────────────────────────────────────────
+// Tracks the target pathname during server navigations so that
+// ClientRouteGuard can show its loading skeleton immediately (before the
+// server responds) via a normal sync-priority re-render.
+const pendingListeners = new Set();
+let pendingNavigationTarget = null;
+let pendingHasLoading = false;
+
+export function setPendingNavigation(pathname, hasLoading = false) {
+  pendingNavigationTarget = pathname;
+  pendingHasLoading = hasLoading;
+  for (const listener of pendingListeners) listener();
+}
+
+export function clearPendingNavigation() {
+  pendingNavigationTarget = null;
+  pendingHasLoading = false;
+  for (const listener of pendingListeners) listener();
+}
+
+function subscribePending(callback) {
+  pendingListeners.add(callback);
+  return () => pendingListeners.delete(callback);
+}
+
+function getPendingSnapshot() {
+  return pendingNavigationTarget;
+}
+
+/**
+ * Returns the target pathname of a server navigation that is currently
+ * in-flight, or null when idle.  Re-renders synchronously when the
+ * value changes so loading skeletons appear without waiting for the
+ * server.
+ */
+export function usePendingNavigation() {
+  return useSyncExternalStore(subscribePending, getPendingSnapshot, () => null);
+}
+
+/**
+ * Non-hook getter: returns whether the current pending navigation target
+ * has a loading skeleton.  Call during render after usePendingNavigation()
+ * ensures you're subscribed to changes.
+ */
+export function getPendingHasLoading() {
+  return pendingHasLoading;
+}
+
+function subscribe(callback) {
+  locationListeners.add(callback);
+  return () => locationListeners.delete(callback);
+}
+
+function getSnapshot() {
+  return currentPathname;
+}
+
+function getServerSnapshot() {
+  return "/";
+}
+
+function getUrlSnapshot() {
+  return currentUrl;
+}
+
+export function usePathname() {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+/**
+ * Returns the current pathname + search string (e.g. "/products?sort=price").
+ * Re-renders when either the pathname or search params change.
+ */
+export function useUrl() {
+  return useSyncExternalStore(subscribe, getUrlSnapshot, getServerSnapshot);
+}
+
+/**
+ * Isomorphic client-side useMatch hook.
+ * Matches a route path pattern against the current pathname and returns
+ * the matched params, or null if no match.
+ *
+ * @param {string} path - Route path pattern (e.g. "/users/[id]")
+ * @param {object} [options] - Match options
+ * @param {boolean} [options.exact] - If true, the path must match exactly
+ * @returns {object|null} Matched params or null
+ */
+export function useMatch(path, options = {}) {
+  const pathname = usePathname();
+  const { exact } = options;
+  return useMemo(
+    () => match(path, pathname, { exact }),
+    [path, pathname, exact]
+  );
+}

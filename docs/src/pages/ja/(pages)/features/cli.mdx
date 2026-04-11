@@ -106,6 +106,22 @@ URLのオリジン部分を定数に指定します。環境変数`ORIGIN`を使
 
 サーバー起動時にターミナルをクリアするか指定します。デフォルトは`false`です。ターミナルをクリアしてサーバーを起動したいときに使います。
 
+<Link name="dev-devtools">
+### --devtools
+</Link>
+
+組み込みのreact-server DevToolsを有効にします。デフォルトは`false`です。
+
+有効にすると、開発中にアプリケーションにDevToolsパネルが挿入されます。RSCペイロード、キャッシュエントリ、ルート、アウトレット、リモートコンポーネント、ライブコンポーネント、ワーカー、サーバーログなど、アプリケーションの内部をリアルタイムで検査できます。
+
+`react-server.config.mjs`で設定することもできます：
+
+```js
+export default {
+  devtools: true,
+};
+```
+
 <Link name="dev-no-color">
 ### --no-color
 </Link>
@@ -124,7 +140,18 @@ URLのオリジン部分を定数に指定します。環境変数`ORIGIN`を使
 ### --eval
 </Link>
 
-`node -e`と同じように引数からサーバーのエントリーポイントを評価します。または標準入力も指定することが出来ます。このエントリーポイントは仮想化エントリーポイントとなり、ファイルシステムには書き込まれません。
+`node -e`と同じように引数からサーバーのエントリーポイントを評価します。値を指定せずに `--eval` だけを渡すと、エントリーポイントを _標準入力_ から読み込みます。標準入力は **自動的には消費されません** — `--eval` が明示的に指定された場合にのみ読み込まれます。このエントリーポイントは仮想化エントリーポイントとなり、ファイルシステムには書き込まれません。
+
+```sh
+# インラインコード
+pnpm exec react-server --eval "export default () => <h1>Hello</h1>;"
+
+# 標準入力から（値を指定しない `--eval` に注意）
+echo 'export default () => <h1>Hello from stdin</h1>;' | pnpm exec react-server --eval
+
+# シェルのリダイレクトでファイルから
+pnpm exec react-server --eval < ./entry.jsx
+```
 
 <Link name="dev-version">
 ### --version
@@ -243,7 +270,18 @@ pnpm react-server build --deploy '{"project": "my-project"}'
 ### --eval
 </Link>
 
-`node -e`と同じように引数に指定したエントリーポイントを評価します。または標準入力も指定することが出来ます。このエントリーポイントはファイルシステムに書き込んだものではなく仮想的なエントリーポイントです。
+`node -e`と同じように引数に指定したエントリーポイントを評価します。値を指定せずに `--eval` だけを渡すと、エントリーポイントを _標準入力_ から読み込みます。標準入力は **自動的には消費されません** — `--eval` が明示的に指定された場合にのみ読み込まれます。このエントリーポイントはファイルシステムに書き込んだものではなく仮想的なエントリーポイントです。
+
+```sh
+# インラインコード
+pnpm exec react-server build --eval "export default () => <h1>Hello</h1>;"
+
+# 標準入力から
+echo 'export default () => <h1>Hi</h1>;' | pnpm exec react-server build --eval
+
+# シェルのリダイレクトでファイルから
+pnpm exec react-server build --eval < ./entry.jsx
+```
 
 <Link name="build-outdir">
 ### --outDir

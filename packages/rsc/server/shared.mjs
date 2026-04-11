@@ -2723,3 +2723,57 @@ export function logToConsole(request, methodName, args) {
     request.emitConsoleLog(methodName, args);
   }
 }
+
+/**
+ * Synchronously serialize a value to a buffer using the RSC Flight protocol.
+ *
+ * Unlike renderToReadableStream, this drains all synchronous work immediately
+ * and returns a Uint8Array. Async types (Promise, ReadableStream, Blob,
+ * AsyncIterable) are serialized as references ($@, $r, $B, $i) — their
+ * async data will NOT be included in the buffer; they remain as pending
+ * chunk references that the consumer sees as Promises after deserialization.
+ *
+ * @param {unknown} model - The value to serialize
+ * @param {import('../types').RenderToReadableStreamOptions} [options] - Options
+ * @returns {Uint8Array} The serialized RSC payload
+ */
+export function syncToBuffer(model, options = {}) {
+  const request = new FlightRequest(model, options);
+
+  // Collect all synchronous output into a byte array instead of
+  // pushing to a ReadableStream controller.
+  const chunks = [];
+
+  // Use a fake destination that collects chunks
+  request.destination = {
+    enqueue(chunk) {
+      if (chunk instanceof Uint8Array) {
+        chunks.push(chunk);
+      } else {
+        chunks.push(encoder.encode(chunk));
+      }
+    },
+    close() {},
+    error() {},
+  };
+  request.flowing = true;
+
+  // Run serialization synchronously (same as startWork but inline)
+  startWork(request);
+
+  // Flush any remaining completed chunks
+  request.flushChunks();
+
+  // Concatenate all chunks into a single Uint8Array
+  let totalLength = 0;
+  for (const chunk of chunks) {
+    totalLength += chunk.length;
+  }
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}

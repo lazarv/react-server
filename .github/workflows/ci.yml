@@ -58,7 +58,6 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
@@ -109,7 +108,6 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
@@ -160,7 +158,6 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
@@ -213,7 +210,6 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
@@ -266,7 +262,6 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
@@ -317,7 +312,6 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
@@ -368,7 +362,6 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest
@@ -421,7 +414,6 @@ jobs:
         os: [ubuntu-latest]
         node_version: [20, 22, 24]
         include:
-          # Active LTS + other OS
           - os: macos-latest
             node_version: 24
           - os: windows-latest

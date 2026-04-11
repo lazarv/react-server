@@ -45,6 +45,8 @@ import {
   RENDER_STREAM,
   RENDER_TEMPORARY_REFERENCES,
   RENDER_WAIT,
+  SCROLL_RESTORATION_MODULE,
+  REQUEST_CACHE_SHARED,
   RESPONSE_BUFFER,
   STYLES_CONTEXT,
   SERVER_FUNCTION_NOT_FOUND,
@@ -60,6 +62,9 @@ import { cwd } from "../lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-reference-map";
 import { serverReferenceMap as _serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
 import { decryptActionId, wrapServerReferenceMap } from "./action-crypto.mjs";
+import { ScrollRestoration } from "../client/ScrollRestoration.jsx";
+
+let DevToolsHost;
 
 const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
 
@@ -67,6 +72,34 @@ export async function render(Component, props = {}, options = {}) {
   const logger = getContext(LOGGER_CONTEXT);
   const renderStream = getContext(RENDER_STREAM);
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
+
+  if (import.meta.env.DEV && config?.devtools && !DevToolsHost) {
+    const [
+      { default: DevToolsButton },
+      { default: HighlightOverlay },
+      { default: PayloadCollector },
+      { version: _runtimeVersion },
+    ] = await Promise.all([
+      import("../devtools/client/DevToolsButton.jsx"),
+      import("../devtools/client/HighlightOverlay.jsx"),
+      import("../devtools/client/PayloadCollector.jsx"),
+      import("./version.mjs"),
+    ]);
+
+    DevToolsHost = function DevToolsHost({ position }) {
+      return (
+        <>
+          <DevToolsButton
+            position={position ?? "bottom-right"}
+            version={_runtimeVersion}
+          />
+          <HighlightOverlay />
+          <PayloadCollector />
+        </>
+      );
+    };
+  }
+
   try {
     const streaming = new Promise(async (resolve, reject) => {
       const context = getContext(HTTP_CONTEXT);
@@ -432,7 +465,7 @@ export async function render(Component, props = {}, options = {}) {
                 );
               }
             : () => null;
-        const ComponentWithStyles = (
+        const additionalComponents = (
           <>
             {remoteRSC ? null : (
               <link
@@ -460,6 +493,26 @@ export async function render(Component, props = {}, options = {}) {
             )}
             <Styles />
             <ModulePreloads />
+            {config.scrollRestoration && !remote && !remoteRSC && (
+              <ScrollRestoration
+                {...(typeof config.scrollRestoration === "object"
+                  ? config.scrollRestoration
+                  : {})}
+              />
+            )}
+            {import.meta.env.DEV &&
+              config.devtools &&
+              !renderContext.flags.isRSC &&
+              !remote &&
+              !remoteRSC &&
+              !context.url?.pathname?.startsWith(
+                "/__react_server_devtools__"
+              ) && <DevToolsHost position={config.devtools?.position} />}
+          </>
+        );
+        const ComponentWithStyles = (
+          <>
+            {additionalComponents}
             <Component {...props} />
           </>
         );
@@ -518,8 +571,7 @@ export async function render(Component, props = {}, options = {}) {
               if (ErrorBoundary) {
                 app = (
                   <>
-                    <Styles />
-                    <ModulePreloads />
+                    {additionalComponents}
                     <ErrorBoundary component={ErrorComponent}>
                       <Component {...props} />
                     </ErrorBoundary>
@@ -575,6 +627,12 @@ export async function render(Component, props = {}, options = {}) {
                       ? "no-cache"
                       : "must-revalidate",
                   "last-modified": lastModified,
+                  ...(config.devtools &&
+                  !context.url?.pathname?.startsWith(
+                    "/__react_server_devtools__"
+                  )
+                    ? { "x-react-server-pathname": context.url.pathname }
+                    : {}),
                   ...callServerHeaders,
                   ...(prevHeaders
                     ? Object.fromEntries(prevHeaders.entries())
@@ -789,10 +847,15 @@ export async function render(Component, props = {}, options = {}) {
           const prelude = getContext(PRELUDE_HTML);
           const postponed = getContext(POSTPONE_STATE);
           const importMap = getContext(IMPORT_MAP);
+          const scrollRestorationModule = getContext(SCROLL_RESTORATION_MODULE);
           let isStarted = false;
 
           const stream = await renderStream({
             stream: flight,
+            headScripts: scrollRestorationModule
+              ? [scrollRestorationModule]
+              : [],
+            nonce: config.html?.cspNonce,
             bootstrapModules:
               renderContext.flags.isRSC || renderContext.flags.isRemote
                 ? []
@@ -909,6 +972,16 @@ export async function render(Component, props = {}, options = {}) {
             origin,
             importMap,
             body,
+            requestCacheBuffer:
+              getContext(REQUEST_CACHE_SHARED)?.buffer ??
+              getContext(REQUEST_CACHE_SHARED) ??
+              null,
+            // Pass devtools flag to render-dom worker for flight writer hook.
+            // Skip for devtools iframe routes — they don't need payload capture.
+            devtools:
+              import.meta.env.DEV &&
+              !!config.devtools &&
+              !context.url?.pathname?.startsWith("/__react_server_devtools__"),
             httpContext: {
               request: {
                 method: context.request.method,

@@ -13,4 +13,5 @@ export {
   encodeReply,
   createServerReference,
   createTemporaryReferenceSet,
+  syncFromBuffer,
 } from "./shared.mjs";

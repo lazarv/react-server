@@ -330,6 +330,14 @@ article {
       & code {
         @apply bg-gray-100 dark:bg-gray-100 dark:text-gray-800 text-sm font-semibold p-1;
       }
+
+      & em {
+        @apply text-xs leading-none block;
+
+        & code {
+          @apply text-xs;
+        }
+      }
     }
 
     & tr {

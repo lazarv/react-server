@@ -211,6 +211,10 @@ export const DESCRIPTIONS = {
   "serverFunctions.previousSecretFiles":
     "Previously used secret files for key rotation.",
 
+  // virtual routes
+  routes:
+    'Virtual route definitions mapping URL paths to files outside the file-router root. Object shorthand (values are file paths, type defaults to "page") or array of { path, file, type?, method?, outlet? }.',
+
   // file-router child config
   layout: "File-router layout configuration.",
   page: "File-router page configuration.",
@@ -882,6 +886,73 @@ export function generateJsonSchema() {
           additionalProperties: false,
         },
         "serverFunctions"
+      ),
+
+      // ── Virtual routes ──
+      routes: prop(
+        {
+          oneOf: [
+            {
+              type: "object",
+              additionalProperties: { type: "string" },
+              description:
+                "Object shorthand: keys are URL paths, values are file paths. Type defaults to page.",
+            },
+            {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  path: {
+                    type: "string",
+                    description: "The URL path for this route.",
+                  },
+                  file: {
+                    type: "string",
+                    description:
+                      "File path to the component/handler (resolved relative to cwd).",
+                  },
+                  type: {
+                    enum: [
+                      "page",
+                      "layout",
+                      "middleware",
+                      "api",
+                      "error",
+                      "loading",
+                      "fallback",
+                      "default",
+                      "template",
+                      "state",
+                      "metadata",
+                      "static",
+                    ],
+                    description: 'Route type. Defaults to "page".',
+                  },
+                  method: {
+                    enum: [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "HEAD",
+                      "OPTIONS",
+                    ],
+                    description: "HTTP method (required when type is api).",
+                  },
+                  outlet: {
+                    type: "string",
+                    description: "Named outlet.",
+                  },
+                },
+                required: ["path", "file"],
+                additionalProperties: false,
+              },
+            },
+          ],
+        },
+        "routes"
       ),
 
       // ── File-router child config ──

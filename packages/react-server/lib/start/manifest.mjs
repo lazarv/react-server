@@ -11,6 +11,7 @@ import {
   MAIN_MODULE,
   MANIFEST,
   MODULE_LOADER,
+  SCROLL_RESTORATION_MODULE,
   SOURCEMAP_SUPPORT,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
@@ -104,6 +105,17 @@ export async function init$(options = {}) {
 
   const mainModule = `/${Object.values(manifest.browser).find((entry) => entry.name === "index")?.file}`;
   runtime$(MAIN_MODULE, [mainModule]);
+
+  const config = getRuntime(CONFIG_CONTEXT);
+  const configRoot = config?.[CONFIG_ROOT] ?? {};
+  if (configRoot.scrollRestoration) {
+    const scrollRestorationEntry = Object.values(manifest.browser).find(
+      (entry) => entry.name === "scroll-restoration-init"
+    );
+    if (scrollRestorationEntry) {
+      runtime$(SCROLL_RESTORATION_MODULE, `/${scrollRestorationEntry.file}`);
+    }
+  }
 
   const entryCache = new Map();
   async function ssrLoadModule($$id, linkQueueStorage) {

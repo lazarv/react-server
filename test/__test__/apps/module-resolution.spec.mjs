@@ -1,14 +1,16 @@
-import { join } from "node:path";
-
-import { hostname, page, server, waitForHydration } from "playground/utils";
+import {
+  appDir,
+  hostname,
+  page,
+  server,
+  waitForHydration,
+} from "playground/utils";
 import { describe } from "vitest";
 import { beforeAll, expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/module-resolution"));
-
 describe("module-resolution example", {}, () => {
   beforeAll(async () => {
-    await server("./App.jsx");
+    await server("./App.jsx", { cwd: appDir("examples/module-resolution") });
   });
 
   test("iron-session loads", async () => {

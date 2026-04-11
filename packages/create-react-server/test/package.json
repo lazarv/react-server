@@ -13,6 +13,6 @@
     "clean": "rm -rf .build"
   },
   "devDependencies": {
-    "vitest": "4.1.0"
+    "vitest": "4.1.4"
   }
 }

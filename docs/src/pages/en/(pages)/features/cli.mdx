@@ -106,6 +106,22 @@ Watch for config changes. Default is `true`. To disable watching for config chan
 
 Clear screen on server start. Default is `false`. If you want to start with a clean terminal screen.
 
+<Link name="dev-devtools">
+### --devtools
+</Link>
+
+Enable the built-in react-server DevTools. Default is `false`.
+
+When enabled, a DevTools panel is injected into your application during development. It provides real-time inspection of your app's internals including RSC payload, cache entries, routes, outlets, remote components, live components, workers, and server logs.
+
+You can also enable DevTools via your `react-server.config.mjs`:
+
+```js
+export default {
+  devtools: true,
+};
+```
+
 <Link name="dev-no-color">
 ### --no-color
 </Link>
@@ -124,7 +140,18 @@ When set, the development server will not validate your `react-server.config.*` 
 ### --eval
 </Link>
 
-Evaluate the server entrypoint from the argument, like `node -e`. You can also use _stdin_ as the entrypoint. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+Evaluate the server entrypoint from the argument, like `node -e`. Pass `--eval` without a value to read the entrypoint from _stdin_ instead. Stdin is **never** auto-consumed — it is only read when `--eval` is explicitly passed. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+
+```sh
+# Inline code
+pnpm exec react-server --eval "export default () => <h1>Hello</h1>;"
+
+# From stdin (note the bare --eval, with no value)
+echo 'export default () => <h1>Hello from stdin</h1>;' | pnpm exec react-server --eval
+
+# From a file via shell redirect
+pnpm exec react-server --eval < ./entry.jsx
+```
 
 <Link name="dev-version">
 ### --version
@@ -243,7 +270,18 @@ This is useful when you want to override or provide adapter options without modi
 ### --eval
 </Link>
 
-Evaluate the server entrypoint from the argument, like `node -e`. You can also use _stdin_ as the entrypoint. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+Evaluate the server entrypoint from the argument, like `node -e`. Pass `--eval` without a value to read the entrypoint from _stdin_ instead. Stdin is **never** auto-consumed — it is only read when `--eval` is explicitly passed. This type of entrypoint becomes a virtualized entrypoint and is not written to the file system.
+
+```sh
+# Inline code
+pnpm exec react-server build --eval "export default () => <h1>Hello</h1>;"
+
+# From stdin
+echo 'export default () => <h1>Hi</h1>;' | pnpm exec react-server build --eval
+
+# From a file via shell redirect
+pnpm exec react-server build --eval < ./entry.jsx
+```
 
 <Link name="build-outdir">
 ### --outDir

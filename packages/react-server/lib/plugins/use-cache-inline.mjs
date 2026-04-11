@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 import colors from "picocolors";
 
 import * as sys from "../sys.mjs";
@@ -95,7 +96,8 @@ export default function useCacheInline(profiles, providers = {}, type) {
           type !== "server" &&
           (this.environment?.name === "client" ||
             this.environment?.name === "ssr" ||
-            type === "client");
+            type === "client" ||
+            type === "ssr");
 
         const serverProvider = {
           driver: "unstorage/drivers/memory",
@@ -127,8 +129,46 @@ export default function useCacheInline(profiles, providers = {}, type) {
           ...resolvedProviders,
         };
 
+        // Extract all binding names from a pattern node (Identifier, ObjectPattern,
+        // ArrayPattern, AssignmentPattern, RestElement).
+        function collectBindingNames(pattern, out = []) {
+          if (!pattern) return out;
+          switch (pattern.type) {
+            case "Identifier":
+              out.push(pattern.name);
+              break;
+            case "ObjectPattern":
+              for (const prop of pattern.properties) {
+                if (prop.type === "RestElement") {
+                  collectBindingNames(prop.argument, out);
+                } else {
+                  collectBindingNames(prop.value, out);
+                }
+              }
+              break;
+            case "ArrayPattern":
+              for (const el of pattern.elements) {
+                if (el) collectBindingNames(el, out);
+              }
+              break;
+            case "AssignmentPattern":
+              collectBindingNames(pattern.left, out);
+              break;
+            case "RestElement":
+              collectBindingNames(pattern.argument, out);
+              break;
+          }
+          return out;
+        }
+
         const caches = [];
-        const locals = [];
+        // Scope stack: each entry is { node, names: Set<string> } representing
+        // a function scope. Only non-cached function scopes are pushed.
+        // When checking closure captures for a cached function, we look at all
+        // entries on the stack — they represent the enclosing lexical scopes.
+        // This prevents variables from unrelated sibling functions from leaking
+        // into the closure capture list.
+        const scopeStack = [];
         let parent = null;
         let useCacheNode = null;
         let useCache = null;
@@ -165,8 +205,15 @@ export default function useCacheInline(profiles, providers = {}, type) {
                 .split(";")
                 .slice(1)
                 .reduce((acc, param) => {
-                  const [key, value] = param.split("=");
-                  acc[key.trim()] = value.trim();
+                  const eq = param.indexOf("=");
+                  if (eq === -1) {
+                    // Bare flag: "no-hydrate" → { "no-hydrate": true }
+                    const flag = param.trim();
+                    if (flag) acc[flag] = true;
+                  } else {
+                    const key = param.slice(0, eq).trim();
+                    acc[key] = param.slice(eq + 1).trim();
+                  }
                   return acc;
                 }, {});
               useCacheNode = node;
@@ -199,12 +246,51 @@ export default function useCacheInline(profiles, providers = {}, type) {
             }
 
             if (useCacheNode && node.type === "Identifier") {
+              // Skip identifiers in non-reference positions (object property
+              // keys, non-computed member expression properties, declaration
+              // ids). After JSX transformation, JSX attribute names become
+              // Property keys (e.g., { name: "World" }) and must not be
+              // treated as closure variable references.
+              const isNonRef =
+                (node.parent?.type === "Property" &&
+                  node.parent.key === node &&
+                  !node.parent.computed) ||
+                (node.parent?.type === "MemberExpression" &&
+                  node.parent.property === node &&
+                  !node.parent.computed) ||
+                (node.parent?.type === "VariableDeclarator" &&
+                  node.parent.id === node) ||
+                ((node.parent?.type === "FunctionDeclaration" ||
+                  node.parent?.type === "FunctionExpression") &&
+                  node.parent.id === node);
               if (
-                locals.includes(node.name) &&
-                !useCache.params.includes(node.name)
+                !isNonRef &&
+                scopeStack.some((s) => s.names.has(node.name)) &&
+                !useCache.params.includes(node.name) &&
+                !useCache.locals.includes(node.name)
               ) {
                 useCache.params.push(node.name);
               }
+            }
+
+            // Track function/arrow parameters as locals (these are bindings in
+            // the enclosing scope that a nested "use cache" function may close
+            // over). Push a new scope entry onto the stack so that variables
+            // from sibling/unrelated functions don't leak into the closure
+            // capture list.
+            if (
+              !useCacheNode &&
+              (node.type === "FunctionDeclaration" ||
+                node.type === "FunctionExpression" ||
+                node.type === "ArrowFunctionExpression")
+            ) {
+              const names = new Set();
+              for (const param of node.params) {
+                for (const n of collectBindingNames(param)) {
+                  names.add(n);
+                }
+              }
+              scopeStack.push({ node, names });
             }
 
             if (node.type === "VariableDeclarator") {
@@ -219,10 +305,12 @@ export default function useCacheInline(profiles, providers = {}, type) {
                 parent = parent.parent;
               }
               if (parent) {
+                const names = collectBindingNames(node.id);
                 if (useCacheNode) {
-                  useCache.locals.push(node.id.name);
-                } else {
-                  locals.push(node.id.name);
+                  useCache.locals.push(...names);
+                } else if (scopeStack.length > 0) {
+                  const topScope = scopeStack[scopeStack.length - 1].names;
+                  for (const name of names) topScope.add(name);
                 }
               }
             }
@@ -230,6 +318,15 @@ export default function useCacheInline(profiles, providers = {}, type) {
             parent = node;
           },
           leave(node) {
+            // Pop scope when leaving a non-cached function whose scope was
+            // pushed in `enter`.
+            if (
+              scopeStack.length > 0 &&
+              scopeStack[scopeStack.length - 1].node === node
+            ) {
+              scopeStack.pop();
+            }
+
             if (node === useCacheNode) {
               if (useCache.params.length > 0) {
                 useCacheNode.type = "CallExpression";
@@ -255,14 +352,14 @@ export default function useCacheInline(profiles, providers = {}, type) {
                   })),
                 ];
               } else if (useCache.parent?.type === "ExportNamedDeclaration") {
-                useCache.name = useCache.parent.declaration.id.name;
+                useCache.exported = true;
                 useCache.parent.parent.body =
                   useCache.parent.parent.body.filter(
                     (n) => n !== useCache.parent
                   );
               } else if (useCache.parent?.type === "ExportDefaultDeclaration") {
+                useCache.exported = true;
                 useCache.identifier = "_default";
-                useCache.name = "_default";
                 useCache.parent.parent.body =
                   useCache.parent.parent.body.filter(
                     (n) => n !== useCache.parent
@@ -431,6 +528,51 @@ export default function useCacheInline(profiles, providers = {}, type) {
           }
         }
 
+        // Resolve original source positions via combined source map
+        if (this.environment?.mode !== "build" && caches.length > 0) {
+          try {
+            const map = this.getCombinedSourcemap?.();
+            if (map) {
+              const traced = new TraceMap(map);
+              for (const cache of caches) {
+                const loc = cache.node.loc?.start;
+                if (loc) {
+                  const orig = originalPositionFor(traced, {
+                    line: loc.line,
+                    column: loc.column,
+                  });
+                  if (orig.source) {
+                    cache._origFile = orig.source;
+                    cache._origLine = orig.line;
+                    cache._origCol = orig.column;
+                  } else {
+                    cache._origLine = loc.line;
+                    cache._origCol = loc.column;
+                  }
+                }
+              }
+            } else {
+              // No prior transforms — positions are already original
+              for (const cache of caches) {
+                const loc = cache.node.loc?.start;
+                if (loc) {
+                  cache._origLine = loc.line;
+                  cache._origCol = loc.column;
+                }
+              }
+            }
+          } catch {
+            // Source map resolution failed — use raw AST positions
+            for (const cache of caches) {
+              const loc = cache.node.loc?.start;
+              if (loc) {
+                cache._origLine = loc.line;
+                cache._origCol = loc.column;
+              }
+            }
+          }
+        }
+
         for (const cache of caches) {
           if (
             cache.provider &&
@@ -494,11 +636,8 @@ export default function useCacheInline(profiles, providers = {}, type) {
                           type: "ArrayPattern",
                           elements: [
                             ...cache.params.map((param) => ({
-                              type: "VariableDeclarator",
-                              id: {
-                                type: "Identifier",
-                                name: param,
-                              },
+                              type: "Identifier",
+                              name: param,
                             })),
                             ...cache.node.params,
                           ],
@@ -533,7 +672,68 @@ export default function useCacheInline(profiles, providers = {}, type) {
                         ? [
                             {
                               type: "Literal",
-                              value: id,
+                              value: hash,
+                            },
+                            {
+                              type: "ObjectExpression",
+                              properties: [
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: {
+                                    type: "Identifier",
+                                    name: "__devtools__",
+                                  },
+                                  value: { type: "Literal", value: true },
+                                },
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: { type: "Identifier", name: "file" },
+                                  value: {
+                                    type: "Literal",
+                                    value: cache._origFile ?? id,
+                                  },
+                                },
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: { type: "Identifier", name: "line" },
+                                  value: {
+                                    type: "Literal",
+                                    value: cache._origLine ?? 0,
+                                  },
+                                },
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: { type: "Identifier", name: "col" },
+                                  value: {
+                                    type: "Literal",
+                                    value: cache._origCol ?? 0,
+                                  },
+                                },
+                                {
+                                  type: "Property",
+                                  kind: "init",
+                                  key: { type: "Identifier", name: "fn" },
+                                  value: {
+                                    type: "Literal",
+                                    value:
+                                      cache.identifier ||
+                                      cache.node.id?.name ||
+                                      (cache.node.parent?.type ===
+                                      "VariableDeclarator"
+                                        ? cache.node.parent.id?.name
+                                        : null) ||
+                                      (cache.node.parent?.type ===
+                                      "ExportDefaultDeclaration"
+                                        ? "default"
+                                        : null) ||
+                                      "anonymous",
+                                  },
+                                },
+                              ],
                             },
                           ]
                         : []),
@@ -543,7 +743,9 @@ export default function useCacheInline(profiles, providers = {}, type) {
                     type: "FunctionExpression",
                     id: null,
                     generator: false,
-                    async: true,
+                    async:
+                      !!cache.node.async ||
+                      !(cache.provider === "request" && isClient),
                     params: [],
                     body: {
                       type: "BlockStatement",
@@ -643,6 +845,28 @@ export default function useCacheInline(profiles, providers = {}, type) {
                                   },
                                 ]
                               : []),
+                            ...(cache.hydrate !== undefined ||
+                            cache["no-hydrate"] !== undefined
+                              ? [
+                                  {
+                                    type: "Property",
+                                    kind: "init",
+                                    key: {
+                                      type: "Identifier",
+                                      name: "hydrate",
+                                    },
+                                    value: {
+                                      type: "Literal",
+                                      // "no-hydrate" flag → hydrate: false
+                                      // "hydrate=false" → hydrate: false
+                                      // "hydrate=true" → hydrate: true
+                                      value: cache["no-hydrate"]
+                                        ? false
+                                        : cache.hydrate !== "false",
+                                    },
+                                  },
+                                ]
+                              : []),
                           ],
                         },
                       ]
@@ -651,29 +875,72 @@ export default function useCacheInline(profiles, providers = {}, type) {
               },
             },
           ];
-          ast.body.push(
-            {
-              type: "FunctionDeclaration",
-              async: true,
-              id: {
-                type: "Identifier",
-                name: cache.name,
-              },
-              params: [
-                ...(argsName
-                  ? [
-                      {
-                        type: "RestElement",
-                        argument: {
-                          type: "Identifier",
-                          name: argsName,
-                        },
-                      },
-                    ]
-                  : cache.node.params),
-              ],
-              body: cache.node.body,
+          ast.body.push({
+            type: "FunctionDeclaration",
+            async: !(cache.provider === "request" && isClient),
+            id: {
+              type: "Identifier",
+              name: cache.name,
             },
+            params: [
+              ...(argsName
+                ? [
+                    {
+                      type: "RestElement",
+                      argument: {
+                        type: "Identifier",
+                        name: argsName,
+                      },
+                    },
+                  ]
+                : cache.node.params),
+            ],
+            body: cache.node.body,
+          });
+
+          // For exported cached functions, wrap in __react_cache__() so they
+          // get the same per-request memoization as non-exported cached
+          // functions.
+          if (cache.exported && cache.identifier) {
+            ast.body.push({
+              type: "VariableDeclaration",
+              kind: "const",
+              declarations: [
+                {
+                  type: "VariableDeclarator",
+                  id: {
+                    type: "Identifier",
+                    name: cache.identifier,
+                  },
+                  init: {
+                    type: "CallExpression",
+                    callee: {
+                      type: "Identifier",
+                      name: "__react_cache__",
+                    },
+                    arguments: [
+                      {
+                        type: "Identifier",
+                        name: cache.name,
+                      },
+                    ],
+                  },
+                },
+              ],
+            });
+          }
+
+          // For nested cached functions (parent is a BlockStatement inside
+          // another function), the identifier is scoped to the enclosing
+          // function and not accessible at module level. Use the mangled impl
+          // name (which is always module-level) for the CACHE_KEY/PROVIDER
+          // assignments.
+          const isModuleScoped =
+            cache.exported || cache.parent?.type === "Program";
+          const cacheTarget = isModuleScoped
+            ? (cache.identifier ?? cache.name)
+            : cache.name;
+          ast.body.push(
             {
               type: "ExpressionStatement",
               expression: {
@@ -684,7 +951,7 @@ export default function useCacheInline(profiles, providers = {}, type) {
                   computed: true,
                   object: {
                     type: "Identifier",
-                    name: cache.identifier ?? cache.name,
+                    name: cacheTarget,
                   },
                   property: {
                     type: "Identifier",
@@ -704,7 +971,7 @@ export default function useCacheInline(profiles, providers = {}, type) {
                   computed: true,
                   object: {
                     type: "Identifier",
-                    name: cache.identifier ?? cache.name,
+                    name: cacheTarget,
                   },
                   property: {
                     type: "Identifier",
@@ -724,14 +991,38 @@ export default function useCacheInline(profiles, providers = {}, type) {
         ast.body.push({
           type: "ExportNamedDeclaration",
           declaration: null,
-          specifiers: caches.map((cache) => ({
-            type: "ExportSpecifier",
-            exported: {
-              type: "Identifier",
-              name: cache.name === "_default" ? "default" : cache.name,
-            },
-            local: { type: "Identifier", name: cache.name },
-          })),
+          specifiers: caches.flatMap((cache) => {
+            const specs = [
+              {
+                type: "ExportSpecifier",
+                exported: {
+                  type: "Identifier",
+                  name: cache.name === "_default" ? "default" : cache.name,
+                },
+                local: { type: "Identifier", name: cache.name },
+              },
+            ];
+            // For exported cached functions, also export the user-facing
+            // identifier (which is the __react_cache__-wrapped version).
+            if (
+              cache.exported &&
+              cache.identifier &&
+              cache.identifier !== cache.name
+            ) {
+              specs.push({
+                type: "ExportSpecifier",
+                exported: {
+                  type: "Identifier",
+                  name:
+                    cache.identifier === "_default"
+                      ? "default"
+                      : cache.identifier,
+                },
+                local: { type: "Identifier", name: cache.identifier },
+              });
+            }
+            return specs;
+          }),
         });
 
         return codegen(ast, id);

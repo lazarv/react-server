@@ -27,6 +27,7 @@ import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   IMPORT_MAP,
+  DEVTOOLS_CONTEXT,
   LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
   MODULE_LOADER,
@@ -41,6 +42,7 @@ import { moduleAliases } from "../loader/module-alias.mjs";
 import aliasPlugin from "../plugins/alias.mjs";
 import asset from "../plugins/asset.mjs";
 import fileRouter from "../plugins/file-router/plugin.mjs";
+import resourcesPlugin from "../plugins/resources.mjs";
 import importRemote from "../plugins/import-remote.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import reactServerLive from "../plugins/live.mjs";
@@ -168,8 +170,12 @@ export default async function createServer(root, options) {
         ? config.cors
         : false;
 
+  // Strip react-server-specific keys that would confuse Vite
+  // (e.g. `devtools: true` triggers Vite's @vitejs/devtools loader)
+  // oxlint-disable-next-line no-unused-vars
+  const { devtools: _devtools, ...viteCompatConfig } = config;
   const devServerConfig = {
-    ...config,
+    ...viteCompatConfig,
     json: {
       namedExports: true,
     },
@@ -246,6 +252,7 @@ export default async function createServer(root, options) {
     },
     plugins: [
       jsonNamedExports(),
+      resourcesPlugin(),
       ...(options.inspect
         ? [
             inspect({
@@ -334,6 +341,12 @@ export default async function createServer(root, options) {
           ),
         },
         {
+          find: /^@lazarv\/react-server\/resources$/,
+          replacement: sys.normalizePath(
+            join(sys.rootDir, "server/resources.jsx")
+          ),
+        },
+        {
           find: /^@lazarv\/react-server\/prerender$/,
           replacement: sys.normalizePath(
             join(sys.rootDir, "server/prerender.jsx")
@@ -407,7 +420,27 @@ export default async function createServer(root, options) {
       client: {
         dev: {
           createEnvironment: (name, config, context) =>
-            new DevEnvironment(name, config, context),
+            new DevEnvironment(name, config, {
+              ...context,
+              options: {
+                resolve: {
+                  alias: [
+                    {
+                      find: /^@lazarv\/react-server\/router$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/route.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/resources$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/resource.mjs")
+                      ),
+                    },
+                  ],
+                },
+              },
+            }),
         },
       },
       ssr: {
@@ -421,9 +454,31 @@ export default async function createServer(root, options) {
                   external: ["picocolors", /^bun:/],
                   alias: [
                     {
+                      find: /^@lazarv\/react-server\/router$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "client/route.mjs")
+                      ),
+                    },
+                    ...(root && root !== "@lazarv/react-server/file-router"
+                      ? [
+                          {
+                            find: /^@lazarv\/react-server\/resources$/,
+                            replacement: sys.normalizePath(
+                              join(sys.rootDir, "client/resource.mjs")
+                            ),
+                          },
+                        ]
+                      : []),
+                    {
                       find: /^@lazarv\/react-server\/http-context$/,
                       replacement: sys.normalizePath(
                         join(sys.rootDir, "server/http-context.mjs")
+                      ),
+                    },
+                    {
+                      find: /^@lazarv\/react-server\/memory-cache\/client$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "cache/ssr.mjs")
                       ),
                     },
                     {
@@ -445,6 +500,9 @@ export default async function createServer(root, options) {
         },
       },
       rsc: {
+        resolve: {
+          conditions: ["react-server"],
+        },
         dev: {
           createEnvironment: (name, config) =>
             createRunnableDevEnvironment(name, config, {
@@ -503,6 +561,12 @@ export default async function createServer(root, options) {
                         join(sys.rootDir, "cache/rsc.mjs")
                       ),
                     },
+                    {
+                      find: /^@lazarv\/react-server\/navigation$/,
+                      replacement: sys.normalizePath(
+                        join(sys.rootDir, "server/navigation.mjs")
+                      ),
+                    },
                   ],
                 },
               },
@@ -525,6 +589,20 @@ export default async function createServer(root, options) {
     }
   }
 
+  // Initialize devtools context before Vite so file-router plugin can
+  // push its manifest during createViteDevServer().
+  if (config.devtools) {
+    const { createDevToolsContext } =
+      await import("../../devtools/context.mjs");
+    const devtoolsCtx = createDevToolsContext();
+    runtime$(DEVTOOLS_CONTEXT, devtoolsCtx);
+
+    // Flush any output buffered since installOutputCapture() and switch
+    // to direct recording for all future stdout/stderr writes.
+    const { connectDevToolsOutput } = await import("./devtools-output.mjs");
+    connectDevToolsOutput(devtoolsCtx);
+  }
+
   // ── Telemetry: Vite dev server creation span ──
   const viteCreateSpan = startupTracer.startSpan("Vite Dev Server Init", {
     attributes: {
@@ -534,6 +612,77 @@ export default async function createServer(root, options) {
   });
   const viteDevServer = await createViteDevServer(viteConfig);
   viteCreateSpan.end();
+
+  // Inject a Connect-level CORS middleware at the very front of the stack so
+  // that Vite-handled requests (module transforms, static assets, HMR) also
+  // receive proper CORS headers.  The react-server CORS middleware in the
+  // composed handler chain only covers requests that reach the SSR handler,
+  // but Vite's internal middlewares respond earlier and would otherwise send
+  // responses without any Access-Control-* headers.
+  if (corsEnabled) {
+    const _serverCors = serverCors || {};
+    const _originFn =
+      typeof _serverCors.origin === "function" ? _serverCors.origin : null;
+    const _staticOrigin = _originFn ? null : (_serverCors.origin ?? "*");
+    const _credentials = _serverCors.credentials ?? false;
+
+    // unshift onto Connect's stack so this runs before all Vite-internal
+    // middlewares (which are already registered by createViteDevServer).
+    viteDevServer.middlewares.stack.unshift({
+      route: "",
+      handle: function viteCorsShim(req, res, next) {
+        const requestOrigin = req.headers.origin;
+        if (!requestOrigin) return next();
+
+        let allowed;
+        if (_originFn) {
+          // The origin function expects a context-like object; build a minimal
+          // shim that matches what the react-server CORS middleware receives.
+          allowed = _originFn({
+            request: {
+              headers: {
+                get: (name) => req.headers[name.toLowerCase()],
+              },
+            },
+          });
+        } else {
+          allowed = _staticOrigin === true ? requestOrigin : _staticOrigin;
+        }
+
+        // allowed may be a promise when using the default dynamic origin
+        Promise.resolve(allowed).then((origin) => {
+          const effectiveOrigin =
+            origin === true ? requestOrigin : origin || requestOrigin;
+          res.setHeader("access-control-allow-origin", effectiveOrigin);
+          if (_credentials) {
+            res.setHeader("access-control-allow-credentials", "true");
+          }
+          if (req.method === "OPTIONS") {
+            res.setHeader(
+              "access-control-allow-methods",
+              _serverCors.allowMethods || "GET,HEAD,PUT,PATCH,POST,DELETE"
+            );
+            const allowHeaders =
+              _serverCors.allowHeaders ||
+              req.headers["access-control-request-headers"];
+            if (allowHeaders) {
+              res.setHeader("access-control-allow-headers", allowHeaders);
+            }
+            if (_serverCors.maxAge) {
+              res.setHeader(
+                "access-control-max-age",
+                String(_serverCors.maxAge)
+              );
+            }
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+          next();
+        });
+      },
+    });
+  }
 
   if (config.envDir !== false) {
     if (globalThis.__react_server_prev_env_keys__) {
@@ -1051,7 +1200,9 @@ export default async function createServer(root, options) {
   return {
     listen: (...args) => {
       return viteDevServer.middlewares.listen(...args).once("listening", () => {
-        viteDevServer.environments.client.hot.listen();
+        if (config?.server?.hmr !== false) {
+          viteDevServer.environments.client.hot.listen();
+        }
       });
     },
     close: () => {

@@ -16,6 +16,7 @@ import {
   COLLECT_CLIENT_MODULES,
   COLLECT_STYLESHEETS,
   CONFIG_CONTEXT,
+  CONFIG_ROOT,
   ERROR_BOUNDARY,
   ERROR_CONTEXT,
   HTTP_CONTEXT,
@@ -31,6 +32,9 @@ import {
   RENDER_CONTEXT,
   RENDER_HANDLER,
   RENDER_STREAM,
+  SCROLL_RESTORATION_MODULE,
+  REQUEST_CACHE_CONTEXT,
+  REQUEST_CACHE_SHARED,
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
@@ -44,6 +48,7 @@ export default async function ssrHandler(root) {
   const { entryModule, rootModule, rootName, globalErrorModule } =
     await getModules(root, config);
 
+  const configRoot = config?.[CONFIG_ROOT] ?? {};
   const viteDevServer = getRuntime(SERVER_CONTEXT);
   const ssrLoadModule = getRuntime(MODULE_LOADER);
   const importMap = getRuntime(IMPORT_MAP);
@@ -52,13 +57,31 @@ export default async function ssrHandler(root) {
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
   const renderStream = createWorker();
+  const hasWorkerThread = !!getRuntime(Symbol.for("WORKER_THREAD"));
   const moduleCacheStorage = new AsyncLocalStorage();
 
   return async function ssr(httpContext) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
         const noCache =
           httpContext.request.headers.get("cache-control") === "no-cache";
+
+        // Create per-request cache for "use cache: request"
+        const [
+          { default: memoryDriver },
+          { default: StorageCache },
+          { createSharedRequestCache, createInProcessRequestCache },
+        ] = await Promise.all([
+          ssrLoadModule("unstorage/drivers/memory"),
+          ssrLoadModule("@lazarv/react-server/storage-cache"),
+          ssrLoadModule("@lazarv/react-server/cache/request-cache-shared.mjs"),
+        ]);
+        const requestCache = new StorageCache(memoryDriver, { type: "raw" });
+
+        // Create shared cache for cross-environment access (RSC → SSR)
+        const sharedRequestCache = hasWorkerThread
+          ? createSharedRequestCache()
+          : createInProcessRequestCache();
 
         ContextStorage.run(
           {
@@ -70,14 +93,28 @@ export default async function ssrHandler(root) {
             [MODULE_LOADER]: ssrLoadModule,
             [IMPORT_MAP]: importMap,
             [LOGGER_CONTEXT]: logger,
-            [MAIN_MODULE]: ["@vite/client", `@hmr`, `@__webpack_require__`].map(
-              (mod) =>
-                `${viteDevServer.config.base || "/"}/${mod}`.replace(
-                  /\/+/g,
-                  "/"
-                )
+            [MAIN_MODULE]: [
+              ...(configRoot?.server?.hmr === false
+                ? ["@__disable_hmr__"]
+                : []),
+              "@vite/client",
+              `@hmr`,
+              `@__webpack_require__`,
+            ].map((mod) =>
+              `${viteDevServer.config.base || "/"}/${mod}`.replace(/\/+/g, "/")
             ),
+            ...(configRoot.scrollRestoration
+              ? {
+                  [SCROLL_RESTORATION_MODULE]:
+                    `${viteDevServer.config.base || "/"}/@fs/${new URL("../../client/scroll-restoration-init.mjs", import.meta.url).pathname}`.replace(
+                      /\/+/g,
+                      "/"
+                    ),
+                }
+              : {}),
             [MEMORY_CACHE_CONTEXT]: noCache ? null : memoryCacheContext,
+            [REQUEST_CACHE_CONTEXT]: requestCache,
+            [REQUEST_CACHE_SHARED]: sharedRequestCache,
             [REDIRECT_CONTEXT]: {},
             [COLLECT_CLIENT_MODULES]: collectClientModules,
             [COLLECT_STYLESHEETS]: collectStylesheets,
@@ -124,6 +161,38 @@ export default async function ssrHandler(root) {
               }
 
               const handler = async () => {
+                // Dev-only: intercept devtools routes and render the devtools
+                // app directly, bypassing the user's component tree and middleware.
+                if (
+                  configRoot.devtools &&
+                  httpContext.url?.pathname?.startsWith(
+                    "/__react_server_devtools__"
+                  )
+                ) {
+                  try {
+                    const { default: DevToolsApp } = await ssrLoadModule(
+                      "@lazarv/react-server/devtools/app/index.jsx"
+                    );
+                    if (DevToolsApp) {
+                      // Start with empty arrays — devtools client components
+                      // are discovered during RSC rendering, not from the user's module graph
+                      context$(CLIENT_MODULES_CONTEXT, []);
+                      context$(STYLES_CONTEXT, []);
+                      await module_loader_init$?.(
+                        ssrLoadModule,
+                        moduleCacheStorage,
+                        null,
+                        "rsc"
+                      );
+                      return moduleCacheStorage.run(new Map(), async () => {
+                        return render(DevToolsApp, {});
+                      });
+                    }
+                  } catch (e) {
+                    logger.error("DevTools render error:", e);
+                  }
+                }
+
                 let middlewareError = null;
                 try {
                   const middlewareHandler = await root_init$?.();

@@ -10,6 +10,7 @@ import { getRuntime } from "@lazarv/react-server/server/runtime.mjs";
 import {
   CONSOLE_PROXY,
   DEV_SERVER_CONTEXT,
+  DEVTOOLS_CONTEXT,
   EXEC_OPTIONS,
   LOGGER_CONTEXT,
   RSC_MODULE_RUNNER,
@@ -36,6 +37,9 @@ export default function createWorkerProxy(id, env = "dev") {
       getContext(LOGGER_CONTEXT) ?? getRuntime(LOGGER_CONTEXT) ?? console;
     logger.info(`Spawning worker proxy for ${id} in ${env} environment.`);
 
+    const devtools = import.meta.env?.DEV ? getRuntime(DEVTOOLS_CONTEXT) : null;
+    devtools?.recordWorker(id, { env });
+
     const options = getRuntime(EXEC_OPTIONS) || {};
     const moduleRunner = getRuntime(RSC_MODULE_RUNNER);
     const viteDevServer = getRuntime(DEV_SERVER_CONTEXT);
@@ -52,6 +56,7 @@ export default function createWorkerProxy(id, env = "dev") {
     workerReady = new Promise((resolve) => {
       worker.once("message", (payload) => {
         if (payload.type === "react-server:worker:ready") {
+          devtools?.updateWorker(id, { state: "ready" });
           resolve();
         }
       });
@@ -136,6 +141,12 @@ export default function createWorkerProxy(id, env = "dev") {
         new Error(`Worker error in worker proxy for ${id}.`, { cause: error })
       );
 
+      devtools?.updateWorker(id, (prev) => ({
+        state: "error",
+        errors: (prev?.errors ?? 0) + 1,
+        lastError: error.message,
+      }));
+
       workerPromise.forEach(({ reject }, key) => {
         reject(
           new Error(`Worker encountered an error and has been terminated.`)
@@ -157,6 +168,11 @@ export default function createWorkerProxy(id, env = "dev") {
       } else {
         logger.info(`Worker exited, restarting worker proxy for ${id}.`);
       }
+
+      devtools?.updateWorker(id, (prev) => ({
+        state: "restarting",
+        restarts: (prev?.restarts ?? 0) + 1,
+      }));
 
       workerPromise.forEach(({ reject }, key) => {
         reject(new Error(`Worker has exited and has been terminated.`));
@@ -184,19 +200,48 @@ export default function createWorkerProxy(id, env = "dev") {
         worker = spawn();
       }
 
+      const devtools = import.meta.env?.DEV
+        ? getRuntime(DEVTOOLS_CONTEXT)
+        : null;
+      devtools?.updateWorker(id, (prev) => ({
+        invocations: (prev?.invocations ?? 0) + 1,
+        activeInvocations: (prev?.activeInvocations ?? 0) + 1,
+        lastInvokedAt: Date.now(),
+        lastFn: fn,
+      }));
+
       return new Promise(async (resolve, reject) => {
-        const id = randomUUID();
+        const invocationId = randomUUID();
         const signal = getContext(HTTP_CONTEXT)?.signal;
-        workerPromise.set(id, { resolve, reject });
+        workerPromise.set(invocationId, {
+          resolve: (val) => {
+            devtools?.updateWorker(id, (prev) => ({
+              activeInvocations: Math.max(
+                0,
+                (prev?.activeInvocations ?? 1) - 1
+              ),
+            }));
+            resolve(val);
+          },
+          reject: (err) => {
+            devtools?.updateWorker(id, (prev) => ({
+              activeInvocations: Math.max(
+                0,
+                (prev?.activeInvocations ?? 1) - 1
+              ),
+            }));
+            reject(err);
+          },
+        });
 
         if (signal) {
           const onAbort = () => {
             worker.postMessage({
               type: "react-server:worker:abort",
-              id,
+              id: invocationId,
             });
-            if (workerPromise.has(id)) {
-              workerPromise.delete(id);
+            if (workerPromise.has(invocationId)) {
+              workerPromise.delete(invocationId);
               reject(
                 new DOMException("The operation was aborted", "AbortError")
               );
@@ -214,7 +259,7 @@ export default function createWorkerProxy(id, env = "dev") {
         worker.postMessage(
           {
             type: "react-server:worker",
-            id,
+            id: invocationId,
             fn,
             args: argsStream,
           },

@@ -171,6 +171,9 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
           // Normalize to forward slashes so generated import() paths work on Windows
           const filePath = id.split("?")[0];
           const query = id.includes("?") ? id.slice(id.indexOf("?")) : "";
+          // Get real path - this is the canonical path after resolving symlinks
+          // pnpm uses symlinks, so the same file can be accessed via multiple paths
+          // Normalize to forward slashes so generated import() paths work on Windows
           const realId = sys.normalizePath(await realpath(filePath)) + query;
 
           // DEDUPLICATION: If we've already processed this real path, return cached result
@@ -254,11 +257,26 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
                 names.forEach((n) => exportNames.add(n));
               }
             }
-            manifest.set(name, {
-              id: realId,
-              name,
-              exports: Array.from(exportNames),
-            });
+            const existing = manifest.get(name);
+            if (existing) {
+              // Merge exports — the RSC build (with file-router transforms)
+              // may have detected additional exports (e.g. default,
+              // __rs_descriptor__) that the SSR build can't see.
+              const mergedExports = new Set([
+                ...existing.exports,
+                ...exportNames,
+              ]);
+              manifest.set(name, {
+                ...existing,
+                exports: Array.from(mergedExports),
+              });
+            } else {
+              manifest.set(name, {
+                id: realId,
+                name,
+                exports: Array.from(exportNames),
+              });
+            }
           }
 
           if (type === "ssr") {

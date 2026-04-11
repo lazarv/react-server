@@ -1,12 +1,14 @@
-import { join } from "node:path";
-
-import { hostname, page, server, waitForHydration } from "playground/utils";
+import {
+  appDir,
+  hostname,
+  page,
+  server,
+  waitForHydration,
+} from "playground/utils";
 import { expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/react-three"));
-
 test("react-three load", async () => {
-  await server("./App.jsx");
+  await server("./App.jsx", { cwd: appDir("examples/react-three") });
   await page.goto(hostname);
   await page.waitForLoadState("networkidle");
   await waitForHydration();

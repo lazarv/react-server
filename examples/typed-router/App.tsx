@@ -1,0 +1,104 @@
+import { Link } from "@lazarv/react-server/navigation";
+
+import router from "./router";
+import ProductPriceRange from "./StripTrackingParams";
+
+export default function App() {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Typed Router Example</title>
+      </head>
+      <body>
+        {/* Route-scoped SearchParams transform: decodes ?price=min-max to
+            ?min_price=...&max_price=... before Zod validation, and encodes
+            back on navigation. Only active when on /products. */}
+        <ProductPriceRange>
+          <div style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
+            <h1>Typed Router Example</h1>
+            <p style={{ color: "gray" }}>
+              Demonstrates <code>createRoute</code> / <code>createRouter</code>{" "}
+              with typed <code>.Link</code>, <code>.useParams()</code>, and{" "}
+              <code>.useSearchParams()</code>. Zod <code>validate</code> rejects
+              invalid values with safe defaults. Lightweight <code>parse</code>{" "}
+              validates without Zod — <code>tab</code> falls back to{" "}
+              <code>"content"</code> for unknown values.{" "}
+              <code>SearchParams</code> decode/encode stores the product price
+              filter as compact <code>?price=min-max</code> in the URL while
+              exposing separate <code>min_price</code> / <code>max_price</code>{" "}
+              fields to Zod. <strong>Functional search updaters</strong> —{" "}
+              <code>search: (prev) =&gt; (...)</code> — allow delta updates
+              without knowing the full current state.{" "}
+              <strong>Route-resource binding</strong> loads user and post data
+              in parallel before the route renders.{" "}
+              <strong>Client-only resources</strong> — the Todos page loads data
+              entirely in the browser with client-side caching and invalidation.
+            </p>
+
+            <nav
+              style={{
+                display: "flex",
+                gap: "1rem",
+                marginBottom: "1.5rem",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* Typed .Link components from the router */}
+              <router.home.Link style={{ color: "blue" }}>
+                Home
+              </router.home.Link>
+              <router.about.Link style={{ color: "blue" }}>
+                About
+              </router.about.Link>
+              <router.user.Link params={{ id: 42 }} style={{ color: "blue" }}>
+                User 42
+              </router.user.Link>
+              <router.user.Link params={{ id: 99 }} style={{ color: "blue" }}>
+                User 99
+              </router.user.Link>
+              <router.post.Link
+                params={{ slug: "hello-world" }}
+                search={{ tab: "content" }}
+                style={{ color: "blue" }}
+              >
+                Post
+              </router.post.Link>
+              <router.post.Link
+                params={{ slug: "react-server" }}
+                search={{ tab: "comments" }}
+                style={{ color: "blue" }}
+              >
+                Post (comments)
+              </router.post.Link>
+              <router.todos.Link style={{ color: "blue" }}>
+                Todos
+              </router.todos.Link>
+              <router.products.Link style={{ color: "blue" }}>
+                Products
+              </router.products.Link>
+              <router.products.Link
+                style={{ color: "blue" }}
+                search={{ sort: "rating", min_price: 50, max_price: 150 }}
+              >
+                Products ($50-$150)
+              </router.products.Link>
+              <Link to="/user/abc/xyz" style={{ color: "orange" }}>
+                User 404 (scoped)
+              </Link>
+              <Link to="/nonexistent" style={{ color: "blue" }}>
+                404 Page
+              </Link>
+            </nav>
+
+            <hr style={{ marginBottom: "1.5rem" }} />
+
+            {/* Render all routes in declaration order */}
+            <router.Routes />
+          </div>
+        </ProductPriceRange>
+      </body>
+    </html>
+  );
+}

@@ -9,6 +9,7 @@ import { toBuffer, toStream } from "@lazarv/react-server/rsc";
 import { ReactServerComponent } from "@lazarv/react-server/navigation";
 import { getContext } from "@lazarv/react-server/server/context.mjs";
 import {
+  DEVTOOLS_CONTEXT,
   LIVE_IO,
   LOGGER_CONTEXT,
   RENDER_TEMPORARY_REFERENCES,
@@ -16,6 +17,11 @@ import {
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
 
 const cwd = sys.cwd();
+
+function isInternalSpecifier(specifier) {
+  if (sys.rootDir && specifier.includes(sys.rootDir)) return true;
+  return specifier.includes("react-server/devtools/");
+}
 
 function normalizeSpecifier(specifier) {
   if (specifier.includes(cwd)) {
@@ -34,16 +40,19 @@ const createLogger = (logger) =>
   import.meta.env.DEV
     ? {
         starting(specifier) {
+          if (isInternalSpecifier(specifier)) return;
           logger?.info(
             `${colors.green("Starting")} Live Component worker ${colors.gray(colors.italic(normalizeSpecifier(specifier)))} 🚀`
           );
         },
         disconnect(socket, specifier) {
+          if (isInternalSpecifier(specifier)) return;
           logger?.warn(
             `Live client ${colors.gray(colors.italic(socket.id))} disconnected ${colors.gray(colors.italic(normalizeSpecifier(specifier)))} ❌`
           );
         },
         finished(specifier) {
+          if (isInternalSpecifier(specifier)) return;
           logger?.info(
             `Live Component worker ${colors.green("finished")} ${colors.gray(
               colors.italic(normalizeSpecifier(specifier))
@@ -51,6 +60,7 @@ const createLogger = (logger) =>
           );
         },
         aborted(specifier) {
+          if (isInternalSpecifier(specifier)) return;
           logger?.warn(
             `Live Component worker ${colors.gray(colors.italic(normalizeSpecifier(specifier)))} aborted 🚫`
           );
@@ -61,21 +71,25 @@ const createLogger = (logger) =>
       }
     : {
         starting(specifier) {
+          if (isInternalSpecifier(specifier)) return;
           logger?.info(
             `Starting Live Component worker ${normalizeSpecifier(specifier)}`
           );
         },
         disconnect(socket, specifier) {
+          if (isInternalSpecifier(specifier)) return;
           logger?.warn(
             `Live client ${socket.id} disconnected from ${normalizeSpecifier(specifier)}`
           );
         },
         finished(specifier) {
+          if (isInternalSpecifier(specifier)) return;
           logger?.info(
             `Live Component worker finished ${normalizeSpecifier(specifier)}`
           );
         },
         aborted(specifier) {
+          if (isInternalSpecifier(specifier)) return;
           logger?.warn(
             `Live Component worker ${normalizeSpecifier(specifier)} aborted`
           );
@@ -116,9 +130,22 @@ export async function runLiveComponent(
         once: true,
       });
 
+      const devtools = import.meta.env.DEV
+        ? getRuntime(DEVTOOLS_CONTEXT)
+        : null;
+
       return AbortControllerStorage.run(abortController, async () => {
         try {
           logger.starting(specifier);
+
+          devtools?.recordLiveComponent(outlet, {
+            specifier,
+            displayName,
+            streaming,
+            state: "starting",
+            yields: 0,
+          });
+
           const temporaryReferences = getContext(RENDER_TEMPORARY_REFERENCES);
           const worker = Component(props);
           const { done, value: component } = await worker.next();
@@ -132,6 +159,10 @@ export async function runLiveComponent(
               );
             }
 
+            devtools?.updateLiveComponent(outlet, {
+              state: "waiting",
+            });
+
             const namespace = io.of(`/${outlet}`);
 
             const process = async (socket) => {
@@ -141,6 +172,11 @@ export async function runLiveComponent(
                 namespace.off("connection", process);
               });
 
+              devtools?.updateLiveComponent(outlet, {
+                state: "running",
+              });
+
+              let yields = 0;
               const cleanupController = new AbortController();
               try {
                 while (true) {
@@ -149,6 +185,12 @@ export async function runLiveComponent(
                     throw new Error("LIVE_COMPONENT_ABORTED");
                   }
                   if (value) {
+                    yields++;
+                    devtools?.updateLiveComponent(outlet, {
+                      yields,
+                      lastYieldAt: Date.now(),
+                    });
+
                     if (streaming) {
                       const stream = await toStream(value, {
                         temporaryReferences,
@@ -173,6 +215,9 @@ export async function runLiveComponent(
                   }
                   if (done) {
                     logger.finished(specifier);
+                    devtools?.updateLiveComponent(outlet, {
+                      state: "finished",
+                    });
                     cleanupController.abort();
                     break;
                   }
@@ -183,8 +228,15 @@ export async function runLiveComponent(
                   error.message === "LIVE_COMPONENT_ABORTED"
                 ) {
                   logger.aborted(specifier);
+                  devtools?.updateLiveComponent(outlet, {
+                    state: "aborted",
+                  });
                 } else {
                   logger.error(error);
+                  devtools?.updateLiveComponent(outlet, {
+                    state: "error",
+                    error: error.message,
+                  });
                 }
               }
 
@@ -193,6 +245,11 @@ export async function runLiveComponent(
             };
 
             namespace.on("connection", process);
+          } else {
+            devtools?.updateLiveComponent(outlet, {
+              state: "finished",
+              yields: 1,
+            });
           }
 
           resolve(component ?? null);

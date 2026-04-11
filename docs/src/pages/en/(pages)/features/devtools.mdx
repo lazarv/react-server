@@ -1,0 +1,399 @@
+---
+title: DevTools
+category: Features
+order: 17
+---
+
+import Link from "../../../../components/Link.jsx";
+import { EyeIcon, RefreshIcon, ExternalLinkIcon, ArrowRightIcon, SunIcon, MoonIcon, CloseIcon, OverflowIcon, DockBottomIcon, DockLeftIcon, DockRightIcon, DockFloatIcon } from "../../../../components/DevToolsIcon.jsx";
+import ThemedImage from "../../../../components/ThemedImage.jsx";
+
+# DevTools
+
+The built-in DevTools panel lets you inspect your running application during development. It covers server process health, RSC payload contents, cache behavior, the route tree, outlet layout, remote and live components, worker threads, and server logs — all without leaving the browser.
+
+{/* Screenshot: the DevTools panel docked to the bottom of the browser, showing the Status tab with CPU, memory, and process gauges. The app content is visible above the panel. The toolbar shows the react-server logo, version, dock mode buttons (bottom/left/right/float), a dark mode toggle, and a close button. */}
+<ThemedImage light="/devtools-overview-light.webp" dark="/devtools-overview-dark.webp" alt="DevTools overview" />
+
+<Link name="enabling-devtools">
+## Enabling DevTools
+</Link>
+
+Pass `--devtools` when starting the development server:
+
+```sh
+pnpm react-server ./App.jsx --devtools
+```
+
+Or add it to your config so it stays on across restarts:
+
+```js
+// react-server.config.mjs
+export default {
+  devtools: true,
+};
+```
+
+DevTools is development-only. It is never included in production builds.
+
+<Link name="opening-the-panel">
+## Opening the panel
+</Link>
+
+Once enabled, a small floating button with the react-server logo appears in the bottom-right corner. Click it to open the panel, or use the keyboard shortcut:
+
+| Shortcut | Platform |
+|----------|----------|
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | Windows / Linux |
+| <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | macOS |
+
+The same shortcut closes the panel again.
+
+<Link name="positioning-the-panel">
+## Positioning the panel
+</Link>
+
+The toolbar at the top of the panel has four dock-mode buttons. Click one to switch where the panel sits:
+
+- <DockBottomIcon /> **Bottom** (default) — the panel docks to the bottom edge. Your page shrinks vertically to make room.
+- <DockLeftIcon /> **Left** / <DockRightIcon /> **Right** — the panel docks to the side. Your page shrinks horizontally.
+- <DockFloatIcon /> **Float** — the panel becomes a free-floating window you can drag by its toolbar and resize from the bottom-right corner.
+
+In any docked mode, drag the handle between the panel and your page to resize it.
+
+All panel state — open/closed, dock mode, size, and float position — is saved to `localStorage` so it persists across page reloads.
+
+{/* Screenshot: the DevTools panel in float mode, positioned in the center of the screen as a draggable window with a resize grip in the bottom-right corner. The float dock mode icon in the toolbar is highlighted/active. */}
+<ThemedImage light="/devtools-float-mode-light.webp" dark="/devtools-float-mode-dark.webp" alt="Floating panel" />
+
+<Link name="dark-mode">
+## Dark mode
+</Link>
+
+The <SunIcon /> / <MoonIcon /> button in the toolbar toggles between light and dark mode. DevTools picks up your app's theme automatically by checking, in order:
+
+1. A `dark` or `light` class on `<html>`
+2. A `dark=1` or `dark=0` cookie
+3. The system `prefers-color-scheme` media query
+
+Clicking the toggle updates both the panel and your host page, and persists the choice via a cookie.
+
+<Link name="tab-overflow">
+## Tab overflow
+</Link>
+
+The panel has nine tabs. If the panel is too narrow to fit them all, the ones that don't fit collapse into an overflow menu behind the <OverflowIcon /> button on the right side of the tab bar. The currently active tab is always kept visible, even if it would normally overflow.
+
+<Link name="status-tab">
+## Status tab
+</Link>
+
+The Status tab shows your development server's resource usage. It is a `"use live"` component that streams fresh numbers every second.
+
+Three cards are displayed:
+
+| Card | What it shows |
+|------|---------------|
+| Process | Node.js version, PID, platform/architecture, and uptime |
+| CPU | Usage percentage as a gauge (green under 50 %, amber up to 80 %, red above), core count, and 1/5/15-minute load averages |
+| Memory | Heap used versus heap total, RSS, external allocations, array buffers, and OS-level free/total memory — each metric has its own gauge bar |
+
+Use this tab to watch for memory growth over time (a sign of leaks) or to check whether a rendering change is spiking CPU.
+
+{/* Screenshot: the Status tab showing three stat cards side by side — "Process" (Node.js version, PID, platform, uptime), "CPU" (a green gauge at ~15 %, core count, load average), and "Memory" (heap used/total gauge, RSS gauge, external, array buffers, OS memory gauge). */}
+<ThemedImage light="/devtools-status-light.webp" dark="/devtools-status-dark.webp" alt="Status tab" />
+
+<Link name="payload-tab">
+## Payload tab
+</Link>
+
+The Payload tab captures every React Server Components Flight response and decodes it so you can see exactly what the server sent.
+
+{/* Screenshot: the Payload tab showing a page size bar at the top (green/purple/blue segments for RSC/Hydration/HTML), a payload selector dropdown showing "⚡ initial /", summary badges (size, chunks, client refs, server refs, promises, duration), an expanded "Client References" list, and several chunk rows with colored type tags (Model, Module, Hint). */}
+<ThemedImage light="/devtools-payload-light.webp" dark="/devtools-payload-dark.webp" alt="Payload tab" />
+
+<Link name="reading-the-page-size-bar">
+### Reading the page size bar
+</Link>
+
+At the top of the tab, a stacked bar breaks down the initial HTML document into three segments:
+
+| Segment | Color | What it contains |
+|---------|-------|-----------------|
+| RSC Payload | Green | The Flight stream embedded in the HTML |
+| Hydration | Purple | Serialized `"use cache"` entries inlined for the client |
+| HTML | Blue | Everything else (markup, scripts, styles) |
+
+Total and transferred sizes are shown below the bar. If the transferred size is smaller, the server is compressing the response.
+
+<Link name="selecting-a-payload">
+### Selecting a payload
+</Link>
+
+The dropdown lists every payload captured during the session. Each entry shows the URL, total byte size, and chunk count. Select one to inspect it.
+
+| Label | What it captures |
+|-------|-----------------|
+| <span className="whitespace-nowrap">⚡ initial</span> | The Flight data from the first page load |
+| <span className="whitespace-nowrap">🔄 stream</span> | Additional chunks that arrived after the initial response (streamed through Suspense boundaries) |
+| <span className="whitespace-nowrap">🧭 nav</span> | Flight responses triggered by client-side navigations |
+
+<Link name="inspecting-chunks">
+### Inspecting chunks
+</Link>
+
+Below the summary badges, the chunk list shows every Flight protocol row:
+
+| Column | Meaning |
+|--------|---------|
+| ID | The chunk identifier |
+| Type | A colored tag: Model (component tree data), Module (client component import), Error, Hint (resource preload), Debug, Text, Binary, or Console |
+| Size | How many bytes that chunk occupies |
+| Data | A truncated preview of the chunk content |
+
+Type the name of a tag (e.g., `module`) or any content substring into the filter field to narrow the list.
+
+<Link name="finding-client-components-in-the-payload">
+### Finding client components in the payload
+</Link>
+
+Expand the **Client References** section to see every `"use client"` module the server referenced. Each entry shows the module path and exported name. Hover over a reference to highlight the corresponding DOM element on the page with a green overlay. Click a reference to scroll the chunk list to the matching Module chunk.
+
+<Link name="cache-tab">
+## Cache tab
+</Link>
+
+The Cache tab records every `"use cache"` call — both on the server and on the client — and shows whether it was a hit, a miss, or a revalidation.
+
+{/* Screenshot: the Cache tab with a toolbar showing hit/miss counts and All/hit/miss/revalidate filter buttons, a collapsed "request cache" hydration section, and a list of cache events. Each event has a timestamp, a colored hit/miss tag, a request/default provider tag, a function name like "getUser(42)", a clickable source file link, and a TTL value. One entry shows the ✕ invalidate button. */}
+<ThemedImage light="/devtools-cache-light.webp" dark="/devtools-cache-dark.webp" alt="Cache tab" />
+
+<Link name="reading-cache-events">
+### Reading cache events
+</Link>
+
+Each row in the event list contains:
+
+| Column | Meaning |
+|--------|---------|
+| Time | When the call happened |
+| Type | `hit` (served from cache), `miss` (computed and stored), or `revalidate` (re-computed in the background) |
+| Provider | `request` (lives for one request only) or `default` (persists across requests) |
+| Function | The cached function name and the arguments it was called with |
+| Source | File path and line number — click to open in VS Code |
+| TTL | Shown on misses and revalidations; how long the entry is valid |
+
+The toolbar at the top shows aggregate hit/miss/revalidation counts. Use the filter buttons to show only one type at a time.
+
+<Link name="invalidating-a-cache-entry">
+### Invalidating a cache entry
+</Link>
+
+Hover over any `default`-provider cache event and click <CloseIcon /> on the right. This immediately invalidates the entry on the server and removes it from the event list. The next call to that function will be a miss. Request-scoped cache entries cannot be invalidated manually because they are discarded at the end of the request anyway.
+
+<Link name="viewing-hydration-data">
+### Viewing hydration data
+</Link>
+
+If your page uses `"use cache"` with request-scoped caching, the server serializes those cache entries into the HTML so the client can hydrate without re-fetching. The collapsible **request cache** section at the top of the Cache tab lists these hydrated entries with their hashed keys, byte sizes, and a preview of the serialized data.
+
+<Link name="routes-tab">
+## Routes tab
+</Link>
+
+The Routes tab shows the full route tree produced by the file-system router. Every page, layout, middleware, API route, error boundary, loading state, fallback, template, and named outlet is listed.
+
+{/* Screenshot: the Routes tab with a filter input, type filter buttons (active, all, page, layout, middleware, api, etc.) with count badges, a "12 of 28 routes" counter, and a table with Route, Type, file-type icon, and Source columns. Some rows have a green left border indicating they match the current path. */}
+<ThemedImage light="/devtools-routes-light.webp" dark="/devtools-routes-dark.webp" alt="Routes tab" />
+
+<Link name="filtering-routes">
+### Filtering routes
+</Link>
+
+| Control | How to use it |
+|---------|---------------|
+| Text filter | Type a path fragment, filename, outlet name, or HTTP method to narrow the list |
+| Type buttons | Click a type (page, layout, middleware, api, error, loading, fallback, template, outlet) to show only that type. The count badge on each button tells you how many routes of that type exist |
+| Active toggle | Click "active" to hide everything that does not match the current server pathname. This is useful to see exactly which layouts, middlewares, and pages are involved in rendering the current URL |
+
+<Link name="understanding-active-routes">
+### Understanding active routes
+</Link>
+
+Routes matching the current server pathname are highlighted with a green left border. The matching accounts for dynamic segments (`[param]`), optional parameters (`[[optional]]`), and catch-all patterns (`[...slug]`). Layouts, middlewares, and templates match as prefixes (they are active for all child paths), while pages must match exactly.
+
+> **Note:** the pathname used for matching is the **server pathname** (after any rewrites), not the client-visible URL.
+
+<Link name="opening-source-files">
+### Opening source files
+</Link>
+
+Each route row shows a file-type icon (React/JSX, TypeScript, MDX, etc.) and the relative source path. Click the source path to open the file in VS Code.
+
+<Link name="component-routes">
+### Component routes
+</Link>
+
+Below the file-router tree, a **Component Routes** section appears if your app registers routes via `<Route>` components in code. Each entry shows the route pattern, type (server, client, or fallback), and flags like `remote`, `exact`, or `loading`. Active component routes display the matched path parameters inline.
+
+<Link name="outlets-tab">
+## Outlets tab
+</Link>
+
+The Outlets tab lists every named outlet currently rendered on the page. Outlets are the named slots (`@sidebar`, `@content`, etc.) that layouts receive as props, plus `PAGE_ROOT` for the root rendering slot.
+
+{/* Screenshot: the Outlets tab showing "Host URL: http://localhost:3000/products" at the top and a grid of outlet cards. One card shows "@sidebar" with a "router" badge and eye/refresh icons. Another shows "PAGE_ROOT" with a "static" badge. A colored dashed overlay is visible on the page behind the panel, highlighting the "@sidebar" region with a label. */}
+<ThemedImage light="/devtools-outlets-light.webp" dark="/devtools-outlets-dark.webp" alt="Outlets tab" />
+
+<Link name="what-each-outlet-card-shows">
+### What each outlet card shows
+</Link>
+
+| Field | Meaning |
+|-------|---------|
+| Name | The outlet identifier |
+| URL | The URL the outlet content was loaded from (if applicable) |
+| Badge | How the outlet is managed: `router` (file-router), `remote` (fetched from another server), `live` (streaming), `defer` (lazily loaded), or `static` |
+
+<Link name="highlighting-outlets-on-the-page">
+### Highlighting outlets on the page
+</Link>
+
+Hover over any outlet card. A colored dashed rectangle appears around that outlet's rendered area on the page, with a label showing the outlet name. Each outlet gets a distinct color so you can visually map the cards to sections of the page.
+
+The highlight overlay handles edge cases: hidden marker elements, outlets that render as multiple sibling elements (the overlay covers the union bounding rect), and full-screen backdrop elements (which are filtered out so the actual content is highlighted).
+
+<Link name="scrolling-and-refreshing">
+### Scrolling and refreshing
+</Link>
+
+| Action | What it does |
+|--------|-------------|
+| <EyeIcon /> | Scrolls the page to the outlet's position |
+| <RefreshIcon /> | Re-renders that single outlet without a full page reload — useful when you want to test server-side changes for one section of the page without navigating away |
+
+<Link name="remotes-tab">
+## Remotes tab
+</Link>
+
+If your app uses `<RemoteComponent>` to load RSC content from other react-server instances, the Remotes tab shows each one.
+
+{/* Screenshot: the Remotes tab showing two remote component cards. Each card has a URL like "http://localhost:3001/widget", an outlet name, and property badges (TTL, live). Action buttons for external link, eye, and arrow-right are visible. */}
+<ThemedImage light="/devtools-remotes-light.webp" dark="/devtools-remotes-dark.webp" alt="Remotes tab" />
+
+Each card shows:
+
+| Field | Meaning |
+|-------|---------|
+| Remote URL | The URL the component is fetched from. Click <ExternalLinkIcon /> to open it in a new browser tab |
+| Outlet name | The outlet this remote component renders into |
+| TTL badge | How long the response is cached |
+| `isolate` badge | The component is rendered in a sandbox |
+| `defer` badge | The component is loaded lazily |
+| `live` badge | The component streams real-time updates |
+
+Hover to highlight the remote component on the page. Click <EyeIcon /> to scroll to it. Click <ArrowRightIcon /> to jump to its outlet in the Outlets tab.
+
+<Link name="live-tab">
+## Live tab
+</Link>
+
+The Live tab monitors every `"use live"` component — async generator functions on the server that yield successive renders to the client.
+
+{/* Screenshot: the Live tab showing two component cards. The first shows "StatusPanel" with a green "running" badge, a "streaming" cyan badge, "yields: 42", "last yield: 2s ago", "started: 5m ago". The second shows "PriceTracker" with a violet "waiting" badge. */}
+<ThemedImage light="/devtools-live-light.webp" dark="/devtools-live-dark.webp" alt="Live tab" />
+
+Each card shows the component's name, its current state, and runtime statistics:
+
+| State | Meaning |
+|-------|---------|
+| `starting` | The generator is being initialized |
+| `waiting` | Waiting before the next yield |
+| `running` / `connected` | Actively streaming to the client |
+| `finished` | The generator returned normally |
+| `aborted` | The client disconnected |
+| `error` | The generator threw an exception (the error message is shown inline) |
+
+A `streaming` badge appears while data is being sent. The card also shows how many times the generator has yielded, when the last yield happened, and when the component started. If the component is loaded from a remote server, a `remote` badge appears.
+
+<Link name="workers-tab">
+## Workers tab
+</Link>
+
+The Workers tab tracks `"use worker"` threads — both server-side Worker Threads (Node.js) and client-side Web Workers.
+
+{/* Screenshot: the Workers tab with a toolbar showing "3 workers · 2 server · 1 client" and All/server/client filter buttons. Below, worker entries show type tags (server/client), state tags (Ready/Spawning), module paths, call counts, error counts, last function name, spawn time, and last call time. */}
+<ThemedImage light="/devtools-workers-light.webp" dark="/devtools-workers-dark.webp" alt="Workers tab" />
+
+The toolbar summarizes how many workers exist, broken down by type. Use the filter buttons to show only server or only client workers.
+
+Each worker entry shows:
+
+| Field | Meaning |
+|-------|---------|
+| Type | `server` or `client` |
+| State | `Spawning` (thread starting), `Ready` (idle), `Error` (last call failed), or `Restarting` |
+| Module path | The file that defines the worker, shortened to the last few path segments |
+| Call count | Total invocations and how many are currently in flight |
+| Error / restart counts | Helps spot unstable workers |
+| Last function | The name of the most recently called export |
+| Timing | When the worker was spawned and when it was last invoked |
+
+<Link name="logs-tab">
+## Logs tab
+</Link>
+
+The Logs tab streams all server terminal output (`stdout` and `stderr`) into the browser so you don't need to switch back to the terminal.
+
+{/* Screenshot: the Logs tab with a toolbar showing "All (156)" / "stdout (140)" / "stderr (16)" filter buttons, a search input, and a "Clear" button. The log list shows timestamped entries with colorful ANSI-rendered text (green "[vite]" prefix, yellow warnings). A few stderr entries are tagged in red. */}
+<ThemedImage light="/devtools-logs-light.webp" dark="/devtools-logs-dark.webp" alt="Logs tab" />
+
+<Link name="filtering-logs">
+### Filtering logs
+</Link>
+
+| Control | How to use it |
+|---------|---------------|
+| Stream buttons | Click `stdout` or `stderr` to show only that stream. The count on each button tells you how many entries of that type exist |
+| Search field | Type any text to filter log entries. The search matches against the plain text content with ANSI codes stripped |
+
+<Link name="reading-ansi-output">
+### Reading ANSI output
+</Link>
+
+Server logs often contain ANSI escape codes for colors and text styling. The Logs tab renders these faithfully — 4-bit, 8-bit, and 24-bit (true-color) sequences are all supported, including bold, italic, underline, and dim. What you see in the panel matches what you'd see in a terminal.
+
+<Link name="auto-scroll-behavior">
+### Auto-scroll behavior
+</Link>
+
+By default the log view stays pinned to the bottom so new entries scroll into view as they arrive. Scroll up to pause auto-scrolling. A **Scroll to bottom** button appears at the bottom of the panel — click it to resume.
+
+Click **Clear** in the toolbar to empty the log buffer.
+
+<Link name="element-highlighting">
+## Element highlighting
+</Link>
+
+Several tabs let you hover over an item to highlight the corresponding element on the page:
+
+- In the **Payload** tab, hovering a client reference highlights the DOM element rendered by that client component (green overlay).
+- In the **Outlets** tab, hovering an outlet card highlights its rendered region (each outlet gets a unique color).
+- In the **Remotes** tab, hovering a remote card highlights its rendered region the same way.
+
+The overlay is a colored dashed rectangle with a label badge showing the name. It repositions in real time as you scroll or resize the page.
+
+{/* Screenshot: a page with the Outlets tab open. One outlet card is being hovered, and on the page a colored dashed rectangle with rounded corners outlines the outlet's rendered area, with a label badge reading "@sidebar" above it. */}
+<ThemedImage light="/devtools-highlighting-light.webp" dark="/devtools-highlighting-dark.webp" alt="Element highlighting" />
+
+<Link name="how-devtools-works">
+## How DevTools works
+</Link>
+
+The panel UI runs inside an iframe served from `/__react_server_devtools__/*`. This keeps the DevTools React tree separate from your app — it won't interfere with your component state or styling.
+
+Three communication channels connect the parts:
+
+- **Host page → Iframe** (`postMessage`): RSC payloads (captured by intercepting `fetch`), outlet registrations, component routes, page-level size stats, navigation events, and theme changes.
+- **Server → Iframe** (Socket.IO, `/__devtools__` namespace): live component state, server-side cache events, worker status, server logs, and the file-router manifest. The connection is established automatically when the panel opens.
+- **Iframe → Server** (Socket.IO): cache invalidation requests and outlet refresh commands travel back over the same socket.

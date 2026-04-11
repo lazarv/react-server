@@ -7,6 +7,7 @@ import ClientProvider, {
   streamOptions,
 } from "./ClientProvider.jsx";
 import ReactServerComponent from "./ReactServerComponent.jsx";
+import { RedirectError } from "./client-navigation.mjs";
 
 self.__react_server_callServer__ = streamOptions({
   outlet: PAGE_ROOT,
@@ -239,6 +240,14 @@ startTransition(() => {
     self.__react_server_hydration_container__?.() ?? document,
     <StrictMode>
       <ReactServer />
-    </StrictMode>
+    </StrictMode>,
+    {
+      onCaughtError(error) {
+        // Suppress RedirectError — it's an expected control-flow throw
+        // caught by RedirectBoundary, not a real error.
+        if (error instanceof RedirectError) return;
+        console.error(error);
+      },
+    }
   );
 });

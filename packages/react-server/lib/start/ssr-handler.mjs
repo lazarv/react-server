@@ -3,7 +3,12 @@ import { join, relative } from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { fileURLToPath } from "node:url";
 
-import { init$ as cache_init$, useCache } from "../../cache/index.mjs";
+import {
+  init$ as cache_init$,
+  dispose$ as cache_dispose$,
+  useCache,
+  StorageCache,
+} from "../../cache/index.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
@@ -43,9 +48,13 @@ import {
   RENDER,
   RENDER_CONTEXT,
   RENDER_STREAM,
+  SCROLL_RESTORATION_MODULE,
+  REQUEST_CACHE_CONTEXT,
+  REQUEST_CACHE_SHARED,
   SERVER_CONTEXT,
   SOURCEMAP_SUPPORT,
   STYLES_CONTEXT,
+  WORKER_THREAD,
 } from "../../server/symbols.mjs";
 import * as sys from "../sys.mjs";
 
@@ -139,6 +148,12 @@ export default async function ssrHandler(root, options = {}) {
         `${configRoot.base || "/"}/${mod}`.replace(/\/+/g, "/")
       )
     : [];
+  const scrollRestorationModule = getRuntime(SCROLL_RESTORATION_MODULE)
+    ? `${configRoot.base || "/"}/${getRuntime(SCROLL_RESTORATION_MODULE)}`.replace(
+        /\/+/g,
+        "/"
+      )
+    : null;
   const moduleLoader = getRuntime(MODULE_LOADER);
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const moduleCacheStorage = new AsyncLocalStorage();
@@ -191,6 +206,7 @@ export default async function ssrHandler(root, options = {}) {
   runtime$(IMPORT_MAP, importMap);
 
   const renderStream = createWorker();
+  const hasWorkerThread = !!getRuntime(WORKER_THREAD);
   const errorHandler = async (e) => {
     const httpStatus = getContext(HTTP_STATUS) ?? {
       status: 500,
@@ -237,9 +253,30 @@ export default async function ssrHandler(root, options = {}) {
     });
   };
 
+  // Edge mode uses a same-thread channel pair instead of a real worker thread.
+  // Detect by checking for `threadId` (present only on real Worker instances).
+  const workerThread = getRuntime(WORKER_THREAD);
+  const hasRealWorkerThread =
+    hasWorkerThread && typeof workerThread?.threadId === "number";
+
+  // Load shared cache and memory driver modules in parallel
+  const [
+    { createSharedRequestCache, createInProcessRequestCache },
+    { default: memoryDriver },
+  ] = await Promise.all([
+    import("../../cache/request-cache-shared.mjs"),
+    import("unstorage/drivers/memory"),
+  ]);
+
   return async function ssr(httpContext) {
     const noCache =
       httpContext.request.headers.get("cache-control") === "no-cache";
+
+    // Create per-request cache for "use cache: request"
+    const requestCache = new StorageCache(memoryDriver, { type: "raw" });
+    const sharedRequestCache = hasRealWorkerThread
+      ? createSharedRequestCache()
+      : createInProcessRequestCache();
 
     return new Promise((resolve, reject) => {
       try {
@@ -253,10 +290,13 @@ export default async function ssrHandler(root, options = {}) {
               [ERROR_CONTEXT]: errorHandler,
               [LOGGER_CONTEXT]: logger,
               [MAIN_MODULE]: mainModule,
+              [SCROLL_RESTORATION_MODULE]: scrollRestorationModule,
               [MODULE_LOADER]: moduleLoader,
               [IMPORT_MAP]: importMap,
               [MEMORY_CACHE_CONTEXT]: memoryCache,
               [MANIFEST]: manifest,
+              [REQUEST_CACHE_CONTEXT]: requestCache,
+              [REQUEST_CACHE_SHARED]: sharedRequestCache,
               [REDIRECT_CONTEXT]: {},
               [COLLECT_CLIENT_MODULES]: collectClientModules,
               [CLIENT_MODULES_CONTEXT]: clientModules,
@@ -277,6 +317,7 @@ export default async function ssrHandler(root, options = {}) {
               if (!noCache) {
                 await cache_init$?.();
               }
+              cache_dispose$("request");
 
               let expiredPrerenderCache = false;
               const prerenderCacheData = getPrerender(PRERENDER_CACHE_DATA);

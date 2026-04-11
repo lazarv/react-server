@@ -1,6 +1,5 @@
-import { join } from "node:path";
-
 import {
+  appDir,
   expectNoErrors,
   hostname,
   page,
@@ -9,10 +8,8 @@ import {
 } from "playground/utils";
 import { expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../examples/react-markdown"));
-
 test("react-markdown load", async () => {
-  await server("./App.jsx");
+  await server("./App.jsx", { cwd: appDir("examples/react-markdown") });
   await page.goto(hostname);
   await expectNoErrors();
   await page.waitForLoadState("networkidle", { timeout: 5000 });

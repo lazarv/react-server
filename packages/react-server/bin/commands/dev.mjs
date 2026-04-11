@@ -24,13 +24,17 @@ export default (cli) =>
     .option("--no-color", "disable color output", { default: false })
     .option("--no-check", "skip dependency checks", { default: false })
     .option("--no-validation", "skip config validation", { default: false })
-    .option("-e, --eval <code>", "evaluate code", { type: "string" })
+    .option(
+      "-e, --eval [code]",
+      "evaluate code as the server entrypoint; pass without a value to read from stdin"
+    )
     .option("-o, --outDir <dir>", "[string] output directory", {
       default: ".react-server",
     })
     .option("-n, --name <name>", "[string] server name", {
       default: "react-server",
     })
+    .option("--devtools", "enable built-in devtools", { default: false })
     .option("--inspect", "enable inspector", { default: false })
     .option("--mode <mode>", "[string] mode", { default: "development" })
     .action(async (...args) => {

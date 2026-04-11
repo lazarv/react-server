@@ -66,4 +66,10 @@ export const OTEL_METER = Symbol.for("OTEL_METER");
 export const OTEL_SPAN = Symbol.for("OTEL_SPAN");
 export const OTEL_CONTEXT = Symbol.for("OTEL_CONTEXT");
 export const OTEL_SDK = Symbol.for("OTEL_SDK");
+export const SCROLL_RESTORATION_MODULE = Symbol.for(
+  "SCROLL_RESTORATION_MODULE"
+);
+export const REQUEST_CACHE_CONTEXT = Symbol.for("REQUEST_CACHE_CONTEXT");
+export const REQUEST_CACHE_SHARED = Symbol.for("REQUEST_CACHE_SHARED");
 export const RESPONSE_BUFFER = Symbol.for("RESPONSE_BUFFER");
+export const DEVTOOLS_CONTEXT = Symbol.for("DEVTOOLS_CONTEXT");

@@ -10,6 +10,8 @@ You can also access the full [HTTP context](/features/http) during server-side r
 
 The runtime also provides tools for you to [cache](/features/caching) data on the server. You can cache data in-memory by default, but you can also build your own cache provider.
 
+The runtime encrypts all [server function identifiers](/features/server-function-encryption) by default using AES-256-GCM. This prevents clients from discovering or calling server functions that were not explicitly exposed during rendering, keeping your server-side code secure without any extra configuration.
+
 For error handling, you can learn about how to use the built-in [error boundary](/features/error-handling) component and how to implement your own error handling strategy.
 
 You can also learn about some small, but useful modes in this section, like [partial pre-rendering](/features/ppr), [cluster mode](/features/cluster) or [middleware mode](/features/middleware-mode). Partial pre-rendering is useful when you want to pre-render only parts of your app. Cluster mode is useful when you want to run your app in a multi-process environment. While middleware mode is useful when you want to run your app as a middleware in an existing server, like Express or NestJS.
@@ -18,4 +20,12 @@ You can learn about how to implement a micro-frontend architecture in the [micro
 
 The runtime also provides [Workers](/features/worker) to offload heavy computations to separate threads using the `"use worker"` directive. On the server, worker functions run in Node.js Worker Threads, and on the client, they run in Web Workers — all with transparent RSC-based serialization. Workers can return plain values, React elements with Suspense, ReadableStreams, and deferred Promises.
 
+[Live Components](/features/live-components) allow you to create components that update in real-time without a full page reload. Using the `"use live"` directive, you can write async generator functions on the server that yield successive renders to the client — perfect for dashboards, chat applications, or any UI that needs streaming updates.
+
+The runtime also supports [MCP (Model Context Protocol)](/features/mcp), a structured way to expose server-side functions, tools, and resources to language models and other automated agents. You can define typed server functions that can be discovered, validated, and invoked through a standardized interface — making it easy to integrate AI tooling and automation.
+
 For production readiness, the runtime includes built-in [Observability](/features/observability) via OpenTelemetry integration. When enabled, it automatically instruments HTTP requests, SSR rendering, server actions, and middleware with distributed traces and metrics — with zero overhead when disabled.
+
+During development, you can enable the built-in [DevTools](/features/devtools) panel to inspect your running application without leaving the browser. It covers server process health, RSC payload contents, cache behavior, the route tree, outlet layout, remote and live components, worker threads, and server logs — all in a dockable panel that stays out of the way until you need it.
+
+See how `@lazarv/react-server` stacks up against Next.js, TanStack Start, React Router, and Waku in the [comparison table](/features/comparison).

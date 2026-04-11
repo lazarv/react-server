@@ -1,14 +1,16 @@
-import { join } from "node:path";
-
-import { hostname, page, server } from "playground/utils";
+import { appDir, hostname, page, server } from "playground/utils";
 import { expect, test } from "vitest";
 
-process.chdir(join(process.cwd(), "../docs"));
+test(
+  "docs load",
+  {
+    timeout: 120000,
+  },
+  async () => {
+    await server(null, { timeout: 120000, cwd: appDir("docs") });
+    await page.goto(hostname);
+    await page.waitForLoadState("networkidle");
 
-test("docs load", async () => {
-  await server(null);
-  await page.goto(hostname);
-  await page.waitForLoadState("networkidle");
-
-  expect(await page.textContent("body")).toContain("react-server");
-});
+    expect(await page.textContent("body")).toContain("react-server");
+  }
+);

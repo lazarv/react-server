@@ -29,7 +29,7 @@ export default {
 
 Your directories and files specify the routes your application will use. There are built-in conventions in the router which translates the names of directories and files to route paths and route parameters. To create a new route you need to create a file in the root directory.
 
-Route files have to export default a React Server Component which will be used to render the route.
+Route files have to export default a React component which will be used to render the route. By default, pages are server components. If a page starts with the `"use client"` directive, it becomes a [client-only route](/router/typed-router#client-only-routes) — navigating to it happens entirely on the client with no server round-trip, and component state is preserved between navigations.
 
 ```jsx
 export default function Home() {
@@ -140,3 +140,323 @@ src
 You can escape route segments by wrapping the segment in curly braces. For example if you create a file named `{sitemap.xml}.server.mjs` in the root directory it will be treated as a named route with the path `/sitemap.xml`.
 
 > **Example:** see the Photos example in the [examples](https://github.com/lazarv/react-server/tree/main/examples/photos) directory for a basic example of file-system based routing.
+
+<Link name="route-validation">
+## Route validation
+</Link>
+
+In the file-system based router, you can validate route params and search params at runtime by exporting a `validate` object from your page file. The runtime picks up this export automatically — no extra configuration needed.
+
+The `validate` export is an object with optional `params` and `search` keys, each set to a schema from any compatible library (Zod, ArkType, Valibot, or anything satisfying the [`ValidateSchema`](/router/typed-router#validation) interface).
+
+```tsx filename="pages/user/[id].page.tsx"
+import { z } from "zod";
+import { user } from "@lazarv/react-server/routes";
+
+export const validate = {
+  params: z.object({
+    id: z.string().regex(/^\d+$/, "ID must be numeric"),
+  }),
+};
+
+export default user.createPage(({ id }) => {
+  // id is typed as string and guaranteed to match /^\d+$/
+  return <h1>User {id}</h1>;
+});
+```
+
+When validation is present, the generated TypeScript types infer param and search types from the schema — so `useParams()`, `.Link`, and `createPage` all receive the validated types instead of raw strings.
+
+**With ArkType:**
+
+```tsx filename="pages/user/[id].page.tsx"
+import { type } from "arktype";
+import { user } from "@lazarv/react-server/routes";
+
+export const validate = {
+  params: type({ id: /^\d+$/ }),
+};
+
+export default user.createPage(({ id }) => {
+  return <h1>User {id}</h1>;
+});
+```
+
+**Validating search params:**
+
+```tsx filename="pages/products.page.tsx"
+import { z } from "zod";
+import { products } from "@lazarv/react-server/routes";
+
+export const validate = {
+  search: z.object({
+    sort: z.enum(["name", "price", "rating"]).catch("name"),
+    page: z.coerce.number().int().positive().catch(1),
+  }),
+};
+
+export default products.createPage(() => {
+  const { sort, page } = products.useSearchParams();
+  return <div>Sorted by {sort}, page {page}</div>;
+});
+```
+
+When validation fails (e.g. `/user/abc` with the numeric validation above), `useParams()` returns `null` and `useSearchParams()` returns an empty object `{}`, letting you handle the error in your component or fall through to a fallback route.
+
+<Link name="routes-module">
+## Routes module
+</Link>
+
+When you use the file-system based router, the runtime automatically generates a virtual `@lazarv/react-server/routes` module. This module exports a named route descriptor for every route in your application — derived from your file structure, updated in real time during development, and regenerated on each build.
+
+```tsx
+import { index, about, user, dashboard } from "@lazarv/react-server/routes";
+```
+
+Each exported descriptor is a full [`RouteDescriptor`](/router/typed-router#api-route-descriptor) with all the same capabilities as one created by `createRoute`:
+
+- **`.Link`** — typed Link component with compile-time param checking
+- **`.href(params?)`** — build a URL pathname from typed params
+- **`.useParams()`** — read typed, validated params (works in server and client components)
+- **`.useSearchParams()`** — read typed, validated search params
+- **`.SearchParams`** — route-scoped search param transform boundary
+
+Plus context-aware helper functions for typing your page components:
+
+- **`.createPage(component)`** — typed page component with validated params as props
+- **`.createLayout(component)`** — typed layout with `children` and branded outlet props
+- **`.createLoading(component)`** — typed loading fallback component
+- **`.createError(component)`** — typed error boundary component
+- **`.createFallback(component)`** — typed fallback component
+- **`.createMiddleware(handler)`** — typed middleware with request params
+
+These helpers are identity functions at runtime — they return the component unchanged. They exist purely for TypeScript to infer the correct prop types from your route path, `validate` export, and outlet structure.
+
+<Link name="routes-module-naming">
+### Route naming
+</Link>
+
+Route names are derived automatically from the file path using camelCase:
+
+| File path | Exported name |
+|-----------|--------------|
+| `pages/page.tsx` or `pages/index.tsx` | `index` |
+| `pages/about.tsx` | `about` |
+| `pages/user/[id].page.tsx` | `user` |
+| `pages/user/posts.page.tsx` | `userPosts` |
+| `pages/dashboard/settings.page.tsx` | `dashboardSettings` |
+
+Dynamic segments like `[id]` are stripped from the name. Purely dynamic paths like `pages/[id].page.tsx` use the parameter name (`id`) as the route name.
+
+You can override the auto-derived name by exporting a `route` constant from your page file:
+
+```tsx
+export const route = "userProfile";
+```
+
+The exported name then becomes `userProfile` instead of the auto-derived name:
+
+```tsx
+import { userProfile } from "@lazarv/react-server/routes";
+```
+
+<Link name="routes-module-pages">
+### Typed pages
+</Link>
+
+Use `createPage` to get typed props inferred from the route's path params and `validate` export:
+
+```tsx filename="pages/user/[id].page.tsx"
+import { z } from "zod";
+import { user } from "@lazarv/react-server/routes";
+
+export const route = "user";
+
+export const validate = {
+  params: z.object({ id: z.string().regex(/^\d+$/, "ID must be numeric") }),
+};
+
+// TypeScript infers: ({ id: string }) => ReactNode
+export default user.createPage(({ id }) => {
+  return <h1>User {id}</h1>;
+});
+```
+
+Without `validate`, the param types come from the path pattern — `[id]` gives you `{ id: string }`, `[...slug]` gives you `{ slug: string[] }`. With `validate`, types are inferred from the schema's output type, which can be narrower (e.g. a regex-constrained string, a number after coercion).
+
+For pages without dynamic params, `createPage` receives an empty props object:
+
+```tsx filename="pages/about.tsx"
+import { about } from "@lazarv/react-server/routes";
+
+export default about.createPage(() => {
+  return <h1>About</h1>;
+});
+```
+
+<Link name="routes-module-layouts">
+### Typed layouts and outlets
+</Link>
+
+Use `createLayout` to get typed `children` and outlet props. Outlets are created by placing files in `@outletName` directories under a layout's directory:
+
+```
+pages/
+├── dashboard/
+│   ├── (dashboard).layout.tsx
+│   ├── index.page.tsx
+│   ├── @sidebar/
+│   │   └── nav.page.tsx
+│   └── @content/
+│       ├── @content.default.tsx    # default content when no route matches
+│       └── feed.page.tsx
+```
+
+The layout receives typed outlet props — each outlet is a branded `React.ReactElement` that TypeScript tracks separately to prevent mixing:
+
+```tsx filename="pages/dashboard/(dashboard).layout.tsx"
+import { dashboard } from "@lazarv/react-server/routes";
+
+export default dashboard.createLayout(({ children, sidebar, content }) => {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr" }}>
+        <aside>{sidebar}</aside>
+        <main>
+          <div>{content}</div>
+          <div>{children}</div>
+        </main>
+      </div>
+    </div>
+  );
+});
+```
+
+**Nullable outlets:** If an outlet directory has a `@outletName.default.tsx` file, the outlet is always rendered (non-nullable). If there's no default, the outlet is `ReactElement | null` — TypeScript enforces null checks.
+
+In the example above, `content` has a default (`@content.default.tsx`) so it's always a `ReactElement`. If `sidebar` had no default, it would be typed as `ReactElement | null`.
+
+<Link name="routes-module-loading">
+### Typed loading and error components
+</Link>
+
+Loading and error components follow the same pattern:
+
+```tsx filename="pages/user/[id].loading.tsx"
+import { user } from "@lazarv/react-server/routes";
+
+export default user.createLoading(() => {
+  return <div>Loading user profile...</div>;
+});
+```
+
+```tsx filename="pages/user/[id].error.tsx"
+import { user } from "@lazarv/react-server/routes";
+
+export default user.createError(({ error }) => {
+  return <div>Error loading user: {error.message}</div>;
+});
+```
+
+<Link name="routes-module-link">
+### Using Link and href
+</Link>
+
+The route descriptors from the routes module work just like `createRoute` descriptors — use `.Link` for navigation and `.href()` for URL building:
+
+```tsx filename="pages/(root).layout.tsx"
+import { index, about, user, dashboard } from "@lazarv/react-server/routes";
+
+export default index.createLayout(({ children }) => {
+  return (
+    <html lang="en">
+      <body>
+        <nav>
+          <index.Link>Home</index.Link>
+          <about.Link>About</about.Link>
+          <user.Link params={{ id: "42" }}>User 42</user.Link>
+          <dashboard.Link>Dashboard</dashboard.Link>
+        </nav>
+        {children}
+      </body>
+    </html>
+  );
+});
+```
+
+Routes without dynamic segments (like `index`, `about`) don't accept `params`. Routes with dynamic segments (like `user`) require them — TypeScript enforces this at compile time.
+
+<Link name="routes-module-generated-types">
+### Generated types
+</Link>
+
+The runtime writes a `react-server-routes.d.ts` file into the `.react-server` directory. This file declares the `@lazarv/react-server/routes` module with a per-route interface:
+
+```ts
+// Auto-generated — do not edit manually
+declare module "@lazarv/react-server/routes" {
+  import type { RouteDescriptor, ValidateSchema } from "@lazarv/react-server/router";
+
+  // ── /user/[id] ──
+  interface UserRoute extends RouteDescriptor<"/user/[id]",
+    typeof import("../pages/user/[id].page").validate extends
+      { params: ValidateSchema<infer T> } ? T : { id: string },
+    Record<string, string>
+  > {
+    createPage(
+      component: (props: /* inferred params type */) => React.ReactNode
+    ): typeof component;
+    createLoading(
+      component: () => React.ReactNode
+    ): typeof component;
+  }
+  export const user: UserRoute;
+}
+```
+
+The generated types include only the helpers that exist for each route — if a route has a page file, it gets `createPage`; if it has a layout, it gets `createLayout` with the correct outlet props; and so on. This file is regenerated automatically during development and builds, so it always matches your file structure.
+
+> **Note:** check out the [typed-file-router](https://github.com/lazarv/react-server/tree/main/examples/typed-file-router) example for a complete working application using the routes module with validation, layouts, outlets, loading states, and client-only routes.
+
+> For the programmatic typed routing API (`createRoute`, `createRouter`, schema validation strategies, parse functions, and more), see the [typed router](/router/typed-router#create-route) page.
+
+<Link name="typed-routes">
+## Typed routes
+</Link>
+
+When you use the file-system based router with TypeScript, the runtime automatically generates type definitions from your file structure. These types cover:
+
+- All static and dynamic route paths for `Link`, `navigate`, `replace`, and `prefetch`
+- Route parameter types extracted from dynamic segments like `[id]` and `[...slug]`
+- Available outlet names for `ReactServerComponent`
+
+To enable type checking, add the generated types to your TypeScript configuration:
+
+```json filename="tsconfig.json"
+{
+  "compilerOptions": {
+    // ...
+  },
+  "include": [/* ... */, ".react-server/**/*.ts"]
+}
+```
+
+That's it. The runtime regenerates types automatically during development whenever your file structure changes, and during builds. Your IDE will immediately show autocompletion for all route paths and flag invalid routes at compile time.
+
+For example, given this file structure:
+
+```
+app/
+├── page.tsx          # /
+├── about.tsx         # /about
+├── user/
+│   ├── [id].tsx      # /user/:id
+│   └── page.tsx      # /user
+└── posts/
+    └── [...slug].tsx # /posts/*
+```
+
+The `Link` component and `navigate` function will autocomplete `/`, `/about`, `/user`, and `/posts` as static routes, and provide typed params for `/user/[id]` and `/posts/[...slug]`.
+
+For the programmatic typed routing API (`createRoute`, `createRouter`, typed hooks, schema validation, and more), see [typed router](/router/typed-router#create-route).

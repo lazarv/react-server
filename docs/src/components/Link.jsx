@@ -14,6 +14,7 @@ export default function Link({ name, children }) {
       {children}
       <a
         href={`#${name}`}
+        data-toc
         className="text-2xl ml-2 [h4+&]:text-lg [h4+&]:ml-1 [h3+&]:text-lg [h3+&]:ml-1 transition-opacity duration-200 opacity-0 group-hover:opacity-100"
         onClick={(e) => {
           e.preventDefault();

@@ -189,7 +189,7 @@ export function createMiddleware(handler, options = {}) {
         // DOMException is constructed on the happy path.
         const onClose = () => {
           if (!res.writableFinished) {
-            abortController.abort();
+            abortController.abort("client disconnected");
             try {
               nodeReadable.destroy(new Error("aborted"));
             } catch {

@@ -570,18 +570,26 @@ export class FlightRequest {
   /**
    * Flush completed chunks to destination.
    *
-   * `completedChunks` is cleared after every flush, so the previous
-   * `writtenChunks` Set dedup was structurally unreachable: a chunk can
-   * only ever appear once in a flush cycle. Removing it drops an O(N)
-   * allocation + Set probe per chunk, which adds up on hot pages (the
-   * wide / large scenarios enqueue hundreds of chunks per request).
+   * Uses a swap-first pattern: snapshot the current queue into a local
+   * `chunks` and atomically replace `this.completedChunks` with a fresh
+   * empty array BEFORE iterating. This is required because Node's
+   * ReadableStream implementation can fire `pull()` as a microtask during
+   * `destination.enqueue(...)` (when a pending reader is waiting), which
+   * synchronously re-enters this method via the stream source's pull
+   * handler. Without the swap, the reentrant flush would see the same
+   * unflushed `chunks` array and write the in-flight chunk a second time
+   * before the outer loop clears it — producing duplicate rows on the
+   * flight stream (observed on async server components that land alone
+   * in the queue, where pull is always waiting).
    *
-   * We also reuse the existing array via `length = 0` instead of
-   * reassigning a fresh empty array, which avoids allocating a new
-   * backing store on every flush cycle.
+   * After the swap, any reentrant flush observes an empty queue and is a
+   * no-op, and any reentrant `writeChunk` pushes to the new empty array,
+   * which the next flush cycle (or the next explicit pull) will drain.
    */
   flushChunks() {
+    if (this.completedChunks.length === 0) return;
     const chunks = this.completedChunks;
+    this.completedChunks = [];
     if (this.destination && !this.aborted) {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
@@ -596,7 +604,6 @@ export class FlightRequest {
         }
       }
     }
-    chunks.length = 0;
   }
 
   /**

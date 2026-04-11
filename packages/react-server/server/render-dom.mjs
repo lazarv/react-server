@@ -22,6 +22,79 @@ import { LINK_QUEUE, MODULE_CACHE, REQUEST_CACHE_SHARED } from "./symbols.mjs";
 const streamMap = new Map();
 const preludeMap = new Map();
 
+// ── Persistent client-module namespace cache for the SSR moduleLoader adapter ──
+//
+// The per-request module cache (`moduleCacheStorage.run(new Map(), ...)` in
+// ssr-handler.mjs) is allocated fresh on every request, which means
+// `globalThis.__webpack_require__` in module-loader.mjs always creates a brand
+// new `modulePromise` per request. At the moment `requireModule` is called
+// inside `createFromReadableStream`'s consume loop, the promise's
+// `.status`/`.value` annotation has not yet been set (the `.then` microtask
+// hasn't fired), so the previous "sync fast-path" check was dead code and every
+// client reference was routed through `@lazarv/rsc/client`'s async branch
+// (which pushes into `pendingModuleImports` and makes the consume loop await
+// `Promise.all(pendingModuleImports)` on every reader tick).
+//
+// To actually take the sync branch in resolveModuleReference we need the
+// adapter itself to hold a long-lived map from `metadata.id` to the resolved
+// module namespace. After the first request warms an entry, every subsequent
+// request returns the namespace synchronously, skipping the pending-module
+// gate entirely. The rsc/client sync branch does its own
+// `result[exportName] ?? result.default ?? result` unwrap, so we must return
+// the full namespace here (not a pre-picked export) to preserve existing
+// semantics for multi-export modules and object-valued exports.
+//
+// HMR: in dev mode, editing a client component will not naturally invalidate
+// this cache. Use `invalidateClientModuleNamespaceCache(id?)` from the dev
+// HMR path (or ssr-handler's restart hook) to purge stale entries.
+const clientModuleNamespaceCache = new Map();
+
+export function invalidateClientModuleNamespaceCache(id) {
+  if (id === undefined) {
+    clientModuleNamespaceCache.clear();
+    return;
+  }
+  clientModuleNamespaceCache.delete(id);
+}
+
+function resolveClientModuleSync(metadata) {
+  const id = metadata.id;
+  const cached = clientModuleNamespaceCache.get(id);
+  if (cached !== undefined) return cached;
+
+  const mod = globalThis.__webpack_require__(id);
+
+  // Already-resolved case — either a plain namespace returned directly by
+  // module-loader.mjs (react-client-reference:, server-action://, ...) or
+  // a modulePromise that has already fulfilled and been annotated by
+  // module-loader.mjs (`.status === "fulfilled"`, `.value = module`).
+  if (mod && typeof mod === "object" && mod.status === "fulfilled") {
+    clientModuleNamespaceCache.set(id, mod.value);
+    return mod.value;
+  }
+  if (mod && typeof mod.then !== "function") {
+    clientModuleNamespaceCache.set(id, mod);
+    return mod;
+  }
+
+  // Async path: the modulePromise is still pending. Attach a .then to
+  // populate the persistent cache once the import resolves so the next
+  // request hits the sync branch above. Return the promise itself to
+  // resolveModuleReference, which will push it onto pendingModuleImports
+  // for the consume loop to await.
+  if (mod && typeof mod.then === "function") {
+    mod.then(
+      (value) => {
+        if (value !== undefined) clientModuleNamespaceCache.set(id, value);
+      },
+      () => {
+        // Swallow; rejection handling lives in rsc/client's async branch.
+      }
+    );
+  }
+  return mod;
+}
+
 // ── Byte-level JS string escaping for inline <script> payloads ──────────────
 // Eliminates the decode → JSON.stringify → encode cycle in the hot render path.
 // All characters needing escaping in a JS string literal are single-byte ASCII,
@@ -327,11 +400,17 @@ export const createRenderer = ({
                           {
                             temporaryReferences,
                             moduleLoader: {
-                              requireModule(metadata) {
-                                return globalThis.__webpack_require__(
-                                  metadata.id
-                                );
-                              },
+                              // Sync fast-path: once an entry has been warmed
+                              // by a previous request, resolveClientModuleSync
+                              // returns the already-resolved export as a
+                              // plain value. This makes rsc/client's
+                              // resolveModuleReference take its sync branch,
+                              // skipping pendingModuleImports and the
+                              // Promise.all gate in the consume loop that
+                              // otherwise added ~10ms of fixed per-request
+                              // overhead on every "use client" endpoint.
+                              // See clientModuleNamespaceCache above.
+                              requireModule: resolveClientModuleSync,
                             },
                           }
                         );

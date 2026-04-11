@@ -137,9 +137,17 @@ export async function init$(
               : `client://${specifier}`,
             linkQueueStorage
           );
+          // Annotate the cached promise with React's use() protocol so
+          // consumers (e.g. @lazarv/rsc's resolveModuleReference) can skip
+          // the microtask-hop fast path once the module is hot: they can
+          // return `modulePromise.value` synchronously when
+          // `modulePromise.status === "fulfilled"`. Previously `.value` was
+          // set to the promise itself, which forced every steady-state SSR
+          // request into the async resolution path even though the module
+          // was long since materialized — see render-dom.mjs's requireModule.
           modulePromise.then(
-            () => {
-              modulePromise.value = modulePromise;
+            (module) => {
+              modulePromise.value = module;
               modulePromise.status = "fulfilled";
             },
             (reason) => {

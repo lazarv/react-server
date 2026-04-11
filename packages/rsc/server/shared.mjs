@@ -453,7 +453,6 @@ export class FlightRequest {
     this.nextChunkId = 1;
     this.pendingChunks = 0;
     this.completedChunks = [];
-    this.writtenChunks = new Set();
     this.aborted = false;
     this.flowing = false;
     this.destination = null;
@@ -480,6 +479,17 @@ export class FlightRequest {
 
     // Map of serialized server references to their chunk IDs (for deduplication)
     this.writtenServerReferences = new Map();
+
+    // Map of serialized client references to their chunk IDs (for deduplication).
+    // A single client component referenced N times in a tree (e.g. `<Item>` in a
+    // 1000-item list, or a shared `<Link>` across a page) would otherwise emit
+    // N identical `I` rows on the flight stream. Deduping collapses them into a
+    // single row that subsequent uses reference via `$L<id>`. This mirrors the
+    // existing `writtenServerReferences` dedup path.
+    // WeakMap is safe: client references are stable function/object identities
+    // (the same imported module export across all usages), and letting them be
+    // GC'd with the request is desirable.
+    this.writtenClientReferences = new WeakMap();
 
     // Map of pending promises to their chunk IDs
     this.pendingPromises = new Map();
@@ -558,29 +568,35 @@ export class FlightRequest {
   }
 
   /**
-   * Flush completed chunks to destination
+   * Flush completed chunks to destination.
+   *
+   * `completedChunks` is cleared after every flush, so the previous
+   * `writtenChunks` Set dedup was structurally unreachable: a chunk can
+   * only ever appear once in a flush cycle. Removing it drops an O(N)
+   * allocation + Set probe per chunk, which adds up on hot pages (the
+   * wide / large scenarios enqueue hundreds of chunks per request).
+   *
+   * We also reuse the existing array via `length = 0` instead of
+   * reassigning a fresh empty array, which avoids allocating a new
+   * backing store on every flush cycle.
    */
   flushChunks() {
     const chunks = this.completedChunks;
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      if (!this.writtenChunks.has(chunk)) {
-        this.writtenChunks.add(chunk);
-        if (this.destination && !this.aborted) {
-          try {
-            // Handle both string and binary chunks
-            if (chunk instanceof Uint8Array) {
-              this.destination.enqueue(chunk);
-            } else {
-              this.destination.enqueue(encoder.encode(chunk));
-            }
-          } catch {
-            // Controller may be closed
+    if (this.destination && !this.aborted) {
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        try {
+          if (chunk instanceof Uint8Array) {
+            this.destination.enqueue(chunk);
+          } else {
+            this.destination.enqueue(encoder.encode(chunk));
           }
+        } catch {
+          // Controller may be closed
         }
       }
     }
-    this.completedChunks = [];
+    chunks.length = 0;
   }
 
   /**
@@ -613,6 +629,47 @@ export class FlightRequest {
     }
     const payload = JSON.stringify(wireFormat);
     return `${id}:${ROW_TAG.MODULE}${payload}\n`;
+  }
+
+  /**
+   * Emit (or look up) a client-reference module row for the given value
+   * and return its `$L<id>` chunk reference. Dedupes by reference identity
+   * via `writtenClientReferences` so that a single client component used N
+   * times in a tree produces exactly one `I` row on the flight stream.
+   *
+   * Returns the `$L<id>` string the caller should serialize in place of
+   * the client reference.
+   */
+  emitClientReference(value, errorContext = "Client reference") {
+    const cached = this.writtenClientReferences.get(value);
+    if (cached !== undefined) {
+      return "$L" + cached;
+    }
+
+    let metadata;
+    const resolver = this.moduleResolver.resolveClientReference;
+    if (resolver) {
+      metadata = resolver(value);
+    }
+    // Fallback: use embedded $$metadata from the deserialized reference
+    // (re-serialization path via fromBuffer/fromStream with no moduleLoader).
+    if (!metadata && value.$$metadata) {
+      metadata = value.$$metadata;
+    }
+    // Fallback: parse $$id to reconstruct minimal metadata.
+    if (!metadata && value.$$id) {
+      const [moduleId, name] = value.$$id.split("#");
+      metadata = { id: moduleId, name: name || "default", chunks: [] };
+    }
+    if (!metadata) {
+      throw new Error(`${errorContext} could not be resolved`);
+    }
+
+    const id = this.getNextChunkId();
+    const row = this.serializeModuleRow(id, metadata);
+    this.writeChunk(row);
+    this.writtenClientReferences.set(value, id);
+    return "$L" + id;
   }
 
   /**
@@ -1301,28 +1358,7 @@ function serializeValue(request, value, _parentObject, _parentKey) {
   // Handle client references (must be checked before generic function/object checks)
   // Client references can be either functions or objects with $$typeof
   if (isClientReference(value)) {
-    let metadata;
-    const resolver = request.moduleResolver.resolveClientReference;
-    if (resolver) {
-      metadata = resolver(value);
-    }
-    // Fallback: use embedded $$metadata from the deserialized reference
-    // (re-serialization path via fromBuffer/fromStream with no moduleLoader)
-    if (!metadata && value.$$metadata) {
-      metadata = value.$$metadata;
-    }
-    // Fallback: parse $$id to reconstruct minimal metadata
-    if (!metadata && value.$$id) {
-      const [moduleId, name] = value.$$id.split("#");
-      metadata = { id: moduleId, name: name || "default", chunks: [] };
-    }
-    if (!metadata) {
-      throw new Error("Client reference could not be resolved");
-    }
-    const id = request.getNextChunkId();
-    const row = request.serializeModuleRow(id, metadata);
-    request.writeChunk(row);
-    return "$L" + id;
+    return request.emitClientReference(value, "Client reference");
   }
 
   // Handle functions
@@ -1651,28 +1687,7 @@ function serializeElement(request, element) {
   } else if (typeof type === "function") {
     // Check if client reference
     if (isClientReference(type)) {
-      let metadata;
-      const resolver = request.moduleResolver.resolveClientReference;
-      if (resolver) {
-        metadata = resolver(type);
-      }
-      // Fallback: use embedded $$metadata from the deserialized reference
-      // (re-serialization path via fromBuffer/fromStream with no moduleLoader)
-      if (!metadata && type.$$metadata) {
-        metadata = type.$$metadata;
-      }
-      // Fallback: parse $$id to reconstruct minimal metadata
-      if (!metadata && type.$$id) {
-        const [moduleId, name] = type.$$id.split("#");
-        metadata = { id: moduleId, name: name || "default", chunks: [] };
-      }
-      if (!metadata) {
-        throw new Error("Client component could not be resolved");
-      }
-      const id = request.getNextChunkId();
-      const row = request.serializeModuleRow(id, metadata);
-      request.writeChunk(row);
-      serializedType = "$L" + id;
+      serializedType = request.emitClientReference(type, "Client component");
     } else if (type.$$typeof === REACT_LAZY_TYPE) {
       // Lazy wrapper that is a callable function (e.g. from @lazarv/rsc/client
       // deserialization without a moduleLoader — used by fromBuffer/fromStream
@@ -1855,28 +1870,7 @@ function serializeElement(request, element) {
   } else if (type && typeof type === "object") {
     // Handle client references that are objects (e.g., proxy-based references)
     if (isClientReference(type)) {
-      let metadata;
-      const resolver = request.moduleResolver.resolveClientReference;
-      if (resolver) {
-        metadata = resolver(type);
-      }
-      // Fallback: use embedded $$metadata from the deserialized reference
-      // (re-serialization path via fromBuffer/fromStream with no moduleLoader)
-      if (!metadata && type.$$metadata) {
-        metadata = type.$$metadata;
-      }
-      // Fallback: parse $$id to reconstruct minimal metadata
-      if (!metadata && type.$$id) {
-        const [moduleId, name] = type.$$id.split("#");
-        metadata = { id: moduleId, name: name || "default", chunks: [] };
-      }
-      if (!metadata) {
-        throw new Error("Client component could not be resolved");
-      }
-      const id = request.getNextChunkId();
-      const row = request.serializeModuleRow(id, metadata);
-      request.writeChunk(row);
-      serializedType = "$L" + id;
+      serializedType = request.emitClientReference(type, "Client component");
     }
     // Handle Context.Provider
     else if (type.$$typeof === REACT_PROVIDER_TYPE) {
@@ -1927,27 +1921,12 @@ function serializeElement(request, element) {
     }
     if (type.$$typeof === REACT_FORWARD_REF_TYPE) {
       // Client reference forwardRef
-      if (isClientReference(type.render || type)) {
-        let metadata;
-        const resolver = request.moduleResolver.resolveClientReference;
-        const target = type.render || type;
-        if (resolver) {
-          metadata = resolver(target);
-        }
-        if (!metadata && target.$$metadata) {
-          metadata = target.$$metadata;
-        }
-        if (!metadata && target.$$id) {
-          const [moduleId, name] = target.$$id.split("#");
-          metadata = { id: moduleId, name: name || "default", chunks: [] };
-        }
-        if (!metadata) {
-          throw new Error("Client component could not be resolved");
-        }
-        const id = request.getNextChunkId();
-        const row = request.serializeModuleRow(id, metadata);
-        request.writeChunk(row);
-        serializedType = "$L" + id;
+      const target = type.render || type;
+      if (isClientReference(target)) {
+        serializedType = request.emitClientReference(
+          target,
+          "Client component"
+        );
       } else if (typeof type.render === "function") {
         // Server-side forwardRef — invoke the render function with (props, ref)
         // through the dispatcher so hooks (use, etc.) work inside it. Wrap in

@@ -49,7 +49,7 @@ export function useRender() {
 
 export function rscErrorResponse(error) {
   return new Response(
-    `0:["$L1"]\n1:E{"digest":"${error.digest ?? ""}","message":"${error.message}","env":"server","stack":[],"owner":null}\n`,
+    `0:["$","$L1",null,{}]\n1:E{"digest":"${error.digest ?? ""}","message":"${error.message}","env":"server","stack":[],"owner":null}\n`,
     {
       status: 200,
       headers: {

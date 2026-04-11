@@ -1,4 +1,5 @@
-export const REACT_RE = /\/react\/|\/react-dom\/|\/react-server-dom-webpack\//;
+export const REACT_RE =
+  /\/react\/|\/react-dom\/|\/react-server-dom-webpack\/|\/@lazarv\/rsc\//;
 
 export const createTreeshake = (config) => ({
   moduleSideEffects: (id, external) => {

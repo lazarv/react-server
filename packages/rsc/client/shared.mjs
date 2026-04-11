@@ -424,6 +424,11 @@ class FlightResponse {
 
     // Deferred path references - path refs that need resolution after all properties are filled
     this.deferredPathRefs = [];
+
+    // Pending module import Promises — tracked so the consume loop can
+    // await them before resolving deferred chunks, ensuring import()
+    // results are available synchronously when React renders.
+    this.pendingModuleImports = [];
   }
 
   /**
@@ -465,7 +470,7 @@ class FlightResponse {
       const p = Promise.reject(err);
       p.catch(() => {}); // suppress unhandled rejection
       p.status = "rejected";
-      p.value = err;
+      p.reason = err;
       chunk._promise = p;
     } else {
       // Still pending — allocate a real promise
@@ -473,6 +478,11 @@ class FlightResponse {
         chunk._resolve = res;
         chunk._reject = rej;
       });
+      // Suppress unhandled rejection warnings.  The rejection will be
+      // observed by React's use() hook (which reads .status/.reason
+      // synchronously) or by an error boundary — but Node.js fires the
+      // "unhandledRejection" event before React gets a chance to read it.
+      p.catch(() => {});
       p.status = "pending";
       p.value = undefined;
       chunk._promise = p;
@@ -573,7 +583,13 @@ class FlightResponse {
 
     if (chunk._promise !== null) {
       chunk._promise.status = "rejected";
-      chunk._promise.value = error;
+      chunk._promise.reason = error;
+      // Attach a no-op catch handler so Node.js doesn't fire an unhandled
+      // rejection when callers haven't awaited the promise yet.  The true
+      // error is already recorded on chunk.value and chunk._promise.reason
+      // so React's render pipeline (via use()) still observes it when it
+      // eventually reads the promise.
+      chunk._promise.catch(() => {});
       chunk._reject(error);
     }
   }
@@ -622,7 +638,28 @@ class FlightResponse {
       if (errorInfo.digest) {
         error.digest = errorInfo.digest;
       }
-      this.rejectChunk(id, error);
+      // For the root chunk, resolve with a React element that throws during
+      // rendering instead of rejecting the promise.  This matches
+      // react-server-dom-webpack behavior: createFromReadableStream always
+      // resolves, and the error propagates through React's render pipeline
+      // (error boundaries, SSR onError) rather than rejecting the transport
+      // promise.  Rejecting would crash callers that await the result
+      // (e.g. render-dom's SSR pipeline) before React ever sees the tree.
+      if (id === 0) {
+        const ErrorThrower = () => {
+          throw error;
+        };
+        ErrorThrower.displayName = "FlightError";
+        this.resolveChunk(0, {
+          $$typeof: REACT_TRANSITIONAL_ELEMENT_TYPE,
+          type: ErrorThrower,
+          key: null,
+          ref: null,
+          props: {},
+        });
+      } else {
+        this.rejectChunk(id, error);
+      }
     } else if (tag === "H") {
       // Hint - preload
       const hint = JSON.parse(rest.slice(1));
@@ -806,10 +843,11 @@ class FlightResponse {
     // Append the text content
     if (Array.isArray(chunk.value)) {
       chunk.value.push(textContent);
-      // If this chunk has a stream controller, push data
+      // If this chunk has a stream controller, push data as a string
+      // (not encoded to Uint8Array) so consumers see the original text.
       if (chunk._controller) {
         try {
-          chunk._controller.enqueue(_encoder.encode(textContent));
+          chunk._controller.enqueue(textContent);
         } catch {
           // Controller may be closed
         }
@@ -954,13 +992,68 @@ class FlightResponse {
       preloadPromise = loader.preloadModule(metadata);
     }
 
-    // Create a lazy reference that loads on demand
+    // Try to resolve the module now. If the loader returns a sync value,
+    // resolve the chunk immediately with the actual export (matching
+    // webpack's synchronous requireModule behavior). If it returns a
+    // Promise (e.g. Vite's import()), keep the chunk PENDING and track
+    // the Promise — the consume loop will await all pending imports
+    // before calling resolveDeferredChunks(), so model rows with $L
+    // references to this chunk will naturally defer until the module
+    // is available. This avoids lazy wrappers entirely.
+    if (loader.requireModule) {
+      let result;
+      try {
+        result = loader.requireModule(metadata);
+      } catch (syncError) {
+        // requireModule threw synchronously (e.g. missing module cache).
+        // Reject the chunk gracefully instead of crashing the stream consumer.
+        // rejectChunk handles the lazy _promise pattern (annotates .reason,
+        // attaches no-op .catch to suppress unhandledRejection, and calls
+        // _reject if a promise was already materialized).
+        this.rejectChunk(id, syncError);
+        return;
+      }
+      if (result && typeof result.then === "function") {
+        // Async module — keep chunk pending, resolve when import completes
+        const importPromise = result.then(
+          (module) => {
+            const exportName = metadata.name || "default";
+            const exported =
+              typeof module === "object" && module !== null
+                ? (module[exportName] ?? module.default ?? module)
+                : module;
+            this.resolveChunk(id, exported);
+          },
+          (error) => {
+            // Async import rejected — route through rejectChunk so the lazy
+            // _promise pattern is honored (see syncError branch above).
+            this.rejectChunk(id, error);
+          }
+        );
+        this.pendingModuleImports.push(importPromise);
+        return; // chunk stays pending
+      }
+      if (result !== undefined) {
+        // Sync module — resolve directly with the export
+        const exportName = metadata.name || "default";
+        const exported =
+          typeof result === "object" && result !== null
+            ? (result[exportName] ?? result.default ?? result)
+            : result;
+        this.resolveChunk(id, exported);
+        return;
+      }
+    }
+
+    // No loader or no requireModule — resolve with a client reference
+    // descriptor (used by server-side fromBuffer where no moduleLoader
+    // is provided)
     const reference = {
       $$typeof: REACT_CLIENT_REFERENCE,
       $$id: metadata.id + "#" + metadata.name,
       $$metadata: metadata,
       $$loader: loader,
-      $$preload: preloadPromise, // Store preload promise for potential reuse
+      $$preload: preloadPromise,
     };
 
     this.resolveChunk(id, reference);
@@ -1269,25 +1362,40 @@ class FlightResponse {
 
       // Check if it's a numeric ID (references a module row) or inline format (id#name)
       if (!isNaN(id)) {
-        // Numeric ID - references a module row (I row)
+        // Numeric ID - references a module row (I row).
+        // With async module loading (browser), resolveModuleReference keeps
+        // the chunk PENDING until import() completes, then resolves it with
+        // the actual module export (function).  For sync loaders, the chunk
+        // is already RESOLVED with the export.  For no-loader contexts
+        // (server-side fromBuffer), the chunk holds a client reference
+        // descriptor — in that case we need a lazy wrapper so the RSC
+        // renderer can call _init to get the reference.
         const chunk = this.getChunk(id);
 
-        // Always create a lazy wrapper for client references to support async module loading
-        // Even when chunk is resolved, the module loading itself may be async (e.g., native import())
         if (chunk.status === RESOLVED) {
           const resolvedValue = chunk.value;
-          // If it's a client reference with a loader, wrap it for async loading
+          // If the resolved value is an actual module export (function/string),
+          // return it directly — this is the fast path for resolved imports.
+          if (
+            typeof resolvedValue === "function" ||
+            typeof resolvedValue === "string"
+          ) {
+            return resolvedValue;
+          }
+          // If it's a client reference descriptor (from no-loader context),
+          // wrap in a lazy wrapper so the RSC server renderer can properly
+          // process it via _init/_payload.
           if (
             resolvedValue &&
-            resolvedValue.$$typeof === REACT_CLIENT_REFERENCE &&
-            resolvedValue.$$loader
+            resolvedValue.$$typeof === REACT_CLIENT_REFERENCE
           ) {
             return this.createLazyWrapper(chunk);
           }
-          // Non-client-reference values can be returned directly
+          // Other resolved values (plain objects, etc.) — return directly
           return resolvedValue;
         }
-        // Return a lazy wrapper that will resolve when the chunk is ready
+        // Chunk still pending (async import in progress) — return a lazy
+        // wrapper so React can suspend and retry when the import completes
         return this.createLazyWrapper(chunk);
       }
 
@@ -1308,9 +1416,8 @@ class FlightResponse {
           };
 
           // Start preloading if supported
-          let preloadPromise = null;
           if (loader.preloadModule) {
-            preloadPromise = loader.preloadModule(metadata);
+            loader.preloadModule(metadata);
           }
 
           // Create a client reference
@@ -1319,7 +1426,6 @@ class FlightResponse {
             $$id: rest,
             $$metadata: metadata,
             $$loader: loader,
-            $$preload: preloadPromise,
           };
 
           // Create a synthetic chunk for the lazy wrapper
@@ -1367,6 +1473,8 @@ class FlightResponse {
           lazyAction.$$typeof = originalAction.$$typeof;
           lazyAction.$$id = originalAction.$$id;
           lazyAction.$$bound = bound;
+          lazyAction.$$FORM_ACTION = originalAction.$$FORM_ACTION;
+          lazyAction.$$IS_SIGNATURE_EQUAL = originalAction.$$IS_SIGNATURE_EQUAL;
           lazyAction.bind = originalAction.bind;
           return lazyAction;
         }
@@ -1542,11 +1650,9 @@ class FlightResponse {
         if (Array.isArray(chunk.value) && chunk.value.length > 0) {
           for (const item of chunk.value) {
             try {
-              if (chunk.type === "text" || typeof item === "string") {
-                controller.enqueue(_encoder.encode(item));
-              } else {
-                controller.enqueue(item);
-              }
+              // Enqueue text as strings, binary as Uint8Array — preserve the
+              // original type so consumers see what the server sent.
+              controller.enqueue(item);
             } catch {
               // Controller may be closed
             }
@@ -1581,8 +1687,8 @@ class FlightResponse {
    */
   createAsyncIterableWrapper(chunk) {
     const self = this;
-    return {
-      [Symbol.asyncIterator]() {
+    const wrapper = {
+      [Symbol.asyncIterator]: function asyncIterator() {
         let index = 0;
         const iterator = {
           async next() {
@@ -1607,6 +1713,7 @@ class FlightResponse {
         return iterator;
       },
     };
+    return wrapper;
   }
 
   /**
@@ -1919,86 +2026,135 @@ class FlightResponse {
 
   /**
    * Create a lazy wrapper for a pending chunk
-   * Supports async module loading via moduleLoader.requireModule
+   * Supports async module loading via moduleLoader.requireModule.
+   * Module loading is kicked off eagerly in resolveModuleReference
+   * so the import() Promise is typically already settled by render time.
    */
   createLazyWrapper(chunk) {
     const response = this;
-    const lazy = {
-      $$typeof: Symbol.for("react.lazy"),
-      _payload: chunk,
-      _init: (payload) => {
-        if (payload.status === RESOLVED) {
-          const value = payload.value;
 
-          // If the resolved value is a client reference with a loader,
-          // we need to load the actual module
-          if (
-            value &&
-            value.$$typeof === REACT_CLIENT_REFERENCE &&
-            value.$$loader &&
-            value.$$loader.requireModule
-          ) {
-            // Check if module is already loaded or loading (cached)
-            if (payload._moduleStatus === "fulfilled") {
-              return payload._moduleValue;
-            }
-            if (payload._moduleStatus === "rejected") {
-              throw payload._moduleError;
-            }
-            if (payload._modulePromise) {
-              // Module is loading - throw the cached promise for Suspense
-              throw payload._modulePromise;
-            }
+    // _initPayload resolves the chunk to its final value (module export,
+    // model value, etc.).  It is used both by React's lazy protocol
+    // (_init/_payload) and by the callable wrapper below.
+    const _initPayload = (payload) => {
+      if (payload.status === RESOLVED) {
+        const value = payload.value;
 
-            // Start loading the module
-            const result = value.$$loader.requireModule(value.$$metadata);
-
-            // Handle async module loading
-            if (result && typeof result.then === "function") {
-              // Cache the promise on the payload so subsequent calls don't re-load
-              payload._modulePromise = result.then(
-                (module) => {
-                  // Get the exported value by name
-                  const exportName = value.$$metadata.name || "default";
-                  const exported =
-                    typeof module === "object" && module !== null
-                      ? (module[exportName] ?? module.default ?? module)
-                      : module;
-                  payload._moduleValue = exported;
-                  payload._moduleStatus = "fulfilled";
-                  return exported;
-                },
-                (error) => {
-                  payload._moduleStatus = "rejected";
-                  payload._moduleError = error;
-                  throw error;
-                }
-              );
-
-              // Throw the promise for Suspense
-              throw payload._modulePromise;
-            }
-
-            // Sync module loading - get the exported value
-            const exportName = value.$$metadata.name || "default";
-            const exported =
-              typeof result === "object" && result !== null
-                ? (result[exportName] ?? result.default ?? result)
-                : result;
-            // Cache sync result too
-            payload._moduleValue = exported;
-            payload._moduleStatus = "fulfilled";
-            return exported;
+        // If the resolved value is a client reference with a loader,
+        // we need to load the actual module
+        if (
+          value &&
+          value.$$typeof === REACT_CLIENT_REFERENCE &&
+          value.$$loader &&
+          value.$$loader.requireModule
+        ) {
+          // Check if module is already loaded (cached from a previous call)
+          if (payload._moduleStatus === "fulfilled") {
+            return payload._moduleValue;
+          }
+          if (payload._moduleStatus === "rejected") {
+            throw payload._moduleError;
           }
 
-          return value;
+          // Module still loading — throw cached promise for Suspense
+          if (payload._modulePromise) {
+            // Check if the promise has settled since last time (annotated
+            // with .status/.value by our .then() handler below).
+            if (payload._modulePromise.status === "fulfilled") {
+              return payload._moduleValue;
+            }
+            throw payload._modulePromise;
+          }
+
+          const result = value.$$loader.requireModule(value.$$metadata);
+          if (result && typeof result.then === "function") {
+            // Annotate the Promise with .status/.value for synchronous
+            // unwrapping on subsequent calls — mirrors the pattern used
+            // by react-server-dom-webpack for chunk loading promises.
+            if (result.status === undefined) {
+              result.then(
+                (v) => {
+                  result.status = "fulfilled";
+                  result.value = v;
+                },
+                (e) => {
+                  result.status = "rejected";
+                  result.reason = e;
+                }
+              );
+            }
+
+            // If the promise is already settled (e.g. cached import()),
+            // unwrap synchronously instead of throwing for Suspense.
+            if (result.status === "fulfilled") {
+              const module = result.value;
+              const exportName = value.$$metadata.name || "default";
+              const exported =
+                typeof module === "object" && module !== null
+                  ? (module[exportName] ?? module.default ?? module)
+                  : module;
+              payload._moduleValue = exported;
+              payload._moduleStatus = "fulfilled";
+              return exported;
+            }
+
+            payload._modulePromise = result.then(
+              (module) => {
+                const exportName = value.$$metadata.name || "default";
+                const exported =
+                  typeof module === "object" && module !== null
+                    ? (module[exportName] ?? module.default ?? module)
+                    : module;
+                payload._moduleValue = exported;
+                payload._moduleStatus = "fulfilled";
+                return exported;
+              },
+              (error) => {
+                payload._moduleStatus = "rejected";
+                payload._moduleError = error;
+                throw error;
+              }
+            );
+            throw payload._modulePromise;
+          }
+
+          // Sync module loading
+          const exportName = value.$$metadata.name || "default";
+          const exported =
+            typeof result === "object" && result !== null
+              ? (result[exportName] ?? result.default ?? result)
+              : result;
+          payload._moduleValue = exported;
+          payload._moduleStatus = "fulfilled";
+          return exported;
         }
-        if (payload.status === REJECTED) {
-          throw payload.value;
-        }
-        throw response._ensurePromise(payload);
-      },
+
+        return value;
+      }
+      if (payload.status === REJECTED) {
+        throw payload.value;
+      }
+      throw response._ensurePromise(payload);
     };
+
+    // Create a callable function as the lazy wrapper.  This allows the
+    // reference to work both as a React lazy component type (React calls
+    // _init/_payload) AND as a direct function call (e.g. when passed as
+    // a render callback prop like `render={ErrorMessage}`).
+    // When called directly, it resolves the module and forwards the call.
+    const lazy = function (...args) {
+      // Resolve the underlying module/value
+      const resolved = _initPayload(chunk);
+      if (typeof resolved === "function") {
+        return resolved(...args);
+      }
+      // Not a function — return the resolved value (createElement will
+      // be called by the consumer if needed)
+      return resolved;
+    };
+    lazy.$$typeof = Symbol.for("react.lazy");
+    lazy._payload = chunk;
+    lazy._init = _initPayload;
     return lazy;
   }
 
@@ -2021,6 +2177,48 @@ class FlightResponse {
     }
     action.$$typeof = REACT_SERVER_REFERENCE;
     action.$$id = id;
+
+    // $$FORM_ACTION is required by react-dom/server to render progressive
+    // enhancement <form> elements with hidden fields that carry the action ID
+    // and any bound arguments.
+    action.$$FORM_ACTION = function (identifierPrefix) {
+      if (boundArgs && boundArgs.length > 0) {
+        // Bound args need to be serialized into prefixed FormData fields.
+        // Encode each bound arg as JSON in a FormData part.
+        const data = new FormData();
+        const payload = JSON.stringify(
+          boundArgs.map((arg) =>
+            typeof arg === "string"
+              ? arg
+              : typeof arg === "number" || typeof arg === "boolean"
+                ? arg
+                : JSON.stringify(arg)
+          )
+        );
+        data.append("$ACTION_" + identifierPrefix + ":0", payload);
+        return {
+          name: "$ACTION_REF_" + identifierPrefix,
+          method: "POST",
+          encType: "multipart/form-data",
+          data,
+        };
+      }
+      return {
+        name: "$ACTION_ID_" + id,
+        method: "POST",
+        encType: "multipart/form-data",
+        data: null,
+      };
+    };
+
+    // $$IS_SIGNATURE_EQUAL is used by react-dom to match form state across
+    // navigations (progressive enhancement).
+    action.$$IS_SIGNATURE_EQUAL = function (referenceId, numberOfBoundArgs) {
+      if (id !== referenceId) return false;
+      const currentBound = boundArgs ? boundArgs.length : 0;
+      return currentBound === numberOfBoundArgs;
+    };
+
     action.bind = (_, ...args) => {
       const newBound = (boundArgs || []).concat(args);
       return response.createServerAction(id, newBound);
@@ -2530,19 +2728,27 @@ class FlightResponse {
  */
 export function createFromReadableStream(stream, options = {}) {
   const response = new FlightResponse(options);
-
   // Start consuming the stream in the background.
   // The root value will be resolved as soon as the root chunk is available,
   // while streaming chunks (ReadableStream, AsyncIterable) continue to receive
   // data in the background until the stream ends.
   const consumePromise = (async () => {
     const reader = stream.getReader();
-
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         response.processData(value);
+        // Wait for ALL pending module imports to complete before resolving
+        // deferred chunks.  Unlike webpack (which has a synchronous module
+        // registry), Vite's import() involves actual network I/O.  We must
+        // wait for those Promises to settle and annotate their .status/.value
+        // so that _initPayload and deserializeString can unwrap modules
+        // synchronously when React renders.
+        if (response.pendingModuleImports.length > 0) {
+          await Promise.all(response.pendingModuleImports);
+          response.pendingModuleImports.length = 0;
+        }
         // Eagerly resolve deferred chunks so that the root value and any
         // streaming wrappers (ReadableStream / AsyncIterable) are created
         // as soon as their model rows arrive, rather than waiting for the
@@ -2584,13 +2790,30 @@ export function createFromReadableStream(stream, options = {}) {
     }
   });
 
-  // The root value promise resolves as soon as the root chunk (id 0) resolves,
-  // which typically happens after the first batch of data is processed —
-  // NOT after the entire stream is consumed.
+  // The root value promise resolves as soon as the root chunk (id 0) resolves
+  // AND all pending module imports have completed.  The import gate is critical:
+  // without it, React would receive a tree containing lazy wrappers for client
+  // modules whose import() hasn't settled yet, causing hydration stalls.
+  // With the gate, module exports are resolved directly into the chunk values
+  // so the tree handed to React contains actual component functions — matching
+  // webpack's synchronous requireModule behavior.
+  //
   // We race with consumePromise to ensure transport-level errors are
   // propagated even if the root chunk was never created.
+  const gatedRootValue = async () => {
+    const rootValue = await response.getRootValue();
+    // After the root chunk resolves, wait for any pending module imports
+    // that were kicked off during processData.  The consume loop also awaits
+    // these, but the root chunk's Promise resolves synchronously inside
+    // processData (before the consume loop's await).  This gate ensures
+    // React doesn't see the tree until modules are available.
+    if (response.pendingModuleImports.length > 0) {
+      await Promise.all(response.pendingModuleImports);
+    }
+    return rootValue;
+  };
   const resultPromise = Promise.race([
-    response.getRootValue(),
+    gatedRootValue(),
     consumePromise.then(() => response.getRootValue()),
   ]);
 
@@ -2604,7 +2827,7 @@ export function createFromReadableStream(stream, options = {}) {
     },
     (error) => {
       resultPromise.status = "rejected";
-      resultPromise.value = error;
+      resultPromise.reason = error;
     }
   );
 
@@ -2646,7 +2869,7 @@ export function createFromFetch(promiseForResponse, options = {}) {
     },
     (error) => {
       resultPromise.status = "rejected";
-      resultPromise.value = error;
+      resultPromise.reason = error;
     }
   );
 

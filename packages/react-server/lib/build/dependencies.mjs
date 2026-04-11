@@ -35,18 +35,13 @@ const reactDomServer = reactDom?.replace(
 
 const reactDomClient = tryResolve("react-dom/client");
 const reactDomServerEdge = tryResolve("react-dom/server.edge");
-const reactServerDomWebpackClientBrowser = tryResolve(
-  "react-server-dom-webpack/client.browser"
-);
-const reactServerDomWebpackServerBrowser = tryResolve(
-  "react-server-dom-webpack/server.browser"
-);
-const reactServerDomWebpackClientEdge = tryResolve(
-  "react-server-dom-webpack/client.edge"
-);
-const reactServerDomWebpackServerEdge = tryResolve(
-  "react-server-dom-webpack/server.edge"
-);
+const rscClient = tryResolve("@lazarv/rsc/client");
+const rscServer = tryResolve("@lazarv/rsc/server");
+// Redirect webpack imports → @lazarv/rsc for any remaining third-party references
+const reactServerDomWebpackClientBrowser = rscClient;
+const reactServerDomWebpackServerBrowser = rscServer;
+const reactServerDomWebpackClientEdge = rscClient;
+const reactServerDomWebpackServerEdge = rscServer;
 const reactIs = tryResolve("react-is");
 const scheduler = tryResolve("scheduler");
 const unstorage = tryResolve("unstorage");
@@ -73,6 +68,8 @@ export {
   reactJsxRuntime,
   reactJsxRuntimeServer,
   reactCompilerRuntime,
+  rscClient,
+  rscServer,
   reactServerDomWebpackClientBrowser,
   reactServerDomWebpackServerBrowser,
   reactServerDomWebpackClientEdge,

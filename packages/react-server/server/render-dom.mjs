@@ -4,14 +4,13 @@ import {
   createFromReadableStream,
   createTemporaryReferenceSet,
   encodeReply,
-} from "react-server-dom-webpack/client.edge";
+} from "@lazarv/rsc/client";
 
 import { HttpContextStorage } from "@lazarv/react-server/http-context";
 import { Parser } from "parse5";
 
 import { getEnv, immediate } from "../lib/sys.mjs";
 import dom2flight from "./dom-flight.mjs";
-import { ssrManifest } from "./ssr-manifest.mjs";
 import { remoteTemporaryReferences } from "./temporary-references.mjs";
 import { attachSharedRequestCache } from "../cache/request-cache-shared.mjs";
 import { syncHash } from "@lazarv/react-server/storage-cache";
@@ -327,7 +326,13 @@ export const createRenderer = ({
                           renderStream,
                           {
                             temporaryReferences,
-                            ...ssrManifest,
+                            moduleLoader: {
+                              requireModule(metadata) {
+                                return globalThis.__webpack_require__(
+                                  metadata.id
+                                );
+                              },
+                            },
                           }
                         );
 
@@ -881,6 +886,15 @@ export const createRenderer = ({
                           // ── Inject remaining request cache entries for browser hydration ──
                           // Final sweep after all rendering completes.
                           yield* flushCacheEntries();
+
+                          // Close the browser-side flight writer so the client's
+                          // createFromReadableStream consume loop sees `done: true`
+                          // and React can complete hydration.
+                          if (bootstrapped && !remote) {
+                            yield encoder.encode(
+                              `<script>document.currentScript.parentNode.removeChild(document.currentScript);self.__flightWriter__${outlet}__?.close();</script>`
+                            );
+                          }
                         };
 
                         const remoteWorker = async function* () {
@@ -978,6 +992,11 @@ export const createRenderer = ({
                             controller.close();
                             parentPort.postMessage({ id, done: true });
                           } catch (e) {
+                            try {
+                              controller.close();
+                            } catch {
+                              /* already closed/errored */
+                            }
                             parentPort.postMessage({
                               id,
                               done: true,
@@ -990,6 +1009,11 @@ export const createRenderer = ({
 
                         render();
                       } catch (error) {
+                        try {
+                          controller.close();
+                        } catch {
+                          /* already closed/errored */
+                        }
                         parentPort.postMessage({
                           id,
                           done: true,

@@ -232,6 +232,8 @@ export default async function createServer(root, options) {
         "react/compiler-runtime",
         "react-dom",
         "react-dom/client",
+        "@lazarv/rsc/client",
+        "@lazarv/rsc/server",
         "react-server-dom-webpack/client.browser",
         "react-server-dom-webpack/server.browser",
         "react-is",
@@ -512,6 +514,7 @@ export default async function createServer(root, options) {
                   dedupe: [
                     "react",
                     "react-dom",
+                    "@lazarv/rsc",
                     "react-server-dom-webpack",
                     "react-is",
                     "picocolors",

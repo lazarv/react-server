@@ -27,6 +27,24 @@ export const clientAlias = (dev) => [
     replacement: dependencies.reactDomClient,
     id: "react-dom/client",
   },
+  ...(dependencies.rscClient
+    ? [
+        {
+          find: /^@lazarv\/rsc\/client$/,
+          replacement: dependencies.rscClient,
+          id: "@lazarv/rsc/client",
+        },
+      ]
+    : []),
+  ...(dependencies.rscServer
+    ? [
+        {
+          find: /^@lazarv\/rsc\/server$/,
+          replacement: dependencies.rscServer,
+          id: "@lazarv/rsc/server",
+        },
+      ]
+    : []),
   {
     find: /^react-server-dom-webpack\/client.browser$/,
     replacement: dependencies.reactServerDomWebpackClientBrowser,

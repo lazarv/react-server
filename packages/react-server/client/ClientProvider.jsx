@@ -2,7 +2,7 @@ import {
   createFromReadableStream,
   encodeReply,
   createTemporaryReferenceSet,
-} from "react-server-dom-webpack/client.browser";
+} from "@lazarv/rsc/client";
 
 import {
   ClientContext as _ClientContext,
@@ -594,6 +594,15 @@ export const streamOptions = ({
   outletTemporaryReferences.set(outlet, temporaryReferences);
   return {
     temporaryReferences,
+    moduleLoader: {
+      requireModule(metadata) {
+        // Use the global __webpack_require__ which is set up by
+        // react-server-runtime.mjs (dev) or the inline bootstrap script (prod).
+        // It handles URL construction, caching, and sets .value/.status on the
+        // promise for synchronous access by React's lazy protocol.
+        return self.__webpack_require__(metadata.id);
+      },
+    },
     findSourceMapURL: import.meta.env.DEV
       ? (filename, environment) =>
           new URL(
@@ -1002,7 +1011,7 @@ function getFlightResponse(url, options = {}) {
 
                 controller.enqueue(
                   encoder.encode(
-                    `0:["$L1"]\n1:E{"digest":"${e.digest}","message":"${e.message}","env":"${e.environmentName}","stack":[],"owner":null}\n`
+                    `0:["$","$L1",null,{}]\n1:E{"digest":"${e.digest}","message":"${e.message}","env":"${e.environmentName}","stack":[],"owner":null}\n`
                   )
                 );
                 controller.close();

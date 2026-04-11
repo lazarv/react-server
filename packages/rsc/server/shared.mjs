@@ -116,6 +116,251 @@ function isThenable(value) {
   );
 }
 
+// ─── React Hooks Dispatcher for Server Components ───────────────────
+// Server components need React's internal dispatcher (H) set so that
+// hooks like use(), useId(), useMemo(), useCallback() work.  React's
+// official Flight server (react-server-dom-webpack) does the same thing.
+
+const REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
+
+function resolveReactInternals(React) {
+  return (
+    React?.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ??
+    React?.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ??
+    null
+  );
+}
+
+// Sentinel thrown by use() when it hits an unresolved thenable.
+// Must NOT be caught by user code — it signals the Flight server to retry.
+const SuspenseException = new Error(
+  "Suspense Exception: This is not a real error! It's an implementation " +
+  "detail of `use` to interrupt the current render. You must either " +
+  "rethrow it immediately, or move the `use` call outside of the " +
+  "`try/catch` block. Capturing without rethrowing will lead to " +
+  "unexpected behavior."
+);
+
+let suspendedThenable = null;
+let thenableIndexCounter = 0;
+let thenableState = null;
+const noop = () => {};
+
+function trackUsedThenable(thenableState, thenable, index) {
+  const previous = thenableState[index];
+  if (previous === undefined) {
+    thenableState.push(thenable);
+  } else if (previous !== thenable) {
+    thenable.then(noop, noop);
+    thenable = previous;
+  }
+  switch (thenable.status) {
+    case "fulfilled":
+      return thenable.value;
+    case "rejected":
+      throw thenable.reason;
+    default:
+      if (typeof thenable.status !== "string") {
+        const pending = thenable;
+        pending.status = "pending";
+        pending.then(
+          (fulfilledValue) => {
+            if (thenable.status === "pending") {
+              thenable.status = "fulfilled";
+              thenable.value = fulfilledValue;
+            }
+          },
+          (error) => {
+            if (thenable.status === "pending") {
+              thenable.status = "rejected";
+              thenable.reason = error;
+            }
+          }
+        );
+      }
+      switch (thenable.status) {
+        case "fulfilled":
+          return thenable.value;
+        case "rejected":
+          throw thenable.reason;
+      }
+      suspendedThenable = thenable;
+      throw SuspenseException;
+  }
+}
+
+function getSuspendedThenable() {
+  if (suspendedThenable === null) {
+    throw new Error("Expected a suspended thenable. This is a bug in @lazarv/rsc.");
+  }
+  const thenable = suspendedThenable;
+  suspendedThenable = null;
+  return thenable;
+}
+
+function getThenableStateAfterSuspending() {
+  const state = thenableState || [];
+  thenableState = null;
+  return state;
+}
+
+function unsupportedHook() {
+  throw new Error("This Hook is not supported in Server Components.");
+}
+
+function unsupportedContext() {
+  throw new Error("Cannot read context from a Server Component.");
+}
+
+// The currentRequest is set during serialization work so useId() can
+// generate deterministic identifiers.  Also used by the public
+// setCurrentRequest/getCurrentRequest API.
+let currentRequest = null;
+
+const HooksDispatcher = {
+  readContext: unsupportedContext,
+  getOwner() {
+    return null;
+  },
+  use(usable) {
+    if (
+      (usable !== null && typeof usable === "object") ||
+      typeof usable === "function"
+    ) {
+      if (typeof usable.then === "function") {
+        const index = thenableIndexCounter;
+        thenableIndexCounter += 1;
+        if (thenableState === null) thenableState = [];
+        return trackUsedThenable(thenableState, usable, index);
+      }
+      if (usable.$$typeof === REACT_CONTEXT_TYPE) {
+        unsupportedContext();
+      }
+    }
+    if (isClientReference(usable)) {
+      if (
+        usable.value != null &&
+        usable.value.$$typeof === REACT_CONTEXT_TYPE
+      ) {
+        throw new Error("Cannot read a Client Context from a Server Component.");
+      }
+      throw new Error("Cannot use() an already resolved Client Reference.");
+    }
+    throw new Error("An unsupported type was passed to use(): " + String(usable));
+  },
+  useCallback(callback) {
+    return callback;
+  },
+  useContext: unsupportedContext,
+  useEffect: unsupportedHook,
+  useImperativeHandle: unsupportedHook,
+  useLayoutEffect: unsupportedHook,
+  useInsertionEffect: unsupportedHook,
+  useMemo(nextCreate) {
+    return nextCreate();
+  },
+  useReducer: unsupportedHook,
+  useRef: unsupportedHook,
+  useState: unsupportedHook,
+  useDebugValue() {},
+  useDeferredValue: unsupportedHook,
+  useTransition: unsupportedHook,
+  useSyncExternalStore: unsupportedHook,
+  useId() {
+    if (currentRequest === null) {
+      throw new Error("useId can only be used while React is rendering");
+    }
+    const id = currentRequest.identifierCount++;
+    return (
+      "_" +
+      (currentRequest.identifierPrefix || "S") +
+      "_" +
+      id.toString(32) +
+      "_"
+    );
+  },
+  useHostTransitionStatus: unsupportedHook,
+  useFormState: unsupportedHook,
+  useActionState: unsupportedHook,
+  useOptimistic: unsupportedHook,
+  useMemoCache(size) {
+    const data = Array(size);
+    for (let i = 0; i < size; i++) data[i] = REACT_MEMO_CACHE_SENTINEL;
+    return data;
+  },
+  useCacheRefresh() {
+    return unsupportedHook();
+  },
+};
+
+// DefaultAsyncDispatcher for React.cache() / async transitions
+const DefaultAsyncDispatcher = {
+  getOwner() {
+    return null;
+  },
+  getCacheForType(resourceType) {
+    if (!currentRequest) throw new Error("Cannot call getCacheForType outside of rendering");
+    const cacheMap = currentRequest._cache || (currentRequest._cache = new Map());
+    let entry = cacheMap.get(resourceType);
+    if (entry === undefined) {
+      entry = resourceType();
+      cacheMap.set(resourceType, entry);
+    }
+    return entry;
+  },
+};
+
+/**
+ * Set up the React dispatcher before calling a server component function,
+ * and restore it afterwards.  Returns the component result.
+ *
+ * If the component throws a SuspenseException (from use()), we extract
+ * the pending thenable and return it — the caller should handle it like
+ * any other thrown promise.
+ */
+function callComponentWithDispatcher(request, type, props, prevThenableState) {
+  const internals = request.reactInternals;
+  if (!internals) {
+    // No React internals provided — call directly (hooks won't work
+    // but pure server components without hooks will still function)
+    return type(props);
+  }
+
+  const prevDispatcher = internals.H;
+  const prevAsyncDispatcher = internals.A;
+  const prevRequest = currentRequest;
+  internals.H = HooksDispatcher;
+  internals.A = DefaultAsyncDispatcher;
+  currentRequest = request;
+  thenableIndexCounter = 0;
+  // Restore thenableState from a previous suspended render (if retrying).
+  // On first render prevThenableState is undefined → thenableState stays null.
+  thenableState = prevThenableState || null;
+  try {
+    const result = type(props);
+    // Successful render — clear thenableState for other components.
+    thenableState = null;
+    return result;
+  } catch (error) {
+    if (error === SuspenseException) {
+      // use() hit an unresolved thenable — capture the tracked thenables
+      // so the retry can restore them (matches React's per-task save).
+      const savedThenableState = thenableState;
+      thenableState = null;
+      const thenable = getSuspendedThenable();
+      // Attach the saved state so the retry site can pass it back.
+      thenable._savedThenableState = savedThenableState;
+      throw thenable;
+    }
+    thenableState = null;
+    throw error;
+  } finally {
+    internals.H = prevDispatcher;
+    internals.A = prevAsyncDispatcher;
+    currentRequest = prevRequest;
+  }
+}
+
 /**
  * Internal request state for serialization
  * @internal Exported for testing purposes only
@@ -135,6 +380,15 @@ export class FlightRequest {
     this.destination = null;
     this.closed = false;
     this.temporaryReferences = options.temporaryReferences || undefined;
+
+    // React internals for hooks dispatcher (optional — pass `react` option)
+    this.reactInternals = options.react
+      ? resolveReactInternals(options.react)
+      : null;
+
+    // useId() counter and prefix
+    this.identifierCount = 0;
+    this.identifierPrefix = options.identifierPrefix || "S";
 
     // Map of serialized objects to their IDs (for deduplication)
     this.objectMap = new WeakMap();
@@ -944,31 +1198,28 @@ function serializeValue(request, value, _parentObject, _parentKey) {
   // Handle client references (must be checked before generic function/object checks)
   // Client references can be either functions or objects with $$typeof
   if (isClientReference(value)) {
+    let metadata;
     const resolver = request.moduleResolver.resolveClientReference;
     if (resolver) {
-      const metadata = resolver(value);
-      if (metadata) {
-        // Create a reference chunk
-        const id = request.getNextChunkId();
-        const row = request.serializeModuleRow(id, metadata);
-        request.writeChunk(row);
-        return "$L" + id;
-      }
+      metadata = resolver(value);
     }
-    // Fallback: use the reference's internal ID if available
-    if (value.$$id) {
-      // Create a module reference chunk with the ID
-      const id = request.getNextChunkId();
+    // Fallback: use embedded $$metadata from the deserialized reference
+    // (re-serialization path via fromBuffer/fromStream with no moduleLoader)
+    if (!metadata && value.$$metadata) {
+      metadata = value.$$metadata;
+    }
+    // Fallback: parse $$id to reconstruct minimal metadata
+    if (!metadata && value.$$id) {
       const [moduleId, name] = value.$$id.split("#");
-      const row = request.serializeModuleRow(id, {
-        id: moduleId,
-        name: name || "default",
-        chunks: [],
-      });
-      request.writeChunk(row);
-      return "$L" + id;
+      metadata = { id: moduleId, name: name || "default", chunks: [] };
     }
-    throw new Error("Client reference could not be resolved");
+    if (!metadata) {
+      throw new Error("Client reference could not be resolved");
+    }
+    const id = request.getNextChunkId();
+    const row = request.serializeModuleRow(id, metadata);
+    request.writeChunk(row);
+    return "$L" + id;
   }
 
   // Handle functions
@@ -1203,6 +1454,45 @@ function serializeValue(request, value, _parentObject, _parentKey) {
 }
 
 /**
+ * Create a promise that retries rendering a server component after suspension.
+ * Handles re-suspension (multiple use() calls) by chaining retries until the
+ * component either succeeds or throws a non-thenable error.  This matches
+ * React's Flight server behavior of retrying tasks until all thenables resolve.
+ *
+ * @param {FlightRequest} request
+ * @param {Function} type - The component function
+ * @param {object} props
+ * @param {Array|null} savedState - thenableState from the initial suspension
+ * @param {object|null} componentDebugRef
+ * @param {object|null} previousOwnerRef
+ * @param {Promise} blockedThenable - The thenable that caused the suspension
+ */
+function retryComponentRender(request, type, props, savedState, componentDebugRef, previousOwnerRef, blockedThenable) {
+  return new Promise((resolve, reject) => {
+    function attempt(prevThenableState, waitFor) {
+      waitFor.then(() => {
+        try {
+          request.currentOwnerRef = componentDebugRef;
+          const result = callComponentWithDispatcher(request, type, props, prevThenableState);
+          request.currentOwnerRef = previousOwnerRef;
+          resolve(result);
+        } catch (error) {
+          request.currentOwnerRef = previousOwnerRef;
+          if (isThenable(error)) {
+            // Component suspended again (another use() call not yet resolved).
+            // Chain another retry with updated thenableState.
+            attempt(error._savedThenableState, error);
+          } else {
+            reject(error);
+          }
+        }
+      }, reject);
+    }
+    attempt(savedState, blockedThenable);
+  });
+}
+
+/**
  * Serialize a React element
  */
 function serializeElement(request, element) {
@@ -1220,20 +1510,49 @@ function serializeElement(request, element) {
   } else if (typeof type === "function") {
     // Check if client reference
     if (isClientReference(type)) {
+      let metadata;
       const resolver = request.moduleResolver.resolveClientReference;
       if (resolver) {
-        const metadata = resolver(type);
-        if (metadata) {
-          // Create a module reference chunk
-          const id = request.getNextChunkId();
-          const row = request.serializeModuleRow(id, metadata);
-          request.writeChunk(row);
-          serializedType = "$L" + id;
-        }
-      } else if (type.$$id) {
-        serializedType = "$L" + type.$$id;
-      } else {
+        metadata = resolver(type);
+      }
+      // Fallback: use embedded $$metadata from the deserialized reference
+      // (re-serialization path via fromBuffer/fromStream with no moduleLoader)
+      if (!metadata && type.$$metadata) {
+        metadata = type.$$metadata;
+      }
+      // Fallback: parse $$id to reconstruct minimal metadata
+      if (!metadata && type.$$id) {
+        const [moduleId, name] = type.$$id.split("#");
+        metadata = { id: moduleId, name: name || "default", chunks: [] };
+      }
+      if (!metadata) {
         throw new Error("Client component could not be resolved");
+      }
+      const id = request.getNextChunkId();
+      const row = request.serializeModuleRow(id, metadata);
+      request.writeChunk(row);
+      serializedType = "$L" + id;
+    } else if (type.$$typeof === REACT_LAZY_TYPE) {
+      // Lazy wrapper that is a callable function (e.g. from @lazarv/rsc/client
+      // deserialization without a moduleLoader — used by fromBuffer/fromStream
+      // during RSC re-serialization). Resolve the lazy type and re-enter
+      // serializeElement with the resolved type so the element structure
+      // (key, props, children) is preserved.
+      const payload = type._payload;
+      const init = type._init;
+      try {
+        const resolved = init(payload);
+        return serializeElement(request, { ...element, type: resolved });
+      } catch (error) {
+        if (isThenable(error)) {
+          return serializePromise(
+            request,
+            error.then((resolved) => {
+              return serializeElement(request, { ...element, type: resolved });
+            })
+          );
+        }
+        throw error;
       }
     } else {
       // Server component - render it
@@ -1266,7 +1585,7 @@ function serializeElement(request, element) {
       }
 
       try {
-        const result = type(props);
+        const result = callComponentWithDispatcher(request, type, props);
 
         if (isThenable(result)) {
           // Restore owner context after async resolution
@@ -1295,16 +1614,12 @@ function serializeElement(request, element) {
         request.currentOwnerRef = previousOwnerRef;
 
         if (isThenable(error)) {
-          // Suspense - component threw a promise
+          // Suspense - component threw a promise (from use() or direct throw).
+          // Capture saved thenableState so the retry can restore it.
+          const savedState = error._savedThenableState;
           return serializePromise(
             request,
-            error.then(() => {
-              // Retry rendering after promise resolves
-              request.currentOwnerRef = componentDebugRef;
-              const retryResult = type(props);
-              request.currentOwnerRef = previousOwnerRef;
-              return retryResult;
-            })
+            retryComponentRender(request, type, props, savedState, componentDebugRef, previousOwnerRef, error)
           );
         }
         throw error;
@@ -1389,8 +1704,33 @@ function serializeElement(request, element) {
       serializedType = "$@unknown";
     }
   } else if (type && typeof type === "object") {
+    // Handle client references that are objects (e.g., proxy-based references)
+    if (isClientReference(type)) {
+      let metadata;
+      const resolver = request.moduleResolver.resolveClientReference;
+      if (resolver) {
+        metadata = resolver(type);
+      }
+      // Fallback: use embedded $$metadata from the deserialized reference
+      // (re-serialization path via fromBuffer/fromStream with no moduleLoader)
+      if (!metadata && type.$$metadata) {
+        metadata = type.$$metadata;
+      }
+      // Fallback: parse $$id to reconstruct minimal metadata
+      if (!metadata && type.$$id) {
+        const [moduleId, name] = type.$$id.split("#");
+        metadata = { id: moduleId, name: name || "default", chunks: [] };
+      }
+      if (!metadata) {
+        throw new Error("Client component could not be resolved");
+      }
+      const id = request.getNextChunkId();
+      const row = request.serializeModuleRow(id, metadata);
+      request.writeChunk(row);
+      serializedType = "$L" + id;
+    }
     // Handle Context.Provider
-    if (type.$$typeof === REACT_PROVIDER_TYPE) {
+    else if (type.$$typeof === REACT_PROVIDER_TYPE) {
       // Context Provider - render children with context value
       // In RSC, providers are transparent - we just render their children
       // The context value is passed through during rendering
@@ -1439,15 +1779,54 @@ function serializeElement(request, element) {
     if (type.$$typeof === REACT_FORWARD_REF_TYPE) {
       // Client reference forwardRef
       if (isClientReference(type.render || type)) {
+        let metadata;
         const resolver = request.moduleResolver.resolveClientReference;
+        const target = type.render || type;
         if (resolver) {
-          const metadata = resolver(type.render || type);
-          if (metadata) {
-            const id = request.getNextChunkId();
-            const row = request.serializeModuleRow(id, metadata);
-            request.writeChunk(row);
-            serializedType = "$L" + id;
+          metadata = resolver(target);
+        }
+        if (!metadata && target.$$metadata) {
+          metadata = target.$$metadata;
+        }
+        if (!metadata && target.$$id) {
+          const [moduleId, name] = target.$$id.split("#");
+          metadata = { id: moduleId, name: name || "default", chunks: [] };
+        }
+        if (!metadata) {
+          throw new Error("Client component could not be resolved");
+        }
+        const id = request.getNextChunkId();
+        const row = request.serializeModuleRow(id, metadata);
+        request.writeChunk(row);
+        serializedType = "$L" + id;
+      } else if (typeof type.render === "function") {
+        // Server-side forwardRef — invoke the render function with (props, ref)
+        // through the dispatcher so hooks (use, etc.) work inside it. Wrap in
+        // a single-argument shim so callComponentWithDispatcher can call it.
+        const renderFn = type.render;
+        const forwardRefWrapper = (p) => renderFn(p, ref);
+        // Preserve name for debug info.
+        Object.defineProperty(forwardRefWrapper, "name", {
+          value: renderFn.name || "ForwardRef",
+        });
+        try {
+          const rendered = callComponentWithDispatcher(
+            request,
+            forwardRefWrapper,
+            props
+          );
+          if (isThenable(rendered)) {
+            return serializePromise(request, rendered);
           }
+          return serializeValue(request, rendered);
+        } catch (error) {
+          if (isThenable(error)) {
+            return serializePromise(
+              request,
+              error.then((r) => serializeValue(request, r))
+            );
+          }
+          throw error;
         }
       }
     }
@@ -1473,7 +1852,19 @@ function serializeElement(request, element) {
   }
 
   if (serializedType === undefined) {
-    throw new Error(`Unsupported element type: ${String(type)}`);
+    let detail = String(type);
+    if (type && typeof type === "object") {
+      const $$typeof = type.$$typeof;
+      const typeofTag =
+        typeof $$typeof === "symbol"
+          ? Symbol.keyFor($$typeof) || $$typeof.toString()
+          : typeof $$typeof;
+      const keys = Object.keys(type).slice(0, 10).join(", ");
+      detail = `object with $$typeof=${typeofTag} keys=[${keys}]`;
+    } else if (typeof type === "function") {
+      detail = `function ${type.name || "(anonymous)"}`;
+    }
+    throw new Error(`Unsupported element type: ${detail}`);
   }
 
   // Serialize props (excluding children which we handle specially)
@@ -1606,6 +1997,56 @@ function serializeElement(request, element) {
 }
 
 /**
+ * Emit an error row for a chunk, decrement pending count, and close if done.
+ * Handles postpone errors, digest generation, and ensures pending-chunk
+ * accounting is always correct even when the caller itself throws.
+ */
+function emitErrorRow(request, id, error) {
+  try {
+    // Check if this is a postpone error
+    if (error && error.$$typeof === Symbol.for("react.postpone")) {
+      request.emitPostpone(id, error.reason);
+      if (request.options.onPostpone) {
+        request.options.onPostpone(error.reason);
+      }
+    } else {
+      // Generate error digest if handler provided
+      let digest;
+      if (request.options.onError) {
+        digest = request.options.onError(error);
+      }
+
+      // Build errorInfo with digest FIRST — the client-side redirect
+      // detector regex-matches raw bytes and expects "digest" to be
+      // the leading JSON property (matching react-server-dom-webpack).
+      const errorInfo = {};
+      if (digest !== undefined) {
+        errorInfo.digest = String(digest);
+      }
+      errorInfo.message = error?.message || String(error);
+      errorInfo.stack = error?.stack;
+
+      const row = request.serializeRow(id, ROW_TAG.ERROR, errorInfo);
+      request.writeChunk(row);
+    }
+  } catch {
+    // Last resort — emit a minimal error row if the error handler itself fails
+    try {
+      const row = request.serializeRow(id, ROW_TAG.ERROR, {
+        message: "Internal serialization error",
+      });
+      request.writeChunk(row);
+    } catch {
+      // Nothing we can do — at least we'll decrement pendingChunks below
+    }
+  }
+  request.pendingChunks--;
+  if (request.pendingChunks === 0) {
+    request.closeStream();
+  }
+}
+
+/**
  * Serialize a Promise/Thenable
  */
 function serializePromise(request, thenable) {
@@ -1620,50 +2061,22 @@ function serializePromise(request, thenable) {
 
   thenable.then(
     (result) => {
-      const serialized = serializeValue(request, result, null, null);
-      const row = request.serializeModelRow(id, serialized);
-      request.writeChunk(row);
-      request.pendingChunks--;
-      if (request.pendingChunks === 0) {
-        request.closeStream();
-      }
-    },
-    (error) => {
-      // Check if this is a postpone error
-      if (error && error.$$typeof === Symbol.for("react.postpone")) {
-        request.emitPostpone(id, error.reason);
+      try {
+        const serialized = serializeValue(request, result, null, null);
+        const row = request.serializeModelRow(id, serialized);
+        request.writeChunk(row);
         request.pendingChunks--;
-        if (request.options.onPostpone) {
-          request.options.onPostpone(error.reason);
-        }
         if (request.pendingChunks === 0) {
           request.closeStream();
         }
-        return;
+      } catch (error) {
+        // Serialization failed — emit an error row for this chunk so
+        // the client receives a proper error instead of hanging.
+        emitErrorRow(request, id, error);
       }
-
-      // Generate error digest if handler provided
-      let digest;
-      if (request.options.onError) {
-        digest = request.options.onError(error);
-      }
-
-      const errorInfo = {
-        message: error?.message || String(error),
-        stack: error?.stack,
-      };
-
-      // Add digest for production error hiding
-      if (digest !== undefined) {
-        errorInfo.digest = String(digest);
-      }
-
-      const row = request.serializeRow(id, ROW_TAG.ERROR, errorInfo);
-      request.writeChunk(row);
-      request.pendingChunks--;
-      if (request.pendingChunks === 0) {
-        request.closeStream();
-      }
+    },
+    (error) => {
+      emitErrorRow(request, id, error);
     }
   );
 
@@ -1695,14 +2108,20 @@ function startWork(request) {
       request.closeStream();
     }
   } catch (error) {
+    let digest;
     if (request.options.onError) {
-      request.options.onError(error);
+      digest = request.options.onError(error);
     }
     if (request.destination) {
-      const errorInfo = {
-        message: error?.message || String(error),
-        stack: error?.stack,
-      };
+      // Build errorInfo with digest FIRST — the client-side redirect
+      // detector regex-matches the raw bytes and expects "digest" to be
+      // the leading JSON property (matching react-server-dom-webpack).
+      const errorInfo = {};
+      if (digest !== undefined) {
+        errorInfo.digest = String(digest);
+      }
+      errorInfo.message = error?.message || String(error);
+      errorInfo.stack = error?.stack;
       const row = request.serializeRow(0, ROW_TAG.ERROR, errorInfo);
       try {
         request.destination.enqueue(encoder.encode(row));
@@ -2080,7 +2499,48 @@ export async function decodeAction(body, serverManifestOrOptions) {
     return null;
   }
 
-  const actionId = body.get("$ACTION_ID");
+  // React DOM encodes action references in form field *names*, not values:
+  //   $ACTION_ID_<actionId>  — unbound action (id is in the key name)
+  //   $ACTION_REF_<prefix>   — bound action (metadata in prefixed fields)
+  //   $ACTION_ID (legacy)    — action id as the field value
+  let actionId = null;
+  let boundPrefix = null;
+
+  for (const key of body.keys()) {
+    if (key.startsWith("$ACTION_ID_")) {
+      actionId = key.slice(11); // strip "$ACTION_ID_"
+      break;
+    }
+    if (key.startsWith("$ACTION_REF_")) {
+      boundPrefix = "$ACTION_" + key.slice(12) + ":";
+      break;
+    }
+  }
+
+  // Legacy fallback: $ACTION_ID as a field with the id as value
+  if (!actionId && !boundPrefix) {
+    actionId = body.get("$ACTION_ID");
+  }
+
+  if (boundPrefix) {
+    // Bound action: decode metadata from prefixed FormData fields
+    const metadataPayload = body.get(boundPrefix + "0");
+    if (metadataPayload && typeof metadataPayload === "string") {
+      const parsed = JSON.parse(metadataPayload);
+      // parsed is the reply-encoded {id, bound} or just bound args reference
+      if (parsed && typeof parsed === "object" && parsed.id) {
+        actionId = parsed.id;
+      } else if (typeof parsed === "string" && parsed.startsWith("$h")) {
+        // Server reference in reply format
+        const refPayload = body.get(boundPrefix + parsed.slice(2));
+        if (refPayload && typeof refPayload === "string") {
+          const ref = JSON.parse(refPayload);
+          actionId = ref.id;
+        }
+      }
+    }
+  }
+
   if (!actionId || typeof actionId !== "string") {
     return null;
   }
@@ -2147,22 +2607,53 @@ export function decodeFormState(actionResult, body) {
     return null;
   }
 
-  // Get the action reference ID from form data
-  const actionId = body.get("$ACTION_ID");
+  // Get the action reference ID from form data.
+  // React DOM encodes action IDs in field names:
+  //   $ACTION_ID_<id>  — unbound action
+  //   $ACTION_REF_<prefix>  — bound action (metadata in prefixed fields)
+  //   $ACTION_ID (legacy)   — action id as field value
+  let actionId = null;
+  let boundArgsLength = 0;
+
+  for (const key of body.keys()) {
+    if (key.startsWith("$ACTION_ID_")) {
+      actionId = key.slice(11);
+    } else if (key.startsWith("$ACTION_REF_")) {
+      // Bound action — decode metadata from prefixed fields
+      const prefix = "$ACTION_" + key.slice(12) + ":";
+      const metadataPayload = body.get(prefix + "0");
+      if (metadataPayload && typeof metadataPayload === "string") {
+        try {
+          const parsed = JSON.parse(metadataPayload);
+          if (parsed && typeof parsed === "object" && parsed.id) {
+            actionId = parsed.id;
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+      // Count bound arg fields
+      for (const k of body.keys()) {
+        if (k.startsWith(prefix) && /^\d+$/.test(k.slice(prefix.length))) {
+          boundArgsLength++;
+        }
+      }
+    } else if (/^\$\d+$/.test(key)) {
+      boundArgsLength++;
+    }
+  }
+
+  // Legacy fallback
+  if (!actionId) {
+    actionId = body.get("$ACTION_ID");
+  }
+
   if (!actionId || typeof actionId !== "string") {
     return null;
   }
 
   // Get the key path (used for form state matching)
   const keyPath = body.get("$ACTION_KEY") || "";
-
-  // Count bound arguments (prefixed with $ followed by a number)
-  let boundArgsLength = 0;
-  for (const key of body.keys()) {
-    if (/^\$\d+$/.test(key)) {
-      boundArgsLength++;
-    }
-  }
 
   // Return ReactFormState tuple: [value, keyPath, referenceId, boundArgsLength]
   return [actionResult, String(keyPath), actionId, boundArgsLength];
@@ -2570,12 +3061,6 @@ export function emitHint(request, code, model) {
     request.emitHint({ code, model });
   }
 }
-
-/**
- * Get current request from rendering context
- * This is a placeholder - in a real implementation this would use AsyncLocalStorage
- */
-let currentRequest = null;
 
 export function setCurrentRequest(request) {
   currentRequest = request;

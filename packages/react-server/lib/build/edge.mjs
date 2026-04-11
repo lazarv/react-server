@@ -19,6 +19,8 @@ import {
   reactCompilerRuntime,
   reactDomServer,
   reactDomServerEdge,
+  rscClient,
+  rscServer,
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
   reactIs,
@@ -86,6 +88,12 @@ export default async function edgeBuild(root, options) {
           find: /^react-dom\/server\.edge$/,
           replacement: reactDomServerEdge,
         },
+        ...(rscClient
+          ? [{ find: /^@lazarv\/rsc\/client$/, replacement: rscClient }]
+          : []),
+        ...(rscServer
+          ? [{ find: /^@lazarv\/rsc\/server$/, replacement: rscServer }]
+          : []),
         {
           find: /^react-server-dom-webpack\/client\.edge$/,
           replacement: reactServerDomWebpackClientEdge,

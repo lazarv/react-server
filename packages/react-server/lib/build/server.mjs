@@ -59,6 +59,8 @@ import {
   reactCompilerRuntime,
   reactDomServer,
   reactDomServerEdge,
+  rscClient,
+  rscServer,
   reactServerDomWebpackClientEdge,
   reactServerDomWebpackServerEdge,
   reactIs,
@@ -149,6 +151,8 @@ export default async function serverBuild(root, options, clientManifestBus) {
     "react-dom",
     "react-dom/client",
     "react-dom/server.edge",
+    "@lazarv/rsc/client",
+    "@lazarv/rsc/server",
     "react-server-dom-webpack/client.browser",
     "react-server-dom-webpack/client.edge",
     "react-server-dom-webpack/server.edge",
@@ -523,6 +527,12 @@ export default async function serverBuild(root, options, clientManifestBus) {
                 find: /^react-dom\/server\.edge$/,
                 replacement: reactDomServerEdge,
               },
+              ...(rscClient
+                ? [{ find: /^@lazarv\/rsc\/client$/, replacement: rscClient }]
+                : []),
+              ...(rscServer
+                ? [{ find: /^@lazarv\/rsc\/server$/, replacement: rscServer }]
+                : []),
               {
                 find: /^react-server-dom-webpack\/client\.edge$/,
                 replacement: reactServerDomWebpackClientEdge,
@@ -546,6 +556,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
       conditions: ["react-server"],
       externalConditions: ["react-server"],
       dedupe: [
+        "@lazarv/rsc",
         "react-server-dom-webpack",
         "react-is",
         "picocolors",
@@ -822,6 +833,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
         : [
             "react",
             "react-dom",
+            "@lazarv/rsc",
             "react-server-dom-webpack",
             "react-is",
             ...(config.ssr?.external ?? []),
@@ -918,6 +930,11 @@ export default async function serverBuild(root, options, clientManifestBus) {
                 find: /^react-dom\/server\.edge$/,
                 replacement: reactDomServerEdge,
               },
+              ...(rscClient
+                ? [
+                    { find: /^@lazarv\/rsc\/client$/, replacement: rscClient },
+                  ]
+                : []),
               {
                 find: /^react-server-dom-webpack\/client\.edge$/,
                 replacement: reactServerDomWebpackClientEdge,
@@ -939,7 +956,8 @@ export default async function serverBuild(root, options, clientManifestBus) {
               options.edge &&
               (alias.replacement.includes("/react/") ||
                 alias.replacement.includes("/react-dom/") ||
-                alias.replacement.includes("react-server-dom-webpack/"))
+                alias.replacement.includes("react-server-dom-webpack/") ||
+                alias.replacement.includes("@lazarv/rsc/"))
             )
         ),
       ],

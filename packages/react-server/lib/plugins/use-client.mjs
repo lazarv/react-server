@@ -329,7 +329,7 @@ registerClientReference(${name}, "${clientReferenceId}", "${name}");`
             )
             .join("\n\n");
 
-          const clientReferenceCode = `import { registerClientReference } from "react-server-dom-webpack/server.edge";\n\n${
+          const clientReferenceCode = `import { registerClientReference } from "@lazarv/rsc/server";\n\n${
             defaultExport ? `${namedExports}\n\n${defaultExport}` : namedExports
           }`;
 

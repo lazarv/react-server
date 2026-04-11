@@ -66,12 +66,11 @@ export function moduleAliases(condition) {
   }
 
   const reactDomServerEdge = tryResolve("react-dom/server.edge");
-  const reactServerDomWebpackClientEdge = tryResolve(
-    "react-server-dom-webpack/client.edge"
-  );
-  const reactServerDomWebpackServerEdge = tryResolve(
-    "react-server-dom-webpack/server.edge"
-  );
+  const rscClient = tryResolve("@lazarv/rsc/client");
+  const rscServer = tryResolve("@lazarv/rsc/server");
+  // Redirect webpack imports → @lazarv/rsc
+  const reactServerDomWebpackClientEdge = rscClient;
+  const reactServerDomWebpackServerEdge = rscServer;
   const reactIs = tryResolve("react-is");
   const picocolors = tryResolve("picocolors");
   const unstorage = tryResolve("unstorage");
@@ -92,6 +91,8 @@ export function moduleAliases(condition) {
     "react/jsx-dev-runtime": reactJsxDevRuntime,
     "react-dom": reactDom,
     "react-dom/server.edge": reactDomServerEdge,
+    "@lazarv/rsc/client": rscClient,
+    "@lazarv/rsc/server": rscServer,
     "react-server-dom-webpack/client.edge": reactServerDomWebpackClientEdge,
     "react-server-dom-webpack/server.edge": reactServerDomWebpackServerEdge,
     "react-is": reactIs,

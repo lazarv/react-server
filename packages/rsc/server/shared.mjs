@@ -453,6 +453,7 @@ export class FlightRequest {
     this.nextChunkId = 1;
     this.pendingChunks = 0;
     this.completedChunks = [];
+    this._flushScheduled = false;
     this.aborted = false;
     this.flowing = false;
     this.destination = null;
@@ -521,11 +522,17 @@ export class FlightRequest {
   }
 
   /**
-   * Safely close the stream (only once)
+   * Safely close the stream (only once).
+   * Flushes any remaining buffered chunks before closing — the
+   * microtask-deferred writeChunk may have pending data that hasn't
+   * been enqueued yet.
    */
   closeStream() {
     if (!this.closed && this.destination && !this.aborted) {
       this.closed = true;
+      // Flush remaining buffered chunks before closing
+      this._flushScheduled = false;
+      this.flushChunks();
       try {
         this.destination.close();
       } catch {
@@ -547,12 +554,27 @@ export class FlightRequest {
   }
 
   /**
-   * Write a chunk to the output
+   * Write a chunk to the output.
+   *
+   * Instead of flushing immediately, we schedule a microtask-deferred
+   * flush.  This lets multiple promise callbacks (e.g., several async
+   * Route components resolving in the same microtask batch) accumulate
+   * their chunks before a single coalesced flush.  Matching webpack's
+   * performWork → flushCompletedChunks pattern, this produces fewer
+   * ReadableStream enqueue() calls — which means:
+   *  - fewer reader.read() iterations in the rsc/client consume loop
+   *  - fewer <script> tags in the SSR HTML for inline flight data
+   *  - less cross-thread MessagePort traffic when the stream is
+   *    transferred to the SSR worker
    */
   writeChunk(chunk) {
     this.completedChunks.push(chunk);
-    if (this.flowing && this.destination) {
-      this.flushChunks();
+    if (this.flowing && this.destination && !this._flushScheduled) {
+      this._flushScheduled = true;
+      queueMicrotask(() => {
+        this._flushScheduled = false;
+        this.flushChunks();
+      });
     }
   }
 
@@ -562,8 +584,12 @@ export class FlightRequest {
    */
   writeBinaryChunk(binaryChunk) {
     this.completedChunks.push(binaryChunk);
-    if (this.flowing && this.destination) {
-      this.flushChunks();
+    if (this.flowing && this.destination && !this._flushScheduled) {
+      this._flushScheduled = true;
+      queueMicrotask(() => {
+        this._flushScheduled = false;
+        this.flushChunks();
+      });
     }
   }
 
@@ -591,14 +617,35 @@ export class FlightRequest {
     const chunks = this.completedChunks;
     this.completedChunks = [];
     if (this.destination && !this.aborted) {
+      // Encode all string chunks to Uint8Array first
+      const encoded = Array.from({ length: chunks.length });
+      let totalLength = 0;
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
+        encoded[i] =
+          chunk instanceof Uint8Array ? chunk : encoder.encode(chunk);
+        totalLength += encoded[i].length;
+      }
+      // Coalesce into a single enqueue to preserve chunk boundaries
+      // across ReadableStream transfers (e.g., worker thread MessagePort).
+      // Without this, N enqueue() calls become N separate reads on the
+      // consumer side, causing N <script> tags in the HTML and N microtask
+      // iterations in the rsc/client consume loop.
+      if (encoded.length === 1) {
         try {
-          if (chunk instanceof Uint8Array) {
-            this.destination.enqueue(chunk);
-          } else {
-            this.destination.enqueue(encoder.encode(chunk));
-          }
+          this.destination.enqueue(encoded[0]);
+        } catch {
+          // Controller may be closed
+        }
+      } else {
+        const merged = new Uint8Array(totalLength);
+        let offset = 0;
+        for (let i = 0; i < encoded.length; i++) {
+          merged.set(encoded[i], offset);
+          offset += encoded[i].length;
+        }
+        try {
+          this.destination.enqueue(merged);
         } catch {
           // Controller may be closed
         }
@@ -2227,6 +2274,20 @@ function startWork(request) {
 
   const startTime = request.isDev ? performance.now() : 0;
 
+  // Temporarily suppress per-writeChunk flushing so that all rows
+  // produced during synchronous serialization accumulate in
+  // completedChunks.  They are flushed in a single batch after
+  // serialization completes, producing one ReadableStream chunk
+  // (instead of one per row).  This matches webpack's behavior:
+  // - fewer stream chunks → fewer reader.read() microtask iterations
+  // - the forward worker in render-dom.mjs batches all rows into one
+  //   <script> tag instead of N separate tags (smaller HTML, less DOM work)
+  // Async server component promise callbacks still flush individually
+  // (flowing is restored after serialization), which preserves
+  // streaming SSR behavior.
+  const wasFlowing = request.flowing;
+  request.flowing = false;
+
   try {
     const serialized = serializeValue(request, request.model, null, null);
 
@@ -2238,11 +2299,20 @@ function startWork(request) {
     const row = request.serializeModelRow(0, serialized);
     request.writeChunk(row);
 
+    // Restore flowing and flush all accumulated rows in one batch.
+    request.flowing = wasFlowing;
+    if (request.flowing && request.destination) {
+      request.flushChunks();
+    }
+
     // If no pending promises, we're done
     if (request.pendingChunks === 0) {
       request.closeStream();
     }
   } catch (error) {
+    // Restore flowing on error path
+    request.flowing = wasFlowing;
+
     let digest;
     if (request.options.onError) {
       digest = request.options.onError(error);

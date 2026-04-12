@@ -59,10 +59,20 @@ export function invalidateClientModuleNamespaceCache(id) {
 
 function resolveClientModuleSync(metadata) {
   const id = metadata.id;
+
+  // Always call __webpack_require__ to ensure the per-request module cache
+  // is populated. The hasClientComponent check in the HTML forwarder
+  // (`moduleCacheStorage.getStore()?.size > 0`) relies on this cache having
+  // entries — without it, bootstrap scripts and inline flight data are
+  // omitted and hydration breaks in the browser.
+  const mod = globalThis.__webpack_require__(id);
+
+  // Fast path: if we already have the resolved namespace in the persistent
+  // cache, return it synchronously. This lets @lazarv/rsc/client's
+  // resolveModuleReference take the sync branch, skipping
+  // pendingModuleImports and the Promise.all gate in the consume loop.
   const cached = clientModuleNamespaceCache.get(id);
   if (cached !== undefined) return cached;
-
-  const mod = globalThis.__webpack_require__(id);
 
   // Already-resolved case — either a plain namespace returned directly by
   // module-loader.mjs (react-client-reference:, server-action://, ...) or

@@ -23,6 +23,7 @@ import {
   setPendingNavigation,
   clearPendingNavigation,
 } from "./client-location.mjs";
+import moduleLoader from "/@module-loader";
 
 if (typeof ReadableByteStreamController === "undefined") {
   await import("web-streams-polyfill/polyfill");
@@ -596,11 +597,7 @@ export const streamOptions = ({
     temporaryReferences,
     moduleLoader: {
       requireModule(metadata) {
-        // Use the global __webpack_require__ which is set up by
-        // react-server-runtime.mjs (dev) or the inline bootstrap script (prod).
-        // It handles URL construction, caching, and sets .value/.status on the
-        // promise for synchronous access by React's lazy protocol.
-        return self.__webpack_require__(metadata.id);
+        return moduleLoader(metadata.id);
       },
     },
     findSourceMapURL: import.meta.env.DEV

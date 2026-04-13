@@ -17,6 +17,7 @@ import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
 
 import reactServerEval from "../plugins/react-server-eval.mjs";
+import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import reactServerLive from "../plugins/live.mjs";
 import rootModule from "../plugins/root-module.mjs";
@@ -816,6 +817,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
       ...buildPlugins,
       fixEsbuildOptionsPlugin(),
       reactServerLive(),
+      reactServerRuntime({ base: config.base }),
     ],
     css: {
       ...config.css,
@@ -1150,6 +1152,7 @@ export default __rs_descriptor__.from(mapping);
       manifestRegistry(),
       manifestGenerator(clientManifest, serverManifest, "ssr"),
       fixEsbuildOptionsPlugin(),
+      reactServerRuntime({ base: config.base }),
     ],
     ssr: {
       ...config.ssr,

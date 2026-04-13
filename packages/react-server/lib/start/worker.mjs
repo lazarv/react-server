@@ -17,10 +17,6 @@ register("../loader/node-loader.react-server.mjs", import.meta.url, {
 });
 await import("react");
 
-globalThis.__webpack_require__ = function () {
-  throw new Error("Module loader not implemented");
-};
-
 await runtime_init$(async () => {
   await manifest_init$(workerData.options);
   const moduleLoader = getRuntime(MODULE_LOADER);

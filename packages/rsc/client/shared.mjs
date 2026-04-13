@@ -1033,7 +1033,7 @@ class FlightResponse {
       }
       if (result && typeof result.then === "function") {
         // Fast path: if the Promise is already fulfilled (cached import()),
-        // resolve synchronously — matching webpack's __webpack_require__
+        // resolve synchronously — matching webpack's moduleLoader
         // behavior where modules are always available immediately.
         if (result.status === "fulfilled") {
           const module = result.value;
@@ -2698,7 +2698,7 @@ class FlightResponse {
       // Check $L<id> (lazy/client reference to a module chunk).
       // When the module import() is still in flight the chunk is PENDING —
       // defer the row so it resolves with the actual export instead of a
-      // lazy wrapper.  This matches webpack's synchronous __webpack_require__
+      // lazy wrapper.  This matches webpack's synchronous moduleLoader
       // behavior: by the time resolveDeferredChunks runs, the import has
       // settled via the await-pendingModuleImports step in the consume loop.
       if (
@@ -2864,7 +2864,7 @@ export function createFromReadableStream(stream, options = {}) {
   // Module imports are awaited in the consume loop after each processData
   // call, and resolveModuleReference has a synchronous fast path for
   // cached imports (status === "fulfilled").  This matches webpack's
-  // behavior where __webpack_require__ resolves synchronously from the
+  // behavior where moduleLoader resolves synchronously from the
   // module registry.
   //
   // We race with consumePromise to ensure transport-level errors are

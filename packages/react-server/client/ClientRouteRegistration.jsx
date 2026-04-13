@@ -27,6 +27,7 @@ import {
   getPendingHasLoading,
 } from "./client-location.mjs";
 import { RedirectBoundary } from "./RedirectBoundary.jsx";
+import moduleLoader from "/@module-loader";
 
 export default function ClientRouteRegistration({
   path,
@@ -47,7 +48,7 @@ export default function ClientRouteRegistration({
   // client reference, so neither the SSR worker nor the browser eagerly
   // imports the sibling page module. On first client mount we build a
   // React.lazy that dynamically imports the chunk via the inline
-  // __webpack_require__ loader (picking the named export off the resolved
+  // moduleLoader loader (picking the named export off the resolved
   // module) and register it. The existing client navigation path mounts the
   // lazy on first visit, suspending while the chunk loads.
   // The branch returns null at the end of render — no Activity / Suspense /
@@ -59,7 +60,7 @@ export default function ClientRouteRegistration({
 
   // Build a React.lazy wrapper for the deferred client module. Only meaningful
   // in lazy mode; returns null otherwise. The factory uses the inline
-  // __webpack_require__ loader (installed before any RSC payload is processed)
+  // moduleLoader loader (installed before any RSC payload is processed)
   // to dynamically import the chunk on first render of the lazy component,
   // then picks the named export off the resolved module ($$id is "id#name").
   // This is built lazily inside useMemo so the React.lazy is created on the
@@ -70,7 +71,7 @@ export default function ClientRouteRegistration({
   // intentionally avoid React.lazy here: lazy() always treats its factory
   // return as a thenable and schedules a microtask before re-rendering,
   // which causes a one-frame fallback flash even when the module is
-  // already resident in the __webpack_require__ cache (the common case
+  // already resident in the moduleLoader cache (the common case
   // after our idle warm). Reading `p.value` directly lets us render
   // synchronously on cache hit, and only throw the promise to suspend
   // when the import is genuinely in flight.
@@ -79,10 +80,10 @@ export default function ClientRouteRegistration({
     const chunk = componentChunk;
     const exportName = componentExport || "default";
     return function LazyChunkComponent(props) {
-      const p = globalThis.__webpack_require__(chunk);
+      const p = moduleLoader(chunk);
       // Patch `.value` / `.status` onto the import promise so subsequent
       // reads can take the synchronous fast path. The prod polyfill does
-      // this server-side; the dev __webpack_require__ provided by Vite
+      // this server-side; the dev moduleLoader provided by Vite
       // does not. The patch is idempotent — if it's already set, the
       // attached handlers are harmless.
       if (
@@ -276,7 +277,7 @@ export default function ClientRouteRegistration({
   // null for non-matching siblings) so the lazy is constructed but never
   // rendered server-side. When pushState makes `active` true on the
   // client, `mounted` flips, createElement(lazy) runs, the factory fires
-  // __webpack_require__ to dynamically import the chunk, Suspense holds
+  // moduleLoader to dynamically import the chunk, Suspense holds
   // until the module resolves, then the page renders.
 
   // Fallback routes: show server-rendered content before hydration,

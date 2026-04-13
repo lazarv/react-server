@@ -1,4 +1,4 @@
-import { useMatch } from "@lazarv/react-server/router";
+import { useMatch } from "@lazarv/react-server/server/use-match.mjs";
 import { useUrl } from "@lazarv/react-server/server/request.mjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

@@ -189,7 +189,6 @@ test("suspense client", async () => {
     const srcs = await Promise.all(scripts.map((s) => s.getAttribute("src")));
     expect(srcs).toContain("/@vite/client");
     expect(srcs).toContain("/@hmr");
-    expect(srcs).toContain("/@__webpack_require__");
   }
 });
 

@@ -5,8 +5,4 @@
  * Mirrors __tests__/setup.mjs for benchmark isolation.
  */
 
-globalThis.__webpack_require__ = (_id) => {
-  return {};
-};
-
 globalThis.__webpack_chunk_load__ = () => Promise.resolve();

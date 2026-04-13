@@ -18,6 +18,7 @@ import { syncToBuffer } from "@lazarv/rsc/server";
 import { ContextStorage, getContext } from "./context.mjs";
 import { RequestCacheStorage } from "./request-cache-context.mjs";
 import { LINK_QUEUE, MODULE_CACHE, REQUEST_CACHE_SHARED } from "./symbols.mjs";
+import { requireModule as serverRequireModule } from "./module-loader.mjs";
 
 const streamMap = new Map();
 const preludeMap = new Map();
@@ -26,7 +27,7 @@ const preludeMap = new Map();
 //
 // The per-request module cache (`moduleCacheStorage.run(new Map(), ...)` in
 // ssr-handler.mjs) is allocated fresh on every request, which means
-// `globalThis.__webpack_require__` in module-loader.mjs always creates a brand
+// `requireModule` in module-loader.mjs always creates a brand
 // new `modulePromise` per request. At the moment `requireModule` is called
 // inside `createFromReadableStream`'s consume loop, the promise's
 // `.status`/`.value` annotation has not yet been set (the `.then` microtask
@@ -60,12 +61,12 @@ export function invalidateClientModuleNamespaceCache(id) {
 function resolveClientModuleSync(metadata) {
   const id = metadata.id;
 
-  // Always call __webpack_require__ to ensure the per-request module cache
+  // Always call the server module loader to ensure the per-request module cache
   // is populated. The hasClientComponent check in the HTML forwarder
   // (`moduleCacheStorage.getStore()?.size > 0`) relies on this cache having
   // entries — without it, bootstrap scripts and inline flight data are
   // omitted and hydration breaks in the browser.
-  const mod = globalThis.__webpack_require__(id);
+  const mod = serverRequireModule(id);
 
   // Fast path: if we already have the resolved namespace in the persistent
   // cache, return it synchronously. This lets @lazarv/rsc/client's

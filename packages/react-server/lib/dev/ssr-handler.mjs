@@ -3,7 +3,6 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
-import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import {
   createRenderContext,
   RENDER_TYPE,
@@ -24,6 +23,7 @@ import {
   LOGGER_CONTEXT,
   MAIN_MODULE,
   MEMORY_CACHE_CONTEXT,
+  MODULE_CACHE,
   MODULE_LOADER,
   OTEL_SPAN,
   OTEL_CONTEXT,
@@ -99,7 +99,6 @@ export default async function ssrHandler(root) {
                 : []),
               "@vite/client",
               `@hmr`,
-              `@__webpack_require__`,
             ].map((mod) =>
               `${viteDevServer.config.base || "/"}/${mod}`.replace(/\/+/g, "/")
             ),
@@ -119,6 +118,7 @@ export default async function ssrHandler(root) {
             [COLLECT_CLIENT_MODULES]: collectClientModules,
             [COLLECT_STYLESHEETS]: collectStylesheets,
             [ACTION_CONTEXT]: {},
+            [MODULE_CACHE]: moduleCacheStorage,
             [RENDER_STREAM]: renderStream,
             // Propagate OTel span from the HTTP layer
             [OTEL_SPAN]: httpContext._otelSpan ?? null,
@@ -178,12 +178,6 @@ export default async function ssrHandler(root) {
                       // are discovered during RSC rendering, not from the user's module graph
                       context$(CLIENT_MODULES_CONTEXT, []);
                       context$(STYLES_CONTEXT, []);
-                      await module_loader_init$?.(
-                        ssrLoadModule,
-                        moduleCacheStorage,
-                        null,
-                        "rsc"
-                      );
                       return moduleCacheStorage.run(new Map(), async () => {
                         return render(DevToolsApp, {});
                       });
@@ -240,13 +234,6 @@ export default async function ssrHandler(root) {
                 const styles = collectStylesheets?.(rootModule) ?? [];
                 styles.unshift(...(getContext(STYLES_CONTEXT) ?? []));
                 context$(STYLES_CONTEXT, styles);
-
-                await module_loader_init$?.(
-                  ssrLoadModule,
-                  moduleCacheStorage,
-                  null,
-                  "rsc"
-                );
 
                 return moduleCacheStorage.run(new Map(), async () => {
                   return render(Component, {}, { middlewareError });

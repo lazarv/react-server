@@ -65,6 +65,7 @@ import { cwd } from "../lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-reference-map";
 import { serverReferenceMap as _serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
 import { decryptActionId, wrapServerReferenceMap } from "./action-crypto.mjs";
+import { requireModule } from "./module-loader.mjs";
 import { ScrollRestoration } from "../client/ScrollRestoration.jsx";
 
 let DevToolsHost;
@@ -245,7 +246,7 @@ export async function render(Component, props = {}, options = {}) {
 
               action = async () => {
                 try {
-                  const mod = await globalThis.__webpack_require__(
+                  const mod = await requireModule(
                     serverReference.id.replace(
                       /^server-action:\/\//,
                       "server://"
@@ -296,7 +297,7 @@ export async function render(Component, props = {}, options = {}) {
                   resolved = true;
                   action = async () => {
                     try {
-                      const mod = await globalThis.__webpack_require__(
+                      const mod = await requireModule(
                         serverReference.id.replace(
                           /^server-action:\/\//,
                           "server://"
@@ -940,31 +941,7 @@ export async function render(Component, props = {}, options = {}) {
               renderContext.flags.isRSC || renderContext.flags.isRemote
                 ? []
                 : getContext(MAIN_MODULE),
-            bootstrapScripts:
-              import.meta.env.DEV ||
-              renderContext.flags.isRSC ||
-              renderContext.flags.isRemote
-                ? []
-                : [
-                    `const moduleCache = new Map();
-                    self.__webpack_require__ = function (id) {
-                      if (!moduleCache.has(id)) {
-                        const modulePromise = /^https?\\:/.test(id) ? import(id) : import(("${`/${config.base ?? ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));
-                        modulePromise.then(
-                          (module) => {
-                            modulePromise.value = module;
-                            modulePromise.status = "fulfilled";
-                          },
-                          (reason) => {
-                            modulePromise.reason = reason;
-                            modulePromise.status = "rejected";
-                          }
-                        );
-                        moduleCache.set(id, modulePromise);
-                      }
-                      return moduleCache.get(id);
-                    };`.replace(/\n/g, ""),
-                  ],
+            bootstrapScripts: [],
             outlet,
             defer: context.request.headers.get("react-server-defer") === "true",
             start: async () => {

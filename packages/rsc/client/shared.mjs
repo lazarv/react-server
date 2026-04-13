@@ -2953,7 +2953,8 @@ export async function encodeReply(value, options = {}) {
   const ctx = { formData: null, nextPartId: 1, writtenObjects: new WeakMap() };
   const serialized = serializeForReply(value, options, "0", new WeakSet(), ctx);
 
-  // If any FormData parts were created (server refs) or files exist, return FormData
+  // If any FormData parts were created (server refs, nested FormData) or
+  // files exist, return FormData.
   if (ctx.formData !== null || hasFileOrBlob(value)) {
     if (ctx.formData === null) ctx.formData = new FormData();
     ctx.formData.set("0", JSON.stringify(serialized));
@@ -3175,18 +3176,16 @@ function serializeForReply(
   }
 
   if (value instanceof FormData) {
-    // Serialize FormData as entries array with marker
-    const entries = [];
+    // Match react-server-dom-webpack: copy each entry into the output FormData
+    // under a prefixed key and return "$K" + hex partId.  The server-side
+    // decodeReply reconstructs the FormData by scanning for the prefix.
+    if (ctx.formData === null) ctx.formData = new FormData();
+    const partId = ctx.nextPartId++;
+    const prefix = partId + "_";
     value.forEach((v, k) => {
-      if (typeof File !== "undefined" && v instanceof File) {
-        entries.push([k, "$K" + (path ? `${path}:${k}` : k)]);
-      } else if (typeof Blob !== "undefined" && v instanceof Blob) {
-        entries.push([k, "$K" + (path ? `${path}:${k}` : k)]);
-      } else {
-        entries.push([k, v]);
-      }
+      ctx.formData.append(prefix + k, v);
     });
-    return "$K" + JSON.stringify(entries);
+    return "$K" + partId.toString(16);
   }
 
   if (typeof value === "object") {
@@ -3351,9 +3350,8 @@ function appendFilesToFormData(formData, value, path, visited = new WeakSet()) {
   }
 
   if (value instanceof FormData) {
-    for (const [k, v] of value.entries()) {
-      appendFilesToFormData(formData, v, path ? `${path}:${k}` : k, visited);
-    }
+    // FormData entries (including files) are already copied into the output
+    // FormData by serializeForReply using the partId prefix scheme.
     return;
   }
 

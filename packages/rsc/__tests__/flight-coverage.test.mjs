@@ -988,29 +988,33 @@ describe("Server Shared Module - Additional Coverage", () => {
       expect(result.get("baz")).toBe("qux");
     });
 
-    test("should handle $K[ prefix (FormData model)", () => {
-      const entries = JSON.stringify([
-        ["field1", "value1"],
-        ["field2", "value2"],
-      ]);
-      const result = deserializeValue(`$K${entries}`);
+    test("should handle $K prefix (FormData via partId)", () => {
+      // Client encodes FormData entries under prefix "partId_" in the outer body
+      const body = new FormData();
+      body.set("0", '"$K1"');
+      body.append("1_field1", "value1");
+      body.append("1_field2", "value2");
+
+      const result = deserializeValue("$K1", { body });
       expect(result).toBeInstanceOf(FormData);
       expect(result.get("field1")).toBe("value1");
       expect(result.get("field2")).toBe("value2");
     });
 
-    test("should handle $K prefix (file reference) with FormData body", () => {
-      const formData = new FormData();
+    test("should handle $K prefix with File in FormData body", () => {
+      const body = new FormData();
+      body.set("0", '"$K1"');
       const blob = new Blob(["test content"], { type: "text/plain" });
-      formData.append("file1", blob);
+      body.append("1_file1", blob);
 
-      const result = deserializeValue("$Kfile1", { body: formData });
-      expect(result).toBeInstanceOf(Blob);
+      const result = deserializeValue("$K1", { body });
+      expect(result).toBeInstanceOf(FormData);
+      expect(result.get("file1")).toBeInstanceOf(Blob);
     });
 
-    test("should return null for $K file reference without FormData body", () => {
-      const result = deserializeValue("$Kfile1", {});
-      expect(result).toBeNull();
+    test("should return empty FormData for $K without body", () => {
+      const result = deserializeValue("$K1", {});
+      expect(result).toBeInstanceOf(FormData);
     });
 
     test("should handle $h prefix with moduleLoader and FormData body", async () => {
@@ -1599,6 +1603,28 @@ describe("Additional Coverage - Client Streaming and Binary", () => {
       const result = await encodeReply({ items: [file, "text"] });
 
       expect(result).toBeInstanceOf(FormData);
+    });
+
+    test("should return FormData when input is FormData without files", async () => {
+      const formData = new FormData();
+      formData.set("name", "test");
+      formData.set("value", "123");
+      const result = await encodeReply(formData);
+
+      expect(result).toBeInstanceOf(FormData);
+      expect(result.has("0")).toBe(true);
+    });
+
+    test("should return FormData when input object contains a FormData", async () => {
+      const formData = new FormData();
+      formData.set("name", "test");
+      const result = await encodeReply({
+        __react_server_function_args__: formData,
+        __react_server_remote_props__: "{}",
+      });
+
+      expect(result).toBeInstanceOf(FormData);
+      expect(result.has("0")).toBe(true);
     });
   });
 
@@ -3792,10 +3818,13 @@ describe("Deep Coverage - Additional Paths", () => {
       const result = await encodeReply(formData);
       expect(result).toBeInstanceOf(FormData);
 
-      // The blob was serialized (File path handles it since File extends Blob)
+      // The root value contains "$K" + hex partId reference
       const rootValue = result.get("0");
       expect(rootValue).toContain("$K");
-      expect(rootValue).toContain("blobField");
+
+      // The blob entry is stored as a separate FormData part under "partId_blobField"
+      const blobEntry = result.get("1_blobField");
+      expect(blobEntry).toBeInstanceOf(Blob);
     });
 
     test("should handle pure Blob in object - exercises Blob detection", async () => {

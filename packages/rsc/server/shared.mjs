@@ -2540,21 +2540,21 @@ export function deserializeValue(value, options = {}, path = "") {
       return params;
     }
     if (value.startsWith("$K")) {
-      if (value.startsWith("$K[")) {
-        // FormData model
-        const entries = JSON.parse(value.slice(2));
+      // FormData reference — "$K" + hex partId
+      // The client serialized each entry under prefix `partId + "_" + key`
+      // in the outer FormData body.
+      const partId = value.slice(2);
+      if (options.body instanceof FormData) {
+        const prefix = partId + "_";
         const formData = new FormData();
-        for (const [k, v] of entries) {
-          formData.append(k, deserializeValue(v, options));
+        for (const [k, v] of options.body.entries()) {
+          if (k.startsWith(prefix)) {
+            formData.append(k.slice(prefix.length), v);
+          }
         }
         return formData;
       }
-      // File/Blob reference
-      const path = value.slice(2);
-      if (options.body instanceof FormData) {
-        return options.body.get(path);
-      }
-      return null;
+      return new FormData();
     }
     if (value.startsWith("$AB")) {
       // ArrayBuffer (base64)

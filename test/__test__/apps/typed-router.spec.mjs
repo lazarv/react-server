@@ -814,3 +814,167 @@ describe("typed-router — browser history", () => {
     expect(await page.textContent("body")).toContain("About");
   });
 });
+
+// ── Suspense fallback and cache invalidation on client-only navigation ──
+//
+// These tests verify that client-only navigation (no RSC payload) correctly
+// triggers Suspense boundaries. The client loader has 100ms simulated latency,
+// so the Suspense fallback (TodosLoading with data-testid="todos-loading")
+// must become visible during the async load.
+//
+// Detection strategy: inject a MutationObserver *before* the triggering action
+// that synchronously records whether the loading element ever appears in the
+// DOM. This catches even single-frame transient states that cross-process
+// polling (page.$) would miss. The observer checks offsetParent to ignore
+// elements rendered inside a hidden Activity (display:none).
+
+/** Install an in-page MutationObserver that tracks whether `selector` ever
+ *  appears as a visible element. Returns a handle to query the result. */
+async function installVisibilityProbe(targetPage, selector, key = "__probe") {
+  await targetPage.evaluate(
+    ({ sel, k }) => {
+      window[k] = false;
+      const check = () => {
+        const el = document.querySelector(sel);
+        // offsetParent is null for display:none / hidden ancestors.
+        // Also treat an element with zero dimensions as hidden.
+        if (el && (el.offsetParent !== null || el.offsetWidth > 0)) {
+          window[k] = true;
+        }
+      };
+      // Check once immediately (element may already be present).
+      check();
+      const obs = new MutationObserver(check);
+      obs.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["style", "hidden", "class"],
+      });
+      window[k + "_disconnect"] = () => obs.disconnect();
+    },
+    { sel: selector, k: key }
+  );
+}
+
+/** Read the probe result and disconnect the observer. */
+async function readVisibilityProbe(targetPage, key = "__probe") {
+  return targetPage.evaluate((k) => {
+    window[k + "_disconnect"]?.();
+    return window[k];
+  }, key);
+}
+
+describe("typed-router — todos Suspense fallback & invalidation", () => {
+  test("filter switch shows Suspense fallback (all → active)", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    // Verify initial "all" data is rendered.
+    const initialList = await page.textContent('[data-testid="todos-list"]');
+    expect(initialList).toContain("Set up typed router");
+
+    // Install observer BEFORE the click so we catch the loading element
+    // even if it appears for only a single frame.
+    await installVisibilityProbe(
+      page,
+      '[data-testid="todos-loading"]',
+      "__loadingProbe"
+    );
+
+    // Click "active" filter — triggers client-only navigation.
+    await page.click('a:has-text("active")');
+
+    // Wait for the new filtered data to appear (proves navigation completed).
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector('[data-testid="todos-list"]');
+        return (
+          el &&
+          el.textContent.includes("Deploy to production") &&
+          !el.textContent.includes("Set up typed router")
+        );
+      },
+      { timeout: 10000 }
+    );
+
+    // The Suspense fallback must have been visible during the async load.
+    const sawLoading = await readVisibilityProbe(page, "__loadingProbe");
+    expect(sawLoading).toBe(true);
+  });
+
+  test("filter switch shows Suspense fallback (completed → all)", async () => {
+    await page.goto(`${hostname}/todos?filter=completed`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    // Verify "completed" data.
+    const initialList = await page.textContent('[data-testid="todos-list"]');
+    expect(initialList).toContain("Set up typed router");
+    expect(initialList).not.toContain("Deploy to production");
+
+    await installVisibilityProbe(
+      page,
+      '[data-testid="todos-loading"]',
+      "__loadingProbe"
+    );
+
+    // Switch to "all" filter.
+    await page.click('a:has-text("all")');
+
+    // Wait for "all" data (both completed and active items visible).
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector('[data-testid="todos-list"]');
+        return (
+          el &&
+          el.textContent.includes("Deploy to production") &&
+          el.textContent.includes("Set up typed router")
+        );
+      },
+      { timeout: 10000 }
+    );
+
+    const sawLoading = await readVisibilityProbe(page, "__loadingProbe");
+    expect(sawLoading).toBe(true);
+  });
+
+  test("invalidate button triggers Suspense fallback and re-fetches data", async () => {
+    await page.goto(`${hostname}/todos`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const firstFetch = await page.textContent(
+      '[data-testid="todos-fetched-at"]'
+    );
+    expect(firstFetch).toBeTruthy();
+
+    await installVisibilityProbe(
+      page,
+      '[data-testid="todos-loading"]',
+      "__loadingProbe"
+    );
+
+    // Click the invalidate / refresh button.
+    await page.click('[data-testid="todos-refresh"]');
+
+    // Wait for the timestamp to change (proves re-fetch completed).
+    await page.waitForFunction(
+      (prev) => {
+        const el = document.querySelector('[data-testid="todos-fetched-at"]');
+        return el && el.textContent !== prev;
+      },
+      firstFetch,
+      { timeout: 10000 }
+    );
+
+    const secondFetch = await page.textContent(
+      '[data-testid="todos-fetched-at"]'
+    );
+    expect(secondFetch).not.toBe(firstFetch);
+
+    const sawLoading = await readVisibilityProbe(page, "__loadingProbe");
+    expect(sawLoading).toBe(true);
+  });
+});

@@ -56,7 +56,7 @@ This separation has three structural costs:
 2. **Artificial indirection.** The logical unit — "this server page contains this interactive widget" — is scattered across the filesystem. Code navigation and comprehension suffer.
 3. **Impossible compositions.** A server function that dynamically constructs and returns different client components (e.g., a factory pattern) cannot exist — the server function and the client component must live in separate modules, so the server function cannot lexically define the client component it returns.
 
-The third point is the most significant. RSC's serialization protocol (`react-server-dom-webpack`) already supports returning client component references from server functions. The limitation is entirely in the bundler — no existing tool can extract a `"use client"` component defined inside a `"use server"` function body.
+The third point is the most significant. RSC's serialization protocol (implemented in `@lazarv/rsc`) already supports returning client component references from server functions. The limitation is entirely in the bundler — no existing tool can extract a `"use client"` component defined inside a `"use server"` function body.
 
 <Link name="design-goals">
 ## Design Goals

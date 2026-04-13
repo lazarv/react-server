@@ -16,8 +16,8 @@ import Link from "../../../../components/Link.jsx";
 
 React Server Componentsには、RSCワイヤープロトコル、サーバー参照、ストリーミングサポートを含む実験的なReactビルドが必要です。これらの実験的APIは、npmに公開されている安定版リリースでは利用できません。`@lazarv/react-server`はビルド対象の正確なReactバージョンをバンドルすることで、以下を保証します:
 
-- **正しいRSCサポート** — `react-server`エクスポート条件、`react-server-dom-webpack`、ストリーミングプリミティブがすべて一致します。
-- **設定不要** — どの実験的Reactビルドをインストールすべきか、または`react`、`react-dom`、`react-server-dom-webpack`間で同期を保つ方法を考える必要はありません。
+- **正しいRSCサポート** — `react-server`エクスポート条件、`@lazarv/rsc`シリアライゼーションレイヤー、ストリーミングプリミティブがすべて一致します。
+- **設定不要** — どの実験的Reactビルドをインストールすべきか、または`react`、`react-dom`、RSCシリアライゼーションレイヤー間で同期を保つ方法を考える必要はありません。
 - **単一Reactインスタンス** — ランタイムは常に1つのReactコピーのみがロードされることを保証し、悪名高い「複数のReactインスタンス」バグ（フックの破損、コンテキストの破損など）を回避します。
 
 <Link name="no-react-in-your-package-json">
@@ -46,7 +46,7 @@ pnpm remove react react-dom
 ## 仕組み
 </Link>
 
-`@lazarv/react-server`は`react`、`react-dom`、`react-server-dom-webpack`を直接の**依存関係**（ピア依存関係ではなく）としてリストしています。開発時とビルド時の両方で、ランタイムはモジュールエイリアスを設定し、あなたのコードやサードパーティライブラリからの`react`または`react-dom`の`import`がランタイムにバンドルされたReactバージョンに解決されるようにします。
+`@lazarv/react-server`は`react`と`react-dom`を直接の**依存関係**（ピア依存関係ではなく）としてリストし、`react-server-dom-webpack`の代わりにバンドラー非依存のRSCシリアライゼーションレイヤーである`@lazarv/rsc`を使用しています。開発時とビルド時の両方で、ランタイムはモジュールエイリアスを設定し、あなたのコードやサードパーティライブラリからの`react`または`react-dom`の`import`がランタイムにバンドルされたReactバージョンに解決されるようにします。
 
 このエイリアシングは、3つのVite環境すべてにおいてViteモジュール解決レベルで動作します:
 

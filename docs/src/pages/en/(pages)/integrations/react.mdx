@@ -16,8 +16,8 @@ import Link from "../../../../components/Link.jsx";
 
 React Server Components require an experimental build of React that includes the RSC wire protocol, server references, and streaming support. These experimental APIs are not available in the stable releases published to npm. By bundling the exact React version it was built against, `@lazarv/react-server` guarantees:
 
-- **Correct RSC support** — the `react-server` export condition, `react-server-dom-webpack`, and streaming primitives all match.
-- **Zero configuration** — you don't need to figure out which experimental React build to install, or keep it in sync across `react`, `react-dom`, and `react-server-dom-webpack`.
+- **Correct RSC support** — the `react-server` export condition, `@lazarv/rsc` serialization layer, and streaming primitives all match.
+- **Zero configuration** — you don't need to figure out which experimental React build to install, or keep it in sync across `react`, `react-dom`, and the RSC serialization layer.
 - **Single React instance** — the runtime ensures only one copy of React is loaded at any time, avoiding the notorious "multiple React instances" bugs (broken hooks, broken context, etc.).
 
 <Link name="no-react-in-your-package-json">
@@ -46,7 +46,7 @@ pnpm remove react react-dom
 ## How it works
 </Link>
 
-`@lazarv/react-server` lists `react`, `react-dom`, and `react-server-dom-webpack` as direct **dependencies** (not peer dependencies). At both development and build time, the runtime sets up module aliases so that any `import` of `react` or `react-dom` — whether from your code or from third-party libraries — resolves to the React version bundled with the runtime.
+`@lazarv/react-server` lists `react` and `react-dom` as direct **dependencies** (not peer dependencies) and uses `@lazarv/rsc` — a bundler-agnostic RSC serialization layer — instead of `react-server-dom-webpack`. At both development and build time, the runtime sets up module aliases so that any `import` of `react` or `react-dom` — whether from your code or from third-party libraries — resolves to the React version bundled with the runtime.
 
 This aliasing operates at the Vite module resolution level across all three environments:
 

@@ -45,21 +45,6 @@ export const clientAlias = (dev) => [
         },
       ]
     : []),
-  {
-    find: /^react-server-dom-webpack\/client.browser$/,
-    replacement: dependencies.reactServerDomWebpackClientBrowser,
-    id: "react-server-dom-webpack/client.browser",
-  },
-  {
-    find: /^react-server-dom-webpack\/server.browser$/,
-    replacement: dependencies.reactServerDomWebpackServerBrowser,
-    id: "react-server-dom-webpack/server.browser",
-  },
-  {
-    find: /^react-server-dom-webpack\/client.edge$/,
-    replacement: dependencies.reactServerDomWebpackClientEdge,
-    id: "react-server-dom-webpack/client.edge",
-  },
   { find: /^react-is$/, replacement: dependencies.reactIs, id: "react-is" },
   ...(dependencies.scheduler
     ? [

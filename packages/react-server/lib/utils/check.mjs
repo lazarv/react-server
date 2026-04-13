@@ -67,7 +67,7 @@ export async function checkReactDependencies() {
     { with: { type: "json" } }
   );
   await Promise.all(
-    ["react", "react-dom", "react-server-dom-webpack"].map(async (pkg) => {
+    ["react", "react-dom"].map(async (pkg) => {
       try {
         const pkgPath = __require.resolve(`${pkg}/package.json`, {
           paths: [process.cwd()],
@@ -101,8 +101,8 @@ export async function checkReactDependencies() {
   );
 
   if (uninstall.length > 0) {
-    console.log(`You don't need to install ${colors.cyan("react")}, ${colors.cyan("react-dom")} or ${colors.cyan("react-server-dom-webpack")} in your project.
-${colors.cyan("@lazarv/react-server")} already includes a specific version of ${colors.cyan("react")}, ${colors.cyan("react-dom")} and ${colors.cyan("react-server-dom-webpack")} that is compatible with the current version of ${colors.cyan("@lazarv/react-server")}.
+    console.log(`You don't need to install ${colors.cyan("react")} or ${colors.cyan("react-dom")} in your project.
+${colors.cyan("@lazarv/react-server")} already includes a specific version of ${colors.cyan("react")} or ${colors.cyan("react-dom")} that is compatible with the current version of ${colors.cyan("@lazarv/react-server")}.
 You can remove the following packages from your project:
 ${uninstall.join("")}`);
     return true;

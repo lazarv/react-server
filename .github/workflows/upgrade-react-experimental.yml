@@ -144,7 +144,7 @@ jobs:
             **New version:** `${{ steps.latest.outputs.version }}`
 
             ### Updated locations
-            - `packages/react-server/package.json` — `react`, `react-dom`, `react-is`, `react-server-dom-webpack`
+            - `packages/react-server/package.json` — `react`, `react-dom`, `react-is`
             - `package.json` — all `pnpm.overrides` for React
             - `docs/` — micro-frontends MDX (en + ja) esm.sh URLs
             - `pnpm-lock.yaml`

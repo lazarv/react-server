@@ -129,11 +129,11 @@ export default function Home() {
 
 `react-server.config.json`ファイルで共有依存関係を指定すると、ホスティングアプリケーションとマイクロフロントエンドは指定したリモートURLから共有依存関係をロードします。
 
-`lazarv/react-server`がインポートマップで正しく動作するためには、インポートマップで `react`、`react-jsx/runtime`（または `react/jsx-dev-runtime`）、`react-dom`、`react-dom/client`、`react-server-dom-webpack/client.browser` のソースを指定する必要があります。
+`lazarv/react-server`がインポートマップで正しく動作するためには、インポートマップで `react`、`react-jsx/runtime`（または `react/jsx-dev-runtime`）、`react-dom`、`react-dom/client` のソースを指定する必要があります。
 
 CDNから開発中の依存関係を使用したい場合は、インポートマップでこれらの依存関係のソースを指定できます。しかし、これらの依存関係の開発バージョンが必要であることには注意してください。
 
-> **注意:** ホスティングアプリケーションとマイクロフロントエンドでは、クライアント側とサーバー側の両方で、まったく同じバージョンの `react`、`react/jsx-dev-runtime`、`react/jsx-runtime`、`react-dom`、`react-dom/client`、`react-server-dom-webpack/client.browser` を使用する必要があります。そうしないと、互換性の問題が発生する可能性があります。
+> **注意:** ホスティングアプリケーションとマイクロフロントエンドでは、クライアント側とサーバー側の両方で、まったく同じバージョンの `react`、`react/jsx-dev-runtime`、`react/jsx-runtime`、`react-dom`、`react-dom/client` を使用する必要があります。そうしないと、互換性の問題が発生する可能性があります。
 
 インポートマップを開発環境と本番環境の両方で使用するには、それぞれの環境用の設定ファイルを作成し、インポートマップを指定する必要があります。以下の設定ファイルは、[esm.sh](https://esm.sh)からReactを使用するインポートマップを使用する方法の例です。
 
@@ -151,9 +151,7 @@ export default {
       "react-dom":
         "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409?dev",
       "react-dom/client":
-        "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409/client?dev",
-      "react-server-dom-webpack/client.browser":
-        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-705268dc-20260409/client.browser?dev",
+        "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409/client?dev"
     },
   },
 };
@@ -171,9 +169,7 @@ export default {
       "react-dom":
         "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409",
       "react-dom/client":
-        "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409/client",
-      "react-server-dom-webpack/client.browser":
-        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-705268dc-20260409/client.browser",
+        "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409/client"
     },
   },
 };

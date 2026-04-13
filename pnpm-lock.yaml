@@ -1196,9 +1196,6 @@ importers:
       react-refresh:
         specifier: ^0.14.2
         version: 0.14.2
-      react-server-dom-webpack:
-        specifier: 0.0.0-experimental-705268dc-20260409
-        version: 0.0.0-experimental-705268dc-20260409(react-dom@0.0.0-experimental-705268dc-20260409(react@0.0.0-experimental-705268dc-20260409))(react@0.0.0-experimental-705268dc-20260409)(webpack@5.97.1(@swc/core@1.15.21))
       remark-frontmatter:
         specifier: ^5.0.0
         version: 5.0.0
@@ -10093,14 +10090,6 @@ packages:
 
   react-server-condition-pkg@file:test/fixtures/react-server-condition-pkg:
     resolution: {directory: test/fixtures/react-server-condition-pkg, type: directory}
-
-  react-server-dom-webpack@0.0.0-experimental-705268dc-20260409:
-    resolution: {integrity: sha512-0yUZYscqPF56zk5VlLHPu5JFa8E3MnKDR537O5trEeJWVDOTHEaKVaZqFGO3OhlUmy/mXi+hDIRqvBGB7PonJA==}
-    engines: {node: '>=0.10.0'}
-    peerDependencies:
-      react: 0.0.0-experimental-705268dc-20260409
-      react-dom: 0.0.0-experimental-705268dc-20260409
-      webpack: ^5.59.0
 
   react-server-dom-webpack@0.0.0-experimental-ab18f33d-20260220:
     resolution: {integrity: sha512-Iqh7yNLd4nAfkwgFXYGIsp6t8dVr0EIFidaLiWhcwBTaI4Rb+v7Uv/Uo5oZzANG4UaGVNuzYdVA9zSb4iT3heQ==}
@@ -22304,15 +22293,6 @@ snapshots:
       react: 0.0.0-experimental-705268dc-20260409
 
   react-server-condition-pkg@file:test/fixtures/react-server-condition-pkg: {}
-
-  react-server-dom-webpack@0.0.0-experimental-705268dc-20260409(react-dom@0.0.0-experimental-705268dc-20260409(react@0.0.0-experimental-705268dc-20260409))(react@0.0.0-experimental-705268dc-20260409)(webpack@5.97.1(@swc/core@1.15.21)):
-    dependencies:
-      acorn-loose: 8.4.0
-      neo-async: 2.6.2
-      react: 0.0.0-experimental-705268dc-20260409
-      react-dom: 0.0.0-experimental-705268dc-20260409(react@0.0.0-experimental-705268dc-20260409)
-      webpack: 5.97.1(@swc/core@1.15.21)
-      webpack-sources: 3.2.3
 
   react-server-dom-webpack@0.0.0-experimental-ab18f33d-20260220(react-dom@0.0.0-experimental-ab18f33d-20260220(react@0.0.0-experimental-ab18f33d-20260220))(react@0.0.0-experimental-ab18f33d-20260220)(webpack@5.97.1(@swc/core@1.15.21)):
     dependencies:

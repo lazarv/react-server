@@ -76,12 +76,12 @@ const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
 // moduleResolver.  The Proxy is keyed by "moduleId#exportName" and returns
 // { id, chunks, name, async }.  We expose it as resolveClientReference(ref)
 // so that @lazarv/rsc's FlightRequest can resolve client components.
-function makeModuleResolver(webpackMap) {
+function makeModuleResolver(map) {
   return {
     resolveClientReference(ref) {
       const $$id = ref.$$id ?? ref.$$typeof?.$$id;
       if (!$$id) return null;
-      return webpackMap[$$id];
+      return map[$$id];
     },
   };
 }

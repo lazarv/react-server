@@ -57,7 +57,7 @@ try {
     run: false,
   });
 
-  // Check for duplicate react, react-dom or react-server-dom-webpack
+  // Check for duplicate react or react-dom
   if (
     cli.matchedCommand &&
     cli.matchedCommand.__react_server_check_deps__ !== false

@@ -582,35 +582,14 @@ describe("Client Reference Module Loading", () => {
       }),
     };
 
-    // 4. Client: deserialize
+    // 4. Client: deserialize — async imports are awaited eagerly during
+    //    stream consumption, so the resolved type is the actual component.
     const result = await createFromReadableStream(stream, { moduleLoader });
 
-    // Result is a React element with lazy type
+    // Result is a React element whose type is the resolved component
     expect(result.$$typeof).toBe(REACT_ELEMENT_TYPE);
     expect(result.props.label).toBe("Click me");
-
-    // Type should be a lazy wrapper
-    expect(result.type.$$typeof).toBe(REACT_LAZY_TYPE);
-
-    // 5. Instantiate the lazy component (simulate React rendering)
-    const lazyInit = result.type._init;
-    const payload = result.type._payload;
-
-    // First call throws promise for Suspense
-    let thrownPromise;
-    try {
-      lazyInit(payload);
-    } catch (e) {
-      thrownPromise = e;
-    }
-    expect(thrownPromise).toBeInstanceOf(Promise);
-
-    // Wait for module to load
-    await thrownPromise;
-
-    // Second call returns the actual component
-    const LoadedComponent = lazyInit(payload);
-    expect(LoadedComponent).toBe(ClientButton);
+    expect(result.type).toBe(ClientButton);
 
     // Verify moduleLoader was called with correct metadata
     expect(moduleLoader.requireModule).toHaveBeenCalledWith(
@@ -645,12 +624,11 @@ describe("Client Reference Module Loading", () => {
       })),
     };
 
-    // 4. Client: deserialize
+    // 4. Client: deserialize — sync modules resolve the chunk directly
     const result = await createFromReadableStream(stream, { moduleLoader });
 
-    // 5. Instantiate - should return immediately for sync loader
-    const LoadedComponent = result.type._init(result.type._payload);
-    expect(LoadedComponent).toBe(IconComponent);
+    // Type is the resolved component directly
+    expect(result.type).toBe(IconComponent);
 
     expect(moduleLoader.requireModule).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -694,23 +672,14 @@ describe("Client Reference Module Loading", () => {
     // Get both child elements
     const [buttonEl, inputEl] = result.props.children;
 
-    // Both should be lazy wrappers
-    expect(buttonEl.type.$$typeof).toBe(REACT_LAZY_TYPE);
-    expect(inputEl.type.$$typeof).toBe(REACT_LAZY_TYPE);
-
-    // Load both components
-    const LoadedButton = buttonEl.type._init(buttonEl.type._payload);
-    const LoadedInput = inputEl.type._init(inputEl.type._payload);
-
-    expect(LoadedButton).toBe(Button);
-    expect(LoadedInput).toBe(Input);
+    // Sync modules resolve eagerly — types are the actual components
+    expect(buttonEl.type).toBe(Button);
+    expect(inputEl.type).toBe(Input);
   });
 
   it("should cache module promise to avoid duplicate loads with module rows", async () => {
     // Use raw wire format with $I (module row) and $L (lazy references)
     // This tests caching when multiple elements reference the same module row
-    // 1:I{"id":"components/Card.js","name":"default","chunks":[]}
-    // 0:["$","div",null,{"children":[["$","$L1",null,{"variant":"primary"}],["$","$L1",null,{"variant":"secondary"}]]}]
     const wire =
       '1:I{"id":"components/Card.js","name":"default","chunks":[]}\n' +
       '0:["$","div",null,{"children":[["$","$L1",null,{"variant":"primary"}],["$","$L1",null,{"variant":"secondary"}]]}]\n';
@@ -734,23 +703,9 @@ describe("Client Reference Module Loading", () => {
 
     const children = result.props.children;
 
-    // Trigger loading for both
-    const promises = [];
+    // Async modules are resolved eagerly — types are the actual components
     for (const child of children) {
-      try {
-        child.type._init(child.type._payload);
-      } catch (p) {
-        promises.push(p);
-      }
-    }
-
-    // Wait for all to resolve
-    await Promise.all(promises);
-
-    // Load again to get the components
-    for (const child of children) {
-      const Loaded = child.type._init(child.type._payload);
-      expect(Loaded).toBe(Card);
+      expect(child.type).toBe(Card);
     }
 
     // Module should only be loaded once due to caching on shared chunk
@@ -774,24 +729,18 @@ describe("Client Reference Module Loading", () => {
       requireModule: vi.fn(() => Promise.reject(loadError)),
     };
 
+    // Async import rejection routes through rejectChunk. For the root
+    // chunk (id 0), this creates an ErrorThrower element. For non-root
+    // chunks, the chunk is rejected and the error surfaces when the
+    // model row references it.
     const result = await createFromReadableStream(stream, { moduleLoader });
 
-    // Get the lazy wrapper
-    const lazyInit = result.type._init;
-    const payload = result.type._payload;
-
-    // First call throws promise
-    let thrownPromise;
-    try {
-      lazyInit(payload);
-    } catch (e) {
-      thrownPromise = e;
-    }
-
-    // Wait for rejection
-    await expect(thrownPromise).rejects.toThrow("Module not found");
-
-    // Subsequent calls should throw the error
-    expect(() => lazyInit(payload)).toThrow("Module not found");
+    // The type is a lazy wrapper around the rejected chunk.
+    // When React calls _init(), it will throw the load error.
+    expect(result.$$typeof).toBe(REACT_ELEMENT_TYPE);
+    expect(result.type.$$typeof).toBe(REACT_LAZY_TYPE);
+    expect(() => result.type._init(result.type._payload)).toThrow(
+      "Module not found"
+    );
   });
 });

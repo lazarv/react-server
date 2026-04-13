@@ -12,6 +12,12 @@ import { renderToReadableStream } from "../server/index.mjs";
 // Helper to delay for async tests
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Helper to decode a stream chunk value to string.
+// Reconstructed text ReadableStreams yield strings (not Uint8Array).
+function decodeChunk(value) {
+  return typeof value === "string" ? value : new TextDecoder().decode(value);
+}
+
 // Helper to collect stream content
 async function streamToString(stream) {
   const reader = stream.getReader();
@@ -569,8 +575,8 @@ describe("Flight Streaming - Sync Thenable Return", () => {
     }
 
     expect(thenable.status).toBe("rejected");
-    expect(thenable.value).toBeInstanceOf(Error);
-    expect(thenable.value.message).toBe("stream failed");
+    expect(thenable.reason).toBeInstanceOf(Error);
+    expect(thenable.reason.message).toBe("stream failed");
   });
 
   it("should work with complex nested data through thenable", async () => {
@@ -617,13 +623,15 @@ describe("Flight Streaming - Incremental ReadableStream Delivery", () => {
     expect(result).toBeInstanceOf(ReadableStream);
 
     const reader = result.getReader();
-    const decoder = new TextDecoder();
     const arrivals = [];
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      arrivals.push({ time: Date.now(), text: decoder.decode(value) });
+      // Text chunks are delivered as strings (not Uint8Array)
+      const text =
+        typeof value === "string" ? value : new TextDecoder().decode(value);
+      arrivals.push({ time: Date.now(), text });
     }
 
     // All 5 chunks should have been received
@@ -708,12 +716,11 @@ describe("Flight Streaming - Incremental ReadableStream Delivery", () => {
 
     // Reading the stream should deliver chunks over time
     const reader = result.data.getReader();
-    const decoder = new TextDecoder();
     const chunks = [];
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      chunks.push(decoder.decode(value));
+      chunks.push(decodeChunk(value));
     }
 
     const allText = chunks.join("");
@@ -822,12 +829,11 @@ describe("Flight Streaming - Double Serialization (Worker-like Pipeline)", () =>
 
     // Step 6: Client component reads the stream (like Stream.jsx)
     const reader = browserResult.data.getReader();
-    const decoder = new TextDecoder();
     const chunks = [];
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      chunks.push(decoder.decode(value));
+      chunks.push(decodeChunk(value));
     }
 
     // All 5 chunks should have been delivered
@@ -858,12 +864,11 @@ describe("Flight Streaming - Double Serialization (Worker-like Pipeline)", () =>
 
     // Read chunks and track arrival times
     const reader = browserResult.stream.getReader();
-    const decoder = new TextDecoder();
     const arrivals = [];
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      arrivals.push({ time: Date.now(), text: decoder.decode(value) });
+      arrivals.push({ time: Date.now(), text: decodeChunk(value) });
     }
 
     const allText = arrivals.map((a) => a.text).join("");
@@ -913,12 +918,11 @@ describe("Flight Streaming - Double Serialization (Worker-like Pipeline)", () =>
 
     // Now consume the stream to completion
     const reader = browserResult.data.getReader();
-    const decoder = new TextDecoder();
     const chunks = [];
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      chunks.push(decoder.decode(value));
+      chunks.push(decodeChunk(value));
     }
 
     const allText = chunks.join("");
@@ -994,10 +998,9 @@ describe("Flight Streaming - Double Serialization (Worker-like Pipeline)", () =>
 
     // Read a couple of chunks from the browser-side stream
     const reader = browserResult.data.getReader();
-    const decoder = new TextDecoder();
     const received = [];
     const { value: first } = await reader.read();
-    received.push(decoder.decode(first));
+    received.push(decodeChunk(first));
 
     // Abort the outer request (simulates browser refresh / navigation)
     ac.abort();
@@ -1008,7 +1011,7 @@ describe("Flight Streaming - Double Serialization (Worker-like Pipeline)", () =>
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        received.push(decoder.decode(value));
+        received.push(decodeChunk(value));
       }
     } catch {
       // Expected: abort propagation causes a read error
@@ -1045,7 +1048,7 @@ describe("Flight Streaming - Double Serialization (Worker-like Pipeline)", () =>
     // Read one chunk then cancel (simulates a component unmounting)
     const reader = reconstructed.getReader();
     const { value: firstChunk } = await reader.read();
-    expect(new TextDecoder().decode(firstChunk)).toContain("chunk-");
+    expect(decodeChunk(firstChunk)).toContain("chunk-");
 
     // Cancel the reader
     await reader.cancel();
@@ -1109,12 +1112,11 @@ describeReact(
 
       // Step 6: Client reads the stream
       const reader = browserResult.data.getReader();
-      const decoder = new TextDecoder();
       const chunks = [];
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        chunks.push(decoder.decode(value));
+        chunks.push(decodeChunk(value));
       }
 
       const allText = chunks.join("");
@@ -1146,12 +1148,11 @@ describeReact(
         await ReactDomClientBrowser.createFromReadableStream(outerPayload);
 
       const reader = browserResult.stream.getReader();
-      const decoder = new TextDecoder();
       const arrivals = [];
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        arrivals.push({ time: Date.now(), text: decoder.decode(value) });
+        arrivals.push({ time: Date.now(), text: decodeChunk(value) });
       }
 
       const allText = arrivals.map((a) => a.text).join("");
@@ -1202,12 +1203,11 @@ describeReact(
 
       // Consume the stream
       const reader = browserResult.data.getReader();
-      const decoder = new TextDecoder();
       const chunks = [];
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        chunks.push(decoder.decode(value));
+        chunks.push(decodeChunk(value));
       }
 
       const allText = chunks.join("");

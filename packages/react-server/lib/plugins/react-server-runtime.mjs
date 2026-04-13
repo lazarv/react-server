@@ -54,12 +54,19 @@ export default function viteReactServerRuntime() {
             : `/@fs/${cwd()}`.replace(/\/+/g, "/");
           return `
           const moduleCache = new Map();
+          function annotateThenable(p) {
+            p.then(
+              function(v) { p.status = "fulfilled"; p.value = v; },
+              function(e) { p.status = "rejected"; p.reason = e; }
+            );
+            return p;
+          }
           self.__webpack_require__ = function (id) {
           if (!moduleCache.has(id)) {
             if (/^https?\\:/.test(id)) {
               const url = new URL(id);
               url.pathname = "${fsPrefix}" + url.pathname;
-              const mod = import(/* @vite-ignore */ url.href);
+              const mod = annotateThenable(import(/* @vite-ignore */ url.href));
               moduleCache.set(id, mod);
               return mod;
             }
@@ -67,7 +74,7 @@ export default function viteReactServerRuntime() {
           const prefix = isExternal
             ? "${fsPrefix}/" + (id.startsWith("__/") ? id.replace(/^(__\\/)+/, function(m) { return m.replace(/__\\//g, "../"); }) : id)
             : "${basePrefix}" + id;
-          const mod = import(/* @vite-ignore */ new URL(prefix, location.origin).href);
+          const mod = annotateThenable(import(/* @vite-ignore */ new URL(prefix, location.origin).href));
           moduleCache.set(id, mod);
           return mod;
           }

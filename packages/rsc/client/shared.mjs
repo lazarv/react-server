@@ -429,6 +429,14 @@ class FlightResponse {
     // await them before resolving deferred chunks, ensuring import()
     // results are available synchronously when React renders.
     this.pendingModuleImports = [];
+
+    // Model/element rows buffered because module imports are in flight.
+    // The RSC protocol emits I rows before the model rows that reference
+    // them.  When import() is async (Vite), the module chunks stay PENDING
+    // during processData.  Rather than resolving with lazy wrappers, we
+    // buffer subsequent rows and replay them after imports settle.
+    // Processed by flushPendingRows() in the consume loop.
+    this.pendingRows = [];
   }
 
   /**
@@ -689,7 +697,17 @@ class FlightResponse {
       const binaryContent = rest.slice(1);
       this.appendBinaryChunk(id, binaryContent);
     } else {
-      // Model row - JSON data
+      // Model row - JSON data.
+      // If module imports are in flight (from I rows processed earlier in
+      // this same processData call), buffer this row for later.  The RSC
+      // protocol guarantees I rows precede the model rows that reference
+      // them.  By deferring until imports settle, $L references resolve to
+      // actual module exports — matching webpack's synchronous behavior
+      // and avoiding lazy wrappers that cause Suspense flashes on hydration.
+      if (this.pendingModuleImports.length > 0) {
+        this.pendingRows.push({ line, hasSpecialBytes });
+        return;
+      }
       try {
         // Fast path for element tuples: scan the raw JSON string to extract
         // header fields (type, key) without parsing the potentially huge props
@@ -765,7 +783,7 @@ class FlightResponse {
         const chunk = this.getChunk(id);
         let value;
         if (Array.isArray(json) && json[0] === "$" && json.length >= 3) {
-          // React element tuple — always resolved immediately (scanner missed this one)
+          // React element tuple — always resolved immediately
           value = this.deserializeValue(json);
           this.resolveChunk(id, value);
         } else if (json && typeof json === "object") {
@@ -1014,6 +1032,19 @@ class FlightResponse {
         return;
       }
       if (result && typeof result.then === "function") {
+        // Fast path: if the Promise is already fulfilled (cached import()),
+        // resolve synchronously — matching webpack's __webpack_require__
+        // behavior where modules are always available immediately.
+        if (result.status === "fulfilled") {
+          const module = result.value;
+          const exportName = metadata.name || "default";
+          const exported =
+            typeof module === "object" && module !== null
+              ? (module[exportName] ?? module.default ?? module)
+              : module;
+          this.resolveChunk(id, exported);
+          return;
+        }
         // Async module — keep chunk pending, resolve when import completes
         const importPromise = result.then(
           (module) => {
@@ -2515,6 +2546,20 @@ class FlightResponse {
    * referenced chunks have been resolved. Unresolvable entries stay in the
    * queue for the next call.
    */
+  /**
+   * Replay rows that were buffered because module imports were in-flight.
+   * Called by the consume loop AFTER pendingModuleImports have been awaited,
+   * so $L references now point to RESOLVED chunks and deserializeValue
+   * returns actual module exports instead of lazy wrappers.
+   */
+  flushPendingRows() {
+    if (this.pendingRows.length === 0) return;
+    const rows = this.pendingRows.splice(0);
+    for (const { line, hasSpecialBytes } of rows) {
+      this.processLine(line, hasSpecialBytes);
+    }
+  }
+
   resolveDeferredChunks() {
     // Fast exit — called after every reader.read(), usually empty.
     if (this.deferredChunks.length === 0) return;
@@ -2650,10 +2695,30 @@ class FlightResponse {
           return false;
         }
       }
+      // Check $L<id> (lazy/client reference to a module chunk).
+      // When the module import() is still in flight the chunk is PENDING —
+      // defer the row so it resolves with the actual export instead of a
+      // lazy wrapper.  This matches webpack's synchronous __webpack_require__
+      // behavior: by the time resolveDeferredChunks runs, the import has
+      // settled via the await-pendingModuleImports step in the consume loop.
+      if (
+        json.charCodeAt(0) === 0x24 &&
+        json.charCodeAt(1) === 0x4c // 'L'
+      ) {
+        const rest = json.slice(2);
+        const id = parseInt(rest, 10);
+        if (!isNaN(id)) {
+          const chunk = this.chunks.get(id);
+          if (!chunk || chunk.status === PENDING) {
+            return false;
+          }
+        }
+      }
       return true;
     }
     if (Array.isArray(json)) {
-      // For React element tuples ["$", ...], don't block on those
+      // Element tuples ["$", type, key, props] are always considered resolved
+      // — they are processed eagerly and don't go through the deferred path.
       if (json[0] === "$" && json.length >= 3) {
         return true;
       }
@@ -2749,6 +2814,10 @@ export function createFromReadableStream(stream, options = {}) {
           await Promise.all(response.pendingModuleImports);
           response.pendingModuleImports.length = 0;
         }
+        // Replay model rows that were buffered because module imports were
+        // in-flight during processData.  Now that imports are resolved, $L
+        // references point to actual exports — no lazy wrappers.
+        response.flushPendingRows();
         // Eagerly resolve deferred chunks so that the root value and any
         // streaming wrappers (ReadableStream / AsyncIterable) are created
         // as soon as their model rows arrive, rather than waiting for the
@@ -2771,7 +2840,8 @@ export function createFromReadableStream(stream, options = {}) {
       reader.releaseLock();
     }
 
-    // Final pass to resolve any remaining deferred chunks
+    // Final pass to resolve any remaining buffered/deferred chunks
+    response.flushPendingRows();
     response.resolveDeferredChunks();
   })();
 
@@ -2790,23 +2860,17 @@ export function createFromReadableStream(stream, options = {}) {
     }
   });
 
-  // The root value promise resolves as soon as the root chunk (id 0) resolves
-  // AND all pending module imports have completed.  The import gate is critical:
-  // without it, React would receive a tree containing lazy wrappers for client
-  // modules whose import() hasn't settled yet, causing hydration stalls.
-  // With the gate, module exports are resolved directly into the chunk values
-  // so the tree handed to React contains actual component functions — matching
-  // webpack's synchronous requireModule behavior.
+  // The root value resolves as soon as the root chunk (id 0) resolves.
+  // Module imports are awaited in the consume loop after each processData
+  // call, and resolveModuleReference has a synchronous fast path for
+  // cached imports (status === "fulfilled").  This matches webpack's
+  // behavior where __webpack_require__ resolves synchronously from the
+  // module registry.
   //
   // We race with consumePromise to ensure transport-level errors are
   // propagated even if the root chunk was never created.
   const gatedRootValue = async () => {
     const rootValue = await response.getRootValue();
-    // After the root chunk resolves, wait for any pending module imports
-    // that were kicked off during processData.  The consume loop also awaits
-    // these, but the root chunk's Promise resolves synchronously inside
-    // processData (before the consume loop's await).  This gate ensures
-    // React doesn't see the tree until modules are available.
     if (response.pendingModuleImports.length > 0) {
       await Promise.all(response.pendingModuleImports);
     }
@@ -3387,7 +3451,8 @@ export function syncFromBuffer(buffer, options = {}) {
     response.binaryBuffer = null;
   }
 
-  // Resolve all deferred chunks (forward references, path refs, etc.)
+  // Resolve all deferred/buffered chunks (forward references, path refs, etc.)
+  response.flushPendingRows();
   response.resolveDeferredChunks();
 
   // The root chunk (id 0) should be resolved synchronously now.

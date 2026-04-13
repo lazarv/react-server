@@ -155,7 +155,26 @@ export default function ClientRouteRegistration({
           : []
     ).filter(Boolean);
     let injected = false;
-    for (const binding of flat) {
+    for (let binding of flat) {
+      // With @lazarv/rsc/client, non-component client references in props
+      // may arrive as React lazy wrappers ($$typeof === react.lazy) when the
+      // module import was still in-flight during RSC stream parsing.  By
+      // render time the import has settled, so calling _init(_payload)
+      // unwraps the lazy wrapper to the actual module export synchronously.
+      if (
+        binding &&
+        typeof binding === "function" &&
+        binding.$$typeof === Symbol.for("react.lazy") &&
+        typeof binding._init === "function"
+      ) {
+        try {
+          binding = binding._init(binding._payload);
+        } catch {
+          // _init may throw a Promise (Suspense) if the module is truly
+          // not yet loaded — fall through to the pending-hydration fallback.
+          binding = null;
+        }
+      }
       if (binding?.resource?._injectHydration) {
         binding.resource._injectHydration(hydrationData);
         injected = true;

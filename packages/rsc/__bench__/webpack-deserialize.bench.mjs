@@ -10,22 +10,13 @@
 import { describe, bench, beforeAll } from "vitest";
 import { scenarios } from "./fixtures.mjs";
 
-let ReactDomServer;
-let ReactDomClient;
-let skip = false;
-
-try {
-  ReactDomServer = await import("react-server-dom-webpack/server");
-  ReactDomClient = await import("react-server-dom-webpack/client.browser");
-} catch {
-  skip = true;
-}
+const ReactDomServer = await import("react-server-dom-webpack/server");
+const ReactDomClient = await import("react-server-dom-webpack/client.browser");
 
 // Pre-serialized payloads: Map<name, Uint8Array[]>
 const serialized = {};
 
 beforeAll(async () => {
-  if (skip) return;
   for (const [name, factory] of Object.entries(scenarios)) {
     // Each call to factory() produces a fresh fixture (important for typed arrays)
     const stream = ReactDomServer.renderToReadableStream(factory());
@@ -51,9 +42,7 @@ function makeStream(chunks) {
   });
 }
 
-const describeIf = skip ? describe.skip : describe;
-
-describeIf("webpack deserialize", () => {
+describe("webpack deserialize", () => {
   for (const name of Object.keys(scenarios)) {
     bench(name, async () => {
       const stream = makeStream(serialized[name]);

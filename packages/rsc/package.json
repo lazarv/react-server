@@ -40,7 +40,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "bench": "vitest bench --config vitest.bench.config.mjs",
-    "bench:json": "vitest bench --config vitest.bench.config.mjs --outputJson bench-raw.json",
+    "bench:json": "vitest bench --run --config vitest.bench.config.mjs --outputJson bench-raw.json",
     "bench:report": "node __bench__/report.mjs --current bench-raw.json --markdown comment.md"
   },
   "devDependencies": {

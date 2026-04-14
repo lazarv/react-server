@@ -19,8 +19,10 @@ import {
   reactCompilerRuntime,
   reactDomServer,
   reactDomServerEdge,
-  reactServerDomWebpackClientEdge,
-  reactServerDomWebpackServerEdge,
+  rscClient,
+  rscServer,
+  // reactServerDomWebpackClientEdge,
+  // reactServerDomWebpackServerEdge,
   reactIs,
   unstorageDriversMemory,
 } from "./dependencies.mjs";
@@ -86,14 +88,12 @@ export default async function edgeBuild(root, options) {
           find: /^react-dom\/server\.edge$/,
           replacement: reactDomServerEdge,
         },
-        {
-          find: /^react-server-dom-webpack\/client\.edge$/,
-          replacement: reactServerDomWebpackClientEdge,
-        },
-        {
-          find: /^react-server-dom-webpack\/server\.edge$/,
-          replacement: reactServerDomWebpackServerEdge,
-        },
+        ...(rscClient
+          ? [{ find: /^@lazarv\/rsc\/client$/, replacement: rscClient }]
+          : []),
+        ...(rscServer
+          ? [{ find: /^@lazarv\/rsc\/server$/, replacement: rscServer }]
+          : []),
         {
           find: /^react-is$/,
           replacement: reactIs,

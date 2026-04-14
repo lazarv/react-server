@@ -138,7 +138,7 @@ export default function useServer(type, manifest) {
               ],
               source: {
                 type: "Literal",
-                value: "react-server-dom-webpack/client.edge",
+                value: "@lazarv/rsc/client",
               },
               importKind: "value",
             },
@@ -209,7 +209,7 @@ export default function useServer(type, manifest) {
               ],
               source: {
                 type: "Literal",
-                value: "react-server-dom-webpack/client.browser",
+                value: "@lazarv/rsc/client",
               },
               importKind: "value",
             },

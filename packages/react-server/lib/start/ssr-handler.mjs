@@ -13,7 +13,6 @@ import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
 import { style as errorStyle } from "../../server/error-styles.mjs";
-import { init$ as module_loader_init$ } from "../../server/module-loader.mjs";
 import { getPrerender } from "../../server/prerender-storage.mjs";
 import { createRenderContext } from "../../server/render-context.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
@@ -158,12 +157,10 @@ export default async function ssrHandler(root, options = {}) {
   const memoryCache = getRuntime(MEMORY_CACHE_CONTEXT);
   const moduleCacheStorage = new AsyncLocalStorage();
   const linkQueueStorage = new AsyncLocalStorage();
-  await module_loader_init$(
-    moduleLoader,
-    moduleCacheStorage,
-    linkQueueStorage,
-    "rsc"
-  );
+  runtime$({
+    [MODULE_CACHE]: moduleCacheStorage,
+    [LINK_QUEUE]: linkQueueStorage,
+  });
 
   const importMap =
     configRoot.importMap || configRoot.resolve?.shared

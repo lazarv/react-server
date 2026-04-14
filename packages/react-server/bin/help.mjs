@@ -180,7 +180,7 @@ Alternatively you can use the built-in file-system based routing by omitting the
       if (!(await checkReactDependencies())) {
         console.log(
           wrapText(
-            `Please do not install ${colors.cyan("react")}, ${colors.cyan("react-dom")} or ${colors.cyan("react-server-dom-webpack")} in your project. ${colors.cyan("@lazarv/react-server")} already includes a specific version of these packages which are compatible with the current version of ${colors.cyan("@lazarv/react-server")}.\n`,
+            `Please do not install ${colors.cyan("react")} or ${colors.cyan("react-dom")} in your project. ${colors.cyan("@lazarv/react-server")} already includes a specific version of these packages which are compatible with the current version of ${colors.cyan("@lazarv/react-server")}.\n`,
             maxLineWidth
           )
         );

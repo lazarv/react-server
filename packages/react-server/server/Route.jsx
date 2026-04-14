@@ -1,7 +1,8 @@
-import { context$, getContext } from "@lazarv/react-server/server/context.mjs";
+import { context$ } from "@lazarv/react-server/server/context.mjs";
 import { useUrl } from "@lazarv/react-server/server/request.mjs";
 import { ROUTE_MATCH } from "@lazarv/react-server/server/symbols.mjs";
-import { match } from "@lazarv/react-server/server/route-match.mjs";
+export { useMatch } from "./use-match.mjs";
+import { useMatch } from "./use-match.mjs";
 
 import ClientRouteRegistration from "../client/ClientRouteRegistration.jsx";
 import ClientRouteGuard from "../client/ClientRouteGuard.jsx";
@@ -14,29 +15,6 @@ function getClientComponent(value) {
   // If it's a React element, return its type
   if (value.type?.$$typeof === REACT_CLIENT_REFERENCE) return value.type;
   return null;
-}
-
-export function useMatch(path, options = {}) {
-  // Global fallback
-  if (path === "*" || (options.fallback && !path)) {
-    if (getContext(ROUTE_MATCH)) {
-      return null;
-    }
-    return {};
-  }
-
-  // Scoped fallback — e.g. "/user/*"
-  if (options.fallback && path) {
-    if (getContext(ROUTE_MATCH)) return null;
-    const { pathname: rawPathname } = useUrl();
-    const pathname = decodeURIComponent(rawPathname);
-    return match(path, pathname, options);
-  }
-
-  const { pathname: rawPathname } = useUrl();
-  const pathname = decodeURIComponent(rawPathname);
-
-  return match(path, pathname, options);
 }
 
 export default async function Route({
@@ -216,11 +194,11 @@ export default async function Route({
       matchedChildren = <Comp />;
     }
     // Resolve the source-relative $$id (e.g. "/path/page.jsx#default") to
-    // the actual chunk URL the browser-side __webpack_require__ expects
+    // the actual chunk URL the browser-side moduleLoader expects
     // (e.g. "/assets/page-abc123.mjs"). In dev these coincide; in prod the
     // raw $$id misses the manifest and the lazy import crashes the wrapper.
     // We pass the resolved chunk id and the export name as separate props
-    // so the client lazy factory can do __webpack_require__(chunk)[name].
+    // so the client lazy factory can do moduleLoader(chunk)[name].
     let resolvedChunkId;
     let resolvedExportName;
     if (!params) {

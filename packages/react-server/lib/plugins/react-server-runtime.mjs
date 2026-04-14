@@ -19,16 +19,31 @@ try {
 
 const reactServerDir = reactServerInstalled ? "@lazarv/react-server" : rootDir;
 
-export default function viteReactServerRuntime() {
+export default function viteReactServerRuntime({ base: overrideBase } = {}) {
   let config = {};
   return {
     name: "react-server:runtime",
     configResolved(resolvedConfig) {
       config = resolvedConfig;
+      // Allow callers (build configs) to override the base when Vite's own
+      // config.base is not set but the react-server config specifies one.
+      if (overrideBase && (!config.base || config.base === "/")) {
+        config = { ...config, base: overrideBase };
+      }
+    },
+    resolveId: {
+      filter: {
+        id: /\/@module-loader/,
+      },
+      handler(id) {
+        if (id === "/@module-loader" || id.endsWith("/@module-loader")) {
+          return "/@module-loader";
+        }
+      },
     },
     load: {
       filter: {
-        id: /\/@hmr|\/@__webpack_require__|/,
+        id: /\/@hmr|\/@module-loader/,
       },
       handler(id) {
         if (id.endsWith("/@hmr")) {
@@ -45,34 +60,63 @@ export default function viteReactServerRuntime() {
             }
           };
           self.__react_server_hydrate_init__();`;
-        } else if (id.endsWith("/@__webpack_require__")) {
+        } else if (id === "/@module-loader" || id.endsWith("/@module-loader")) {
           const basePrefix = config.base
             ? `${config.base}/`.replace(/\/+/g, "/")
             : "/";
-          const fsPrefix = config.base
-            ? `${config.base}/@fs/${cwd()}`.replace(/\/+/g, "/")
-            : `/@fs/${cwd()}`.replace(/\/+/g, "/");
-          return `
-          const moduleCache = new Map();
-          self.__webpack_require__ = function (id) {
-          if (!moduleCache.has(id)) {
-            if (/^https?\\:/.test(id)) {
-              const url = new URL(id);
-              url.pathname = "${fsPrefix}" + url.pathname;
-              const mod = import(/* @vite-ignore */ url.href);
-              moduleCache.set(id, mod);
-              return mod;
+          const isDev = config.command !== "build";
+          const fsPrefix = isDev
+            ? config.base
+              ? `${config.base}/@fs/${cwd()}`.replace(/\/+/g, "/")
+              : `/@fs/${cwd()}`.replace(/\/+/g, "/")
+            : "";
+          if (isDev) {
+            return `
+            const moduleCache = new Map();
+            function annotateThenable(p) {
+              p.then(
+                function(v) { p.status = "fulfilled"; p.value = v; },
+                function(e) { p.status = "rejected"; p.reason = e; }
+              );
+              return p;
             }
-          const isExternal = id.startsWith("__/") || id.startsWith("../") || id.includes("node_modules");
-          const prefix = isExternal
-            ? "${fsPrefix}/" + (id.startsWith("__/") ? id.replace(/^(__\\/)+/, function(m) { return m.replace(/__\\//g, "../"); }) : id)
-            : "${basePrefix}" + id;
-          const mod = import(/* @vite-ignore */ new URL(prefix, location.origin).href);
-          moduleCache.set(id, mod);
-          return mod;
+            export default function moduleLoader(id) {
+              if (!moduleCache.has(id)) {
+                if (/^https?\\:/.test(id)) {
+                  const url = new URL(id);
+                  url.pathname = "${fsPrefix}" + url.pathname;
+                  const mod = annotateThenable(import(/* @vite-ignore */ url.href));
+                  moduleCache.set(id, mod);
+                  return mod;
+                }
+                const isExternal = id.startsWith("__/") || id.startsWith("../") || id.includes("node_modules");
+                const prefix = isExternal
+                  ? "${fsPrefix}/" + (id.startsWith("__/") ? id.replace(/^(__\\/)+/, function(m) { return m.replace(/__\\//g, "../"); }) : id)
+                  : "${basePrefix}" + id;
+                const mod = annotateThenable(import(/* @vite-ignore */ new URL(prefix, location.origin).href));
+                moduleCache.set(id, mod);
+                return mod;
+              }
+              return moduleCache.get(id);
+            }`;
           }
-          return moduleCache.get(id);
-          };`;
+          return `
+            const moduleCache = new Map();
+            function annotateThenable(p) {
+              p.then(
+                function(v) { p.status = "fulfilled"; p.value = v; },
+                function(e) { p.status = "rejected"; p.reason = e; }
+              );
+              return p;
+            }
+            export default function moduleLoader(id) {
+              if (!moduleCache.has(id)) {
+                const modulePromise = /^https?\\:/.test(id) ? import(/* @vite-ignore */ id) : import(/* @vite-ignore */ ("${basePrefix}" + id).replace(/\\/+/g, "/"));
+                annotateThenable(modulePromise);
+                moduleCache.set(id, modulePromise);
+              }
+              return moduleCache.get(id);
+            }`;
         } else if (id.endsWith("@__disable_hmr__")) {
           return `(function () {
             if (typeof WebSocket === 'undefined') return;

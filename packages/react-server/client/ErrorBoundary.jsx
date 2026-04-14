@@ -127,7 +127,7 @@ export class ErrorBoundary extends Component {
       this.props;
     const { didCatch, error } = this.state;
 
-    if (error?.digest.startsWith("Location=")) {
+    if (error?.digest?.startsWith("Location=")) {
       const digestValue = error.digest.slice(9);
       const semicolonIndex = digestValue.indexOf(";");
       if (semicolonIndex !== -1) {

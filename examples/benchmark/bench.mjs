@@ -160,6 +160,16 @@ const BENCHMARKS = [
     desc: "Client component wide (1000 siblings)",
   },
   {
+    name: "rsc-client-large",
+    path: "/client/large/rsc.x-component",
+    desc: "RSC-only client large (500 rows, no SSR)",
+  },
+  {
+    name: "rsc-client-wide",
+    path: "/client/wide/rsc.x-component",
+    desc: "RSC-only client wide (1000 siblings, no SSR)",
+  },
+  {
     name: "static-json",
     path: "/data.json",
     desc: "Static file (JSON)",

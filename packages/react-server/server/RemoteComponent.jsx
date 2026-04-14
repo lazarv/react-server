@@ -2,7 +2,7 @@ import {
   createFromFetch,
   createTemporaryReferenceSet,
   encodeReply,
-} from "react-server-dom-webpack/client.edge";
+} from "@lazarv/rsc/client";
 
 import { useCache } from "@lazarv/react-server/memory-cache";
 import { ReactServerComponent } from "@lazarv/react-server/navigation";

@@ -25,9 +25,4 @@ process.on("unhandledRejection", (reason) => {
  * Mock webpack globals for react-server-dom-webpack cross-compatibility tests.
  * react-server-dom-webpack expects these to be available in the runtime.
  */
-globalThis.__webpack_require__ = (_id) => {
-  // Return a mock module - we don't actually need webpack module loading for protocol tests
-  return {};
-};
-
 globalThis.__webpack_chunk_load__ = () => Promise.resolve();

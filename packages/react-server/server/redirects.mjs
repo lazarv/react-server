@@ -30,7 +30,7 @@ export function redirect(url, status = 302, kind = "navigate") {
     const renderContext = getContext(RENDER_CONTEXT);
     if (renderContext?.type === RENDER_TYPE.RSC) {
       store.response = new Response(
-        `0:["$L1"]\n1:E{"digest":"Location=${url};kind=${kind}","message":"REDIRECT","env":"server","stack":[],"owner":null}\n`,
+        `0:["$","$L1",null,{}]\n1:E{"digest":"Location=${url};kind=${kind}","message":"REDIRECT","env":"server","stack":[],"owner":null}\n`,
         {
           status: 200,
           headers: {

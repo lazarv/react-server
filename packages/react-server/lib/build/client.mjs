@@ -21,6 +21,7 @@ import rollupUseWorker, {
 } from "../plugins/use-worker.mjs";
 import jsonNamedExports from "../plugins/json-named-exports.mjs";
 import resourcesPlugin from "../plugins/resources.mjs";
+import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import * as sys from "../sys.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import {
@@ -201,7 +202,10 @@ export default async function clientBuild(
         : undefined,
     worker: {
       format: "es",
-      plugins: () => [useWorkerSubBuildPlugin()],
+      plugins: () => [
+        useWorkerSubBuildPlugin(),
+        reactServerRuntime({ base: config.base }),
+      ],
     },
     assetsInclude: config.assetsInclude,
     resolve: {
@@ -404,6 +408,7 @@ export default async function clientBuild(
       fileListingReporterPlugin("Client"),
       jsonNamedExports(),
       resourcesPlugin({ useStore: true }),
+      reactServerRuntime({ base: config.base }),
       // Transform .resource.* files: append createResource/bind/from wiring.
       // The file-router prePlugin does this for RSC/SSR builds, but the
       // client build is a separate Vite process without file-router.

@@ -116,6 +116,330 @@ function isThenable(value) {
   );
 }
 
+// ─── React Hooks Dispatcher for Server Components ───────────────────
+// Server components need React's internal dispatcher (H) set so that
+// hooks like use(), useId(), useMemo(), useCallback() work.  React's
+// official Flight server (react-server-dom-webpack) does the same thing.
+
+const REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
+
+function resolveReactInternals(React) {
+  return (
+    React?.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ??
+    React?.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ??
+    null
+  );
+}
+
+// Sentinel thrown by use() when it hits an unresolved thenable.
+// Must NOT be caught by user code — it signals the Flight server to retry.
+const SuspenseException = new Error(
+  "Suspense Exception: This is not a real error! It's an implementation " +
+    "detail of `use` to interrupt the current render. You must either " +
+    "rethrow it immediately, or move the `use` call outside of the " +
+    "`try/catch` block. Capturing without rethrowing will lead to " +
+    "unexpected behavior."
+);
+
+let suspendedThenable = null;
+let thenableIndexCounter = 0;
+let thenableState = null;
+const noop = () => {};
+
+function trackUsedThenable(thenableState, thenable, index) {
+  const previous = thenableState[index];
+  if (previous === undefined) {
+    thenableState.push(thenable);
+  } else if (previous !== thenable) {
+    thenable.then(noop, noop);
+    thenable = previous;
+  }
+  switch (thenable.status) {
+    case "fulfilled":
+      return thenable.value;
+    case "rejected":
+      throw thenable.reason;
+    default:
+      if (typeof thenable.status !== "string") {
+        const pending = thenable;
+        pending.status = "pending";
+        pending.then(
+          (fulfilledValue) => {
+            if (thenable.status === "pending") {
+              thenable.status = "fulfilled";
+              thenable.value = fulfilledValue;
+            }
+          },
+          (error) => {
+            if (thenable.status === "pending") {
+              thenable.status = "rejected";
+              thenable.reason = error;
+            }
+          }
+        );
+      }
+      switch (thenable.status) {
+        case "fulfilled":
+          return thenable.value;
+        case "rejected":
+          throw thenable.reason;
+      }
+      suspendedThenable = thenable;
+      throw SuspenseException;
+  }
+}
+
+function getSuspendedThenable() {
+  if (suspendedThenable === null) {
+    throw new Error(
+      "Expected a suspended thenable. This is a bug in @lazarv/rsc."
+    );
+  }
+  const thenable = suspendedThenable;
+  suspendedThenable = null;
+  return thenable;
+}
+
+function unsupportedHook() {
+  throw new Error("This Hook is not supported in Server Components.");
+}
+
+function unsupportedContext() {
+  throw new Error("Cannot read context from a Server Component.");
+}
+
+// The currentRequest is set during serialization work so useId() can
+// generate deterministic identifiers.  Also used by the public
+// setCurrentRequest/getCurrentRequest API.
+let currentRequest = null;
+
+const HooksDispatcher = {
+  readContext: unsupportedContext,
+  getOwner() {
+    return null;
+  },
+  use(usable) {
+    if (
+      (usable !== null && typeof usable === "object") ||
+      typeof usable === "function"
+    ) {
+      if (typeof usable.then === "function") {
+        const index = thenableIndexCounter;
+        thenableIndexCounter += 1;
+        if (thenableState === null) thenableState = [];
+        return trackUsedThenable(thenableState, usable, index);
+      }
+      if (usable.$$typeof === REACT_CONTEXT_TYPE) {
+        unsupportedContext();
+      }
+    }
+    if (isClientReference(usable)) {
+      if (
+        usable.value != null &&
+        usable.value.$$typeof === REACT_CONTEXT_TYPE
+      ) {
+        throw new Error(
+          "Cannot read a Client Context from a Server Component."
+        );
+      }
+      throw new Error("Cannot use() an already resolved Client Reference.");
+    }
+    throw new Error(
+      "An unsupported type was passed to use(): " + String(usable)
+    );
+  },
+  useCallback(callback) {
+    return callback;
+  },
+  useContext: unsupportedContext,
+  useEffect: unsupportedHook,
+  useImperativeHandle: unsupportedHook,
+  useLayoutEffect: unsupportedHook,
+  useInsertionEffect: unsupportedHook,
+  useMemo(nextCreate) {
+    return nextCreate();
+  },
+  useReducer: unsupportedHook,
+  useRef: unsupportedHook,
+  useState: unsupportedHook,
+  useDebugValue() {},
+  useDeferredValue: unsupportedHook,
+  useTransition: unsupportedHook,
+  useSyncExternalStore: unsupportedHook,
+  useId() {
+    if (currentRequest === null) {
+      throw new Error("useId can only be used while React is rendering");
+    }
+    const id = currentRequest.identifierCount++;
+    return (
+      "_" +
+      (currentRequest.identifierPrefix || "S") +
+      "_" +
+      id.toString(32) +
+      "_"
+    );
+  },
+  useHostTransitionStatus: unsupportedHook,
+  useFormState: unsupportedHook,
+  useActionState: unsupportedHook,
+  useOptimistic: unsupportedHook,
+  useMemoCache(size) {
+    const data = Array(size);
+    for (let i = 0; i < size; i++) data[i] = REACT_MEMO_CACHE_SENTINEL;
+    return data;
+  },
+  useCacheRefresh() {
+    return unsupportedHook();
+  },
+};
+
+// DefaultAsyncDispatcher for React.cache() / async transitions
+const DefaultAsyncDispatcher = {
+  getOwner() {
+    return null;
+  },
+  getCacheForType(resourceType) {
+    if (!currentRequest)
+      throw new Error("Cannot call getCacheForType outside of rendering");
+    const cacheMap =
+      currentRequest._cache || (currentRequest._cache = new Map());
+    let entry = cacheMap.get(resourceType);
+    if (entry === undefined) {
+      entry = resourceType();
+      cacheMap.set(resourceType, entry);
+    }
+    return entry;
+  },
+};
+
+/**
+ * Set up the React dispatcher before calling a server component function,
+ * and restore it afterwards.  Returns the component result.
+ *
+ * If the component throws a SuspenseException (from use()), we extract
+ * the pending thenable and return it — the caller should handle it like
+ * any other thrown promise.
+ */
+function callComponentWithDispatcher(request, type, props, prevThenableState) {
+  const internals = request.reactInternals;
+  if (!internals) {
+    // No React internals provided — call directly (hooks won't work
+    // but pure server components without hooks will still function)
+    return type(props);
+  }
+
+  const prevDispatcher = internals.H;
+  const prevAsyncDispatcher = internals.A;
+  const prevRequest = currentRequest;
+  internals.H = HooksDispatcher;
+  internals.A = DefaultAsyncDispatcher;
+  currentRequest = request;
+  thenableIndexCounter = 0;
+  // Restore thenableState from a previous suspended render (if retrying).
+  // On first render prevThenableState is undefined → thenableState stays null.
+  thenableState = prevThenableState || null;
+  try {
+    const result = type(props);
+    // Successful render — clear thenableState for other components.
+    thenableState = null;
+    return result;
+  } catch (error) {
+    if (error === SuspenseException) {
+      // use() hit an unresolved thenable — capture the tracked thenables
+      // so the retry can restore them (matches React's per-task save).
+      const savedThenableState = thenableState;
+      thenableState = null;
+      const thenable = getSuspendedThenable();
+      // Attach the saved state so the retry site can pass it back.
+      thenable._savedThenableState = savedThenableState;
+      throw thenable;
+    }
+    thenableState = null;
+    throw error;
+  } finally {
+    internals.H = prevDispatcher;
+    internals.A = prevAsyncDispatcher;
+    currentRequest = prevRequest;
+  }
+}
+
+/**
+ * Pre-scan the model tree to count how many times each object/array
+ * is referenced. Objects with count > 1 must be emitted as separate
+ * chunks to preserve identity; count === 1 objects can be inlined.
+ *
+ * This walk is O(n) with the tree size and short-circuits on:
+ * - Primitives, strings, symbols, functions
+ * - Objects already visited (increments count and stops)
+ * - Special types handled as chunks anyway (Promises, ReadableStreams, etc.)
+ */
+function countReferences(model) {
+  const counts = new Map();
+  const stack = [model];
+
+  while (stack.length > 0) {
+    const value = stack.pop();
+
+    if (value === null || value === undefined) continue;
+    if (typeof value !== "object") continue;
+
+    // Skip types that are always emitted as separate chunks
+    if (
+      value instanceof Date ||
+      value instanceof RegExp ||
+      ArrayBuffer.isView(value) ||
+      value instanceof ArrayBuffer ||
+      (typeof ReadableStream !== "undefined" &&
+        value instanceof ReadableStream) ||
+      (typeof Blob !== "undefined" && value instanceof Blob) ||
+      (typeof FormData !== "undefined" && value instanceof FormData) ||
+      (typeof URL !== "undefined" && value instanceof URL) ||
+      (typeof URLSearchParams !== "undefined" &&
+        value instanceof URLSearchParams) ||
+      value instanceof Error
+    ) {
+      continue;
+    }
+
+    // Skip Promises/thenables
+    if (typeof value.then === "function") continue;
+
+    const count = (counts.get(value) || 0) + 1;
+    counts.set(value, count);
+    if (count > 1) continue; // Already walked children on first visit
+
+    if (Array.isArray(value)) {
+      for (let i = value.length - 1; i >= 0; i--) {
+        stack.push(value[i]);
+      }
+    } else if (value instanceof Map) {
+      for (const [k, v] of value) {
+        stack.push(k);
+        stack.push(v);
+      }
+    } else if (value instanceof Set) {
+      for (const item of value) {
+        stack.push(item);
+      }
+    } else if (isReactElement(value)) {
+      // Walk into props (including children)
+      if (value.props) stack.push(value.props);
+    } else {
+      // Plain object
+      const keys = Object.keys(value);
+      for (let i = keys.length - 1; i >= 0; i--) {
+        try {
+          stack.push(value[keys[i]]);
+        } catch {
+          /* skip throwing getters */
+        }
+      }
+    }
+  }
+
+  return counts;
+}
+
 /**
  * Internal request state for serialization
  * @internal Exported for testing purposes only
@@ -129,18 +453,44 @@ export class FlightRequest {
     this.nextChunkId = 1;
     this.pendingChunks = 0;
     this.completedChunks = [];
-    this.writtenChunks = new Set();
+    this._flushScheduled = false;
     this.aborted = false;
     this.flowing = false;
     this.destination = null;
     this.closed = false;
     this.temporaryReferences = options.temporaryReferences || undefined;
 
+    // React internals for hooks dispatcher (optional — pass `react` option)
+    this.reactInternals = options.react
+      ? resolveReactInternals(options.react)
+      : null;
+
+    // useId() counter and prefix
+    this.identifierCount = 0;
+    this.identifierPrefix = options.identifierPrefix || "S";
+
     // Map of serialized objects to their IDs (for deduplication)
     this.objectMap = new WeakMap();
 
+    // Reference counts for shared object detection.
+    // Objects that appear more than once in the model tree must be
+    // emitted as separate chunks to preserve identity on the client.
+    // Objects that appear exactly once can be inlined in the parent JSON.
+    this.refCounts = countReferences(model);
+
     // Map of serialized server references to their chunk IDs (for deduplication)
     this.writtenServerReferences = new Map();
+
+    // Map of serialized client references to their chunk IDs (for deduplication).
+    // A single client component referenced N times in a tree (e.g. `<Item>` in a
+    // 1000-item list, or a shared `<Link>` across a page) would otherwise emit
+    // N identical `I` rows on the flight stream. Deduping collapses them into a
+    // single row that subsequent uses reference via `$L<id>`. This mirrors the
+    // existing `writtenServerReferences` dedup path.
+    // WeakMap is safe: client references are stable function/object identities
+    // (the same imported module export across all usages), and letting them be
+    // GC'd with the request is desirable.
+    this.writtenClientReferences = new WeakMap();
 
     // Map of pending promises to their chunk IDs
     this.pendingPromises = new Map();
@@ -172,11 +522,17 @@ export class FlightRequest {
   }
 
   /**
-   * Safely close the stream (only once)
+   * Safely close the stream (only once).
+   * Flushes any remaining buffered chunks before closing — the
+   * microtask-deferred writeChunk may have pending data that hasn't
+   * been enqueued yet.
    */
   closeStream() {
     if (!this.closed && this.destination && !this.aborted) {
       this.closed = true;
+      // Flush remaining buffered chunks before closing
+      this._flushScheduled = false;
+      this.flushChunks();
       try {
         this.destination.close();
       } catch {
@@ -198,12 +554,27 @@ export class FlightRequest {
   }
 
   /**
-   * Write a chunk to the output
+   * Write a chunk to the output.
+   *
+   * Instead of flushing immediately, we schedule a microtask-deferred
+   * flush.  This lets multiple promise callbacks (e.g., several async
+   * Route components resolving in the same microtask batch) accumulate
+   * their chunks before a single coalesced flush.  Matching webpack's
+   * performWork → flushCompletedChunks pattern, this produces fewer
+   * ReadableStream enqueue() calls — which means:
+   *  - fewer reader.read() iterations in the rsc/client consume loop
+   *  - fewer <script> tags in the SSR HTML for inline flight data
+   *  - less cross-thread MessagePort traffic when the stream is
+   *    transferred to the SSR worker
    */
   writeChunk(chunk) {
     this.completedChunks.push(chunk);
-    if (this.flowing && this.destination) {
-      this.flushChunks();
+    if (this.flowing && this.destination && !this._flushScheduled) {
+      this._flushScheduled = true;
+      queueMicrotask(() => {
+        this._flushScheduled = false;
+        this.flushChunks();
+      });
     }
   }
 
@@ -213,30 +584,70 @@ export class FlightRequest {
    */
   writeBinaryChunk(binaryChunk) {
     this.completedChunks.push(binaryChunk);
-    if (this.flowing && this.destination) {
-      this.flushChunks();
+    if (this.flowing && this.destination && !this._flushScheduled) {
+      this._flushScheduled = true;
+      queueMicrotask(() => {
+        this._flushScheduled = false;
+        this.flushChunks();
+      });
     }
   }
 
   /**
-   * Flush completed chunks to destination
+   * Flush completed chunks to destination.
+   *
+   * Uses a swap-first pattern: snapshot the current queue into a local
+   * `chunks` and atomically replace `this.completedChunks` with a fresh
+   * empty array BEFORE iterating. This is required because Node's
+   * ReadableStream implementation can fire `pull()` as a microtask during
+   * `destination.enqueue(...)` (when a pending reader is waiting), which
+   * synchronously re-enters this method via the stream source's pull
+   * handler. Without the swap, the reentrant flush would see the same
+   * unflushed `chunks` array and write the in-flight chunk a second time
+   * before the outer loop clears it — producing duplicate rows on the
+   * flight stream (observed on async server components that land alone
+   * in the queue, where pull is always waiting).
+   *
+   * After the swap, any reentrant flush observes an empty queue and is a
+   * no-op, and any reentrant `writeChunk` pushes to the new empty array,
+   * which the next flush cycle (or the next explicit pull) will drain.
    */
   flushChunks() {
-    while (this.completedChunks.length > 0) {
-      const chunk = this.completedChunks.shift();
-      if (!this.writtenChunks.has(chunk)) {
-        this.writtenChunks.add(chunk);
-        if (this.destination && !this.aborted) {
-          try {
-            // Handle both string and binary chunks
-            if (chunk instanceof Uint8Array) {
-              this.destination.enqueue(chunk);
-            } else {
-              this.destination.enqueue(encoder.encode(chunk));
-            }
-          } catch {
-            // Controller may be closed
-          }
+    if (this.completedChunks.length === 0) return;
+    const chunks = this.completedChunks;
+    this.completedChunks = [];
+    if (this.destination && !this.aborted) {
+      // Encode all string chunks to Uint8Array first
+      const encoded = Array.from({ length: chunks.length });
+      let totalLength = 0;
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        encoded[i] =
+          chunk instanceof Uint8Array ? chunk : encoder.encode(chunk);
+        totalLength += encoded[i].length;
+      }
+      // Coalesce into a single enqueue to preserve chunk boundaries
+      // across ReadableStream transfers (e.g., worker thread MessagePort).
+      // Without this, N enqueue() calls become N separate reads on the
+      // consumer side, causing N <script> tags in the HTML and N microtask
+      // iterations in the rsc/client consume loop.
+      if (encoded.length === 1) {
+        try {
+          this.destination.enqueue(encoded[0]);
+        } catch {
+          // Controller may be closed
+        }
+      } else {
+        const merged = new Uint8Array(totalLength);
+        let offset = 0;
+        for (let i = 0; i < encoded.length; i++) {
+          merged.set(encoded[i], offset);
+          offset += encoded[i].length;
+        }
+        try {
+          this.destination.enqueue(merged);
+        } catch {
+          // Controller may be closed
         }
       }
     }
@@ -272,6 +683,47 @@ export class FlightRequest {
     }
     const payload = JSON.stringify(wireFormat);
     return `${id}:${ROW_TAG.MODULE}${payload}\n`;
+  }
+
+  /**
+   * Emit (or look up) a client-reference module row for the given value
+   * and return its `$L<id>` chunk reference. Dedupes by reference identity
+   * via `writtenClientReferences` so that a single client component used N
+   * times in a tree produces exactly one `I` row on the flight stream.
+   *
+   * Returns the `$L<id>` string the caller should serialize in place of
+   * the client reference.
+   */
+  emitClientReference(value, errorContext = "Client reference") {
+    const cached = this.writtenClientReferences.get(value);
+    if (cached !== undefined) {
+      return "$L" + cached;
+    }
+
+    let metadata;
+    const resolver = this.moduleResolver.resolveClientReference;
+    if (resolver) {
+      metadata = resolver(value);
+    }
+    // Fallback: use embedded $$metadata from the deserialized reference
+    // (re-serialization path via fromBuffer/fromStream with no moduleLoader).
+    if (!metadata && value.$$metadata) {
+      metadata = value.$$metadata;
+    }
+    // Fallback: parse $$id to reconstruct minimal metadata.
+    if (!metadata && value.$$id) {
+      const [moduleId, name] = value.$$id.split("#");
+      metadata = { id: moduleId, name: name || "default", chunks: [] };
+    }
+    if (!metadata) {
+      throw new Error(`${errorContext} could not be resolved`);
+    }
+
+    const id = this.getNextChunkId();
+    const row = this.serializeModuleRow(id, metadata);
+    this.writeChunk(row);
+    this.writtenClientReferences.set(value, id);
+    return "$L" + id;
   }
 
   /**
@@ -901,6 +1353,22 @@ function serializeValue(request, value, _parentObject, _parentKey) {
   }
 
   if (typeof value === "string") {
+    // Large strings: emit as a length-prefixed TEXT row to avoid
+    // JSON.stringify overhead (quoting, escaping, extra allocations).
+    // Format: id:T<hex_byteLength>,<raw_utf8_bytes> — same length-prefix
+    // scheme used for binary/TypedArray rows.
+    if (value.length >= TEXT_CHUNK_SIZE) {
+      const id = request.getNextChunkId();
+      const textBytes = encoder.encode(value);
+      const hexLength = textBytes.byteLength.toString(16);
+      const headerStr = `${id}:T${hexLength},`;
+      const headerBytes = encoder.encode(headerStr);
+      const row = new Uint8Array(headerBytes.length + textBytes.length);
+      row.set(headerBytes, 0);
+      row.set(textBytes, headerBytes.length);
+      request.writeBinaryChunk(row);
+      return "$" + id;
+    }
     // Escape special characters that have special meaning in the protocol
     if (value.startsWith("$")) {
       return "$" + value;
@@ -944,31 +1412,7 @@ function serializeValue(request, value, _parentObject, _parentKey) {
   // Handle client references (must be checked before generic function/object checks)
   // Client references can be either functions or objects with $$typeof
   if (isClientReference(value)) {
-    const resolver = request.moduleResolver.resolveClientReference;
-    if (resolver) {
-      const metadata = resolver(value);
-      if (metadata) {
-        // Create a reference chunk
-        const id = request.getNextChunkId();
-        const row = request.serializeModuleRow(id, metadata);
-        request.writeChunk(row);
-        return "$L" + id;
-      }
-    }
-    // Fallback: use the reference's internal ID if available
-    if (value.$$id) {
-      // Create a module reference chunk with the ID
-      const id = request.getNextChunkId();
-      const [moduleId, name] = value.$$id.split("#");
-      const row = request.serializeModuleRow(id, {
-        id: moduleId,
-        name: name || "default",
-        chunks: [],
-      });
-      request.writeChunk(row);
-      return "$L" + id;
-    }
-    throw new Error("Client reference could not be resolved");
+    return request.emitClientReference(value, "Client reference");
   }
 
   // Handle functions
@@ -1042,21 +1486,35 @@ function serializeValue(request, value, _parentObject, _parentKey) {
       return "$" + existing.id;
     }
 
-    // Always emit arrays as separate chunks to preserve object identity
-    const arrayId = request.getNextChunkId();
-    const entry = { id: arrayId };
-    request.objectMap.set(value, entry);
+    // Shared (refCount > 1) or circular-capable: must outline as a chunk
+    // so all references resolve to the same identity on the client.
+    const isShared = (request.refCounts.get(value) || 0) > 1;
+    if (isShared) {
+      const arrayId = request.getNextChunkId();
+      request.objectMap.set(value, { id: arrayId });
+      const result = value.map((item, index) =>
+        serializeValue(request, item, value, index)
+      );
+      const row = request.serializeModelRow(arrayId, result);
+      request.writeChunk(row);
+      return "$" + arrayId;
+    }
 
-    // Serialize array contents (may encounter circular refs back to this array)
+    // Unique (refCount === 1): inline directly in the parent JSON.
+    // Register temporarily for circular reference detection, then clean up.
+    const entry = { id: null };
+    request.objectMap.set(value, entry);
     const result = value.map((item, index) =>
       serializeValue(request, item, value, index)
     );
-
-    // Emit the array as a chunk
-    const row = request.serializeModelRow(arrayId, result);
-    request.writeChunk(row);
-
-    return "$" + arrayId;
+    if (entry.id !== null) {
+      // Circular reference was detected during serialization — emit as chunk.
+      const row = request.serializeModelRow(entry.id, result);
+      request.writeChunk(row);
+      return "$" + entry.id;
+    }
+    request.objectMap.delete(value);
+    return result;
   }
 
   // Handle React elements
@@ -1174,32 +1632,95 @@ function serializeValue(request, value, _parentObject, _parentKey) {
     // Check for deduplication / circular reference
     const existing = request.objectMap.get(value);
     if (existing !== undefined) {
-      // Already processed - return reference to existing chunk
       return "$" + existing.id;
     }
 
-    // Always emit objects as separate chunks to preserve object identity
-    const objectId = request.getNextChunkId();
-    const entry = { id: objectId };
-    request.objectMap.set(value, entry);
+    // Shared (refCount > 1): must outline to preserve identity.
+    const isShared = (request.refCounts.get(value) || 0) > 1;
+    if (isShared) {
+      const objectId = request.getNextChunkId();
+      request.objectMap.set(value, { id: objectId });
+      const result = {};
+      for (const key of Object.keys(value)) {
+        result[key] = serializeValue(request, value[key], value, key);
+      }
+      const row = request.serializeModelRow(objectId, result);
+      request.writeChunk(row);
+      return "$" + objectId;
+    }
 
-    // Serialize object properties (may encounter circular refs back to this object)
+    // Unique: inline directly in the parent JSON.
+    const entry = { id: null };
+    request.objectMap.set(value, entry);
     const result = {};
     for (const key of Object.keys(value)) {
       result[key] = serializeValue(request, value[key], value, key);
     }
-
-    // Emit the object as a chunk
-    const row = request.serializeModelRow(objectId, result);
-    request.writeChunk(row);
-
-    return "$" + objectId;
+    if (entry.id !== null) {
+      const row = request.serializeModelRow(entry.id, result);
+      request.writeChunk(row);
+      return "$" + entry.id;
+    }
+    request.objectMap.delete(value);
+    return result;
   }
 
   // Should never reach here - all types handled above
   // This return is kept for TypeScript/defensive purposes but is unreachable
   /* istanbul ignore next */
   return value;
+}
+
+/**
+ * Create a promise that retries rendering a server component after suspension.
+ * Handles re-suspension (multiple use() calls) by chaining retries until the
+ * component either succeeds or throws a non-thenable error.  This matches
+ * React's Flight server behavior of retrying tasks until all thenables resolve.
+ *
+ * @param {FlightRequest} request
+ * @param {Function} type - The component function
+ * @param {object} props
+ * @param {Array|null} savedState - thenableState from the initial suspension
+ * @param {object|null} componentDebugRef
+ * @param {object|null} previousOwnerRef
+ * @param {Promise} blockedThenable - The thenable that caused the suspension
+ */
+function retryComponentRender(
+  request,
+  type,
+  props,
+  savedState,
+  componentDebugRef,
+  previousOwnerRef,
+  blockedThenable
+) {
+  return new Promise((resolve, reject) => {
+    function attempt(prevThenableState, waitFor) {
+      waitFor.then(() => {
+        try {
+          request.currentOwnerRef = componentDebugRef;
+          const result = callComponentWithDispatcher(
+            request,
+            type,
+            props,
+            prevThenableState
+          );
+          request.currentOwnerRef = previousOwnerRef;
+          resolve(result);
+        } catch (error) {
+          request.currentOwnerRef = previousOwnerRef;
+          if (isThenable(error)) {
+            // Component suspended again (another use() call not yet resolved).
+            // Chain another retry with updated thenableState.
+            attempt(error._savedThenableState, error);
+          } else {
+            reject(error);
+          }
+        }
+      }, reject);
+    }
+    attempt(savedState, blockedThenable);
+  });
 }
 
 /**
@@ -1220,20 +1741,28 @@ function serializeElement(request, element) {
   } else if (typeof type === "function") {
     // Check if client reference
     if (isClientReference(type)) {
-      const resolver = request.moduleResolver.resolveClientReference;
-      if (resolver) {
-        const metadata = resolver(type);
-        if (metadata) {
-          // Create a module reference chunk
-          const id = request.getNextChunkId();
-          const row = request.serializeModuleRow(id, metadata);
-          request.writeChunk(row);
-          serializedType = "$L" + id;
+      serializedType = request.emitClientReference(type, "Client component");
+    } else if (type.$$typeof === REACT_LAZY_TYPE) {
+      // Lazy wrapper that is a callable function (e.g. from @lazarv/rsc/client
+      // deserialization without a moduleLoader — used by fromBuffer/fromStream
+      // during RSC re-serialization). Resolve the lazy type and re-enter
+      // serializeElement with the resolved type so the element structure
+      // (key, props, children) is preserved.
+      const payload = type._payload;
+      const init = type._init;
+      try {
+        const resolved = init(payload);
+        return serializeElement(request, { ...element, type: resolved });
+      } catch (error) {
+        if (isThenable(error)) {
+          return serializePromise(
+            request,
+            error.then((resolved) => {
+              return serializeElement(request, { ...element, type: resolved });
+            })
+          );
         }
-      } else if (type.$$id) {
-        serializedType = "$L" + type.$$id;
-      } else {
-        throw new Error("Client component could not be resolved");
+        throw error;
       }
     } else {
       // Server component - render it
@@ -1266,7 +1795,7 @@ function serializeElement(request, element) {
       }
 
       try {
-        const result = type(props);
+        const result = callComponentWithDispatcher(request, type, props);
 
         if (isThenable(result)) {
           // Restore owner context after async resolution
@@ -1295,16 +1824,20 @@ function serializeElement(request, element) {
         request.currentOwnerRef = previousOwnerRef;
 
         if (isThenable(error)) {
-          // Suspense - component threw a promise
+          // Suspense - component threw a promise (from use() or direct throw).
+          // Capture saved thenableState so the retry can restore it.
+          const savedState = error._savedThenableState;
           return serializePromise(
             request,
-            error.then(() => {
-              // Retry rendering after promise resolves
-              request.currentOwnerRef = componentDebugRef;
-              const retryResult = type(props);
-              request.currentOwnerRef = previousOwnerRef;
-              return retryResult;
-            })
+            retryComponentRender(
+              request,
+              type,
+              props,
+              savedState,
+              componentDebugRef,
+              previousOwnerRef,
+              error
+            )
           );
         }
         throw error;
@@ -1389,8 +1922,12 @@ function serializeElement(request, element) {
       serializedType = "$@unknown";
     }
   } else if (type && typeof type === "object") {
+    // Handle client references that are objects (e.g., proxy-based references)
+    if (isClientReference(type)) {
+      serializedType = request.emitClientReference(type, "Client component");
+    }
     // Handle Context.Provider
-    if (type.$$typeof === REACT_PROVIDER_TYPE) {
+    else if (type.$$typeof === REACT_PROVIDER_TYPE) {
       // Context Provider - render children with context value
       // In RSC, providers are transparent - we just render their children
       // The context value is passed through during rendering
@@ -1438,16 +1975,40 @@ function serializeElement(request, element) {
     }
     if (type.$$typeof === REACT_FORWARD_REF_TYPE) {
       // Client reference forwardRef
-      if (isClientReference(type.render || type)) {
-        const resolver = request.moduleResolver.resolveClientReference;
-        if (resolver) {
-          const metadata = resolver(type.render || type);
-          if (metadata) {
-            const id = request.getNextChunkId();
-            const row = request.serializeModuleRow(id, metadata);
-            request.writeChunk(row);
-            serializedType = "$L" + id;
+      const target = type.render || type;
+      if (isClientReference(target)) {
+        serializedType = request.emitClientReference(
+          target,
+          "Client component"
+        );
+      } else if (typeof type.render === "function") {
+        // Server-side forwardRef — invoke the render function with (props, ref)
+        // through the dispatcher so hooks (use, etc.) work inside it. Wrap in
+        // a single-argument shim so callComponentWithDispatcher can call it.
+        const renderFn = type.render;
+        const forwardRefWrapper = (p) => renderFn(p, ref);
+        // Preserve name for debug info.
+        Object.defineProperty(forwardRefWrapper, "name", {
+          value: renderFn.name || "ForwardRef",
+        });
+        try {
+          const rendered = callComponentWithDispatcher(
+            request,
+            forwardRefWrapper,
+            props
+          );
+          if (isThenable(rendered)) {
+            return serializePromise(request, rendered);
           }
+          return serializeValue(request, rendered);
+        } catch (error) {
+          if (isThenable(error)) {
+            return serializePromise(
+              request,
+              error.then((r) => serializeValue(request, r))
+            );
+          }
+          throw error;
         }
       }
     }
@@ -1473,7 +2034,19 @@ function serializeElement(request, element) {
   }
 
   if (serializedType === undefined) {
-    throw new Error(`Unsupported element type: ${String(type)}`);
+    let detail = String(type);
+    if (type && typeof type === "object") {
+      const $$typeof = type.$$typeof;
+      const typeofTag =
+        typeof $$typeof === "symbol"
+          ? Symbol.keyFor($$typeof) || $$typeof.toString()
+          : typeof $$typeof;
+      const keys = Object.keys(type).slice(0, 10).join(", ");
+      detail = `object with $$typeof=${typeofTag} keys=[${keys}]`;
+    } else if (typeof type === "function") {
+      detail = `function ${type.name || "(anonymous)"}`;
+    }
+    throw new Error(`Unsupported element type: ${detail}`);
   }
 
   // Serialize props (excluding children which we handle specially)
@@ -1606,6 +2179,56 @@ function serializeElement(request, element) {
 }
 
 /**
+ * Emit an error row for a chunk, decrement pending count, and close if done.
+ * Handles postpone errors, digest generation, and ensures pending-chunk
+ * accounting is always correct even when the caller itself throws.
+ */
+function emitErrorRow(request, id, error) {
+  try {
+    // Check if this is a postpone error
+    if (error && error.$$typeof === Symbol.for("react.postpone")) {
+      request.emitPostpone(id, error.reason);
+      if (request.options.onPostpone) {
+        request.options.onPostpone(error.reason);
+      }
+    } else {
+      // Generate error digest if handler provided
+      let digest;
+      if (request.options.onError) {
+        digest = request.options.onError(error);
+      }
+
+      // Build errorInfo with digest FIRST — the client-side redirect
+      // detector regex-matches raw bytes and expects "digest" to be
+      // the leading JSON property (matching react-server-dom-webpack).
+      const errorInfo = {};
+      if (digest !== undefined) {
+        errorInfo.digest = String(digest);
+      }
+      errorInfo.message = error?.message || String(error);
+      errorInfo.stack = error?.stack;
+
+      const row = request.serializeRow(id, ROW_TAG.ERROR, errorInfo);
+      request.writeChunk(row);
+    }
+  } catch {
+    // Last resort — emit a minimal error row if the error handler itself fails
+    try {
+      const row = request.serializeRow(id, ROW_TAG.ERROR, {
+        message: "Internal serialization error",
+      });
+      request.writeChunk(row);
+    } catch {
+      // Nothing we can do — at least we'll decrement pendingChunks below
+    }
+  }
+  request.pendingChunks--;
+  if (request.pendingChunks === 0) {
+    request.closeStream();
+  }
+}
+
+/**
  * Serialize a Promise/Thenable
  */
 function serializePromise(request, thenable) {
@@ -1620,50 +2243,22 @@ function serializePromise(request, thenable) {
 
   thenable.then(
     (result) => {
-      const serialized = serializeValue(request, result, null, null);
-      const row = request.serializeModelRow(id, serialized);
-      request.writeChunk(row);
-      request.pendingChunks--;
-      if (request.pendingChunks === 0) {
-        request.closeStream();
-      }
-    },
-    (error) => {
-      // Check if this is a postpone error
-      if (error && error.$$typeof === Symbol.for("react.postpone")) {
-        request.emitPostpone(id, error.reason);
+      try {
+        const serialized = serializeValue(request, result, null, null);
+        const row = request.serializeModelRow(id, serialized);
+        request.writeChunk(row);
         request.pendingChunks--;
-        if (request.options.onPostpone) {
-          request.options.onPostpone(error.reason);
-        }
         if (request.pendingChunks === 0) {
           request.closeStream();
         }
-        return;
+      } catch (error) {
+        // Serialization failed — emit an error row for this chunk so
+        // the client receives a proper error instead of hanging.
+        emitErrorRow(request, id, error);
       }
-
-      // Generate error digest if handler provided
-      let digest;
-      if (request.options.onError) {
-        digest = request.options.onError(error);
-      }
-
-      const errorInfo = {
-        message: error?.message || String(error),
-        stack: error?.stack,
-      };
-
-      // Add digest for production error hiding
-      if (digest !== undefined) {
-        errorInfo.digest = String(digest);
-      }
-
-      const row = request.serializeRow(id, ROW_TAG.ERROR, errorInfo);
-      request.writeChunk(row);
-      request.pendingChunks--;
-      if (request.pendingChunks === 0) {
-        request.closeStream();
-      }
+    },
+    (error) => {
+      emitErrorRow(request, id, error);
     }
   );
 
@@ -1679,6 +2274,20 @@ function startWork(request) {
 
   const startTime = request.isDev ? performance.now() : 0;
 
+  // Temporarily suppress per-writeChunk flushing so that all rows
+  // produced during synchronous serialization accumulate in
+  // completedChunks.  They are flushed in a single batch after
+  // serialization completes, producing one ReadableStream chunk
+  // (instead of one per row).  This matches webpack's behavior:
+  // - fewer stream chunks → fewer reader.read() microtask iterations
+  // - the forward worker in render-dom.mjs batches all rows into one
+  //   <script> tag instead of N separate tags (smaller HTML, less DOM work)
+  // Async server component promise callbacks still flush individually
+  // (flowing is restored after serialization), which preserves
+  // streaming SSR behavior.
+  const wasFlowing = request.flowing;
+  request.flowing = false;
+
   try {
     const serialized = serializeValue(request, request.model, null, null);
 
@@ -1690,19 +2299,34 @@ function startWork(request) {
     const row = request.serializeModelRow(0, serialized);
     request.writeChunk(row);
 
+    // Restore flowing and flush all accumulated rows in one batch.
+    request.flowing = wasFlowing;
+    if (request.flowing && request.destination) {
+      request.flushChunks();
+    }
+
     // If no pending promises, we're done
     if (request.pendingChunks === 0) {
       request.closeStream();
     }
   } catch (error) {
+    // Restore flowing on error path
+    request.flowing = wasFlowing;
+
+    let digest;
     if (request.options.onError) {
-      request.options.onError(error);
+      digest = request.options.onError(error);
     }
     if (request.destination) {
-      const errorInfo = {
-        message: error?.message || String(error),
-        stack: error?.stack,
-      };
+      // Build errorInfo with digest FIRST — the client-side redirect
+      // detector regex-matches the raw bytes and expects "digest" to be
+      // the leading JSON property (matching react-server-dom-webpack).
+      const errorInfo = {};
+      if (digest !== undefined) {
+        errorInfo.digest = String(digest);
+      }
+      errorInfo.message = error?.message || String(error);
+      errorInfo.stack = error?.stack;
       const row = request.serializeRow(0, ROW_TAG.ERROR, errorInfo);
       try {
         request.destination.enqueue(encoder.encode(row));
@@ -1916,21 +2540,21 @@ export function deserializeValue(value, options = {}, path = "") {
       return params;
     }
     if (value.startsWith("$K")) {
-      if (value.startsWith("$K[")) {
-        // FormData model
-        const entries = JSON.parse(value.slice(2));
+      // FormData reference — "$K" + hex partId
+      // The client serialized each entry under prefix `partId + "_" + key`
+      // in the outer FormData body.
+      const partId = value.slice(2);
+      if (options.body instanceof FormData) {
+        const prefix = partId + "_";
         const formData = new FormData();
-        for (const [k, v] of entries) {
-          formData.append(k, deserializeValue(v, options));
+        for (const [k, v] of options.body.entries()) {
+          if (k.startsWith(prefix)) {
+            formData.append(k.slice(prefix.length), v);
+          }
         }
         return formData;
       }
-      // File/Blob reference
-      const path = value.slice(2);
-      if (options.body instanceof FormData) {
-        return options.body.get(path);
-      }
-      return null;
+      return new FormData();
     }
     if (value.startsWith("$AB")) {
       // ArrayBuffer (base64)
@@ -2080,7 +2704,48 @@ export async function decodeAction(body, serverManifestOrOptions) {
     return null;
   }
 
-  const actionId = body.get("$ACTION_ID");
+  // React DOM encodes action references in form field *names*, not values:
+  //   $ACTION_ID_<actionId>  — unbound action (id is in the key name)
+  //   $ACTION_REF_<prefix>   — bound action (metadata in prefixed fields)
+  //   $ACTION_ID (legacy)    — action id as the field value
+  let actionId = null;
+  let boundPrefix = null;
+
+  for (const key of body.keys()) {
+    if (key.startsWith("$ACTION_ID_")) {
+      actionId = key.slice(11); // strip "$ACTION_ID_"
+      break;
+    }
+    if (key.startsWith("$ACTION_REF_")) {
+      boundPrefix = "$ACTION_" + key.slice(12) + ":";
+      break;
+    }
+  }
+
+  // Legacy fallback: $ACTION_ID as a field with the id as value
+  if (!actionId && !boundPrefix) {
+    actionId = body.get("$ACTION_ID");
+  }
+
+  if (boundPrefix) {
+    // Bound action: decode metadata from prefixed FormData fields
+    const metadataPayload = body.get(boundPrefix + "0");
+    if (metadataPayload && typeof metadataPayload === "string") {
+      const parsed = JSON.parse(metadataPayload);
+      // parsed is the reply-encoded {id, bound} or just bound args reference
+      if (parsed && typeof parsed === "object" && parsed.id) {
+        actionId = parsed.id;
+      } else if (typeof parsed === "string" && parsed.startsWith("$h")) {
+        // Server reference in reply format
+        const refPayload = body.get(boundPrefix + parsed.slice(2));
+        if (refPayload && typeof refPayload === "string") {
+          const ref = JSON.parse(refPayload);
+          actionId = ref.id;
+        }
+      }
+    }
+  }
+
   if (!actionId || typeof actionId !== "string") {
     return null;
   }
@@ -2147,22 +2812,53 @@ export function decodeFormState(actionResult, body) {
     return null;
   }
 
-  // Get the action reference ID from form data
-  const actionId = body.get("$ACTION_ID");
+  // Get the action reference ID from form data.
+  // React DOM encodes action IDs in field names:
+  //   $ACTION_ID_<id>  — unbound action
+  //   $ACTION_REF_<prefix>  — bound action (metadata in prefixed fields)
+  //   $ACTION_ID (legacy)   — action id as field value
+  let actionId = null;
+  let boundArgsLength = 0;
+
+  for (const key of body.keys()) {
+    if (key.startsWith("$ACTION_ID_")) {
+      actionId = key.slice(11);
+    } else if (key.startsWith("$ACTION_REF_")) {
+      // Bound action — decode metadata from prefixed fields
+      const prefix = "$ACTION_" + key.slice(12) + ":";
+      const metadataPayload = body.get(prefix + "0");
+      if (metadataPayload && typeof metadataPayload === "string") {
+        try {
+          const parsed = JSON.parse(metadataPayload);
+          if (parsed && typeof parsed === "object" && parsed.id) {
+            actionId = parsed.id;
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+      // Count bound arg fields
+      for (const k of body.keys()) {
+        if (k.startsWith(prefix) && /^\d+$/.test(k.slice(prefix.length))) {
+          boundArgsLength++;
+        }
+      }
+    } else if (/^\$\d+$/.test(key)) {
+      boundArgsLength++;
+    }
+  }
+
+  // Legacy fallback
+  if (!actionId) {
+    actionId = body.get("$ACTION_ID");
+  }
+
   if (!actionId || typeof actionId !== "string") {
     return null;
   }
 
   // Get the key path (used for form state matching)
   const keyPath = body.get("$ACTION_KEY") || "";
-
-  // Count bound arguments (prefixed with $ followed by a number)
-  let boundArgsLength = 0;
-  for (const key of body.keys()) {
-    if (/^\$\d+$/.test(key)) {
-      boundArgsLength++;
-    }
-  }
 
   // Return ReactFormState tuple: [value, keyPath, referenceId, boundArgsLength]
   return [actionResult, String(keyPath), actionId, boundArgsLength];
@@ -2570,12 +3266,6 @@ export function emitHint(request, code, model) {
     request.emitHint({ code, model });
   }
 }
-
-/**
- * Get current request from rendering context
- * This is a placeholder - in a real implementation this would use AsyncLocalStorage
- */
-let currentRequest = null;
 
 export function setCurrentRequest(request) {
   currentRequest = request;

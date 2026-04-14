@@ -7,8 +7,7 @@ export const chunks = {
   [dependencies.reactDom.replace(".react-server.js", ".js")]: "react-dom",
   [dependencies.reactDomClient.replace(".react-server.js", ".js")]:
     "react-dom/client",
-  [dependencies.reactServerDomWebpackClientBrowser.replace(
-    ".react-server.js",
-    ".js"
-  )]: "react-server-dom-webpack/client.browser",
+  ...(dependencies.rscClient
+    ? { [dependencies.rscClient]: "@lazarv/rsc/client" }
+    : {}),
 };

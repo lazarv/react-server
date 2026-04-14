@@ -40,13 +40,13 @@ These decisions define the lowest layer of the runtime: which React version runs
 </Link>
 
 **Problem:**
-React Server Components depend on an unstable wire format between `react-server-dom-webpack` and the React reconciler. The serialization protocol, flight format, and directive semantics ([`"use client"`](/guide/client-components), [`"use server"`](/guide/server-functions)) are not yet covered by React's public semver contract. A mismatch between the React version the runtime uses and the version the application installs causes silent serialization failures or runtime crashes.
+React Server Components depend on an unstable wire format between the RSC serialization layer and the React reconciler. The serialization protocol, flight format, and directive semantics ([`"use client"`](/guide/client-components), [`"use server"`](/guide/server-functions)) are not yet covered by React's public semver contract. A mismatch between the React version the runtime uses and the version the application installs causes silent serialization failures or runtime crashes.
 
 **Constraint:**
 The RSC wire format must be version-locked across the server renderer, the client hydrator, and the flight encoder/decoder. Allowing user-installed React creates a combinatorial compatibility surface that cannot be tested reliably since React publishes experimental builds frequently with breaking internal changes.
 
 **Decision:**
-Bundle a specific React experimental build as a direct dependency. At startup, hijack module resolution so all imports of `react`, `react-dom`, `react/jsx-runtime`, and `react-server-dom-webpack` resolve to the runtime's bundled copies. On Node.js this uses `module.register()` with a custom loader; on Bun it uses `module.mock()`/`module.alias()`; on Deno it writes an import map to disk and respawns the process with `--import-map`.
+Bundle a specific React experimental build as a direct dependency and use `@lazarv/rsc` — a bundler-agnostic RSC serialization layer — instead of `react-server-dom-webpack`. At startup, hijack module resolution so all imports of `react`, `react-dom`, and `react/jsx-runtime` resolve to the runtime's bundled copies. On Node.js this uses `module.register()` with a custom loader; on Bun it uses `module.mock()`/`module.alias()`; on Deno it writes an import map to disk and respawns the process with `--import-map`.
 
 **Tradeoffs:**
 - Users cannot upgrade React independently. Adoption of new React features is gated by a runtime release.
@@ -55,6 +55,46 @@ Bundle a specific React experimental build as a direct dependency. At startup, h
 
 **Consequences:**
 The wire format is guaranteed consistent across all render paths. Users do not need to install React — reducing dependency conflicts and version drift. But the runtime's release cadence becomes the bottleneck for React upgrades, and the three-way aliasing layer is a maintenance surface that must be verified against each runtime's release cycle.
+
+<Link name="bundler-agnostic-rsc-serialization">
+### Bundler-Agnostic RSC Serialization
+</Link>
+
+**Problem:**
+React's official RSC serialization package, `react-server-dom-webpack`, is tightly coupled to Webpack. It depends on Webpack-specific module manifests for resolving `"use client"` and `"use server"` references, requires a Webpack plugin to generate those manifests at build time, and uses Webpack's `__webpack_require__` at runtime to load client modules. For a runtime built on [Vite](/integrations/vite) — which uses Rollup/Rolldown for production builds — this coupling creates a permanent impedance mismatch: every call through the serialization layer must shim, intercept, or rewrite Webpack-specific globals and module resolution paths that do not exist in the actual build output.
+
+**Constraint:**
+The replacement must implement the full React Flight wire protocol — the binary framing, row tags, type serialization (Elements, Promises, Maps, Sets, typed arrays, Blobs, ReadableStreams, async iterables, client/server references, temporary references, bound actions), error digest propagation, and the synchronous thenable contract that React's `use()` hook depends on. It must produce byte-identical wire output for all supported types so that existing React client code can consume the stream without modification. And it must run in any environment that supports Web Platform APIs — not just Node.js.
+
+**Decision:**
+Replace `react-server-dom-webpack` with [`@lazarv/rsc`](https://github.com/lazarv/react-server/tree/main/packages/rsc), a standalone Flight protocol implementation built exclusively on Web Platform APIs (`ReadableStream`, `WritableStream`, `TextEncoder`, `FormData`, `Blob`, `URL`). Instead of Webpack manifests, `@lazarv/rsc` exposes abstract `moduleResolver` and `moduleLoader` interfaces — the consumer provides resolution and loading logic, decoupling the serialization layer from any specific bundler. The package uses `Symbol.for()` to access React internal type tags rather than importing from `react` directly, making it compatible with any React version that uses the same symbol conventions.
+
+```js
+// Server: the consumer wires up their own module resolution
+renderToReadableStream(element, {
+  moduleResolver: {
+    resolveClientReference(ref) {
+      return { id: ref.$$id, name: ref.$$name, chunks: [] };
+    },
+  },
+});
+
+// Client: the consumer wires up their own module loading
+createFromReadableStream(stream, {
+  moduleLoader: {
+    requireModule(metadata) {
+      return moduleCache.get(metadata.id)?.[metadata.name];
+    },
+  },
+});
+```
+
+**Tradeoffs:**
+- The implementation must track upstream Flight protocol changes independently. When React adds new row tags, type support, or changes framing semantics in experimental builds, `@lazarv/rsc` must be updated to match — there is no automatic inheritance from React's codebase.
+- The abstract `moduleResolver`/`moduleLoader` interfaces shift integration complexity from the serialization library to the consumer. For `@lazarv/react-server` this is handled by the Vite plugin layer, but standalone consumers must implement their own resolution logic.
+
+**Consequences:**
+The Webpack shim layer — global `__webpack_require__` interception, manifest generation, chunk ID rewriting — is eliminated entirely. Serialization performance improves substantially: benchmarks show 2–6× higher throughput on serialization (e.g., 659K vs 102K ops/s for minimal elements, 4.6K vs 777 ops/s for wide trees) and 1.2–11× on deserialization (e.g., 44K vs 3.9K ops/s for shallow-wide trees), with roundtrip gains of 2–6× across representative payloads. The same serialization code runs identically on Node.js, Bun, Deno, Cloudflare Workers, and in the browser — no platform-specific entry points or conditional imports. Because the interfaces are abstract, the runtime is free to evolve its build tooling (e.g., migrating from Rollup to Rolldown) without touching the serialization layer. And critically, the same code path executes in both development and production — unlike `react-server-dom-webpack`, which ships separate development and production bundles with different code paths, `@lazarv/rsc` has a single implementation with no environment-conditional branches, eliminating an entire class of dev/prod divergence bugs.
 
 <Link name="multi-runtime-execution">
 ### Multi-Runtime Execution

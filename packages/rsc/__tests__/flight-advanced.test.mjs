@@ -72,20 +72,23 @@ describe("Advanced Flight Features", () => {
       const secretKey = "super-secret-api-key-" + Date.now();
       taintUniqueValue("Do not pass API keys to the client", secretKey);
 
-      await expect(async () => {
-        const stream = renderToReadableStream(secretKey);
-        await createFromReadableStream(stream);
-      }).rejects.toThrow("Do not pass API keys to the client");
+      // Taint errors are caught by startWork and emitted as error rows.
+      // For the root chunk (id=0), the client resolves with an ErrorThrower
+      // element that throws during rendering (matching react-server-dom-webpack).
+      const stream = renderToReadableStream(secretKey);
+      const result = await createFromReadableStream(stream);
+      expect(result.type.displayName).toBe("FlightError");
+      expect(() => result.type()).toThrow("Do not pass API keys to the client");
     });
 
     test("taintUniqueValue should work with bigint", async () => {
       const secretId = BigInt(Date.now());
       taintUniqueValue("Secret ID cannot be sent to client", secretId);
 
-      await expect(async () => {
-        const stream = renderToReadableStream(secretId);
-        await createFromReadableStream(stream);
-      }).rejects.toThrow("Secret ID cannot be sent to client");
+      const stream = renderToReadableStream(secretId);
+      const result = await createFromReadableStream(stream);
+      expect(result.type.displayName).toBe("FlightError");
+      expect(() => result.type()).toThrow("Secret ID cannot be sent to client");
     });
 
     test("taintObjectReference should prevent serialization of tainted objects", async () => {
@@ -99,10 +102,12 @@ describe("Advanced Flight Features", () => {
         secretConfig
       );
 
-      await expect(async () => {
-        const stream = renderToReadableStream(secretConfig);
-        await createFromReadableStream(stream);
-      }).rejects.toThrow("Configuration objects cannot be sent to the client");
+      const stream = renderToReadableStream(secretConfig);
+      const result = await createFromReadableStream(stream);
+      expect(result.type.displayName).toBe("FlightError");
+      expect(() => result.type()).toThrow(
+        "Configuration objects cannot be sent to the client"
+      );
     });
 
     test("taintObjectReference should work with arrays", async () => {
@@ -114,10 +119,10 @@ describe("Advanced Flight Features", () => {
       ];
       taintObjectReference("Secret arrays cannot be serialized", secretArray);
 
-      await expect(async () => {
-        const stream = renderToReadableStream(secretArray);
-        await createFromReadableStream(stream);
-      }).rejects.toThrow("Secret arrays cannot be serialized");
+      const stream = renderToReadableStream(secretArray);
+      const result = await createFromReadableStream(stream);
+      expect(result.type.displayName).toBe("FlightError");
+      expect(() => result.type()).toThrow("Secret arrays cannot be serialized");
     });
 
     test("non-tainted values should serialize normally", async () => {

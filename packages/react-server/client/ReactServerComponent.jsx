@@ -374,7 +374,13 @@ function FlightComponent({
       throw error;
     }
   } else if (
-    Component?.[0]?._payload?.reason?.digest?.startsWith("Location=")
+    // Detect redirect errors in the resolved flight tree.  With @lazarv/rsc
+    // the root is a React element whose type is a lazy wrapper.  The lazy
+    // wrapper's _payload is the rejected chunk; the error object is stored
+    // in chunk.value (not chunk.reason — reason lives on chunk.promise).
+    Component?.type?._payload?.value?.digest?.startsWith("Location=") ||
+    // Legacy array-root fallback
+    Component?.[0]?._payload?.value?.digest?.startsWith("Location=")
   ) {
     componentToRender = prevComponent.current;
   } else {

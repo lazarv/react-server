@@ -183,11 +183,11 @@ To externalize the shared dependencies, you can use the `resolve.shared` option 
 
 When you specify the shared dependencies in the `react-server.config.json` file, the hosting application and the micro-frontends will load the shared dependencies from the specified remote URL.
 
-For `@lazarv/react-server` to work properly with import maps, you need to specify the source for `react`, `react-jsx/runtime` (or `react/jsx-dev-runtime`), `react-dom`, `react-dom/client`, and `react-server-dom-webpack/client.browser` in the import map.
+For `@lazarv/react-server` to work properly with import maps, you need to specify the source for `react`, `react-jsx/runtime` (or `react/jsx-dev-runtime`), `react-dom`, and `react-dom/client` in the import map.
 
 If you want to use these dependencies from the CDN even during development, you can specify the source for these dependencies in the import map, but keep in mind that you need the development version of these dependencies.
 
-> **Warning:** You need to use the exact same versions of `react`, `react/jsx-dev-runtime`, `react/jsx-runtime`, `react-dom`, `react-dom/client`, and `react-server-dom-webpack/client.browser` in the hosting application and the micro-frontends, both on the client and the server side. Otherwise, you may encounter compatibility issues.
+> **Warning:** You need to use the exact same versions of `react`, `react/jsx-dev-runtime`, `react/jsx-runtime`, `react-dom`, and `react-dom/client` in the hosting application and the micro-frontends, both on the client and the server side. Otherwise, you may encounter compatibility issues.
 
 To use an import map to work with both development and production environments, you need to create a configuration file for each environments, specifying the import maps. The configuration files below show how to use an import map that uses React from [esm.sh](https://esm.sh).
 
@@ -205,9 +205,7 @@ export default {
       "react-dom":
         "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409?dev",
       "react-dom/client":
-        "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409/client?dev",
-      "react-server-dom-webpack/client.browser":
-        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-705268dc-20260409/client.browser?dev",
+        "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409/client?dev"
     },
   },
 };
@@ -225,9 +223,7 @@ export default {
       "react-dom":
         "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409",
       "react-dom/client":
-        "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409/client",
-      "react-server-dom-webpack/client.browser":
-        "https://esm.sh/react-server-dom-webpack@0.0.0-experimental-705268dc-20260409/client.browser",
+        "https://esm.sh/react-dom@0.0.0-experimental-705268dc-20260409/client"
     },
   },
 };

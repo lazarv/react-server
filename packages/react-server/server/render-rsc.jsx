@@ -1,9 +1,12 @@
 import { ReadableStream } from "node:stream/web";
-
-import server, {
+import {
   createTemporaryReferenceSet,
-  decodeReply,
-} from "react-server-dom-webpack/server.edge";
+  decodeReply as _decodeReply,
+  decodeAction,
+  decodeFormState,
+  renderToReadableStream,
+} from "@lazarv/rsc/server";
+import React from "react";
 
 import {
   concat,
@@ -62,11 +65,40 @@ import { cwd } from "../lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-reference-map";
 import { serverReferenceMap as _serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
 import { decryptActionId, wrapServerReferenceMap } from "./action-crypto.mjs";
+import { requireModule } from "./module-loader.mjs";
 import { ScrollRestoration } from "../client/ScrollRestoration.jsx";
 
 let DevToolsHost;
 
 const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
+
+// Adapter: wraps the webpack-style client reference Proxy into an @lazarv/rsc
+// moduleResolver.  The Proxy is keyed by "moduleId#exportName" and returns
+// { id, chunks, name, async }.  We expose it as resolveClientReference(ref)
+// so that @lazarv/rsc's FlightRequest can resolve client components.
+function makeModuleResolver(map) {
+  return {
+    resolveClientReference(ref) {
+      const $$id = ref.$$id ?? ref.$$typeof?.$$id;
+      if (!$$id) return null;
+      return map[$$id];
+    },
+  };
+}
+
+// Wrapper: adapts webpack-style decodeReply(body, manifest, opts?) to
+// @lazarv/rsc's decodeReply(body, opts).
+// The webpack API passes the serverReferenceMap as the 2nd arg; the rsc API
+// expects options as the 2nd arg.  We detect and skip the manifest Proxy.
+function decodeReply(body, _manifestOrOpts, opts) {
+  const isManifest =
+    _manifestOrOpts &&
+    typeof _manifestOrOpts === "object" &&
+    !_manifestOrOpts.temporaryReferences &&
+    !_manifestOrOpts.moduleLoader;
+  const realOpts = isManifest ? opts : _manifestOrOpts;
+  return _decodeReply(body, realOpts);
+}
 
 export async function render(Component, props = {}, options = {}) {
   const logger = getContext(LOGGER_CONTEXT);
@@ -152,12 +184,12 @@ export async function render(Component, props = {}, options = {}) {
                 formData.append(key.replace(/^remote:\/\//, ""), value);
               }
               try {
-                input = await server.decodeReply(formData, serverReferenceMap);
+                input = await decodeReply(formData, serverReferenceMap);
               } catch {
                 input = formData;
               }
             } else {
-              input = await server.decodeReply(
+              input = await decodeReply(
                 await context.request.text(),
                 serverReferenceMap
               );
@@ -214,7 +246,7 @@ export async function render(Component, props = {}, options = {}) {
 
               action = async () => {
                 try {
-                  const mod = await globalThis.__webpack_require__(
+                  const mod = await requireModule(
                     serverReference.id.replace(
                       /^server-action:\/\//,
                       "server://"
@@ -240,10 +272,60 @@ export async function render(Component, props = {}, options = {}) {
                 }
               };
             } else {
-              action = await server.decodeAction(
-                input[input.length - 1] ?? input,
-                serverReferenceMap
-              );
+              // Progressive enhancement form submission — action ID is in
+              // the FormData field name ($ACTION_ID_<id>), not a header.
+              // Extract and decrypt the action ID, then load the action the
+              // same way as the header-based path.
+              const formInput = input[input.length - 1] ?? input;
+              let resolved = false;
+              if (formInput instanceof FormData) {
+                let formActionId = null;
+                for (const key of formInput.keys()) {
+                  if (key.startsWith("$ACTION_ID_")) {
+                    formActionId = key.slice(11);
+                    break;
+                  }
+                }
+                if (formActionId) {
+                  const decryptedId = decryptActionId(formActionId);
+                  const resolvedActionId = decryptedId ?? formActionId;
+                  const [, serverReferenceName] = resolvedActionId.split("#");
+                  const serverReference = serverReferenceMap[resolvedActionId];
+                  if (!serverReference) {
+                    throw new ServerFunctionNotFoundError();
+                  }
+                  resolved = true;
+                  action = async () => {
+                    try {
+                      const mod = await requireModule(
+                        serverReference.id.replace(
+                          /^server-action:\/\//,
+                          "server://"
+                        )
+                      );
+                      const fn = mod[serverReferenceName];
+                      if (typeof fn !== "function") {
+                        throw new ServerFunctionNotFoundError();
+                      }
+                      const data = await fn(formInput);
+                      return {
+                        data,
+                        actionId: resolvedActionId,
+                        error: null,
+                      };
+                    } catch (error) {
+                      return {
+                        data: null,
+                        actionId: resolvedActionId,
+                        error,
+                      };
+                    }
+                  };
+                }
+              }
+              if (!resolved) {
+                action = await decodeAction(formInput, serverReferenceMap);
+              }
             }
 
             if (typeof action !== "function") {
@@ -311,7 +393,7 @@ export async function render(Component, props = {}, options = {}) {
                       )
                     : data;
             } else {
-              formState = await server.decodeFormState(
+              formState = await decodeFormState(
                 data,
                 input[input.length - 1] ?? input,
                 serverReferenceMap
@@ -640,31 +722,30 @@ export async function render(Component, props = {}, options = {}) {
                 })
               );
 
-              const flight = server.renderToReadableStream(
-                app,
-                clientReferenceMap({
-                  remote: remote || remoteRSC,
-                  origin,
-                }),
-                {
-                  signal,
-                  temporaryReferences,
-                  onError(e) {
-                    hasError = true;
-                    const redirect = getContext(REDIRECT_CONTEXT);
-                    if (redirect?.response) {
-                      const location =
-                        redirect.response.headers.get("location");
-                      const kind = e?.kind || "navigate";
-                      return `Location=${location};kind=${kind}`;
-                    }
-                    if (import.meta.env.PROD) {
-                      logger?.error(e);
-                    }
-                    return e?.digest ?? e?.message;
-                  },
-                }
-              );
+              const flight = renderToReadableStream(app, {
+                react: React,
+                moduleResolver: makeModuleResolver(
+                  clientReferenceMap({
+                    remote: remote || remoteRSC,
+                    origin,
+                  })
+                ),
+                signal,
+                temporaryReferences,
+                onError(e) {
+                  hasError = true;
+                  const redirect = getContext(REDIRECT_CONTEXT);
+                  if (redirect?.response) {
+                    const location = redirect.response.headers.get("location");
+                    const kind = e?.kind || "navigate";
+                    return `Location=${location};kind=${kind}`;
+                  }
+                  if (import.meta.env.PROD) {
+                    logger?.error(e);
+                  }
+                  return e?.digest ?? e?.message;
+                },
+              });
 
               const reader = flight.getReader();
               let done = false;
@@ -808,25 +889,25 @@ export async function render(Component, props = {}, options = {}) {
             renderParentCtx ?? undefined
           );
 
-          const flight = server.renderToReadableStream(
-            app,
-            clientReferenceMap({ remote: remote || remoteRSC, origin }),
-            {
-              signal,
-              temporaryReferences,
-              onError(e) {
-                hasError = true;
-                const redirect = getContext(REDIRECT_CONTEXT);
-                if (redirect?.response) {
-                  return resolve(redirect.response);
-                }
-                if (import.meta.env.PROD) {
-                  logger?.error(e);
-                }
-                return e?.digest ?? e?.message;
-              },
-            }
-          );
+          const flight = renderToReadableStream(app, {
+            react: React,
+            moduleResolver: makeModuleResolver(
+              clientReferenceMap({ remote: remote || remoteRSC, origin })
+            ),
+            signal,
+            temporaryReferences,
+            onError(e) {
+              hasError = true;
+              const redirect = getContext(REDIRECT_CONTEXT);
+              if (redirect?.response) {
+                return resolve(redirect.response);
+              }
+              if (import.meta.env.PROD) {
+                logger?.error(e);
+              }
+              return e?.digest ?? e?.message;
+            },
+          });
 
           // ── Telemetry: SSR rendering span (child of RSC, consumes flight stream → HTML) ──
           const rscSpanCtx = makeSpanContext(rscSpan, renderParentCtx);
@@ -860,31 +941,7 @@ export async function render(Component, props = {}, options = {}) {
               renderContext.flags.isRSC || renderContext.flags.isRemote
                 ? []
                 : getContext(MAIN_MODULE),
-            bootstrapScripts:
-              import.meta.env.DEV ||
-              renderContext.flags.isRSC ||
-              renderContext.flags.isRemote
-                ? []
-                : [
-                    `const moduleCache = new Map();
-                    self.__webpack_require__ = function (id) {
-                      if (!moduleCache.has(id)) {
-                        const modulePromise = /^https?\\:/.test(id) ? import(id) : import(("${`/${config.base ?? ""}/`.replace(/\/+/g, "/")}" + id).replace(/\\/+/g, "/"));
-                        modulePromise.then(
-                          (module) => {
-                            modulePromise.value = module;
-                            modulePromise.status = "fulfilled";
-                          },
-                          (reason) => {
-                            modulePromise.reason = reason;
-                            modulePromise.status = "rejected";
-                          }
-                        );
-                        moduleCache.set(id, modulePromise);
-                      }
-                      return moduleCache.get(id);
-                    };`.replace(/\n/g, ""),
-                  ],
+            bootstrapScripts: [],
             outlet,
             defer: context.request.headers.get("react-server-defer") === "true",
             start: async () => {

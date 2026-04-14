@@ -223,6 +223,17 @@ export default function PayloadCollector() {
     }, 500);
 
     // ── 4. Intercept fetch for navigation RSC responses ──
+    //
+    // We cache { targetPageHref → serverPathname } from every RSC response —
+    // including prefetches, since the header they return is the rewritten
+    // server pathname for that target page and will be the right value when
+    // the user later navigates there (forward click or back/forward through
+    // history with a router cache hit, in which case no fresh fetch occurs).
+    //
+    // The "active" server pathname shown in devtools is derived from this
+    // cache at navigation time via computeServerPathname(), keyed by the
+    // current browser URL — not from a single "last header wins" variable.
+    const pathnameByUrl = new Map();
     const originalFetch = window.fetch;
 
     window.fetch = async function (...args) {
@@ -230,11 +241,19 @@ export default function PayloadCollector() {
 
       const contentType = response.headers.get("content-type");
       if (contentType?.includes("text/x-component")) {
-        // Update server pathname from response header (reflects rewrites)
         const serverPath = response.headers.get("x-react-server-pathname");
         if (serverPath) {
-          self.__react_server_pathname__ = serverPath;
-          sendNavigation();
+          // Map RSC endpoint URL back to its page URL so a future navigation
+          // to that page URL can resolve the rewritten server pathname even
+          // without a fresh fetch.
+          const pageHref = rscUrlToPageHref(args[0], response.url);
+          if (pageHref) pathnameByUrl.set(pageHref, serverPath);
+
+          const isPrefetch = isPrefetchRequest(args[0], args[1]);
+          if (!isPrefetch) {
+            self.__react_server_pathname__ = serverPath;
+            sendNavigation();
+          }
         }
         const cloned = response.clone();
         parseAndSend(cloned, args[0]).catch(() => {});
@@ -242,6 +261,72 @@ export default function PayloadCollector() {
 
       return response;
     };
+
+    // The client router fetches `${pageUrl}/rsc.x-component` or
+    // `${pageUrl}/@outlet.rsc.x-component`. Strip that suffix to recover the
+    // page URL. Outlet fetches aren't real page navigations, so skip them.
+    function rscUrlToPageHref(input, responseUrl) {
+      const raw =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : (input?.url ?? responseUrl);
+      if (!raw) return null;
+      let url;
+      try {
+        url = new URL(raw, location.href);
+      } catch {
+        return null;
+      }
+      // Strip query/hash — the page-level URL for highlight matching is path-only
+      // (but we still key by href for exact match; rewrites are per-path).
+      const m = url.pathname.match(/^(.*?)\/(?:@[^/]+\.)?rsc\.x-component$/);
+      if (!m) return null;
+      // Skip outlet-scoped fetches — they return the outlet's own rewrite,
+      // which isn't the active page's server pathname.
+      if (/\/@[^/]+\.rsc\.x-component$/.test(url.pathname)) return null;
+      url.pathname = m[1] || "/";
+      return url.href;
+    }
+
+    function computeServerPathname() {
+      const cached = pathnameByUrl.get(location.href);
+      if (cached) return cached;
+      // Fallback: the browser's own pathname. Loses rewrite information,
+      // but it's better than returning a stale value from another URL.
+      // We deliberately do NOT fall back to self.__react_server_pathname__
+      // here — that global tracks the LAST navigation, which is wrong when
+      // back/forward lands on a URL that never ran through our fetch
+      // interceptor (e.g. the initial URL before any prefetch/navigate).
+      // Initial-URL rewrites are handled by seeding the cache on mount.
+      return location.pathname;
+    }
+
+    function isPrefetchRequest(input, init) {
+      const get = (h, name) => {
+        if (!h) return null;
+        if (typeof h.get === "function") return h.get(name);
+        if (Array.isArray(h)) {
+          for (const [k, v] of h) {
+            if (k.toLowerCase() === name.toLowerCase()) return v;
+          }
+          return null;
+        }
+        for (const k of Object.keys(h)) {
+          if (k.toLowerCase() === name.toLowerCase()) return h[k];
+        }
+        return null;
+      };
+      const fromInit =
+        init?.headers && get(init.headers, "react-server-prefetch");
+      if (fromInit) return String(fromInit).toLowerCase() === "true";
+      if (input && typeof input === "object" && "headers" in input) {
+        const v = get(input.headers, "react-server-prefetch");
+        if (v) return String(v).toLowerCase() === "true";
+      }
+      return false;
+    }
 
     async function parseAndSend(response, requestInfo) {
       const url =
@@ -363,16 +448,51 @@ export default function PayloadCollector() {
     }
 
     // ── 5. Navigation and outlet tracking ──
+    //
+    // We need to react to every way the URL can change:
+    //   1. popstate           — browser back/forward
+    //   2. pushstate/replacestate custom events — fired by client-location.mjs's
+    //                           patched history methods (non-silent calls)
+    //   3. DOM mutations via navObserver — covers router-driven navigation that
+    //                           uses pushStateSilent() (bypasses #2)
+    //
+    // Each signal resolves the active serverPathname via computeServerPathname()
+    // (cache lookup keyed by location.href), which handles the case where back
+    // navigation replays from the router's flightCache with no fresh RSC fetch.
+    let lastSentUrl = null;
+    let lastSentServerPathname = null;
+
     function sendNavigation() {
+      const url = location.href;
+      const serverPathname = computeServerPathname();
+      if (url === lastSentUrl && serverPathname === lastSentServerPathname) {
+        return;
+      }
+      lastSentUrl = url;
+      lastSentServerPathname = serverPathname;
+      // Keep the legacy global in sync so any consumer reading it directly
+      // (e.g. the initial snapshot) sees the correct value post-navigation.
+      if (serverPathname) self.__react_server_pathname__ = serverPathname;
       sendToDevTools({
         type: "devtools:navigate",
-        url: location.href,
-        serverPathname: self.__react_server_pathname__ || null,
+        url,
+        serverPathname: serverPathname || null,
       });
+    }
+
+    // Seed the cache with the initial page's server pathname (set by the
+    // inline script from render-dom.mjs before this component mounted). This
+    // is the only way the initial URL enters the cache — no RSC fetch runs
+    // for it. Without this, closing a modal via history.back() to the root
+    // URL would cache-miss and we'd lose the rewrite.
+    if (self.__react_server_pathname__) {
+      pathnameByUrl.set(location.href, self.__react_server_pathname__);
     }
 
     sendNavigation();
     window.addEventListener("popstate", sendNavigation);
+    window.addEventListener("pushstate", sendNavigation);
+    window.addEventListener("replacestate", sendNavigation);
 
     function sendOutletData() {
       const outletData =
@@ -661,6 +781,8 @@ export default function PayloadCollector() {
       window.fetch = originalFetch;
       window.removeEventListener("message", onMessage);
       window.removeEventListener("popstate", sendNavigation);
+      window.removeEventListener("pushstate", sendNavigation);
+      window.removeEventListener("replacestate", sendNavigation);
       window.removeEventListener("__react_server_cache_event__", onCacheEvent);
       clearInterval(clientWorkerInterval);
       clearInterval(outletInterval);

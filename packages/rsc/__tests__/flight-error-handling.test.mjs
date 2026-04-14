@@ -1010,9 +1010,8 @@ describe("Streaming Error Paths", () => {
 
 describe("Async Module Loader Support", () => {
   test("should support async requireModule in moduleLoader", async () => {
-    // Simulate a module reference row followed by a lazy reference
-    // 1:I{"id":"./Component.js","name":"default","chunks":[]}
-    // 0:{"component":"$L1"}
+    // Async imports are awaited eagerly during stream consumption.
+    // By the time createFromReadableStream resolves, the module is loaded.
     const wire =
       '1:I{"id":"./Component.js","name":"default","chunks":[]}\n' +
       '0:{"component":"$L1"}\n';
@@ -1021,7 +1020,6 @@ describe("Async Module Loader Support", () => {
     const asyncModuleLoader = {
       preloadModule: vi.fn(() => Promise.resolve()),
       requireModule: vi.fn((_metadata) => {
-        // Async module loading - like native import()
         return Promise.resolve({
           default: MockComponent,
         });
@@ -1039,29 +1037,8 @@ describe("Async Module Loader Support", () => {
       moduleLoader: asyncModuleLoader,
     });
 
-    // The result should have a lazy component
-    expect(result.component).toBeDefined();
-    expect(result.component.$$typeof).toBe(Symbol.for("react.lazy"));
-
-    // When _init is called, it should handle the async loading
-    const lazyInit = result.component._init;
-    const payload = result.component._payload;
-
-    // First call throws the promise (for Suspense)
-    let thrownPromise;
-    try {
-      lazyInit(payload);
-    } catch (e) {
-      thrownPromise = e;
-    }
-    expect(thrownPromise).toBeInstanceOf(Promise);
-
-    // Wait for the module to load
-    await thrownPromise;
-
-    // Second call should return the loaded module
-    const loadedModule = lazyInit(payload);
-    expect(loadedModule).toBe(MockComponent);
+    // Module is resolved eagerly — result.component is the actual export
+    expect(result.component).toBe(MockComponent);
     expect(asyncModuleLoader.requireModule).toHaveBeenCalledWith(
       expect.objectContaining({ id: "./Component.js", name: "default" })
     );
@@ -1075,7 +1052,6 @@ describe("Async Module Loader Support", () => {
     const SyncComponent = () => "sync rendered";
     const syncModuleLoader = {
       requireModule: vi.fn((_metadata) => {
-        // Sync module loading - like require()
         return {
           MyComponent: SyncComponent,
         };
@@ -1093,12 +1069,8 @@ describe("Async Module Loader Support", () => {
       moduleLoader: syncModuleLoader,
     });
 
-    // When _init is called, it should return synchronously
-    const lazyInit = result.component._init;
-    const payload = result.component._payload;
-
-    const loadedModule = lazyInit(payload);
-    expect(loadedModule).toBe(SyncComponent);
+    // Sync modules resolve the chunk directly
+    expect(result.component).toBe(SyncComponent);
     expect(syncModuleLoader.requireModule).toHaveBeenCalledWith(
       expect.objectContaining({ id: "./SyncComponent.js", name: "MyComponent" })
     );
@@ -1125,27 +1097,12 @@ describe("Async Module Loader Support", () => {
       moduleLoader: errorModuleLoader,
     });
 
-    const lazyInit = result.component._init;
-    const payload = result.component._payload;
-
-    // First call throws the promise
-    let thrownPromise;
-    try {
-      lazyInit(payload);
-    } catch (e) {
-      thrownPromise = e;
-    }
-    expect(thrownPromise).toBeInstanceOf(Promise);
-
-    // Wait for rejection
-    try {
-      await thrownPromise;
-    } catch {
-      // Expected
-    }
-
-    // Second call should throw the error
-    expect(() => lazyInit(payload)).toThrow("Module load failed");
+    // Rejected module imports produce a lazy wrapper around the rejected chunk.
+    // When _init is called, it throws the error.
+    expect(result.component.$$typeof).toBe(Symbol.for("react.lazy"));
+    expect(() => result.component._init(result.component._payload)).toThrow(
+      "Module load failed"
+    );
   });
 
   test("should store preload promise on reference", async () => {
@@ -1154,9 +1111,10 @@ describe("Async Module Loader Support", () => {
       '0:{"ref":"$L1"}\n';
 
     const preloadPromise = Promise.resolve();
+    const PreloadedComponent = () => "preloaded";
     const preloadLoader = {
       preloadModule: vi.fn(() => preloadPromise),
-      requireModule: vi.fn(() => ({ default: () => "preloaded" })),
+      requireModule: vi.fn(() => ({ default: PreloadedComponent })),
     };
 
     const stream = new ReadableStream({
@@ -1172,11 +1130,8 @@ describe("Async Module Loader Support", () => {
 
     expect(preloadLoader.preloadModule).toHaveBeenCalled();
 
-    // The lazy wrapper should work
-    const lazyInit = result.ref._init;
-    const payload = result.ref._payload;
-    const loaded = lazyInit(payload);
-    expect(typeof loaded).toBe("function");
+    // Sync module is resolved directly
+    expect(result.ref).toBe(PreloadedComponent);
   });
 
   test("should handle module with default export fallback", async () => {
@@ -1204,21 +1159,8 @@ describe("Async Module Loader Support", () => {
       moduleLoader: defaultLoader,
     });
 
-    const lazyInit = result.component._init;
-    const payload = result.component._payload;
-
-    // First call throws promise
-    let thrownPromise;
-    try {
-      lazyInit(payload);
-    } catch (e) {
-      thrownPromise = e;
-    }
-    await thrownPromise;
-
-    // Should fall back to default export
-    const loaded = lazyInit(payload);
-    expect(loaded).toBe(DefaultComponent);
+    // Named export "nonexistent" not found, falls back to default
+    expect(result.component).toBe(DefaultComponent);
   });
 
   test("should handle primitive module return", async () => {
@@ -1241,10 +1183,8 @@ describe("Async Module Loader Support", () => {
       moduleLoader: primitiveLoader,
     });
 
-    const lazyInit = result.value._init;
-    const payload = result.value._payload;
-    const loaded = lazyInit(payload);
-    expect(loaded).toBe("primitive value");
+    // Primitive return from requireModule is used directly
+    expect(result.value).toBe("primitive value");
   });
 
   test("should cache module promise to avoid duplicate loads", async () => {
@@ -1270,34 +1210,8 @@ describe("Async Module Loader Support", () => {
       moduleLoader: cachingLoader,
     });
 
-    const lazyInit = result.component._init;
-    const payload = result.component._payload;
-
-    // Call _init multiple times before promise resolves
-    let promise1, promise2;
-    try {
-      lazyInit(payload);
-    } catch (e) {
-      promise1 = e;
-    }
-    try {
-      lazyInit(payload);
-    } catch (e) {
-      promise2 = e;
-    }
-
-    // Should be the same promise (cached)
-    expect(promise1).toBe(promise2);
-
-    // Wait for load
-    await promise1;
-
-    // After resolution, should return value without calling requireModule again
-    const loaded1 = lazyInit(payload);
-    const loaded2 = lazyInit(payload);
-
-    expect(loaded1).toBe(CachedComponent);
-    expect(loaded2).toBe(CachedComponent);
+    // Module is resolved eagerly
+    expect(result.component).toBe(CachedComponent);
     // requireModule should only be called once
     expect(cachingLoader.requireModule).toHaveBeenCalledTimes(1);
   });

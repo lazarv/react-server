@@ -439,21 +439,19 @@ describe("syncToBuffer / syncFromBuffer - Edge Cases", () => {
     expect(roundTrip(str)).toBe(str);
   });
 
-  it("should throw on rejected root chunk", () => {
-    // Create a buffer with an error row.
-    // The internal FlightResponse creates a promise that rejects —
-    // catch it to prevent an unhandled rejection leak.
+  it("should resolve error row at root as ErrorThrower element", () => {
+    // Error rows at id=0 resolve with an ErrorThrower element (matching
+    // react-server-dom-webpack behavior where the transport promise always
+    // resolves and errors propagate via React's render pipeline).
     const errorPayload = `0:E{"message":"test error"}\n`;
     const bytes = new TextEncoder().encode(errorPayload);
 
-    let thrown;
-    try {
-      syncFromBuffer(bytes);
-    } catch (e) {
-      thrown = e;
-    }
-    expect(thrown).toBeDefined();
-    expect(thrown.message).toBe("test error");
+    const result = syncFromBuffer(bytes);
+
+    // Root resolves to an ErrorThrower React element
+    expect(result.$$typeof).toBe(Symbol.for("react.transitional.element"));
+    expect(result.type.displayName).toBe("FlightError");
+    expect(() => result.type()).toThrow("test error");
 
     // Swallow the async rejection that leaks from the internal chunk promise
     return new Promise((resolve) => setTimeout(resolve, 10));

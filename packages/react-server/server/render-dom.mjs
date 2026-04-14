@@ -4,14 +4,13 @@ import {
   createFromReadableStream,
   createTemporaryReferenceSet,
   encodeReply,
-} from "react-server-dom-webpack/client.edge";
+} from "@lazarv/rsc/client";
 
 import { HttpContextStorage } from "@lazarv/react-server/http-context";
 import { Parser } from "parse5";
 
 import { getEnv, immediate } from "../lib/sys.mjs";
 import dom2flight from "./dom-flight.mjs";
-import { ssrManifest } from "./ssr-manifest.mjs";
 import { remoteTemporaryReferences } from "./temporary-references.mjs";
 import { attachSharedRequestCache } from "../cache/request-cache-shared.mjs";
 import { syncHash } from "@lazarv/react-server/storage-cache";
@@ -19,9 +18,93 @@ import { syncToBuffer } from "@lazarv/rsc/server";
 import { ContextStorage, getContext } from "./context.mjs";
 import { RequestCacheStorage } from "./request-cache-context.mjs";
 import { LINK_QUEUE, MODULE_CACHE, REQUEST_CACHE_SHARED } from "./symbols.mjs";
+import { requireModule as serverRequireModule } from "./module-loader.mjs";
 
 const streamMap = new Map();
 const preludeMap = new Map();
+
+// ── Persistent client-module namespace cache for the SSR moduleLoader adapter ──
+//
+// The per-request module cache (`moduleCacheStorage.run(new Map(), ...)` in
+// ssr-handler.mjs) is allocated fresh on every request, which means
+// `requireModule` in module-loader.mjs always creates a brand
+// new `modulePromise` per request. At the moment `requireModule` is called
+// inside `createFromReadableStream`'s consume loop, the promise's
+// `.status`/`.value` annotation has not yet been set (the `.then` microtask
+// hasn't fired), so the previous "sync fast-path" check was dead code and every
+// client reference was routed through `@lazarv/rsc/client`'s async branch
+// (which pushes into `pendingModuleImports` and makes the consume loop await
+// `Promise.all(pendingModuleImports)` on every reader tick).
+//
+// To actually take the sync branch in resolveModuleReference we need the
+// adapter itself to hold a long-lived map from `metadata.id` to the resolved
+// module namespace. After the first request warms an entry, every subsequent
+// request returns the namespace synchronously, skipping the pending-module
+// gate entirely. The rsc/client sync branch does its own
+// `result[exportName] ?? result.default ?? result` unwrap, so we must return
+// the full namespace here (not a pre-picked export) to preserve existing
+// semantics for multi-export modules and object-valued exports.
+//
+// HMR: in dev mode, editing a client component will not naturally invalidate
+// this cache. Use `invalidateClientModuleNamespaceCache(id?)` from the dev
+// HMR path (or ssr-handler's restart hook) to purge stale entries.
+const clientModuleNamespaceCache = new Map();
+
+export function invalidateClientModuleNamespaceCache(id) {
+  if (id === undefined) {
+    clientModuleNamespaceCache.clear();
+    return;
+  }
+  clientModuleNamespaceCache.delete(id);
+}
+
+function resolveClientModuleSync(metadata) {
+  const id = metadata.id;
+
+  // Always call the server module loader to ensure the per-request module cache
+  // is populated. The hasClientComponent check in the HTML forwarder
+  // (`moduleCacheStorage.getStore()?.size > 0`) relies on this cache having
+  // entries — without it, bootstrap scripts and inline flight data are
+  // omitted and hydration breaks in the browser.
+  const mod = serverRequireModule(id);
+
+  // Fast path: if we already have the resolved namespace in the persistent
+  // cache, return it synchronously. This lets @lazarv/rsc/client's
+  // resolveModuleReference take the sync branch, skipping
+  // pendingModuleImports and the Promise.all gate in the consume loop.
+  const cached = clientModuleNamespaceCache.get(id);
+  if (cached !== undefined) return cached;
+
+  // Already-resolved case — either a plain namespace returned directly by
+  // module-loader.mjs (react-client-reference:, server-action://, ...) or
+  // a modulePromise that has already fulfilled and been annotated by
+  // module-loader.mjs (`.status === "fulfilled"`, `.value = module`).
+  if (mod && typeof mod === "object" && mod.status === "fulfilled") {
+    clientModuleNamespaceCache.set(id, mod.value);
+    return mod.value;
+  }
+  if (mod && typeof mod.then !== "function") {
+    clientModuleNamespaceCache.set(id, mod);
+    return mod;
+  }
+
+  // Async path: the modulePromise is still pending. Attach a .then to
+  // populate the persistent cache once the import resolves so the next
+  // request hits the sync branch above. Return the promise itself to
+  // resolveModuleReference, which will push it onto pendingModuleImports
+  // for the consume loop to await.
+  if (mod && typeof mod.then === "function") {
+    mod.then(
+      (value) => {
+        if (value !== undefined) clientModuleNamespaceCache.set(id, value);
+      },
+      () => {
+        // Swallow; rejection handling lives in rsc/client's async branch.
+      }
+    );
+  }
+  return mod;
+}
 
 // ── Byte-level JS string escaping for inline <script> payloads ──────────────
 // Eliminates the decode → JSON.stringify → encode cycle in the hot render path.
@@ -327,7 +410,19 @@ export const createRenderer = ({
                           renderStream,
                           {
                             temporaryReferences,
-                            ...ssrManifest,
+                            moduleLoader: {
+                              // Sync fast-path: once an entry has been warmed
+                              // by a previous request, resolveClientModuleSync
+                              // returns the already-resolved export as a
+                              // plain value. This makes rsc/client's
+                              // resolveModuleReference take its sync branch,
+                              // skipping pendingModuleImports and the
+                              // Promise.all gate in the consume loop that
+                              // otherwise added ~10ms of fixed per-request
+                              // overhead on every "use client" endpoint.
+                              // See clientModuleNamespaceCache above.
+                              requireModule: resolveClientModuleSync,
+                            },
                           }
                         );
 
@@ -881,6 +976,15 @@ export const createRenderer = ({
                           // ── Inject remaining request cache entries for browser hydration ──
                           // Final sweep after all rendering completes.
                           yield* flushCacheEntries();
+
+                          // Close the browser-side flight writer so the client's
+                          // createFromReadableStream consume loop sees `done: true`
+                          // and React can complete hydration.
+                          if (bootstrapped && !remote) {
+                            yield encoder.encode(
+                              `<script>document.currentScript.parentNode.removeChild(document.currentScript);self.__flightWriter__${outlet}__?.close();</script>`
+                            );
+                          }
                         };
 
                         const remoteWorker = async function* () {
@@ -978,6 +1082,11 @@ export const createRenderer = ({
                             controller.close();
                             parentPort.postMessage({ id, done: true });
                           } catch (e) {
+                            try {
+                              controller.close();
+                            } catch {
+                              /* already closed/errored */
+                            }
                             parentPort.postMessage({
                               id,
                               done: true,
@@ -990,6 +1099,11 @@ export const createRenderer = ({
 
                         render();
                       } catch (error) {
+                        try {
+                          controller.close();
+                        } catch {
+                          /* already closed/errored */
+                        }
                         parentPort.postMessage({
                           id,
                           done: true,

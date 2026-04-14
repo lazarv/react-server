@@ -161,8 +161,8 @@ export const adapter = createAdapter({
       }
     );
 
-    // --- Rewrite __webpack_require__ to use bare specifiers ---
-    // The original does: import(("/" + id).replace(/\/+/g, "/"))
+    // --- Rewrite module loader imports to use bare specifiers ---
+    // The bundled module loader does: import(("/" + id).replace(/\/+/g, "/"))
     // which produces URL-like paths (/client/foo.mjs) that can't be resolved
     // from blob: URL modules. We change it to strip leading / so that
     // bare specifiers (client/foo.mjs) are used instead.

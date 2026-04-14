@@ -1,1 +1,5 @@
 coverage/
+bench-raw.json
+bench-results.json
+flight-baseline.json
+comment.md

@@ -187,3 +187,76 @@ jobs:
             echo "Creating new comment"
             gh pr comment "$PR_NUMBER" --body-file examples/benchmark/comment.md
           fi
+
+  flight-benchmark:
+    name: Flight protocol benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/workflows/actions/common-setup
+
+      - name: Run flight benchmarks
+        working-directory: packages/rsc
+        run: pnpm bench:json
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      - name: Process results & generate report
+        working-directory: packages/rsc
+        run: node __bench__/report.mjs --current bench-raw.json --output bench-results.json --markdown comment.md --commit ${{ github.sha }}
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-bench-${{ github.sha }}
+          path: packages/rsc/bench-results.json
+          retention-days: 90
+
+      # ── Main branch: save baseline to cache ──────────────────────────────
+      - name: Save baseline to cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: packages/rsc/bench-results.json
+          key: flight-bench-baseline-${{ github.sha }}
+
+      # ── Pull request: compare against main baseline ──────────────────────
+      - name: Restore baseline from main
+        if: github.event_name == 'pull_request'
+        id: flight-baseline
+        uses: actions/cache/restore@v4
+        with:
+          path: packages/rsc/flight-baseline.json
+          key: flight-bench-baseline-${{ github.event.pull_request.base.sha }}
+          restore-keys: flight-bench-baseline-
+
+      - name: Generate comparison report
+        if: github.event_name == 'pull_request' && steps.flight-baseline.outputs.cache-matched-key != ''
+        working-directory: packages/rsc
+        run: node __bench__/report.mjs --current bench-results.json --baseline flight-baseline.json --markdown comment.md --commit ${{ github.sha }}
+
+      - name: Post or update PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+
+          # Find existing flight benchmark comment by HTML marker
+          COMMENT_ID=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --paginate --jq '.[] | select(.body | contains("<!-- flight-bench-results -->")) | .id' \
+            | head -1)
+
+          if [ -n "$COMMENT_ID" ]; then
+            echo "Updating existing comment ${COMMENT_ID}"
+            gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" \
+              -X PATCH \
+              -F "body=@packages/rsc/comment.md"
+          else
+            echo "Creating new comment"
+            gh pr comment "$PR_NUMBER" --body-file packages/rsc/comment.md
+          fi

@@ -17,6 +17,7 @@ import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
 
 import reactServerEval from "../plugins/react-server-eval.mjs";
+import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
 import reactServerLive from "../plugins/live.mjs";
 import rootModule from "../plugins/root-module.mjs";
@@ -59,8 +60,10 @@ import {
   reactCompilerRuntime,
   reactDomServer,
   reactDomServerEdge,
-  reactServerDomWebpackClientEdge,
-  reactServerDomWebpackServerEdge,
+  rscClient,
+  rscServer,
+  // reactServerDomWebpackClientEdge,
+  // reactServerDomWebpackServerEdge,
   reactIs,
   // Standard versions (for SSR build)
   react,
@@ -149,9 +152,8 @@ export default async function serverBuild(root, options, clientManifestBus) {
     "react-dom",
     "react-dom/client",
     "react-dom/server.edge",
-    "react-server-dom-webpack/client.browser",
-    "react-server-dom-webpack/client.edge",
-    "react-server-dom-webpack/server.edge",
+    "@lazarv/rsc/client",
+    "@lazarv/rsc/server",
     "react-is",
     "picocolors",
     "unstorage",
@@ -523,14 +525,12 @@ export default async function serverBuild(root, options, clientManifestBus) {
                 find: /^react-dom\/server\.edge$/,
                 replacement: reactDomServerEdge,
               },
-              {
-                find: /^react-server-dom-webpack\/client\.edge$/,
-                replacement: reactServerDomWebpackClientEdge,
-              },
-              {
-                find: /^react-server-dom-webpack\/server\.edge$/,
-                replacement: reactServerDomWebpackServerEdge,
-              },
+              ...(rscClient
+                ? [{ find: /^@lazarv\/rsc\/client$/, replacement: rscClient }]
+                : []),
+              ...(rscServer
+                ? [{ find: /^@lazarv\/rsc\/server$/, replacement: rscServer }]
+                : []),
               {
                 find: /^react-is$/,
                 replacement: reactIs,
@@ -546,7 +546,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
       conditions: ["react-server"],
       externalConditions: ["react-server"],
       dedupe: [
-        "react-server-dom-webpack",
+        "@lazarv/rsc",
         "react-is",
         "picocolors",
         "@lazarv/react-server",
@@ -805,6 +805,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
       ...buildPlugins,
       fixEsbuildOptionsPlugin(),
       reactServerLive(),
+      reactServerRuntime({ base: config.base }),
     ],
     css: {
       ...config.css,
@@ -822,7 +823,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
         : [
             "react",
             "react-dom",
-            "react-server-dom-webpack",
+            "@lazarv/rsc",
             "react-is",
             ...(config.ssr?.external ?? []),
             ...(config.external ?? []),
@@ -918,10 +919,9 @@ export default async function serverBuild(root, options, clientManifestBus) {
                 find: /^react-dom\/server\.edge$/,
                 replacement: reactDomServerEdge,
               },
-              {
-                find: /^react-server-dom-webpack\/client\.edge$/,
-                replacement: reactServerDomWebpackClientEdge,
-              },
+              ...(rscClient
+                ? [{ find: /^@lazarv\/rsc\/client$/, replacement: rscClient }]
+                : []),
               { find: /^react-is$/, replacement: reactIs },
             ]
           : []),
@@ -939,7 +939,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
               options.edge &&
               (alias.replacement.includes("/react/") ||
                 alias.replacement.includes("/react-dom/") ||
-                alias.replacement.includes("react-server-dom-webpack/"))
+                alias.replacement.includes("@lazarv/rsc/"))
             )
         ),
       ],
@@ -1134,6 +1134,7 @@ export default __rs_descriptor__.from(mapping);
       manifestRegistry(),
       manifestGenerator(clientManifest, serverManifest, "ssr"),
       fixEsbuildOptionsPlugin(),
+      reactServerRuntime({ base: config.base }),
     ],
     ssr: {
       ...config.ssr,

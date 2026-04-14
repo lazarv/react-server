@@ -3,6 +3,15 @@ import { pathToFileURL } from "node:url";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { createRenderer } from "@lazarv/react-server/server/render-dom.mjs";
+import {
+  init$ as runtime_init$,
+  runtime$,
+} from "@lazarv/react-server/server/runtime.mjs";
+import {
+  LINK_QUEUE,
+  MODULE_CACHE,
+  MODULE_LOADER,
+} from "@lazarv/react-server/server/symbols.mjs";
 import { ModuleRunner } from "vite/module-runner";
 
 import * as sys from "../sys.mjs";
@@ -92,39 +101,39 @@ export async function renderWorker(parentPort) {
   );
 
   const moduleCacheStorage = new AsyncLocalStorage();
-  globalThis.__webpack_require__ = function (id) {
-    try {
-      const moduleCache = moduleCacheStorage.getStore() ?? new Map();
-      if (!moduleCache.has(id)) {
-        if (/http(s?):/.test(id)) {
-          const url = new URL(id);
-          const moduleUrl = join(cwd, url.pathname);
-          const mod = moduleRunner.import(moduleUrl);
-          moduleCache.set(id, mod);
-          return mod;
-        }
-        const moduleUrl = join(cwd, id);
-        const mod = moduleRunner.import(
-          /:\//.test(moduleUrl) ? pathToFileURL(moduleUrl).href : moduleUrl
-        );
-        moduleCache.set(id, mod);
-        return mod;
-      }
-      return moduleCache.get(id);
-    } catch (e) {
-      console.error(e);
+  const linkQueueStorage = new AsyncLocalStorage();
+
+  // Adapter: wraps moduleRunner.import() for use by the module loader.
+  // requireModule() calls ssrLoadModule with protocol-prefixed specifiers
+  // (e.g. "client://src/Page.jsx") — strip the protocol to get a file path.
+  const ssrLoadModule = (specifier) => {
+    const moduleId = specifier.replace(/^(client|server):\/\//, "");
+    if (/^https?:/.test(moduleId)) {
+      const url = new URL(moduleId);
+      return moduleRunner.import(join(cwd, url.pathname));
     }
+    const moduleUrl = join(cwd, moduleId);
+    return moduleRunner.import(
+      /:\//.test(moduleUrl) ? pathToFileURL(moduleUrl).href : moduleUrl
+    );
   };
 
-  const linkQueueStorage = new AsyncLocalStorage();
-  const handleRenderMessage = createRenderer({
-    moduleCacheStorage,
-    linkQueueStorage,
-    parentPort,
-  });
-  parentPort.on("message", (payload) => {
-    if (payload.type === "render") {
-      handleRenderMessage(payload);
-    }
+  await runtime_init$(async () => {
+    runtime$({
+      [MODULE_LOADER]: ssrLoadModule,
+      [MODULE_CACHE]: moduleCacheStorage,
+      [LINK_QUEUE]: linkQueueStorage,
+    });
+
+    const handleRenderMessage = createRenderer({
+      moduleCacheStorage,
+      linkQueueStorage,
+      parentPort,
+    });
+    parentPort.on("message", (payload) => {
+      if (payload.type === "render") {
+        handleRenderMessage(payload);
+      }
+    });
   });
 }

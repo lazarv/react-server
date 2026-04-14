@@ -15,8 +15,8 @@
 import { describe, expect, test } from "vitest";
 
 // @lazarv/rsc imports
-import * as LazarvServer from "../server/shared.mjs";
-import * as LazarvClient from "../client/shared.mjs";
+import * as RscServer from "../server/shared.mjs";
+import * as RscClient from "../client/shared.mjs";
 
 // Try to import react-server-dom-webpack
 let ReactDomServer;
@@ -59,7 +59,7 @@ describeIf("Temporary References Cross-Compatibility", () => {
   describe("createTemporaryReferenceSet type parity", () => {
     test("server sets should both be WeakMaps", () => {
       const reactSet = ReactDomServer.createTemporaryReferenceSet();
-      const lazarvSet = LazarvServer.createTemporaryReferenceSet();
+      const lazarvSet = RscServer.createTemporaryReferenceSet();
       // React uses WeakMap on the server (proxy → id)
       expect(reactSet).toBeInstanceOf(WeakMap);
       expect(lazarvSet).toBeInstanceOf(WeakMap);
@@ -67,7 +67,7 @@ describeIf("Temporary References Cross-Compatibility", () => {
 
     test("client sets should both be Maps", () => {
       const reactSet = ReactDomClient.createTemporaryReferenceSet();
-      const lazarvSet = LazarvClient.createTemporaryReferenceSet();
+      const lazarvSet = RscClient.createTemporaryReferenceSet();
       // Both clients use Map (path → value)
       expect(reactSet).toBeInstanceOf(Map);
       expect(lazarvSet).toBeInstanceOf(Map);
@@ -82,13 +82,13 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const fn = () => {};
 
       const reactTempRefs = ReactDomClient.createTemporaryReferenceSet();
-      const lazarvTempRefs = LazarvClient.createTemporaryReferenceSet();
+      const lazarvTempRefs = RscClient.createTemporaryReferenceSet();
 
       const reactEncoded = await ReactDomClient.encodeReply(
         { name: "test", handler: fn },
         { temporaryReferences: reactTempRefs }
       );
-      const lazarvEncoded = await LazarvClient.encodeReply(
+      const lazarvEncoded = await RscClient.encodeReply(
         { name: "test", handler: fn },
         { temporaryReferences: lazarvTempRefs }
       );
@@ -113,13 +113,13 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const sym = Symbol("local-only");
 
       const reactTempRefs = ReactDomClient.createTemporaryReferenceSet();
-      const lazarvTempRefs = LazarvClient.createTemporaryReferenceSet();
+      const lazarvTempRefs = RscClient.createTemporaryReferenceSet();
 
       const reactEncoded = await ReactDomClient.encodeReply(
         { value: 42, tag: sym },
         { temporaryReferences: reactTempRefs }
       );
-      const lazarvEncoded = await LazarvClient.encodeReply(
+      const lazarvEncoded = await RscClient.encodeReply(
         { value: 42, tag: sym },
         { temporaryReferences: lazarvTempRefs }
       );
@@ -137,13 +137,13 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const fn = () => {};
 
       const reactTempRefs = ReactDomClient.createTemporaryReferenceSet();
-      const lazarvTempRefs = LazarvClient.createTemporaryReferenceSet();
+      const lazarvTempRefs = RscClient.createTemporaryReferenceSet();
 
       await ReactDomClient.encodeReply(
         { handler: fn },
         { temporaryReferences: reactTempRefs }
       );
-      await LazarvClient.encodeReply(
+      await RscClient.encodeReply(
         { handler: fn },
         { temporaryReferences: lazarvTempRefs }
       );
@@ -168,14 +168,14 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const fn = () => "hello";
 
       const clientTempRefs = ReactDomClient.createTemporaryReferenceSet();
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
 
       const encoded = await ReactDomClient.encodeReply(
         { name: "test", handler: fn },
         { temporaryReferences: clientTempRefs }
       );
 
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
@@ -193,10 +193,10 @@ describeIf("Temporary References Cross-Compatibility", () => {
     test("lazarv encodeReply → React decodeReply: function becomes opaque proxy", async () => {
       const fn = () => "hello";
 
-      const clientTempRefs = LazarvClient.createTemporaryReferenceSet();
+      const clientTempRefs = RscClient.createTemporaryReferenceSet();
       const serverTempRefs = ReactDomServer.createTemporaryReferenceSet();
 
-      const encoded = await LazarvClient.encodeReply(
+      const encoded = await RscClient.encodeReply(
         { name: "test", handler: fn },
         { temporaryReferences: clientTempRefs }
       );
@@ -218,14 +218,14 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const sym = Symbol("local");
 
       const clientTempRefs = ReactDomClient.createTemporaryReferenceSet();
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
 
       const encoded = await ReactDomClient.encodeReply(
         { result: 42, tag: sym },
         { temporaryReferences: clientTempRefs }
       );
 
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
@@ -239,10 +239,10 @@ describeIf("Temporary References Cross-Compatibility", () => {
     test("lazarv encodeReply → React decodeReply: local symbol becomes opaque proxy", async () => {
       const sym = Symbol("local");
 
-      const clientTempRefs = LazarvClient.createTemporaryReferenceSet();
+      const clientTempRefs = RscClient.createTemporaryReferenceSet();
       const serverTempRefs = ReactDomServer.createTemporaryReferenceSet();
 
-      const encoded = await LazarvClient.encodeReply(
+      const encoded = await RscClient.encodeReply(
         { result: 42, tag: sym },
         { temporaryReferences: clientTempRefs }
       );
@@ -272,8 +272,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
       );
 
       // Decode with lazarv server
-      const lazarvServerRefs = LazarvServer.createTemporaryReferenceSet();
-      const lazarvDecoded = await LazarvServer.decodeReply(encoded, {
+      const lazarvServerRefs = RscServer.createTemporaryReferenceSet();
+      const lazarvDecoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: lazarvServerRefs,
       });
 
@@ -284,7 +284,7 @@ describeIf("Temporary References Cross-Compatibility", () => {
       });
 
       // Render with lazarv
-      const lazarvStream = LazarvServer.renderToReadableStream(lazarvDecoded, {
+      const lazarvStream = RscServer.renderToReadableStream(lazarvDecoded, {
         temporaryReferences: lazarvServerRefs,
       });
       const lazarvWire = await streamToString(lazarvStream);
@@ -329,8 +329,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const lazarvServerRefs = LazarvServer.createTemporaryReferenceSet();
-      const lazarvDecoded = await LazarvServer.decodeReply(encoded, {
+      const lazarvServerRefs = RscServer.createTemporaryReferenceSet();
+      const lazarvDecoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: lazarvServerRefs,
       });
 
@@ -339,7 +339,7 @@ describeIf("Temporary References Cross-Compatibility", () => {
         temporaryReferences: reactServerRefs,
       });
 
-      const lazarvStream = LazarvServer.renderToReadableStream(lazarvDecoded, {
+      const lazarvStream = RscServer.renderToReadableStream(lazarvDecoded, {
         temporaryReferences: lazarvServerRefs,
       });
       const lazarvWire = await streamToString(lazarvStream);
@@ -383,13 +383,13 @@ describeIf("Temporary References Cross-Compatibility", () => {
       );
 
       // lazarv server: decode
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
       // lazarv server: render back
-      const stream = LazarvServer.renderToReadableStream(decoded, {
+      const stream = RscServer.renderToReadableStream(decoded, {
         temporaryReferences: serverTempRefs,
       });
 
@@ -411,12 +411,12 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
-      const stream = LazarvServer.renderToReadableStream(decoded, {
+      const stream = RscServer.renderToReadableStream(decoded, {
         temporaryReferences: serverTempRefs,
       });
 
@@ -445,12 +445,12 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
-      const stream = LazarvServer.renderToReadableStream(decoded, {
+      const stream = RscServer.renderToReadableStream(decoded, {
         temporaryReferences: serverTempRefs,
       });
 
@@ -480,12 +480,12 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
-      const stream = LazarvServer.renderToReadableStream(decoded, {
+      const stream = RscServer.renderToReadableStream(decoded, {
         temporaryReferences: serverTempRefs,
       });
 
@@ -509,8 +509,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const originalFn = () => "I am the original";
 
       // lazarv client: encode
-      const clientTempRefs = LazarvClient.createTemporaryReferenceSet();
-      const encoded = await LazarvClient.encodeReply(
+      const clientTempRefs = RscClient.createTemporaryReferenceSet();
+      const encoded = await RscClient.encodeReply(
         { name: "test", handler: originalFn },
         { temporaryReferences: clientTempRefs }
       );
@@ -527,7 +527,7 @@ describeIf("Temporary References Cross-Compatibility", () => {
       });
 
       // lazarv client: recover
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         temporaryReferences: clientTempRefs,
       });
 
@@ -538,8 +538,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
     test("local symbol survives lazarv encode → React decode+render → lazarv decode", async () => {
       const sym = Symbol("my-local-sym");
 
-      const clientTempRefs = LazarvClient.createTemporaryReferenceSet();
-      const encoded = await LazarvClient.encodeReply(
+      const clientTempRefs = RscClient.createTemporaryReferenceSet();
+      const encoded = await RscClient.encodeReply(
         { value: "ok", tag: sym },
         { temporaryReferences: clientTempRefs }
       );
@@ -553,7 +553,7 @@ describeIf("Temporary References Cross-Compatibility", () => {
         temporaryReferences: serverTempRefs,
       });
 
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         temporaryReferences: clientTempRefs,
       });
 
@@ -565,8 +565,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const fn1 = function onSave() {};
       const fn2 = function onCancel() {};
 
-      const clientTempRefs = LazarvClient.createTemporaryReferenceSet();
-      const encoded = await LazarvClient.encodeReply(
+      const clientTempRefs = RscClient.createTemporaryReferenceSet();
+      const encoded = await RscClient.encodeReply(
         {
           items: [
             { label: "save", action: fn1 },
@@ -585,7 +585,7 @@ describeIf("Temporary References Cross-Compatibility", () => {
         temporaryReferences: serverTempRefs,
       });
 
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         temporaryReferences: clientTempRefs,
       });
 
@@ -614,11 +614,11 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const encoded1 = await ReactDomClient.encodeReply(data, {
         temporaryReferences: clientTempRefs1,
       });
-      const lazarvServerRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded1 = await LazarvServer.decodeReply(encoded1, {
+      const lazarvServerRefs = RscServer.createTemporaryReferenceSet();
+      const decoded1 = await RscServer.decodeReply(encoded1, {
         temporaryReferences: lazarvServerRefs,
       });
-      const stream1 = LazarvServer.renderToReadableStream(decoded1, {
+      const stream1 = RscServer.renderToReadableStream(decoded1, {
         temporaryReferences: lazarvServerRefs,
       });
       const result1 = await ReactDomClient.createFromReadableStream(stream1, {
@@ -652,13 +652,13 @@ describeIf("Temporary References Cross-Compatibility", () => {
     test("lazarv client should recover same values regardless of which server relays", async () => {
       const fn = () => {};
 
-      const clientTempRefs1 = LazarvClient.createTemporaryReferenceSet();
-      const clientTempRefs2 = LazarvClient.createTemporaryReferenceSet();
+      const clientTempRefs1 = RscClient.createTemporaryReferenceSet();
+      const clientTempRefs2 = RscClient.createTemporaryReferenceSet();
 
       const data = { action: fn, label: "go" };
 
       // Path A: lazarv client → React server → lazarv client
-      const encoded1 = await LazarvClient.encodeReply(data, {
+      const encoded1 = await RscClient.encodeReply(data, {
         temporaryReferences: clientTempRefs1,
       });
       const reactServerRefs = ReactDomServer.createTemporaryReferenceSet();
@@ -668,22 +668,22 @@ describeIf("Temporary References Cross-Compatibility", () => {
       const stream1 = ReactDomServer.renderToReadableStream(decoded1, null, {
         temporaryReferences: reactServerRefs,
       });
-      const result1 = await LazarvClient.createFromReadableStream(stream1, {
+      const result1 = await RscClient.createFromReadableStream(stream1, {
         temporaryReferences: clientTempRefs1,
       });
 
       // Path B: lazarv client → lazarv server → lazarv client
-      const encoded2 = await LazarvClient.encodeReply(data, {
+      const encoded2 = await RscClient.encodeReply(data, {
         temporaryReferences: clientTempRefs2,
       });
-      const lazarvServerRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded2 = await LazarvServer.decodeReply(encoded2, {
+      const lazarvServerRefs = RscServer.createTemporaryReferenceSet();
+      const decoded2 = await RscServer.decodeReply(encoded2, {
         temporaryReferences: lazarvServerRefs,
       });
-      const stream2 = LazarvServer.renderToReadableStream(decoded2, {
+      const stream2 = RscServer.renderToReadableStream(decoded2, {
         temporaryReferences: lazarvServerRefs,
       });
-      const result2 = await LazarvClient.createFromReadableStream(stream2, {
+      const result2 = await RscClient.createFromReadableStream(stream2, {
         temporaryReferences: clientTempRefs2,
       });
 
@@ -708,8 +708,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const lazarvServerRefs = LazarvServer.createTemporaryReferenceSet();
-      const lazarvDecoded = await LazarvServer.decodeReply(encoded, {
+      const lazarvServerRefs = RscServer.createTemporaryReferenceSet();
+      const lazarvDecoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: lazarvServerRefs,
       });
 
@@ -736,8 +736,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const lazarvServerRefs = LazarvServer.createTemporaryReferenceSet();
-      const lazarvDecoded = await LazarvServer.decodeReply(encoded, {
+      const lazarvServerRefs = RscServer.createTemporaryReferenceSet();
+      const lazarvDecoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: lazarvServerRefs,
       });
 
@@ -768,8 +768,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const lazarvServerRefs = LazarvServer.createTemporaryReferenceSet();
-      const lazarvDecoded = await LazarvServer.decodeReply(encoded, {
+      const lazarvServerRefs = RscServer.createTemporaryReferenceSet();
+      const lazarvDecoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: lazarvServerRefs,
       });
 
@@ -803,21 +803,21 @@ describeIf("Temporary References Cross-Compatibility", () => {
       ).rejects.toThrow();
 
       // lazarv client → lazarv server → lazarv client
-      const clientTempRefs = LazarvClient.createTemporaryReferenceSet();
-      const encoded = await LazarvClient.encodeReply(fn, {
+      const clientTempRefs = RscClient.createTemporaryReferenceSet();
+      const encoded = await RscClient.encodeReply(fn, {
         temporaryReferences: clientTempRefs,
       });
 
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
-      const stream = LazarvServer.renderToReadableStream(decoded, {
+      const stream = RscServer.renderToReadableStream(decoded, {
         temporaryReferences: serverTempRefs,
       });
 
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         temporaryReferences: clientTempRefs,
       });
 
@@ -835,12 +835,12 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
-      const stream = LazarvServer.renderToReadableStream(decoded, {
+      const stream = RscServer.renderToReadableStream(decoded, {
         temporaryReferences: serverTempRefs,
       });
 
@@ -857,8 +857,8 @@ describeIf("Temporary References Cross-Compatibility", () => {
     test("deeply nested temp refs survive cross-library round-trip", async () => {
       const fn = () => {};
 
-      const clientTempRefs = LazarvClient.createTemporaryReferenceSet();
-      const encoded = await LazarvClient.encodeReply(
+      const clientTempRefs = RscClient.createTemporaryReferenceSet();
+      const encoded = await RscClient.encodeReply(
         { a: { b: { c: { handler: fn, value: 123 } } } },
         { temporaryReferences: clientTempRefs }
       );
@@ -872,7 +872,7 @@ describeIf("Temporary References Cross-Compatibility", () => {
         temporaryReferences: serverTempRefs,
       });
 
-      const result = await LazarvClient.createFromReadableStream(stream, {
+      const result = await RscClient.createFromReadableStream(stream, {
         temporaryReferences: clientTempRefs,
       });
 
@@ -889,12 +889,12 @@ describeIf("Temporary References Cross-Compatibility", () => {
         { temporaryReferences: clientTempRefs }
       );
 
-      const serverTempRefs = LazarvServer.createTemporaryReferenceSet();
-      const decoded = await LazarvServer.decodeReply(encoded, {
+      const serverTempRefs = RscServer.createTemporaryReferenceSet();
+      const decoded = await RscServer.decodeReply(encoded, {
         temporaryReferences: serverTempRefs,
       });
 
-      const stream = LazarvServer.renderToReadableStream(decoded, {
+      const stream = RscServer.renderToReadableStream(decoded, {
         temporaryReferences: serverTempRefs,
       });
 

@@ -19,10 +19,6 @@ createLoggerProxy(parentPort);
 
 const cwd = sys.cwd();
 
-globalThis.__webpack_require__ = function () {
-  throw new Error("Module loader not implemented");
-};
-
 const moduleRunner = new ModuleRunner(
   {
     root: cwd,

@@ -2,7 +2,7 @@ import {
   createFromReadableStream,
   encodeReply,
   createTemporaryReferenceSet,
-} from "react-server-dom-webpack/client.browser";
+} from "@lazarv/rsc/client";
 
 import {
   ClientContext as _ClientContext,
@@ -23,6 +23,7 @@ import {
   setPendingNavigation,
   clearPendingNavigation,
 } from "./client-location.mjs";
+import moduleLoader from "/@module-loader";
 
 if (typeof ReadableByteStreamController === "undefined") {
   await import("web-streams-polyfill/polyfill");
@@ -594,6 +595,11 @@ export const streamOptions = ({
   outletTemporaryReferences.set(outlet, temporaryReferences);
   return {
     temporaryReferences,
+    moduleLoader: {
+      requireModule(metadata) {
+        return moduleLoader(metadata.id);
+      },
+    },
     findSourceMapURL: import.meta.env.DEV
       ? (filename, environment) =>
           new URL(
@@ -1002,7 +1008,7 @@ function getFlightResponse(url, options = {}) {
 
                 controller.enqueue(
                   encoder.encode(
-                    `0:["$L1"]\n1:E{"digest":"${e.digest}","message":"${e.message}","env":"${e.environmentName}","stack":[],"owner":null}\n`
+                    `0:["$","$L1",null,{}]\n1:E{"digest":"${e.digest}","message":"${e.message}","env":"${e.environmentName}","stack":[],"owner":null}\n`
                   )
                 );
                 controller.close();

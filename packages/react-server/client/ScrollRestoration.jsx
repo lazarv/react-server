@@ -86,6 +86,15 @@ export function registerScrollContainer(id, element) {
     y: element.scrollTop,
   });
 
+  // If the element is already scrolled when the effect registers it, the
+  // scroll event that caused it may have fired before this listener existed
+  // (e.g. a programmatic scrollTo that ran between waitForHydration and
+  // React effects). Mark scrollObserved so the save-effect cleanup won't
+  // skip persisting this container's position.
+  if (element.scrollLeft > 0 || element.scrollTop > 0) {
+    scrollObserved = true;
+  }
+
   function onScroll() {
     cachedContainerPositions.set(id, {
       x: element.scrollLeft,
@@ -241,10 +250,12 @@ function restoreContainers(savedContainers, resolved) {
   if (!savedContainers) return;
   for (const [id, pos] of Object.entries(savedContainers)) {
     const el = scrollContainers.get(id);
-    if (el) {
+    if (el && el.isConnected) {
       scrollContainerTo(id, el, pos.x, pos.y, resolved);
     } else {
-      // Container not registered yet — defer until registerScrollContainer
+      // Container not registered yet, or the registered element is stale
+      // (detached from DOM after a component remount). Defer until
+      // registerScrollContainer is called with a live element.
       pendingContainerRestores.set(id, {
         x: pos.x,
         y: pos.y,

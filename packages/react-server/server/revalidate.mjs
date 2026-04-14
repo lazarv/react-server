@@ -14,8 +14,10 @@ export function revalidate(key) {
     const url = useUrl();
     const cache = getContext(CACHE_CONTEXT);
 
-    const keyToDelete = key ?? url;
-    await cache.delete(keyToDelete);
+    if (cache) {
+      const keyToDelete = key ?? url;
+      await cache.delete(keyToDelete);
+    }
   });
 }
 

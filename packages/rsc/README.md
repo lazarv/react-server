@@ -2,7 +2,7 @@
 
 A **bundler-agnostic, environment-agnostic** React Server Components (RSC) serialization and deserialization library built on React's [Flight protocol](https://github.com/facebook/react/tree/main/packages/react-server). Not a framework — a universal data transport layer.
 
-This package provides a standalone implementation of the Flight protocol without any direct dependency on the `react` package and without bundler-specific mechanisms like Webpack's `__webpack_require__`. It is part of the [`@lazarv/react-server`](https://github.com/lazarv/react-server) project.
+This package provides a standalone implementation of the Flight protocol without any direct dependency on the `react` package and without bundler-specific globals. It is part of the [`@lazarv/react-server`](https://github.com/lazarv/react-server) project.
 
 > **Part of the @lazarv/react-server project** — [Website](https://react-server.dev) · [GitHub](https://github.com/lazarv/react-server)
 

@@ -43,7 +43,7 @@ export default function viteReactServerRuntime({ base: overrideBase } = {}) {
     },
     load: {
       filter: {
-        id: /\/@hmr|\/@module-loader/,
+        id: /\/@hmr|\/@__disable_hmr__|\/@module-loader/,
       },
       handler(id) {
         if (id.endsWith("/@hmr")) {
@@ -117,7 +117,10 @@ export default function viteReactServerRuntime({ base: overrideBase } = {}) {
               }
               return moduleCache.get(id);
             }`;
-        } else if (id.endsWith("@__disable_hmr__")) {
+        } else if (
+          id === "/@__disable_hmr__" ||
+          id.endsWith("/@__disable_hmr__")
+        ) {
           return `(function () {
             if (typeof WebSocket === 'undefined') return;
             const Orig = WebSocket;

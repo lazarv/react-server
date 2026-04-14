@@ -1106,18 +1106,25 @@ describeIf("Cross-Compatibility: Client References", () => {
     return type;
   }
 
-  // Helper to check that a value resolves to a client reference with the expected id
-  // For lazarv client: may be direct client reference or lazy-wrapped
-  // If lazy-wrapped with a moduleLoader, _init resolves to the actual export
+  // Helper to check that a value resolves to a client reference with the expected id.
+  // Three valid shapes produced by the lazarv / React clients:
+  //   1. Direct client reference:  { $$typeof: react.client.reference, $$id }
+  //   2. Lazy wrapper:             { $$typeof: react.lazy, _payload: { value: <clientRef> } }
+  //   3. Eagerly-resolved export:  a plain function/object (the actual module export).
+  //      This is the default path for the lazarv client when requireModule returns
+  //      synchronously — resolveModuleReference resolves the chunk with the export
+  //      directly (client/shared.mjs:1067-1075), collapsing $L references to the
+  //      underlying value with no $$typeof/$$id to inspect. The caller is expected
+  //      to verify identity against the registered module separately.
   function expectClientRef(value, expectedId) {
     expect(value).toBeDefined();
     // Direct client reference
-    if (value.$$typeof === Symbol.for("react.client.reference")) {
+    if (value && value.$$typeof === Symbol.for("react.client.reference")) {
       expect(value.$$id).toBe(expectedId);
       return;
     }
     // Lazy wrapper — the payload's value should be the client reference
-    if (value.$$typeof === Symbol.for("react.lazy")) {
+    if (value && value.$$typeof === Symbol.for("react.lazy")) {
       const payload = value._payload;
       expect(payload).toBeDefined();
       expect(payload.value).toBeDefined();
@@ -1125,8 +1132,18 @@ describeIf("Cross-Compatibility: Client References", () => {
       expect(payload.value.$$id).toBe(expectedId);
       return;
     }
-    // Fallback: fail
-    expect(value.$$typeof).toBe(Symbol.for("react.client.reference"));
+    // Eagerly-resolved module export — the value is the registered export itself.
+    // Verify the id resolves to this same value in the mock module registry.
+    const [modId, exportName] = expectedId.split("#");
+    const registered = moduleRegistry.get(modId);
+    expect(registered).toBeDefined();
+    const expectedExport =
+      !exportName || exportName === "default"
+        ? registered.__esModule
+          ? registered.default
+          : registered
+        : registered[exportName];
+    expect(value).toBe(expectedExport);
   }
 
   // ─────────────────────────────────────────────────────────────────────

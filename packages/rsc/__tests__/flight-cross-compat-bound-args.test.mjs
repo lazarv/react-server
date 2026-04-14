@@ -34,7 +34,7 @@ let skipTests = false;
 try {
   ReactDomServer = await import("react-server-dom-webpack/server");
   ReactDomClient = await import("react-server-dom-webpack/client.browser");
-} catch {
+} catch (err) {
   skipTests = true;
   console.warn(
     "Skipping cross-compatibility bound args tests: react-server condition not enabled"
@@ -42,6 +42,7 @@ try {
   console.warn(
     "Run with: NODE_OPTIONS='--conditions=react-server' pnpm test __tests__/flight-cross-compat-bound-args.test.mjs"
   );
+  console.warn("  (actual import error:", err && err.message, ")");
 }
 
 // Conditional describe that skips if react-server condition is not enabled

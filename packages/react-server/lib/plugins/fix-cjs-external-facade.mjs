@@ -4,7 +4,10 @@ export default function fixCjsExternalFacade() {
     enforce: "pre",
     transform(code, id) {
       try {
-        if (id.includes("vite_cjs-external-facade")) {
+        if (
+          id.includes("vite_cjs-external-facade") ||
+          id.includes("vite:cjs-external-facade")
+        ) {
           return code.replace(
             "module.exports = { ...m }",
             "module.exports = m.default ?? m"

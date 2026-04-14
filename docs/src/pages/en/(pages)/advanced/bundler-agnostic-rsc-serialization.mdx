@@ -22,9 +22,9 @@ import Subtitle from "../../../../components/Subtitle.jsx";
 
 React Server Components (RSC) rely on the Flight protocol — a line-delimited streaming format that serializes React element trees, data structures, and client/server reference metadata across runtime boundaries. The official implementation, `react-server-dom-webpack`, is tightly coupled to three infrastructure assumptions:
 
-1. **Bundler coupling.** The serializer depends on Webpack manifests for client reference resolution. Alternative bundlers (Vite, Rollup, esbuild, Rspack) require adapter packages or compatibility shims.
+1. **Bundler coupling.** The serializer depends on Webpack manifests for client and server reference resolution. Alternative bundlers (Vite, Rollup, esbuild, Rspack) require adapter packages or compatibility shims.
 2. **Environment coupling.** The server entry point uses Node.js-specific APIs (`stream.Readable`, `Buffer`) and the client entry point assumes a browser context. Running the same code in Deno, Bun, or Cloudflare Workers requires separate builds or polyfills.
-3. **Export condition coupling.** React's internal Flight server code is gated behind the `react-server` Node.js export condition. Environments that do not support or configure this condition — worker threads, custom runtimes, embedded engines — cannot load the serializer at all.
+3. **Export condition coupling.** React's internal Flight server code is gated behind the `react-server` Node.js export condition. Environments that do not support or configure this condition — worker threads, custom runtimes, embedded engines — cannot load the serializer without bundling a condition based version of the serializer and React.
 
 This paper presents `@lazarv/rsc`, a standalone implementation of the Flight protocol that removes all three couplings. It achieves full wire-format parity with `react-server-dom-webpack` while introducing several architectural innovations: abstract module resolver/loader interfaces, Web Platform API-only I/O, `Symbol.for()`-based React integration without direct imports, reference-counting for data object inline/outline decisions, microtask-coalesced chunk flushing, a synchronous serialization mode, and a zero-copy element tuple scanner on the deserialization path.
 
@@ -36,7 +36,7 @@ Across 13 benchmark scenarios, `@lazarv/rsc` outperforms `react-server-dom-webpa
 
 ### Bundler Coupling
 
-`react-server-dom-webpack` requires a Webpack plugin that generates a client manifest — a JSON mapping from module specifiers to their bundled output paths. The serializer reads this manifest at runtime to resolve `"use client"` references into chunk metadata that the client can use to load the correct module.
+`react-server-dom-webpack` requires a Webpack plugin that generates a client and a server manifest — JSON mappings from module specifiers to their bundled output paths. The serializer reads this manifest at runtime to resolve `"use client"` and `"use server"` references into chunk metadata that the client and the server can use to load the correct module.
 
 ```javascript
 // react-server-dom-webpack/server — requires Webpack manifest
@@ -112,7 +112,7 @@ The `index.mjs` files are re-export barrels. All logic lives in the `shared.mjs`
 
 The most fundamental design decision is how to interact with React without importing it.
 
-React's Flight protocol operates on React element types (`$$typeof` symbols), internal data structures (lazy payloads, context objects), and — for server component rendering — React's internal hooks dispatcher. The official `react-server-dom-webpack` imports these directly from `react` and `react/jsx-runtime`, which creates the `react-server` condition dependency.
+React's Flight protocol operates on React element types (`$$typeof` symbols), internal data structures (lazy payloads, context objects), and — for client component rendering — React's internal hooks dispatcher. The official `react-server-dom-webpack` imports these directly from `react`, which creates the `react-server` condition dependency.
 
 `@lazarv/rsc` uses three strategies to avoid this:
 

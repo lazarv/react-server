@@ -223,6 +223,10 @@ export default async function createServer(root, options) {
           minify: false,
           minifyInternalExports: false,
         },
+        plugins: [
+          fixCjsExternalFacade(),
+          ...(config.optimizeDeps?.rolldownOptions?.plugins || []),
+        ],
       },
       force: options.force || config.optimizeDeps?.force,
       include: [

@@ -639,6 +639,72 @@ export interface CacheConfig {
 
 // ───── Server functions config ─────
 
+/**
+ * Resource ceilings applied when decoding a client → server RSC reply
+ * (server function arguments).
+ *
+ * These limits are enforced inside the reply decoder before any server
+ * function runs. They cap the cost of payload deserialization and protect
+ * the server from denial-of-service vectors that exploit the rich
+ * RSC reply wire format (deep nesting, huge BigInts, oversized streams,
+ * unbounded bound-argument lists, etc.).
+ *
+ * Each limit is independent. A zero or negative value is treated as the
+ * default. Setting a value larger than the default loosens the ceiling;
+ * setting a smaller value tightens it.
+ *
+ * When a request exceeds any limit, the decoder throws a
+ * `DecodeLimitError` and the request is rejected before the server
+ * function is invoked.
+ */
+export interface ServerFunctionDecodeLimits {
+  /**
+   * Maximum number of outlined rows (chunks) per reply.
+   * @default 10000
+   */
+  maxRows?: number;
+
+  /**
+   * Maximum recursion depth when materialising a row's value tree.
+   * Protects against stack-exhaustion via deeply nested arrays/objects.
+   * @default 128
+   */
+  maxDepth?: number;
+
+  /**
+   * Maximum total payload size in bytes (sum of FormData entry sizes).
+   * @default 33554432 (32 MiB)
+   */
+  maxBytes?: number;
+
+  /**
+   * Maximum number of bound arguments on a server reference.
+   * Matches React's upstream default.
+   * @default 256
+   */
+  maxBoundArgs?: number;
+
+  /**
+   * Maximum number of digits in a decoded BigInt literal.
+   * Matches React's upstream default.
+   * @default 4096
+   */
+  maxBigIntDigits?: number;
+
+  /**
+   * Maximum length of a single string row before decoding.
+   * @default 16777216 (16 MiB)
+   */
+  maxStringLength?: number;
+
+  /**
+   * Maximum number of chunks materialised for a single decoded
+   * `ReadableStream`, `AsyncIterable`, or `Iterator`.
+   * @default 10000
+   */
+  maxStreamChunks?: number;
+}
+
 export interface ServerFunctionsConfig {
   /**
    * Secret key for signing server function calls.
@@ -663,6 +729,26 @@ export interface ServerFunctionsConfig {
    * @example `previousSecretFiles: ["./old.pem"]`
    */
   previousSecretFiles?: string[];
+
+  /**
+   * Resource ceilings for decoding server function payloads.
+   *
+   * Caps the maximum work the server will do per inbound RSC reply.
+   * Defaults match the @lazarv/rsc decoder's built-in safe ceilings,
+   * which are aligned with React's upstream limits (CVE-2025-55182
+   * and related hardening). Override individual fields to tighten
+   * or loosen the limits per deployment.
+   *
+   * @example
+   * ```ts
+   * limits: {
+   *   maxBytes: 4 * 1024 * 1024,  // 4 MiB
+   *   maxDepth: 32,
+   *   maxStreamChunks: 1000,
+   * }
+   * ```
+   */
+  limits?: ServerFunctionDecodeLimits;
 }
 
 // ───── Telemetry config ─────

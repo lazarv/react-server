@@ -210,6 +210,22 @@ export const DESCRIPTIONS = {
     "Previously used secrets for key rotation.",
   "serverFunctions.previousSecretFiles":
     "Previously used secret files for key rotation.",
+  "serverFunctions.limits":
+    "Resource ceilings for decoding server function payloads (per-request DoS protection).",
+  "serverFunctions.limits.maxRows":
+    "Maximum number of outlined rows per reply. Default: 10000.",
+  "serverFunctions.limits.maxDepth":
+    "Maximum recursion depth when materialising a row's value tree. Default: 128.",
+  "serverFunctions.limits.maxBytes":
+    "Maximum total payload size in bytes (sum of FormData entries). Default: 32 MiB.",
+  "serverFunctions.limits.maxBoundArgs":
+    "Maximum bound arguments on a server reference. Default: 256 (matches React).",
+  "serverFunctions.limits.maxBigIntDigits":
+    "Maximum digits in a decoded BigInt literal. Default: 4096 (matches React).",
+  "serverFunctions.limits.maxStringLength":
+    "Maximum length of a single string row before decoding. Default: 16 MiB.",
+  "serverFunctions.limits.maxStreamChunks":
+    "Maximum chunks materialised for a decoded stream/iterable. Default: 10000.",
 
   // virtual routes
   routes:
@@ -881,6 +897,43 @@ export function generateJsonSchema() {
             previousSecretFiles: prop(
               { type: "array", items: { type: "string" } },
               "serverFunctions.previousSecretFiles"
+            ),
+            limits: prop(
+              {
+                type: "object",
+                properties: {
+                  maxRows: prop(
+                    { type: "integer", minimum: 0 },
+                    "serverFunctions.limits.maxRows"
+                  ),
+                  maxDepth: prop(
+                    { type: "integer", minimum: 0 },
+                    "serverFunctions.limits.maxDepth"
+                  ),
+                  maxBytes: prop(
+                    { type: "integer", minimum: 0 },
+                    "serverFunctions.limits.maxBytes"
+                  ),
+                  maxBoundArgs: prop(
+                    { type: "integer", minimum: 0 },
+                    "serverFunctions.limits.maxBoundArgs"
+                  ),
+                  maxBigIntDigits: prop(
+                    { type: "integer", minimum: 0 },
+                    "serverFunctions.limits.maxBigIntDigits"
+                  ),
+                  maxStringLength: prop(
+                    { type: "integer", minimum: 0 },
+                    "serverFunctions.limits.maxStringLength"
+                  ),
+                  maxStreamChunks: prop(
+                    { type: "integer", minimum: 0 },
+                    "serverFunctions.limits.maxStreamChunks"
+                  ),
+                },
+                additionalProperties: false,
+              },
+              "serverFunctions.limits"
             ),
           },
           additionalProperties: false,

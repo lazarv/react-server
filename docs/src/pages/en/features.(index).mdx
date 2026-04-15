@@ -10,7 +10,7 @@ You can also access the full [HTTP context](/features/http) during server-side r
 
 The runtime also provides tools for you to [cache](/features/caching) data on the server. You can cache data in-memory by default, but you can also build your own cache provider.
 
-The runtime encrypts all [server function identifiers](/features/server-function-encryption) by default using AES-256-GCM. This prevents clients from discovering or calling server functions that were not explicitly exposed during rendering, keeping your server-side code secure without any extra configuration.
+The runtime encrypts all [server function identifiers](/features/server-function-encryption) by default using AES-256-GCM. This prevents clients from discovering or calling server functions that were not explicitly exposed during rendering, keeping your server-side code secure without any extra configuration. Inbound server function payloads are also gated by configurable [decode limits](/features/server-function-limits) that cap memory, depth, and stream sizes before any of your server code runs — protecting against denial-of-service via crafted RSC replies.
 
 For error handling, you can learn about how to use the built-in [error boundary](/features/error-handling) component and how to implement your own error handling strategy.
 

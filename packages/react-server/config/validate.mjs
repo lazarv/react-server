@@ -446,6 +446,31 @@ const REACT_SERVER_SCHEMA = {
       secretFile: optional(is.string),
       previousSecrets: optional(arrayOf(is.string)),
       previousSecretFiles: optional(arrayOf(is.string)),
+      limits: optional(
+        objectShape({
+          maxRows: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxDepth: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxBytes: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxBoundArgs: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxBigIntDigits: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxStringLength: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxStreamChunks: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+        })
+      ),
     })
   ),
 
@@ -653,6 +678,16 @@ const EXAMPLES = {
   serverFunctions: `serverFunctions: { secret: "my-secret-key" }`,
   "serverFunctions.secret": `serverFunctions: { secret: "my-secret-key" }`,
   "serverFunctions.secretFile": `serverFunctions: { secretFile: "./secret.pem" }`,
+  "serverFunctions.previousSecrets": `serverFunctions: { previousSecrets: ["old-secret"] }`,
+  "serverFunctions.previousSecretFiles": `serverFunctions: { previousSecretFiles: ["./old.pem"] }`,
+  "serverFunctions.limits": `serverFunctions: { limits: { maxBytes: 4 * 1024 * 1024 } }`,
+  "serverFunctions.limits.maxRows": `serverFunctions: { limits: { maxRows: 10000 } }`,
+  "serverFunctions.limits.maxDepth": `serverFunctions: { limits: { maxDepth: 64 } }`,
+  "serverFunctions.limits.maxBytes": `serverFunctions: { limits: { maxBytes: 4 * 1024 * 1024 } }`,
+  "serverFunctions.limits.maxBoundArgs": `serverFunctions: { limits: { maxBoundArgs: 64 } }`,
+  "serverFunctions.limits.maxBigIntDigits": `serverFunctions: { limits: { maxBigIntDigits: 1024 } }`,
+  "serverFunctions.limits.maxStringLength": `serverFunctions: { limits: { maxStringLength: 1024 * 1024 } }`,
+  "serverFunctions.limits.maxStreamChunks": `serverFunctions: { limits: { maxStreamChunks: 1000 } }`,
   telemetry: `telemetry: { enabled: true, serviceName: "my-app" }`,
   "telemetry.enabled": `telemetry: { enabled: true }`,
   "telemetry.serviceName": `telemetry: { serviceName: "my-app" }`,

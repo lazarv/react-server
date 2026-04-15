@@ -154,6 +154,30 @@ export interface CreateFromReadableStreamOptions {
 }
 
 /**
+ * Resource ceilings enforced by the reply decoder.
+ *
+ * Each limit is independent. Omit a field to use the built-in default.
+ * When a request exceeds a limit, the decoder throws a DecodeLimitError
+ * before any server action is invoked.
+ */
+export interface DecodeReplyLimits {
+  /** Maximum number of outlined rows per reply. Default: 10000. */
+  maxRows?: number;
+  /** Maximum recursion depth when materialising a row's value tree. Default: 128. */
+  maxDepth?: number;
+  /** Maximum total payload size in bytes (sum of FormData entries). Default: 32 MiB. */
+  maxBytes?: number;
+  /** Maximum bound arguments on a server reference. Default: 256. */
+  maxBoundArgs?: number;
+  /** Maximum digits in a decoded BigInt literal. Default: 4096. */
+  maxBigIntDigits?: number;
+  /** Maximum length of a single string row before decoding. Default: 16 MiB. */
+  maxStringLength?: number;
+  /** Maximum chunks materialised for a decoded stream/iterable. Default: 10000. */
+  maxStreamChunks?: number;
+}
+
+/**
  * Options for decodeReply
  */
 export interface DecodeReplyOptions {
@@ -166,6 +190,12 @@ export interface DecodeReplyOptions {
    * Temporary references
    */
   temporaryReferences?: Map<string, unknown>;
+
+  /**
+   * Resource ceilings applied to the decoded payload.
+   * Defaults match the decoder's built-in safe ceilings.
+   */
+  limits?: DecodeReplyLimits;
 }
 
 /**

@@ -1,13 +1,7 @@
-import {
-  hostname,
-  logs,
-  page,
-  server,
-  serverLogs,
-  waitForChange,
-  waitForHydration,
-} from "playground/utils";
-import { expect, test } from "vitest";
+import * as setup from "playground/utils";
+import { beforeAll, beforeEach, expect, test } from "vitest";
+
+const { waitForChange, waitForHydration } = setup;
 
 const instanceOf = (type) => async (page) => {
   await page.waitForFunction(
@@ -62,8 +56,10 @@ const validator = {
     expect(
       await page.evaluate(() => window.__react_server_result__.constructor.name)
     ).toBe("ReadableStream");
-    await waitForChange(null, () => logs.find((log) => log.includes("done")));
-    expect(logs).toEqual(
+    await waitForChange(null, () =>
+      setup.logs.find((log) => log.includes("done"))
+    );
+    expect(setup.logs).toEqual(
       expect.arrayContaining(["hello 0", "hello 1", "hello 2", "done"])
     );
   },
@@ -76,28 +72,16 @@ const validator = {
         () => window.__react_server_result__[Symbol.asyncIterator].name
       )
     ).toBe("asyncIterator");
-    await waitForChange(null, () => logs.find((log) => log.includes("done")));
-    expect(logs).toEqual(
+    await waitForChange(null, () =>
+      setup.logs.find((log) => log.includes("done"))
+    );
+    expect(setup.logs).toEqual(
       expect.arrayContaining(["hello 0", "hello 1", "hello 2", "done"])
     );
   },
 };
 
-const createTest = (type) =>
-  test(`server function type ${type}`, async () => {
-    await server("fixtures/server-function-types.jsx");
-    await page.goto(hostname);
-    await waitForHydration();
-    const button = page.getByRole("button", { name: type, exact: true });
-    await waitForChange(
-      () => button.click(),
-      () => serverLogs.find((log) => log.includes(type))
-    );
-    expect(serverLogs.find((log) => log.includes(type))).toBeDefined();
-    await validator[type](page);
-  });
-
-[
+const types = [
   "form-data-action",
   "array-buffer-action",
   "buffer-action",
@@ -110,4 +94,39 @@ const createTest = (type) =>
   "reload-action",
   "stream-action",
   "iterator-action",
-].forEach(createTest);
+];
+
+// Single server boot for the whole spec — every test targets the same fixture
+// and only differs in which button it clicks. The previous per-test boot cost
+// ~5s per case × 12 cases ≈ a full minute of pure Vite cold-start overhead.
+beforeAll(async () => {
+  await setup.server("fixtures/server-function-types.jsx");
+});
+
+// Each test gets a fresh navigation + a fresh log buffer. Navigation is needed
+// because `redirect-action` leaves the page on `/some-other-page`, and even
+// tests that don't navigate need the `window.__react_server_result__` sentinel
+// cleared. The log arrays are the ones `server()` assigned during boot — we
+// mutate them in place (length = 0) so consumers reading `setup.logs` still
+// see the same live reference.
+beforeEach(async () => {
+  await setup.page.goto(setup.hostname);
+  await waitForHydration();
+  await setup.page.evaluate(() => {
+    window.__react_server_result__ = undefined;
+  });
+  setup.logs.length = 0;
+  setup.serverLogs.length = 0;
+});
+
+for (const type of types) {
+  test(`server function type ${type}`, async () => {
+    const button = setup.page.getByRole("button", { name: type, exact: true });
+    await waitForChange(
+      () => button.click(),
+      () => setup.serverLogs.find((log) => log.includes(type))
+    );
+    expect(setup.serverLogs.find((log) => log.includes(type))).toBeDefined();
+    await validator[type](setup.page);
+  });
+}

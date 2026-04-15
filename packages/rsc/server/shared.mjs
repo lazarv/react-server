@@ -8,6 +8,15 @@
  * API-compatible with react-server-dom-webpack.
  */
 
+// Stateful reply decoder with post-CVE-2025-55182 security barriers:
+// prototype / own-property / forbidden-key filtering during path walks,
+// plus support for outlined rows and new capabilities (Promise, streams,
+// async iterables, iterators). See ./reply-decoder.mjs for details.
+import {
+  decodeReplyFromString as _decodeReplyFromString,
+  decodeReplyFromFormData as _decodeReplyFromFormData,
+} from "./reply-decoder.mjs";
+
 // React Flight Protocol constants
 const REACT_ELEMENT_TYPE = Symbol.for("react.element");
 const REACT_TRANSITIONAL_ELEMENT_TYPE = Symbol.for(
@@ -2395,26 +2404,22 @@ export function renderToReadableStream(model, options = {}) {
  * @returns {Promise<unknown>} The decoded value
  */
 export async function decodeReply(body, options = {}) {
+  // Delegate to the stateful reply decoder. The new decoder:
+  //   - resolves row references ($<hex>[:key:key]) with React's post-CVE
+  //     security barriers (prototype check, own-property check, forbidden-
+  //     key filter) so attacker-supplied property paths cannot reach
+  //     Function/constructor gadgets;
+  //   - filters __proto__ / constructor / prototype keys via JSON reviver
+  //     before they become own properties (prototype-pollution safe);
+  //   - supports the full legacy @lazarv/rsc tag set unchanged;
+  //   - adds Promise ($@), ReadableStream ($r / $b), AsyncIterable ($x),
+  //     and Iterator ($X) decoding for round-trips with richer client args.
   if (typeof body === "string") {
-    // JSON body (no server references — plain values only)
-    return deserializeValue(JSON.parse(body), options, "0");
+    return _decodeReplyFromString(body, options);
   }
-
   if (body instanceof FormData) {
-    // FormData body — root value is at key "0" (matching React's format)
-    const rootPayload = body.get("0");
-    if (rootPayload && typeof rootPayload === "string") {
-      return deserializeValue(
-        JSON.parse(rootPayload),
-        { ...options, body },
-        "0"
-      );
-    }
-
-    // Otherwise return the FormData itself
-    return body;
+    return _decodeReplyFromFormData(body, options);
   }
-
   throw new Error("Invalid body type for decodeReply");
 }
 
@@ -3092,11 +3097,12 @@ export async function decodeReplyFromAsyncIterable(iterable, options = {}) {
     return parseMultipartFormData(body, options);
   }
 
-  // Try to parse as JSON
+  // Try to parse as JSON through the stateful reply decoder (applies the
+  // same security barriers as decodeReply). If parsing fails, return the
+  // raw string as-is — some callers stream plain text bodies.
   try {
-    return deserializeValue(JSON.parse(body), options, "0");
+    return _decodeReplyFromString(body, options);
   } catch {
-    // Return as-is if not JSON
     return body;
   }
 }

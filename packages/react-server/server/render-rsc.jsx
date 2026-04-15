@@ -90,13 +90,31 @@ function makeModuleResolver(map) {
 // @lazarv/rsc's decodeReply(body, opts).
 // The webpack API passes the serverReferenceMap as the 2nd arg; the rsc API
 // expects options as the 2nd arg.  We detect and skip the manifest Proxy.
+//
+// Also injects server function decode limits from the runtime config:
+//
+//   serverFunctions: {
+//     limits: { maxBytes, maxDepth, maxRows, ... }
+//   }
+//
+// Caller-supplied limits win over the configured defaults so call sites can
+// loosen ceilings on a per-call basis if they need to.
 function decodeReply(body, _manifestOrOpts, opts) {
   const isManifest =
     _manifestOrOpts &&
     typeof _manifestOrOpts === "object" &&
     !_manifestOrOpts.temporaryReferences &&
-    !_manifestOrOpts.moduleLoader;
+    !_manifestOrOpts.moduleLoader &&
+    !_manifestOrOpts.limits;
   const realOpts = isManifest ? opts : _manifestOrOpts;
+  const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
+  const configLimits = config?.serverFunctions?.limits;
+  if (configLimits) {
+    return _decodeReply(body, {
+      ...realOpts,
+      limits: { ...configLimits, ...realOpts?.limits },
+    });
+  }
   return _decodeReply(body, realOpts);
 }
 

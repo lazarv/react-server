@@ -1370,21 +1370,12 @@ describe("Client Shared Module - Additional Coverage", () => {
       const encoded = await encodeReply(data);
       expect(encoded).toBeInstanceOf(FormData);
 
-      // The Blob is stored as a direct FormData part. The server's
-      // decodeReply resolves the root JSON and the Blob is accessible
-      // through the FormData body at its path key.
+      // The Blob is stored as a direct FormData part under its path key,
+      // and `$K<path>` resolves back to the original Blob on decode.
       const decoded = await decodeReply(encoded);
       expect(decoded.info).toBe("test");
-      // The Blob reference ("$K...") round-trips through FormData;
-      // the server-side $K handler extracts matching prefix entries.
-      // For a single Blob, the decoded value is a FormData (not Blob)
-      // since the $K handler is designed for FormData round-tripping.
-      // Verify the Blob is accessible from the raw encoded FormData.
-      const blobKey = [...encoded.keys()].find((k) => k !== "0");
-      expect(blobKey).toBeDefined();
-      const rawBlob = encoded.get(blobKey);
-      expect(rawBlob).toBeInstanceOf(Blob);
-      expect(await rawBlob.text()).toBe("hello");
+      expect(decoded.file).toBeInstanceOf(Blob);
+      expect(await decoded.file.text()).toBe("hello");
     });
   });
 

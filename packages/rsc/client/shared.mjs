@@ -2949,12 +2949,21 @@ export function createFromFetch(promiseForResponse, options = {}) {
  * @returns {Promise<string | FormData>} The encoded value
  */
 export async function encodeReply(value, options = {}) {
-  // Shared context for FormData part allocation (server refs, files)
+  // Shared context for FormData part allocation (server refs, files,
+  // outlined Promise / stream / iterable rows).
   const ctx = { formData: null, nextPartId: 1, writtenObjects: new WeakMap() };
+
+  // Resolve any async values in the tree BEFORE the synchronous serializer
+  // runs. Each Promise / ReadableStream / AsyncIterable / Iterator is drained
+  // to a concrete payload, outlined as its own FormData part, and tagged in
+  // ctx.writtenObjects so the sync walker emits a short reference string
+  // ($@<hex>, $r<hex>, $b<hex>, $x<hex>, $X<hex>) in place of the value.
+  await preResolveAsyncValues(value, ctx, new WeakSet());
+
   const serialized = serializeForReply(value, options, "0", new WeakSet(), ctx);
 
-  // If any FormData parts were created (server refs, nested FormData) or
-  // files exist, return FormData.
+  // If any FormData parts were created (server refs, nested FormData,
+  // async outlined rows) or files exist, return FormData.
   if (ctx.formData !== null || hasFileOrBlob(value)) {
     if (ctx.formData === null) ctx.formData = new FormData();
     ctx.formData.set("0", JSON.stringify(serialized));
@@ -2965,6 +2974,207 @@ export async function encodeReply(value, options = {}) {
   }
 
   return JSON.stringify(serialized);
+}
+
+// ─── Async value pre-resolution ─────────────────────────────────────────────
+//
+// React's reply encoder resolves Promises / streams / iterables into outlined
+// rows. We match that behaviour here. Strategy:
+//
+//   1. Walk the tree (cycle-safe via WeakSet) looking for thenables,
+//      ReadableStreams, AsyncIterables, and sync Iterators that are not
+//      already plain arrays/maps/sets (which the sync serializer handles).
+//   2. For each, allocate a FormData part id, drain to a concrete JSON
+//      payload, and write it to ctx.formData. Record the reference string
+//      in ctx.writtenObjects so the sync serializer emits a short tag.
+//   3. Promises yielding values that contain further async types are
+//      resolved iteratively — preResolveAsyncValues is called recursively
+//      on the resolved payload before the outer Promise's row is written.
+//
+// Security note: this path does not execute any attacker-controlled code.
+// Promises are awaited; streams/iterables are drained via their own
+// next()/read() methods which the caller owns.
+
+async function preResolveAsyncValues(value, ctx, visited) {
+  if (value === null || value === undefined) return;
+  if (typeof value !== "object" && typeof value !== "function") return;
+  if (visited.has(value)) return;
+  visited.add(value);
+
+  // React elements are opaque to the reply encoder (handled as temp refs
+  // by the sync serializer). Do not descend into their children here, or
+  // we would walk the whole component tree.
+  if (
+    typeof value === "object" &&
+    (value.$$typeof === REACT_ELEMENT_TYPE ||
+      value.$$typeof === REACT_TRANSITIONAL_ELEMENT_TYPE)
+  ) {
+    return;
+  }
+
+  // Server references are functions with $$id — do not attempt to drain.
+  if (typeof value === "function") {
+    return;
+  }
+
+  // Thenable (Promise or Promise-like). Must come before the object walk.
+  if (typeof value === "object" && typeof value.then === "function") {
+    // Reserve the row id and record the back-reference BEFORE awaiting and
+    // serializing the resolved payload. This way, if the resolved value
+    // contains the same Promise (cycle) or another async value already
+    // queued, the pre-resolver returns the cached tag instead of recursing.
+    const partId = reserveRow(ctx);
+    ctx.writtenObjects.set(value, "$@" + partId.toString(16));
+    const resolved = await value;
+    await preResolveAsyncValues(resolved, ctx, visited);
+    const payload = serializeForReply(resolved, {}, "", new WeakSet(), ctx);
+    fillRow(ctx, partId, payload);
+    return;
+  }
+
+  // ReadableStream: drain into chunks. Text vs binary inferred from chunks.
+  if (
+    typeof ReadableStream !== "undefined" &&
+    value instanceof ReadableStream
+  ) {
+    const reader = value.getReader();
+    const chunks = [];
+    let binary = false;
+    try {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value: chunk } = await reader.read();
+        if (done) break;
+        if (chunk instanceof Uint8Array || ArrayBuffer.isView(chunk)) {
+          binary = true;
+          chunks.push(
+            Array.from(
+              new Uint8Array(
+                chunk.buffer,
+                chunk.byteOffset ?? 0,
+                chunk.byteLength ?? chunk.length
+              )
+            )
+          );
+        } else {
+          chunks.push(chunk);
+        }
+      }
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {
+        /* noop */
+      }
+    }
+    // If binary, re-encode as Uint8Array chunks via numeric arrays (JSON
+    // cannot carry raw bytes). The decoder reconstructs Uint8Array from
+    // numeric arrays when the row is opened with the `$b` tag.
+    const payload = binary ? chunks.map((arr) => arr) : chunks;
+    const rowPayload = serializeForReply(payload, {}, "", new WeakSet(), ctx);
+    const partId = writeRow(ctx, rowPayload);
+    ctx.writtenObjects.set(value, (binary ? "$b" : "$r") + partId.toString(16));
+    return;
+  }
+
+  // AsyncIterable (non-ReadableStream). Drain into an array of values.
+  if (
+    typeof value === "object" &&
+    typeof value[Symbol.asyncIterator] === "function"
+  ) {
+    const items = [];
+    for await (const item of value) {
+      await preResolveAsyncValues(item, ctx, visited);
+      items.push(item);
+    }
+    const rowPayload = serializeForReply(items, {}, "", new WeakSet(), ctx);
+    const partId = writeRow(ctx, rowPayload);
+    ctx.writtenObjects.set(value, "$x" + partId.toString(16));
+    return;
+  }
+
+  // Sync iterator (has next() but is not an Array/Map/Set — those are
+  // handled natively by the sync serializer).
+  if (
+    typeof value === "object" &&
+    typeof value[Symbol.iterator] === "function" &&
+    !Array.isArray(value) &&
+    !(value instanceof Map) &&
+    !(value instanceof Set) &&
+    typeof value.next === "function"
+  ) {
+    const items = [];
+    for (const item of value) {
+      await preResolveAsyncValues(item, ctx, visited);
+      items.push(item);
+    }
+    const rowPayload = serializeForReply(items, {}, "", new WeakSet(), ctx);
+    const partId = writeRow(ctx, rowPayload);
+    ctx.writtenObjects.set(value, "$X" + partId.toString(16));
+    return;
+  }
+
+  // Descend into plain composites. We DO NOT descend into Maps/Sets via their
+  // iteration protocol here — the sync serializer handles those. This avoids
+  // double-visiting. For arrays and plain objects, walk children so nested
+  // async values are pre-resolved.
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      await preResolveAsyncValues(item, ctx, visited);
+    }
+    return;
+  }
+  if (value instanceof Map) {
+    for (const [k, v] of value) {
+      await preResolveAsyncValues(k, ctx, visited);
+      await preResolveAsyncValues(v, ctx, visited);
+    }
+    return;
+  }
+  if (value instanceof Set) {
+    for (const item of value) {
+      await preResolveAsyncValues(item, ctx, visited);
+    }
+    return;
+  }
+  if (typeof value === "object") {
+    // Skip framework types we already know how to serialize directly.
+    if (
+      value instanceof Date ||
+      value instanceof RegExp ||
+      value instanceof URL ||
+      value instanceof URLSearchParams ||
+      value instanceof ArrayBuffer ||
+      ArrayBuffer.isView(value) ||
+      (typeof Blob !== "undefined" && value instanceof Blob) ||
+      (typeof File !== "undefined" && value instanceof File) ||
+      value instanceof FormData
+    ) {
+      return;
+    }
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== null && proto !== Object.prototype) return;
+    for (const key of Object.keys(value)) {
+      await preResolveAsyncValues(value[key], ctx, visited);
+    }
+  }
+}
+
+function writeRow(ctx, payload) {
+  if (ctx.formData === null) ctx.formData = new FormData();
+  const partId = ctx.nextPartId++;
+  ctx.formData.set("" + partId, JSON.stringify(payload));
+  return partId;
+}
+
+// Two-phase row allocation for cycle-safe outlining of async values.
+function reserveRow(ctx) {
+  if (ctx.formData === null) ctx.formData = new FormData();
+  return ctx.nextPartId++;
+}
+
+function fillRow(ctx, partId, payload) {
+  ctx.formData.set("" + partId, JSON.stringify(payload));
 }
 
 /**
@@ -2994,6 +3204,20 @@ function serializeForReply(
 
   if (value === undefined) {
     return "$undefined";
+  }
+
+  // If this value was pre-resolved as an async outlined row (Promise,
+  // ReadableStream, AsyncIterable, Iterator), emit the short reference
+  // string recorded during pre-resolution. Covers primitives too because
+  // WeakMap.get on a non-object returns undefined — no accidental hits.
+  if (
+    (typeof value === "object" || typeof value === "function") &&
+    value !== null
+  ) {
+    const preResolved = ctx.writtenObjects.get(value);
+    if (typeof preResolved === "string" && preResolved.length > 0) {
+      return preResolved;
+    }
   }
 
   if (typeof value === "boolean" || typeof value === "number") {

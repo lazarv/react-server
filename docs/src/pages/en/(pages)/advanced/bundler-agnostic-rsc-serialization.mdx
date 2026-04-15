@@ -639,6 +639,83 @@ function retryComponentRender(request, type, props, savedState, ...) {
 
 Each retry restores the `thenableState` from the previous attempt, ensuring that `use()` calls before the suspension point return their cached values. This matches React's per-task retry semantics.
 
+<Link name="security">
+## Security
+</Link>
+
+Flight payloads cross a trust boundary — and in both directions. The server-to-client stream carries rendered UI and data from a trusted origin to an untrusted environment; the client-to-server reply carries arbitrary attacker-controlled bytes back into the server process to dispatch a server action. The second direction is the more dangerous one: a flawed decoder becomes a remote code execution surface. `@lazarv/rsc` therefore ships a dedicated, hardened reply decoder that matches the security barriers React added after CVE-2025-55182, with additional defenses layered on top.
+
+The threat model assumes:
+
+1. the client is hostile
+2. the transport is untrusted
+3. server references must only execute functions the host has explicitly registered
+4. every decode must terminate in bounded time and memory
+
+### Prototype Pollution Barriers
+
+JSON parsing of an attacker-controlled payload is the classic prototype-pollution vector: a key of `__proto__` becomes an own property that mutates `Object.prototype` when assigned to a fresh object. The decoder blocks this in two independent places:
+
+1. **Reviver-side stripping.** `JSON.parse` runs with a reviver that returns `undefined` for any key in `FORBIDDEN_KEYS = { __proto__, constructor, prototype }`. These keys are removed *before* they become own properties of the parsed tree.
+2. **Path-walk enforcement.** Back-references of the form `$<hex>:<key>:<key>` that walk into a previously decoded chunk must satisfy four invariants at every step:
+
+```javascript
+if (current === null ||
+    typeof current !== "object" ||
+    (Object.getPrototypeOf(current) !== ObjectPrototype &&
+    Object.getPrototypeOf(current) !== ArrayPrototype) ||
+    !hasOwn.call(current, key) ||
+    FORBIDDEN_KEYS.has(key)) {
+  throw new DecodeError("Invalid reference.");
+}
+```
+
+The prototype pin blocks walks into non-plain objects — a forged path cannot reach `Map.prototype.get` or `Function.prototype.call`. The own-property check blocks `.constructor`, `.then`, `.map`, and any other inherited name. The forbidden-key set is defense-in-depth in case a forbidden key survives the reviver.
+
+### Thenable Scrubbing
+
+Duck-typed thenables are a subtle escalation path: any object with a callable `then` method will be awaited as a Promise by downstream code, handing the attacker a synchronous callback on the server. The decoder scrubs every `then` property whose value is a function, replacing it with `null` during the walk phase. Non-function `then` values (strings, objects, numbers) are preserved — they are data, not a capability.
+
+### Callable Allowlist
+
+No code path in the decoder constructs a callable from decoded bytes. Concretely:
+
+- **No `eval`, no `new Function`, no dynamic `import()` on decoded data.** The only `new Function` call in the entire package is the client-side `RegExp` deserializer (`new Function("return " + regexStr)`), which parses a regex literal emitted by a trusted server — never by a client.
+- **Server references are allowlist-gated.** A `$h<id>` tag resolves exclusively through `moduleLoader.loadServerAction(id)`, which the host implements. The host is responsible for ensuring that only functions explicitly registered via `"use server"` are reachable; the decoder never invents function identities from strings.
+- **Temporary references are opaque proxies.** A `$T<path>` tag resolves to an entry in a request-scoped `temporaryReferences` map that throws on any access other than the registered one. Temporary references are scoped to the request that created them — a reply cannot reach a temporary reference from a different request.
+
+The attacker's reach through a Flight reply is therefore bounded by the set of functions the host has chosen to register. The decoder cannot be tricked into widening that set.
+
+### Resource Ceilings
+
+A decoder that runs in bounded memory and bounded time is a denial-of-service-resistant decoder. Every reply decode is gated by seven explicit ceilings:
+
+```javascript
+export const DEFAULT_LIMITS = Object.freeze({
+  maxRows: 10_000,
+  maxDepth: 128,
+  maxBytes: 32 * 1024 * 1024,
+  maxBoundArgs: 256,        // matches React
+  maxBigIntDigits: 4096,    // matches React
+  maxStringLength: 16 * 1024 * 1024,
+  maxStreamChunks: 10_000,
+});
+```
+
+Any limit breach throws a `DecodeLimitError` tagged with the specific limit name and the observed value, making attacks observable in logs. Hosts override these per-request to match their threat model — stricter on public endpoints, relaxed on authenticated internal services. The `server-function-limits` feature in `@lazarv/react-server` surfaces this configuration to application code.
+
+### Error Redaction
+
+Serialized errors cross the network as `E` rows of the form `{"message":"...","stack":"...","digest":"..."}`. Sending raw server error messages and stacks to a hostile client leaks file paths, library versions, schema fragments, and occasionally secrets embedded in query strings. `@lazarv/rsc` matches React's convention: in production, only `digest` is transmitted. The host registers an `onError` callback that receives the full `Error` server-side — for logging, tracing, and ticket correlation — and returns an opaque digest that the client uses solely for error-boundary matching. The full error never leaves the server process.
+
+### What the Package Does Not Defend Against
+
+The following are deliberately out of scope for the serializer and must be enforced by the host:
+
+- **Authentication and authorization on server references.** Registration is capability-based: any registered function is callable by any client that can reach the Flight reply endpoint. CSRF protection, origin checks, session validation, and per-action authorization are the host's responsibility — typically implemented as middleware around the reply endpoint.
+- **Transport-level integrity of bound arguments.** The decoder does not sign or encrypt payloads. Bound-argument encryption is provided as a separate feature in `@lazarv/react-server` (see [Server Function Encryption](../features/server-function-encryption)) and operates at the framework layer above the protocol.
+- **Request-rate limiting.** Resource ceilings bound a single decode; they do not bound request volume. Hosts should rate-limit the reply endpoint like any other action endpoint.
+
 <Link name="benchmarks">
 ## Benchmark Results
 </Link>

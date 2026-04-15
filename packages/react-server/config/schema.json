@@ -1080,6 +1080,48 @@
             "type": "string"
           },
           "description": "Previously used secret files for key rotation."
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "maxRows": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum number of outlined rows per reply. Default: 10000."
+            },
+            "maxDepth": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum recursion depth when materialising a row's value tree. Default: 128."
+            },
+            "maxBytes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum total payload size in bytes (sum of FormData entries). Default: 32 MiB."
+            },
+            "maxBoundArgs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum bound arguments on a server reference. Default: 256 (matches React)."
+            },
+            "maxBigIntDigits": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum digits in a decoded BigInt literal. Default: 4096 (matches React)."
+            },
+            "maxStringLength": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum length of a single string row before decoding. Default: 16 MiB."
+            },
+            "maxStreamChunks": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum chunks materialised for a decoded stream/iterable. Default: 10000."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Resource ceilings for decoding server function payloads (per-request DoS protection)."
         }
       },
       "additionalProperties": false,

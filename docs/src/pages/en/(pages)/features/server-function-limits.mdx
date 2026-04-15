@@ -1,0 +1,133 @@
+---
+title: Server function limits
+category: Features
+order: 4
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Server function limits
+
+`@lazarv/react-server` enforces resource ceilings on every inbound RSC reply (server function call) before any of your server function code runs. These limits cap the cost of payload deserialization and protect the server from denial-of-service vectors that exploit the rich RSC reply wire format — deeply nested values, oversized strings, huge BigInts, unbounded streams, and so on.
+
+The defaults are aligned with React's upstream limits introduced in the post-CVE hardening (CVE-2025-55182 and related). For most applications you will never need to touch them. They become relevant when you either need to **tighten** the ceilings for high-risk public endpoints, or **loosen** them to allow legitimately large server function payloads (file uploads, batched mutations, large bound argument arrays).
+
+<Link name="how-it-works">
+## How it works
+</Link>
+
+The reply decoder runs as the very first step of handling any server function invocation. It parses the wire payload (a JSON string or a `multipart/form-data` `FormData`), enforces the limits below, and only then dispatches the call to the resolved server function.
+
+If a request exceeds any limit, the decoder throws a `DecodeLimitError` that is propagated back to the client through the standard server function error path. Your server function code is never invoked. The error includes the name of the limit that was exceeded and the observed value, which makes operational triage straightforward.
+
+Because the limits are enforced inside the decoder, they cover both:
+
+- **Form submissions** (progressive enhancement, `<form action={…}>`, `useActionState`)
+- **JS-driven server function calls** (server functions imported into client components, server functions passed as props)
+
+<Link name="default-limits">
+## Default limits
+</Link>
+
+| Limit              | Default      | What it caps                                                              |
+| ------------------ | ------------ | ------------------------------------------------------------------------- |
+| `maxRows`          | `10000`      | Number of outlined rows (chunks) per reply                                |
+| `maxDepth`         | `128`        | Recursion depth when materialising a row's value tree                     |
+| `maxBytes`         | `32 MiB`     | Total payload size (sum of `FormData` entry sizes)                        |
+| `maxBoundArgs`     | `256`        | Bound arguments on a server reference (matches React)                     |
+| `maxBigIntDigits`  | `4096`       | Digits in a decoded `BigInt` literal (matches React)                      |
+| `maxStringLength`  | `16 MiB`     | Length of a single string row before decoding                             |
+| `maxStreamChunks`  | `10000`      | Chunks materialised for a decoded `ReadableStream`, `AsyncIterable`, or `Iterator` |
+
+Each limit is independent — overriding one does not reset the others to their defaults.
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+Set limits under `serverFunctions.limits` in your `react-server.config.mjs`:
+
+```mjs filename="react-server.config.mjs"
+export default {
+  serverFunctions: {
+    limits: {
+      // Tight ceilings suitable for a public mutation endpoint:
+      maxBytes: 1 * 1024 * 1024,   // 1 MiB
+      maxDepth: 32,
+      maxBoundArgs: 16,
+      maxStreamChunks: 1000,
+    },
+  },
+};
+```
+
+Any field you omit keeps its default value, so you only need to specify the ceilings you want to override.
+
+<Link name="example-tight">
+### Tightening the limits
+</Link>
+
+For a public-facing app that does not need large payloads, drop the byte ceiling and depth substantially:
+
+```mjs filename="react-server.config.mjs"
+export default {
+  serverFunctions: {
+    limits: {
+      maxBytes: 256 * 1024,   // 256 KiB
+      maxStringLength: 64 * 1024,
+      maxRows: 1000,
+      maxDepth: 32,
+    },
+  },
+};
+```
+
+<Link name="example-loose">
+### Loosening the limits
+</Link>
+
+For an internal tool that legitimately uploads large files or streams:
+
+```mjs filename="react-server.config.mjs"
+export default {
+  serverFunctions: {
+    limits: {
+      maxBytes: 256 * 1024 * 1024,    // 256 MiB
+      maxStreamChunks: 100_000,
+    },
+  },
+};
+```
+
+> Loosening limits trades safety for capacity. Combine with rate limiting, authentication, and request-size limits at your reverse proxy layer when raising ceilings on internet-facing endpoints.
+
+<Link name="security-model">
+## Security model
+</Link>
+
+The limits work in concert with the decoder's structural defences (which are always on and not configurable):
+
+- **Prototype-pollution defence** — `__proto__`, `constructor`, and `prototype` keys are stripped during JSON parsing, before they can become own properties on a decoded object.
+- **Path-walk barriers** — outlined row references (`$<hex>:key:key`) only walk through plain `Object.prototype` / `Array.prototype` values via own-property lookups. This blocks attackers from chaining through `.constructor`, `.then`, or other gadgets.
+- **Thenable scrubbing** — any `then` key whose value is a function is replaced with `null` so a hostile payload cannot smuggle in a callable thenable that would be duck-typed by downstream `Promise` code.
+- **Capability-bound callables** — function values can only originate from the server reference allowlist (`$h`) or the opaque temporary-reference proxy (`$T`). The decoder never invokes `eval`, `new Function`, or `import()` on user data.
+
+The configurable limits in this document add a separate, **resource-bounding** layer on top of those structural defences. Together they ensure that an attacker cannot:
+
+1. Pollute prototypes or reach forbidden property paths via crafted references.
+2. Smuggle callables into your server function arguments.
+3. Force your server to perform unbounded work (CPU, memory, or stack) just by sending a malformed reply.
+
+<Link name="error-handling">
+## Error handling
+</Link>
+
+When a limit is exceeded the decoder throws a `DecodeLimitError`. Like other server function errors, it is surfaced to the client through the RSC error path. You can catch and present it via your error boundary, or inspect it inside a custom HTTP middleware to log, alert, or block the offending caller.
+
+The error carries:
+
+- `code: "DECODE_LIMIT"`
+- `limit` — the name of the exceeded limit (for example, `"maxBytes"`)
+- `observed` — the observed value that triggered the rejection
+
+Because rejection happens before any server function runs, exceeding a limit has zero side effects beyond the rejected request itself.

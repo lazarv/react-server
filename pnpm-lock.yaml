@@ -5,23 +5,23 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  react-click-away-listener>react: 0.0.0-experimental-da9325b5-20260417
-  react-click-away-listener>react-dom: 0.0.0-experimental-da9325b5-20260417
-  react-router-dom>react: 0.0.0-experimental-da9325b5-20260417
-  react-router-dom>react-dom: 0.0.0-experimental-da9325b5-20260417
-  react-router>react: 0.0.0-experimental-da9325b5-20260417
-  '@tanstack/react-router>react': 0.0.0-experimental-da9325b5-20260417
-  '@tanstack/react-router>react-dom': 0.0.0-experimental-da9325b5-20260417
-  '@tanstack/react-store>react': 0.0.0-experimental-da9325b5-20260417
-  '@tanstack/react-store>react-dom': 0.0.0-experimental-da9325b5-20260417
-  use-sync-external-store>react: 0.0.0-experimental-da9325b5-20260417
-  '@tanstack/router-devtools>react': 0.0.0-experimental-da9325b5-20260417
-  '@tanstack/router-devtools>react-dom': 0.0.0-experimental-da9325b5-20260417
-  '@docsearch/react>react': 0.0.0-experimental-da9325b5-20260417
-  '@uidotdev/usehooks>react': 0.0.0-experimental-da9325b5-20260417
-  '@uidotdev/usehooks>react-dom': 0.0.0-experimental-da9325b5-20260417
-  '@vercel/analytics>react': 0.0.0-experimental-da9325b5-20260417
-  '@vercel/speed-insights>react': 0.0.0-experimental-da9325b5-20260417
+  react-click-away-listener>react: 0.0.0-experimental-94643c3b-20260421
+  react-click-away-listener>react-dom: 0.0.0-experimental-94643c3b-20260421
+  react-router-dom>react: 0.0.0-experimental-94643c3b-20260421
+  react-router-dom>react-dom: 0.0.0-experimental-94643c3b-20260421
+  react-router>react: 0.0.0-experimental-94643c3b-20260421
+  '@tanstack/react-router>react': 0.0.0-experimental-94643c3b-20260421
+  '@tanstack/react-router>react-dom': 0.0.0-experimental-94643c3b-20260421
+  '@tanstack/react-store>react': 0.0.0-experimental-94643c3b-20260421
+  '@tanstack/react-store>react-dom': 0.0.0-experimental-94643c3b-20260421
+  use-sync-external-store>react: 0.0.0-experimental-94643c3b-20260421
+  '@tanstack/router-devtools>react': 0.0.0-experimental-94643c3b-20260421
+  '@tanstack/router-devtools>react-dom': 0.0.0-experimental-94643c3b-20260421
+  '@docsearch/react>react': 0.0.0-experimental-94643c3b-20260421
+  '@uidotdev/usehooks>react': 0.0.0-experimental-94643c3b-20260421
+  '@uidotdev/usehooks>react-dom': 0.0.0-experimental-94643c3b-20260421
+  '@vercel/analytics>react': 0.0.0-experimental-94643c3b-20260421
+  '@vercel/speed-insights>react': 0.0.0-experimental-94643c3b-20260421
   vite: 8.0.9
   vite-plugin-inspect>vite: 8.0.9
   vite-plugin-svgr>vite: 8.0.9
@@ -578,7 +578,7 @@ importers:
         version: link:../../packages/react-server
       react-click-away-listener:
         specifier: ^2.2.3
-        version: 2.2.3(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)
+        version: 2.2.3(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)
     devDependencies:
       '@types/react':
         specifier: ^18.3.2
@@ -679,7 +679,7 @@ importers:
         version: 6.3.4
       react-router-dom:
         specifier: ^6.23.1
-        version: 6.24.0(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)
+        version: 6.24.0(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)
       sort-by:
         specifier: ^1.2.0
         version: 1.2.0
@@ -878,11 +878,11 @@ importers:
         version: link:../../packages/react-server
       '@tanstack/react-router':
         specifier: ^1.40.0
-        version: 1.43.3(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)
+        version: 1.43.3(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)
     devDependencies:
       '@tanstack/router-devtools':
         specifier: ^1.40.0
-        version: 1.43.3(@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417))(csstype@3.2.3)(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)
+        version: 1.43.3(@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421))(csstype@3.2.3)(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)
       '@tanstack/router-plugin':
         specifier: ^1.39.13
         version: 1.43.1(vite@8.0.9(@types/node@24.9.2)(jiti@2.6.1)(less@4.2.0)(sass@1.86.0)(stylus@0.62.0)(terser@5.37.0)(yaml@2.5.0))
@@ -1182,14 +1182,14 @@ importers:
         specifier: ^8.14.1
         version: 8.21.0
       react:
-        specifier: 0.0.0-experimental-da9325b5-20260417
-        version: 0.0.0-experimental-da9325b5-20260417
+        specifier: 0.0.0-experimental-94643c3b-20260421
+        version: 0.0.0-experimental-94643c3b-20260421
       react-dom:
-        specifier: 0.0.0-experimental-da9325b5-20260417
-        version: 0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417)
+        specifier: 0.0.0-experimental-94643c3b-20260421
+        version: 0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421)
       react-is:
-        specifier: 0.0.0-experimental-da9325b5-20260417
-        version: 0.0.0-experimental-da9325b5-20260417
+        specifier: 0.0.0-experimental-94643c3b-20260421
+        version: 0.0.0-experimental-94643c3b-20260421
       react-property:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2462,7 +2462,7 @@ packages:
     resolution: {integrity: sha512-HUFut4ztcVNmqy9gp/wxNbC7pTOHhgVVkHVGCACTuLhUKUhKAF9KYHJtMiLUJxEqiFLQiuri1fWF8zqwM/cu1w==}
     peerDependencies:
       '@types/react': '>= 16.8.0 < 19.0.0'
-      react: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
       react-dom: '>= 16.8.0 < 19.0.0'
       search-insights: '>= 1 < 3'
     peerDependenciesMeta:
@@ -5305,14 +5305,14 @@ packages:
     resolution: {integrity: sha512-1DJUBezrZ7oVPapQtWww/Mx7mbU/0mYZXVUShDOrkBw+l+PJTVJ0YvzLlnBHbcpoXql5kflRZmPZjjOntme6kw==}
     engines: {node: '>=12'}
     peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421
 
   '@tanstack/react-store@0.2.1':
     resolution: {integrity: sha512-tEbMCQjbeVw9KOP/202LfqZMSNAVi6zYkkp1kBom8nFuMx/965Hzes3+6G6b/comCwVxoJU8Gg9IrcF8yRPthw==}
     peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421
 
   '@tanstack/react-table@8.21.3':
     resolution: {integrity: sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==}
@@ -5326,8 +5326,8 @@ packages:
     engines: {node: '>=12'}
     peerDependencies:
       '@tanstack/react-router': ^1.43.3
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421
 
   '@tanstack/router-generator@1.43.1':
     resolution: {integrity: sha512-9dK/vVGO6SupMed1EAHwsIY0sHEu1EBsVYa208/V+zonJLOTNTthuDAYUxjmLTLm18FeqsujKoDl0hFX4rsREw==}
@@ -5847,8 +5847,8 @@ packages:
     resolution: {integrity: sha512-1I+RwWyS+kdv3Mv0Vmc+p0dPYH0DTRAo04HLyXReYBL9AeseDWUJyi4THuksBJcu9F0Pih69Ak150VDnqbVnXg==}
     engines: {node: '>=16'}
     peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421
 
   '@uiw/copy-to-clipboard@1.0.19':
     resolution: {integrity: sha512-AYxzFUBkZrhtExb2QC0C4lFH2+BSx6JVId9iqeGHakBuosqiQHUQaNZCvIBeM97Ucp+nJ22flOh8FBT2pKRRAA==}
@@ -9946,23 +9946,23 @@ packages:
   react-click-away-listener@2.2.3:
     resolution: {integrity: sha512-p63JRQtK9d085+QHUJ2Pje22P/N4tEaXsS2x7tbbptriQqZ9o8xEk7G1JrxwND5YmEVc/VO4fC3+cSBsqqgLUQ==}
     peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421
 
   react-clientside-effect@1.2.6:
     resolution: {integrity: sha512-XGGGRQAKY+q25Lz9a/4EPqom7WRjz3z9R2k4jhVKA/puQFH/5Nt27vFZYql4m4NVNdUvX8PS3O7r/Zzm7cjUlg==}
     peerDependencies:
       react: ^15.3.0 || ^16.0.0 || ^17.0.0 || ^18.0.0
 
+  react-dom@0.0.0-experimental-94643c3b-20260421:
+    resolution: {integrity: sha512-I4laYiAb23y3hKz6onMKUNDhb6H0ev3ufxz+TF7TkpaJs/qx3aRTwd/igJYPqMvt5cyxZHIQrfnWZGO0D/iNDw==}
+    peerDependencies:
+      react: 0.0.0-experimental-94643c3b-20260421
+
   react-dom@0.0.0-experimental-ab18f33d-20260220:
     resolution: {integrity: sha512-UXGhVKyGJ+k8LBrbaTk16zwQowaJriHGENGUNZiK3qNX/mPk+JUPRNK4p7qL9xeayxnX9fALDcPpNNEPc1w0kA==}
     peerDependencies:
       react: 0.0.0-experimental-ab18f33d-20260220
-
-  react-dom@0.0.0-experimental-da9325b5-20260417:
-    resolution: {integrity: sha512-sImdNk+x9NzqZyv7TKCAGB594V9q6TO4I2OWGPcZP++elhAuXi1d4e2tuuPPstaJHag/zqETKJqiMXUYD4mAmg==}
-    peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
 
   react-dom@19.2.1:
     resolution: {integrity: sha512-ibrK8llX2a4eOskq1mXKu/TGZj9qzomO+sNfO98M6d9zIPOEhlBkMkBUBLd1vgS0gQsLDBzA+8jJBVXDnfHmJg==}
@@ -9992,8 +9992,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-is@0.0.0-experimental-da9325b5-20260417:
-    resolution: {integrity: sha512-mYVX3zqBTPqctadz6zqukoDfSidWrP+73e0Jpt2lAXOL0pssxHdElFmyhPZcaIGsdXRa6g+iRWWGD3bOu3GeTg==}
+  react-is@0.0.0-experimental-94643c3b-20260421:
+    resolution: {integrity: sha512-A+bAE9EEUX5WHYISV7jVacLmyPBvof5jRyu4905Yj6Wiq3cAu+Jyl7cVIHUh1UfoSNUETB9dUTrt61z/s5+tgg==}
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -10083,14 +10083,14 @@ packages:
     resolution: {integrity: sha512-960sKuau6/yEwS8e+NVEidYQb1hNjAYM327gjEyXlc6r3Skf2vtwuJ2l7lssdegD2YjoKG5l8MsVyeTDlVeY8g==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421
 
   react-router@6.24.0:
     resolution: {integrity: sha512-sQrgJ5bXk7vbcC4BxQxeNa5UmboFm35we1AFK0VvQaz9g0LzxEIuLOhHIoZ8rnu9BO21ishGeL9no1WB76W/eg==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
 
   react-server-condition-pkg@file:test/fixtures/react-server-condition-pkg:
     resolution: {directory: test/fixtures/react-server-condition-pkg, type: directory}
@@ -10161,12 +10161,12 @@ packages:
       react-dom:
         optional: true
 
-  react@0.0.0-experimental-ab18f33d-20260220:
-    resolution: {integrity: sha512-hnphlgmXP0DIbbWz/c0mMfxFsb+qQ6gCMbE6IyvbGz55ay1DgfYKD0YtKfWUOs2cktp4LmDM5+5ewGw9LSfiCg==}
+  react@0.0.0-experimental-94643c3b-20260421:
+    resolution: {integrity: sha512-R/u3r9dHlNdb2+I/53O+I/nyRjGW3u6ZP9cDxbG0BQzw7pA1ke1ngNniWqeIYlc6CScy1foJefBjfgiXhR18yA==}
     engines: {node: '>=0.10.0'}
 
-  react@0.0.0-experimental-da9325b5-20260417:
-    resolution: {integrity: sha512-f6ZoTmyWA5L/W+zVZQC3OugjUQE7gpsoR7RkDu7LJ5xautGbWo3HBTEp+Y1pDeKyJUpOAyQMWlWBwyF4TZ+lYA==}
+  react@0.0.0-experimental-ab18f33d-20260220:
+    resolution: {integrity: sha512-hnphlgmXP0DIbbWz/c0mMfxFsb+qQ6gCMbE6IyvbGz55ay1DgfYKD0YtKfWUOs2cktp4LmDM5+5ewGw9LSfiCg==}
     engines: {node: '>=0.10.0'}
 
   react@19.2.1:
@@ -10460,11 +10460,11 @@ packages:
   sax@1.4.1:
     resolution: {integrity: sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg==}
 
+  scheduler@0.0.0-experimental-94643c3b-20260421:
+    resolution: {integrity: sha512-v3UaZWx8QDMuAbbOgi4FSu8mCFhHu6YgceKdAcPsLH7hUKt0DJ86SMkf7ui0CO7BLQ1jDVrvG8IrD44N2xo5KA==}
+
   scheduler@0.0.0-experimental-ab18f33d-20260220:
     resolution: {integrity: sha512-k2FNJuxo0mIDFGryeRsIkpo2T9pboTLJPEiYuj1W6iZEETku4Ive83zHy9p0znQBHBpBV56A0f4lfq2t+PT37g==}
-
-  scheduler@0.0.0-experimental-da9325b5-20260417:
-    resolution: {integrity: sha512-KJJ82dYoisHc9OxyW/BEaQJQbVHBOAOj2bEW/TXRYwHrohIZ2vS3HD3x9imFBDDwWKkYu/aas9gEHTwdt0C1lw==}
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
@@ -11436,12 +11436,12 @@ packages:
   use-sync-external-store@1.2.2:
     resolution: {integrity: sha512-PElTlVMwpblvbNqQ82d2n6RjStvdSoNe9FG28kNfz3WiXilJm4DdNkEzRhCZuIDwY8U08WVihhGR5iRqAwfDiw==}
     peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
 
   use-sync-external-store@1.6.0:
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
     peerDependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
@@ -16552,21 +16552,21 @@ snapshots:
       '@tanstack/query-core': 5.54.1
       react: 19.2.1
 
-  '@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)':
+  '@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)':
     dependencies:
       '@tanstack/history': 1.41.0
-      '@tanstack/react-store': 0.2.1(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417)
+      '@tanstack/react-store': 0.2.1(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421)
       tiny-invariant: 1.3.3
       tiny-warning: 1.0.3
 
-  '@tanstack/react-store@0.2.1(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)':
+  '@tanstack/react-store@0.2.1(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)':
     dependencies:
       '@tanstack/store': 0.1.3
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417)
-      use-sync-external-store: 1.2.2(react@0.0.0-experimental-da9325b5-20260417)
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421)
+      use-sync-external-store: 1.2.2(react@0.0.0-experimental-94643c3b-20260421)
 
   '@tanstack/react-table@8.21.3(react-dom@19.2.1(react@19.2.1))(react@19.2.1)':
     dependencies:
@@ -16574,14 +16574,14 @@ snapshots:
       react: 19.2.1
       react-dom: 19.2.1(react@19.2.1)
 
-  '@tanstack/router-devtools@1.43.3(@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417))(csstype@3.2.3)(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)':
+  '@tanstack/router-devtools@1.43.3(@tanstack/react-router@1.43.3(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421))(csstype@3.2.3)(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)':
     dependencies:
-      '@tanstack/react-router': 1.43.3(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417)
+      '@tanstack/react-router': 1.43.3(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421)
       clsx: 2.1.1
       date-fns: 2.30.0
       goober: 2.1.14(csstype@3.2.3)
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417)
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421)
     transitivePeerDependencies:
       - csstype
 
@@ -16765,7 +16765,7 @@ snapshots:
       '@tiptap/pm': 2.6.6
       '@types/use-sync-external-store': 0.0.6
       react-dom: 19.2.1(react@19.2.1)
-      use-sync-external-store: 1.2.2(react@0.0.0-experimental-da9325b5-20260417)
+      use-sync-external-store: 1.2.2(react@0.0.0-experimental-94643c3b-20260421)
 
   '@tiptap/starter-kit@2.6.6':
     dependencies:
@@ -22146,25 +22146,25 @@ snapshots:
       minimist: 1.2.8
       strip-json-comments: 2.0.1
 
-  react-click-away-listener@2.2.3(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417):
+  react-click-away-listener@2.2.3(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421):
     dependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417)
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421)
 
   react-clientside-effect@1.2.6(react@19.2.1):
     dependencies:
       '@babel/runtime': 7.26.7
       react: 19.2.1
 
+  react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421):
+    dependencies:
+      react: 0.0.0-experimental-94643c3b-20260421
+      scheduler: 0.0.0-experimental-94643c3b-20260421
+
   react-dom@0.0.0-experimental-ab18f33d-20260220(react@0.0.0-experimental-ab18f33d-20260220):
     dependencies:
       react: 0.0.0-experimental-ab18f33d-20260220
       scheduler: 0.0.0-experimental-ab18f33d-20260220
-
-  react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417):
-    dependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
-      scheduler: 0.0.0-experimental-da9325b5-20260417
 
   react-dom@19.2.1(react@19.2.1):
     dependencies:
@@ -22194,7 +22194,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.5
 
-  react-is@0.0.0-experimental-da9325b5-20260417: {}
+  react-is@0.0.0-experimental-94643c3b-20260421: {}
 
   react-is@16.13.1: {}
 
@@ -22294,17 +22294,17 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.2
 
-  react-router-dom@6.24.0(react-dom@0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417))(react@0.0.0-experimental-da9325b5-20260417):
+  react-router-dom@6.24.0(react-dom@0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421))(react@0.0.0-experimental-94643c3b-20260421):
     dependencies:
       '@remix-run/router': 1.17.0
-      react: 0.0.0-experimental-da9325b5-20260417
-      react-dom: 0.0.0-experimental-da9325b5-20260417(react@0.0.0-experimental-da9325b5-20260417)
-      react-router: 6.24.0(react@0.0.0-experimental-da9325b5-20260417)
+      react: 0.0.0-experimental-94643c3b-20260421
+      react-dom: 0.0.0-experimental-94643c3b-20260421(react@0.0.0-experimental-94643c3b-20260421)
+      react-router: 6.24.0(react@0.0.0-experimental-94643c3b-20260421)
 
-  react-router@6.24.0(react@0.0.0-experimental-da9325b5-20260417):
+  react-router@6.24.0(react@0.0.0-experimental-94643c3b-20260421):
     dependencies:
       '@remix-run/router': 1.17.0
-      react: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
 
   react-server-condition-pkg@file:test/fixtures/react-server-condition-pkg: {}
 
@@ -22382,9 +22382,9 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.1(react@19.2.1)
 
-  react@0.0.0-experimental-ab18f33d-20260220: {}
+  react@0.0.0-experimental-94643c3b-20260421: {}
 
-  react@0.0.0-experimental-da9325b5-20260417: {}
+  react@0.0.0-experimental-ab18f33d-20260220: {}
 
   react@19.2.1: {}
 
@@ -22849,9 +22849,9 @@ snapshots:
   sax@1.4.1:
     optional: true
 
-  scheduler@0.0.0-experimental-ab18f33d-20260220: {}
+  scheduler@0.0.0-experimental-94643c3b-20260421: {}
 
-  scheduler@0.0.0-experimental-da9325b5-20260417: {}
+  scheduler@0.0.0-experimental-ab18f33d-20260220: {}
 
   scheduler@0.27.0: {}
 
@@ -23901,9 +23901,9 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.2
 
-  use-sync-external-store@1.2.2(react@0.0.0-experimental-da9325b5-20260417):
+  use-sync-external-store@1.2.2(react@0.0.0-experimental-94643c3b-20260421):
     dependencies:
-      react: 0.0.0-experimental-da9325b5-20260417
+      react: 0.0.0-experimental-94643c3b-20260421
 
   use-sync-external-store@1.6.0(react@19.2.1):
     dependencies:

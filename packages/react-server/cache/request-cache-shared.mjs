@@ -39,7 +39,12 @@ const WRITE_OFFSET_INDEX = 1; // Int32Array index
 const DATA_START = HEADER_BYTES;
 const DEFAULT_BUFFER_SIZE = 256 * 1024; // 256 KB (max)
 const INITIAL_BUFFER_SIZE = 512; // tiny initial; grows on demand
-const WAIT_TIMEOUT_MS = 5000;
+// Bounded wait used by `attachSharedRequestCache().read()` when the SAB
+// scan misses. Long enough to absorb RSC's typical compute-then-write
+// latency for "use cache: request" functions; short enough that
+// client-root SSR mode (no RSC writer) doesn't stall meaningfully on
+// uncached keys. See the doc comment on `read()` for the rationale.
+const SHORT_WAIT_MS = 50;
 
 // Per-entry flags (stored as a single byte per entry)
 export const FLAG_NO_HYDRATE = 1 << 0;
@@ -191,8 +196,23 @@ export function createInProcessRequestCache() {
  * all RSC-supported types are reconstructed. Async types (Promises,
  * ReadableStream, etc.) remain as Promises in the deserialized value tree.
  *
+ * The returned object also exposes a worker-local write surface
+ * (`write`/`markNoHydrate`/`hydratedEntries`) for entries that were never
+ * touched by the RSC main thread but get computed on the SSR side. The
+ * SAB itself is append-only-from-main-thread and cannot be written from
+ * the worker; instead, worker-side writes land in an in-memory Map that
+ * lives only for this request.
+ *
+ * Why this matters: a `"use cache: request"` function may be called
+ * exclusively from a SSR-rendered client component (e.g. via `use(fn())`).
+ * RSC never executes it, so the SAB stays empty for that key. Without a
+ * worker-local write surface, every such call would compute fresh, no
+ * hydration entry would be emitted, and the browser would recompute again
+ * on hydration. The local Map closes that hole and feeds the same
+ * `flushCacheEntries` pipeline as SAB entries.
+ *
  * @param {SharedArrayBuffer} buffer
- * @returns {{ read: (key: string) => any }}
+ * @returns {object} reader+local-writer with read/write/markNoHydrate/...
  */
 export function attachSharedRequestCache(buffer) {
   const header = new Int32Array(buffer, 0, 2);
@@ -204,6 +224,12 @@ export function attachSharedRequestCache(buffer) {
 
   // Per-entry flags (bit 0 = noHydrate)
   const flagsCache = new Map();
+
+  // Worker-local writes — entries computed on the SSR side that the SAB
+  // (main-thread-only writer) never received. Read precedence is local
+  // first, then SAB; flushCacheEntries unions both sources.
+  const localWrites = new Map();
+  const localNoHydrate = new Set();
 
   /**
    * Scan any new entries that have appeared since our last scan.
@@ -303,13 +329,36 @@ export function attachSharedRequestCache(buffer) {
     },
 
     /**
-     * Read a cache entry by key. Blocks via Atomics.wait if the entry
-     * hasn't arrived yet.
+     * Read a cache entry by key. Bounded-wait semantics:
+     *   1. Worker-local writes (SSR-side) take precedence.
+     *   2. Then the previously-scanned SAB window.
+     *   3. Then a fresh scan.
+     *   4. Then a SHORT Atomics.wait for new entries to land.
+     *
+     * Why a short wait instead of pure non-blocking: in regular RSC+SSR
+     * mode, RSC only writes to the SAB *after* its cache function
+     * resolves (see cache/index.mjs ~L298 — Promises can't be syncToBuffer'd,
+     * so there's no "pending marker" available in worker mode). A purely
+     * non-blocking read here causes SSR-side `useCache` calls to race
+     * ahead of RSC's write, compute their own value, and produce
+     * different timestamps/randoms than RSC for the same request — even
+     * though the contract is request-scoped dedup.
+     *
+     * Why a SHORT wait instead of the original 5s: client-root SSR mode
+     * runs without any RSC writer at all. Every uncached key would
+     * otherwise burn the full timeout. A bounded wait (~SHORT_WAIT_MS)
+     * is long enough to catch RSC's typical write latency yet short
+     * enough that an RSC-less request still progresses promptly.
      *
      * @param {string} key
      * @returns {any} The cached value, or CACHE_MISS
      */
     read(key) {
+      // Worker-local writes take precedence — they're freshest and may
+      // hold a pending Promise the SSR side wrote that hasn't appeared
+      // anywhere else.
+      if (localWrites.has(key)) return localWrites.get(key);
+
       // Fast path: check local cache first
       if (localCache.has(key)) {
         return localCache.get(key);
@@ -321,31 +370,72 @@ export function attachSharedRequestCache(buffer) {
         return localCache.get(key);
       }
 
-      // Entry not found — block until new entries arrive
+      // Short bounded wait: gives RSC the chance to flush its synchronous
+      // post-resolve write before we declare a miss. We re-scan after
+      // each wake — Atomics.wait wakes on entry-count change, which is
+      // the same signal `write()` raises via Atomics.notify.
+      const deadline = Date.now() + SHORT_WAIT_MS;
       let currentCount = Atomics.load(header, ENTRY_COUNT_INDEX);
-      const deadline = Date.now() + WAIT_TIMEOUT_MS;
       while (Date.now() < deadline) {
         const remaining = deadline - Date.now();
         if (remaining <= 0) break;
-
-        const result = Atomics.wait(
+        const waitResult = Atomics.wait(
           header,
           ENTRY_COUNT_INDEX,
           currentCount,
           remaining
         );
-
-        // Re-scan after wake
         scanNewEntries();
         if (localCache.has(key)) {
           return localCache.get(key);
         }
-
-        if (result === "timed-out") break;
+        if (waitResult === "timed-out") break;
         currentCount = Atomics.load(header, ENTRY_COUNT_INDEX);
       }
 
       return CACHE_MISS;
+    },
+
+    /**
+     * Worker-local write. The SAB itself is append-only-from-main-thread
+     * so we cannot grow it from here; instead, we land the entry in an
+     * in-memory Map that participates in `read()` and `hydratedEntries()`.
+     * Entries written here flow through `flushCacheEntries` exactly like
+     * SAB-written entries — same `<script>Object.assign(...)</script>`
+     * hydration shape — so the browser sees them on first paint.
+     *
+     * @param {string} key
+     * @param {any} value
+     * @param {number} [flags=0] Per-entry flags byte (bit 0 = noHydrate)
+     * @returns {boolean} Always true (Map.set never fails for in-memory).
+     */
+    write(key, value, flags = 0) {
+      localWrites.set(key, value);
+      if (flags & FLAG_NO_HYDRATE) localNoHydrate.add(key);
+      return true;
+    },
+
+    /**
+     * Mark a worker-local key as not eligible for browser hydration.
+     */
+    markNoHydrate(key) {
+      localNoHydrate.add(key);
+    },
+
+    /**
+     * Worker-local entries eligible for browser hydration. The SAB-side
+     * companions are exposed via `hydratedRawEntries()`; flushCacheEntries
+     * iterates both and dedupes by key, so this surface only carries
+     * SSR-initiated writes that won't be in the SAB.
+     *
+     * @returns {Map<string, any>}
+     */
+    hydratedEntries() {
+      const result = new Map();
+      for (const [k, v] of localWrites) {
+        if (!localNoHydrate.has(k)) result.set(k, v);
+      }
+      return result;
     },
   };
 }

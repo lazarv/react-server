@@ -40,6 +40,15 @@ async function resolveUncached(specifier, context, nextResolve) {
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/render.mjs")).href
       );
+    case "@lazarv/react-server/dist/server/render-action":
+      // Optional secondary entry — only emitted by the build when the
+      // project root is a "use client" module (lib/build/server.mjs adds
+      // it as a parallel input). The runtime importer in
+      // lib/start/ssr-handler.mjs catches the resolution failure for
+      // non-client-root builds and falls back to the primary `render`.
+      return nextResolve(
+        pathToFileURL(join(cwd, outDir, "server/render-action.mjs")).href
+      );
     case "@lazarv/react-server/dist/server/root":
       return nextResolve(
         pathToFileURL(join(cwd, outDir, "server/root.mjs")).href

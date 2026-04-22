@@ -34,6 +34,7 @@ import { preloadManifestVirtual } from "../plugins/preload-manifest.mjs";
 import { serverReferenceMapVirtual } from "../plugins/server-reference-map.mjs";
 import { clientReferenceMapVirtual } from "../plugins/client-reference-map.mjs";
 import * as sys from "../sys.mjs";
+import { parse as parseAst } from "../utils/ast.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import merge from "../utils/merge.mjs";
 import {
@@ -341,10 +342,6 @@ export default async function serverBuild(root, options, clientManifestBus) {
     // ignore
   }
 
-  const renderModulePath = __require.resolve(
-    "@lazarv/react-server/server/render-rsc.jsx",
-    { paths: [cwd] }
-  );
   const rootModulePath =
     !root && options.eval != null && options.eval !== false
       ? "virtual:react-server-eval.jsx"
@@ -356,6 +353,57 @@ export default async function serverBuild(root, options, clientManifestBus) {
               paths: [cwd],
             }
           );
+
+  // Detect "use client" root: when the project's root module is a client
+  // component, swap the bundled render entry to render-ssr.jsx (the SSR
+  // shortcut that skips the RSC flight pipeline entirely). The two entries
+  // expose the same `render(Component, props, options)` signature so the
+  // runtime handler is unchanged.
+  //
+  // Detection MUST mirror what lib/plugins/use-client.mjs treats as a "use
+  // client" module (a top-level ExpressionStatement with directive === "use
+  // client"). A naive substring scan would also match the directive text
+  // appearing in string literals, comments, or JSX — leading to a build
+  // that emits render-ssr.jsx but a root.mjs that ISN'T a
+  // registerClientReference proxy, which trips render-ssr's runtime
+  // invariant. Cheap fast-path: bail out before parsing if the code
+  // doesn't even contain the substring.
+  let isClientRootBuild = false;
+  if (rootModulePath && !rootModulePath.startsWith("virtual:")) {
+    try {
+      const code = await readFile(rootModulePath, "utf8");
+      if (code.includes(`"use client"`) || code.includes(`'use client'`)) {
+        const ast = await parseAst(code, rootModulePath);
+        if (ast) {
+          const directives = ast.body
+            .filter((node) => node.type === "ExpressionStatement")
+            .map(({ directive }) => directive);
+          isClientRootBuild = directives.includes("use client");
+        }
+      }
+    } catch {
+      // Parse or read failure — fall back to RSC entry, which still renders
+      // client roots correctly (just through the longer flight pipeline).
+      // The runtime dispatcher in lib/start/ssr-handler.mjs is robust to
+      // either decision.
+    }
+  }
+  const renderModulePath = __require.resolve(
+    isClientRootBuild
+      ? "@lazarv/react-server/server/render-ssr.jsx"
+      : "@lazarv/react-server/server/render-rsc.jsx",
+    { paths: [cwd] }
+  );
+  // Client-root builds bundle render-rsc.jsx as a secondary entry so the
+  // runtime can dispatch server-action POSTs through the full RSC pipeline
+  // even though the primary `server/render` is the SSR shortcut. See the
+  // matching per-request switch in lib/start/ssr-handler.mjs. Non-client-root
+  // builds don't need this bundle — the primary entry already is RSC.
+  const renderActionModulePath = isClientRootBuild
+    ? __require.resolve("@lazarv/react-server/server/render-rsc.jsx", {
+        paths: [cwd],
+      })
+    : null;
   const errorModulePath = __require.resolve(globalError, {
     paths: [cwd],
   });
@@ -601,6 +649,11 @@ export default async function serverBuild(root, options, clientManifestBus) {
               "server/manifest-registry",
               "server/client/manifest-registry",
               "server/render",
+              // Secondary RSC dispatch entry for client-root builds. Must be
+              // unhashed so the runtime loader can resolve the literal
+              // `@lazarv/react-server/dist/server/render-action` specifier
+              // (see lib/loader/*.mjs and lib/start/ssr-handler.mjs).
+              "server/render-action",
               "server/render-dom",
               "server/root",
               "server/error",
@@ -715,6 +768,9 @@ export default async function serverBuild(root, options, clientManifestBus) {
           // "server/client/manifest-registry":
           //   "@lazarv/react-server/dist/client/manifest-registry",
           "server/render": renderModulePath,
+          ...(renderActionModulePath
+            ? { "server/render-action": renderActionModulePath }
+            : {}),
           "server/root": rootModulePath,
           "server/error": errorModulePath,
           ...(isGlobalErrorClientComponent

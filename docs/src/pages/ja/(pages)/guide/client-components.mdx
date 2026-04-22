@@ -162,6 +162,78 @@ export default function App() {
 
 > **注意:** キャプチャされた変数はすべて、通常のクライアントコンポーネントのpropsと同様にシリアル化可能でなければなりません。関数、クラスインスタンス、その他のシリアル化できない値はキャプチャできません。
 
+<Link name="client-root-rendering">
+## クライアントルートレンダリング
+</Link>
+
+アプリのルートモジュール — `react-server`に渡すエントリファイル — 自体が`"use client"`モジュールである場合、ランタイムは起動時にこれを検出し、React DOMの`renderToReadableStream`を直接通してレンダリングします。RSCフライトパイプラインは完全にスキップされます。有効化する設定は何もなく、解決済みルートモジュールのディレクティブに基づいてレンダリングパスが自動的に選択されます。この選択はプロセスの存続期間中、アプリ全体に適用されます。
+
+```jsx filename="src/index.ssr.jsx"
+"use client";
+
+import App from "./App.jsx";
+
+export default function Root() {
+  return <App />;
+}
+```
+
+```jsx filename="src/index.rsc.jsx"
+import App from "./App.jsx";
+
+export default function Root() {
+  return <App />;
+}
+```
+
+上記の2つのエントリは、同じHTMLと同じハイドレーション後のReactツリーを生成します。最初のエントリはReact DOM SSRを直接通ります。2番目のエントリはRSCパイプラインを通り、`App`（`"use client"`モジュール）はフライトペイロード内でクライアント参照として具現化されます。
+
+`children` propは、サーバーエントリがクライアントルートの中にサーバーコンポーネントを合成するための橋渡しになります：
+
+```jsx filename="src/index.rsc.jsx"
+import App from "./App.jsx";          // "use client"
+import Stats from "./Stats.jsx";      // サーバーコンポーネント
+import Products from "./Products.jsx"; // サーバーコンポーネント
+
+export default function Root() {
+  return (
+    <App>
+      <Stats />
+      <Products />
+    </App>
+  );
+}
+```
+
+このRSCエントリでは、`<Stats />`と`<Products />`はサーバーコンポーネントとして評価されます。フライトペイロードには、`App`の`children` propとしてアタッチされた、事前レンダリング済みのReact要素ツリーが含まれます。これらに対してクライアントサイドJavaScriptは配信されません。
+
+同じJSXを`"use client"`エントリに記述すると、importは推移的にクライアントバンドルに取り込まれ、`<Stats />`と`<Products />`はクライアントコンポーネントになります — それらはReact DOMを通してSSRされ、通常通りハイドレーションされます：
+
+```jsx filename="src/index.ssr.jsx"
+"use client";
+
+import App from "./App.jsx";
+import Stats from "./Stats.jsx";
+import Products from "./Products.jsx";
+
+export default function Root() {
+  return (
+    <App>
+      <Stats />
+      <Products />
+    </App>
+  );
+}
+```
+
+両方のエントリで同じコンポーネントファイルが使用されます。エントリのディレクティブが、それらの扱われ方を決定します。
+
+クライアントルートレンダリングでは、[`"use cache: request"`](/features/caching)関数は引き続き動作します。ランタイムは解決済みキャッシュエントリを`self.__react_server_request_cache_entries__`ペイロードとしてHTMLストリームにフラッシュし、ブラウザ側のラッパーがハイドレーション中に同期的にそこから読み取ります。クライアントコンポーネント内の`use(cachedFn())`呼び出しは、サスペンドすることなく初回で解決されます。
+
+POSTリクエスト経由で呼び出される[サーバー関数](/guide/server-functions)は、ショートカットの唯一の例外です：アプリのルートがクライアントモジュールであっても、標準のRSCエントリにルーティングされます。サーバー関数のディスパッチには、`serverFunctionResult`フライトを発行するための完全なRSCパイプラインが必要だからです。これは作成者には見えません — サーバー関数は実行され、`useActionState`は他のRSCルートと全く同じように結果を消費します。
+
+アプリ全体がいずれにせよクライアントツリーになる場合 — インタラクティブ性が広く行き渡ったダッシュボード形式のアプリ、またはSPAシェル — ではクライアントルートレンダリングを採用してください。ほとんどがサーバーレンダリングされ、いくつかのインタラクティブなアイランドを含むアプリでは、通常のRSCパイプラインが適切なデフォルトのままです — その方が配信するJavaScriptが少なくなります。
+
 <Link name="client-only-components">
 ## クライアント専用コンポーネント
 </Link>

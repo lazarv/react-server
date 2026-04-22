@@ -194,6 +194,42 @@ export default function Counter() {
 **Consequences:**
 Zero client-side JavaScript is achievable for fully static pages. Interactive islands are explicitly scoped. The runtime controls the serialization format, which means a pinned React version is required (see below).
 
+<Link name="client-root-rendering-shortcut">
+### Client-Root Rendering Shortcut
+</Link>
+
+**Problem:**
+The RSC flight pipeline pays serialization, transport, and deserialization cost on every render — even when the app's root module is itself a `"use client"` boundary and the flight contains nothing but a single client reference. For SPA-shaped apps (dashboards, editors, single-page-application shells) this overhead is pure waste: there is no server tree to serialize, no server data to bridge, and no progressive hydration to orchestrate beyond what React DOM already does on its own.
+
+**Constraint:**
+The decision must be static (visible at module-resolution time, not per request), zero-cost on the request hot path, and transparent to authors — the same component code must work whether the app's root chooses the shortcut or the full RSC pipeline. Server-side state that legitimately needs to cross into hydration (most importantly `"use cache: request"` results) must continue to work, because dropping the flight pipeline must not drop the request-cache bridge.
+
+**Decision:**
+At handler initialization — once per process, against the app root entry passed to `react-server` — the SSR handler resolves the root module and inspects its default export. If the export is a `REACT_CLIENT_REFERENCE` (the proxy that `"use client"` modules export), the handler swaps the render entry to `server/render-ssr.jsx` for the lifetime of the process. That entry sends a `clientRoot: { id, name, props }` descriptor to the SSR worker instead of a flight stream; the worker resolves the module by id, builds a React element directly, and renders HTML through `renderToReadableStream`. The RSC flight pipeline is skipped end-to-end — no encode, no decode, no incremental flight script injection.
+
+```jsx
+// "use client" root → React DOM SSR directly
+"use client";
+export default function Root() {
+  return <App />;
+}
+
+// Plain server root → RSC pipeline (flight encode → decode → hydrate)
+export default function Root() {
+  return <App />;
+}
+```
+
+Request-scoped caches still cross the boundary. The shortcut path stands up an in-process request cache (a SAB attached from the main thread is always empty in this code path, and a SAB has no writer interface), populates it through the same [`useCache`](/features/caching) machinery the flight path uses, and flushes resolved entries into the HTML stream as `self.__react_server_request_cache_entries__`. The browser-side `useCache` wrapper reads from it synchronously during hydration, so a `use(cachedFn())` call inside a client component resolves on the first try without suspending.
+
+**Tradeoffs:**
+- Server function POSTs cannot use the shortcut — `render-ssr.jsx` is HTML-only and has no server function dispatch. POST requests are routed back through the default RSC entry, which sees the client-reference component, runs the server function exactly as it would for any RSC root, and emits the server function result flight. This is invisible to authors but is one extra moving part to keep correct.
+- Authors who put their entire app in a `"use client"` file lose RSC's "ship less JavaScript" benefit silently. The shortcut is a faithful execution of what the directive *says* — every component in transitive scope is a client component — so the cost shows up in the bundle, not in an error.
+- The shortcut requires a separate inline hydration mechanism for request caches because the flight protocol is not available to carry them. The bridge is pure HTML (`<script>` tags appended at safe stream boundaries), which couples this code path to the HTML parser's tag-boundary rules.
+
+**Consequences:**
+A `"use client"` app root pays only the cost of React DOM SSR plus its own component code — no flight encode, no flight decode, no flight chunking. The same component files can be composed under either app root shape (`"use client"` index or server index), letting authors switch between the two pipelines on the same source code with no API changes. The detection itself is a single property read at startup, so there is no per-request work.
+
 <Link name="streaming-architecture">
 ### Streaming Architecture
 </Link>

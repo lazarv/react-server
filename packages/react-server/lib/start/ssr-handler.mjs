@@ -60,6 +60,7 @@ import * as sys from "../sys.mjs";
 globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
 const cwd = sys.cwd();
+const REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
 
 export default async function ssrHandler(root, options = {}) {
   const outDir = options.outDir ?? ".react-server";
@@ -111,6 +112,19 @@ export default async function ssrHandler(root, options = {}) {
   );
   const [
     { render },
+    // Optional secondary render entry. The build emits `server/render-action.mjs`
+    // as a parallel input only for client-root builds (lib/build/server.mjs
+    // sets `renderActionModulePath` when isClientRootBuild). For non-client-root
+    // builds the import resolves to nothing and the per-request switch
+    // below collapses to "always use `render`".
+    //
+    // Why a second entry instead of dispatching inside render-ssr.jsx: the
+    // SSR shortcut does not have the action-decode/encode pipeline (~200
+    // lines in render-rsc.jsx — decryptActionId, decodeReply, decodeAction,
+    // decodeFormState, the action span, the formState branch). Bundling the
+    // RSC entry as an alternate `renderAction` keeps that logic in one
+    // place and dispatches at request time.
+    { render: renderAction },
     { default: Component, init$: root_init$, warmup$: root_warmup$ },
     { default: GlobalErrorComponent },
     { default: ErrorBoundary },
@@ -118,6 +132,13 @@ export default async function ssrHandler(root, options = {}) {
     rscSerializer,
   ] = await Promise.all([
     import("@lazarv/react-server/dist/server/render"),
+    (async () => {
+      try {
+        return await import("@lazarv/react-server/dist/server/render-action");
+      } catch {
+        return { render: null };
+      }
+    })(),
     import("@lazarv/react-server/dist/server/root"),
     import("@lazarv/react-server/dist/server/error"),
     (async () => {
@@ -138,9 +159,34 @@ export default async function ssrHandler(root, options = {}) {
   root_warmup$?.()?.catch?.(() => {});
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
-  const clientModules = getRuntime(COLLECT_CLIENT_MODULES)?.(rootModule) ?? [];
-  const styles = getRuntime(COLLECT_STYLESHEETS)?.(rootModule) ?? [];
   const manifest = getRuntime(MANIFEST);
+
+  // Detect client-root in production: the build emits dist/server/root.mjs
+  // as a registerClientReference proxy when the user's root is a "use client"
+  // module (lib/build/server.mjs also swaps the bundled `render` entry to
+  // render-ssr.jsx in that case — see isClientRootBuild). Same detection as
+  // the dev path: a single property read on the loaded export.
+  //
+  // For CSS / client-modules collection we have to bridge from the bundled
+  // server path (which has no original imports) back to the user's source
+  // path (which the browser/client manifest indexes). The server manifest
+  // entry's `src` field carries that original path.
+  const isClientRoot = Component?.$$typeof === REACT_CLIENT_REFERENCE;
+  let rootSrc = null;
+  if (isClientRoot && manifest?.server) {
+    const serverEntry = Object.values(manifest.server).find((entry) =>
+      rootModule.endsWith(entry.file)
+    );
+    rootSrc = serverEntry?.src ?? null;
+  }
+  const clientModules = collectClientModules?.(rootModule) ?? [];
+  // Server-side traversal for client-root yields nothing useful (the
+  // registerClientReference stub has no transitive client refs to discover);
+  // render-ssr.jsx unshifts the root's browser id at request time, so the
+  // empty list here is fine.
+  const styles = isClientRoot
+    ? (collectStylesheets?.(rootSrc ?? rootModule, manifest?.client) ?? [])
+    : (collectStylesheets?.(rootModule) ?? []);
   const hasClientComponents = Object.keys(clientReferenceMap()).length > 0;
   const mainModule = hasClientComponents
     ? getRuntime(MAIN_MODULE)?.map((mod) =>
@@ -411,7 +457,42 @@ export default async function ssrHandler(root, options = {}) {
               if (getContext(POSTPONE_CONTEXT) === null) {
                 context$(POSTPONE_CONTEXT, true);
               }
-              render(Component, {}, { middlewareError }).then(
+              // Per-request entry selection (parity with the dev handler).
+              //
+              // Build-time vs runtime contract:
+              //   - Build emits `render.mjs` from render-ssr.jsx ONLY when it
+              //     decided the root is a "use client" module. When that
+              //     happens it also emits `render-action.mjs` from render-rsc.jsx
+              //     as a parallel entry. So `renderAction != null` is the
+              //     signal that `render` is the SSR shortcut.
+              //   - The shortcut's invariant requires `Component.$$typeof ===
+              //     REACT_CLIENT_REFERENCE`. Build-time detection is a literal
+              //     substring scan and can disagree with the runtime check
+              //     (directive text inside a string literal, comment, etc.).
+              //
+              // Rule: the build-time decision is a *hint* about what was
+              // emitted; the runtime decides what to *dispatch*. Use the
+              // shortcut only when runtime confirms a client-reference root
+              // AND the request is not an action POST. Otherwise fall back
+              // to the full RSC entry — either via `renderAction` (when the
+              // build emitted the shortcut) or directly via `render` (when
+              // the build didn't emit the shortcut, so `render` IS the RSC
+              // entry).
+              const method = httpContext.request.method;
+              const isMutating = "POST,PUT,PATCH,DELETE".includes(method);
+              const hasActionHeader = !!httpContext.request.headers.get(
+                "react-server-action"
+              );
+              const isMultipart = !!httpContext.request.headers
+                .get("content-type")
+                ?.includes("multipart/form-data");
+              const isActionRequest =
+                isMutating && (hasActionHeader || isMultipart);
+              const useShortcut = isClientRoot && !isActionRequest;
+              const dispatchRender = useShortcut
+                ? render
+                : (renderAction ?? render);
+              dispatchRender(Component, {}, { middlewareError }).then(
                 (result) => {
                   resolve(result);
                 },

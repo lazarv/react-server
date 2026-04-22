@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   Component as ReactComponent,
   startTransition,
   useCallback,
@@ -24,6 +24,26 @@ import {
   emitLocationChange,
   clearPendingNavigation,
 } from "./client-location.mjs";
+
+// Client-root SSR shortcut: when ssr-handler.mjs took the render-ssr.jsx
+// path, the HTML carries `self.__react_server_root__ = "id#name"` (string,
+// no props) instead of inline flight chunks. The Component reference is
+// resolved by client/entry.client.jsx's bootstrap (which dynamic-imports
+// the module and stashes the export on `__react_server_root_component__`
+// before hydrateRoot runs). Root components never receive props.
+//
+// Returning a React element here makes the PAGE_ROOT outlet hydrate from
+// the resolved component on first render. Subsequent updates (Refresh,
+// Link navigation, server-function responses) fall back to the normal
+// flight path via setComponent — so all existing wrapper behaviors
+// continue to work.
+function initialClientRootComponent({ outlet, remote }) {
+  if (outlet !== PAGE_ROOT || remote) return null;
+  if (typeof self === "undefined") return null;
+  const Component = self.__react_server_root_component__;
+  if (typeof Component !== "function") return null;
+  return React.createElement(Component);
+}
 
 // Execute scripts stored as <template data-script-attrs> by dom-flight.mjs
 // to avoid React's "Encountered a script tag" warning during SSR/RSC rendering.
@@ -123,6 +143,7 @@ function FlightComponent({
       error: null,
       Component:
         children ||
+        initialClientRootComponent({ outlet, remote }) ||
         (outlet === PAGE_ROOT || remote
           ? getFlightResponse?.(url, {
               outlet,

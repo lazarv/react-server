@@ -1,0 +1,6 @@
+.react-server
+.react-server-ssr
+.react-server-rsc
+.react-server-bench-ssr
+.react-server-bench-rsc
+results-*.json

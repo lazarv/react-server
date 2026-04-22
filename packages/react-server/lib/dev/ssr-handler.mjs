@@ -38,15 +38,22 @@ import {
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
+import * as sys from "../sys.mjs";
 import errorHandler from "../handlers/error.mjs";
 import getModules from "./modules.mjs";
+
+const REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
 
 globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
 export default async function ssrHandler(root) {
   const config = getRuntime(CONFIG_CONTEXT);
-  const { entryModule, rootModule, rootName, globalErrorModule } =
-    await getModules(root, config);
+  const {
+    entryModule: defaultEntryModule,
+    rootModule,
+    rootName,
+    globalErrorModule,
+  } = await getModules(root, config);
 
   const configRoot = config?.[CONFIG_ROOT] ?? {};
   const viteDevServer = getRuntime(SERVER_CONTEXT);
@@ -59,6 +66,38 @@ export default async function ssrHandler(root) {
   const renderStream = createWorker();
   const hasWorkerThread = !!getRuntime(Symbol.for("WORKER_THREAD"));
   const moduleCacheStorage = new AsyncLocalStorage();
+
+  // Detect client-root: when the resolved root export is a "use client"
+  // module (i.e. registerClientReference proxy), we can skip the RSC flight
+  // pipeline entirely and render React directly in the SSR worker. Detection
+  // is a single property read; the result is cached for the lifetime of the
+  // handler, so the per-request cost is zero.
+  //
+  // The detection is best-effort: if the rootModule fails to load here, we
+  // fall through to the default RSC entry which will produce its own (more
+  // meaningful) error during request handling.
+  //
+  // NOTE: server-action POSTs are routed back through the RSC entry even in
+  // client-root mode — render-ssr.jsx is HTML-only and has no action
+  // dispatch. The RSC entry sees the client-reference Component, runs the
+  // action exactly as it would for any RSC root, and emits the
+  // `serverFunctionResult` flight. The browser's useActionState dispatch
+  // consumes that result; the synthetic React tree (just the bare client
+  // reference) is harmless. The per-request decision lives in the `ssr`
+  // closure below.
+  const clientRootEntryModule = `${sys.rootDir}/server/render-ssr.jsx`;
+  let isClientRoot = false;
+  try {
+    const rootMod = await ssrLoadModule(rootModule);
+    const RootExport = rootMod?.[rootName];
+    if (RootExport?.$$typeof === REACT_CLIENT_REFERENCE) {
+      isClientRoot = true;
+      logger?.info?.(`client-root SSR shortcut: ${rootModule}#${rootName}`);
+    }
+  } catch {
+    // Detection failed — proceed with the default RSC entry. The error
+    // (if any) will surface again in the per-request load below.
+  }
 
   return async function ssr(httpContext) {
     return new Promise(async (resolve, reject) => {
@@ -126,6 +165,28 @@ export default async function ssrHandler(root) {
           },
           async () => {
             try {
+              // Per-request entry selection. The client-root SSR shortcut
+              // (render-ssr.jsx) handles HTML and `.rsc.x-component` GETs
+              // only — server-action POSTs need the full RSC dispatch
+              // pipeline so the action runs and a `serverFunctionResult`
+              // flight can be returned. Route those POSTs back through
+              // the default RSC entry. Detection mirrors render-rsc.jsx's
+              // own server-action gate (method + header/multipart).
+              const method = httpContext.request.method;
+              const isMutating = "POST,PUT,PATCH,DELETE".includes(method);
+              const hasActionHeader = !!httpContext.request.headers.get(
+                "react-server-action"
+              );
+              const isMultipart = !!httpContext.request.headers
+                .get("content-type")
+                ?.includes("multipart/form-data");
+              const isActionRequest =
+                isMutating && (hasActionHeader || isMultipart);
+              const entryModule =
+                isClientRoot && !isActionRequest
+                  ? clientRootEntryModule
+                  : defaultEntryModule;
+
               const [
                 { render },
                 { [rootName]: Component, init$: root_init$ },
@@ -231,7 +292,26 @@ export default async function ssrHandler(root) {
                 );
                 context$(CLIENT_MODULES_CONTEXT, clientModules);
 
-                const styles = collectStylesheets?.(rootModule) ?? [];
+                // Client-root path: the rsc env's module graph holds only
+                // the registerClientReference stub (use-client.mjs strips
+                // the original imports), so walking it for CSS turns up
+                // nothing. Warm the SSR env — which keeps the original
+                // module body intact — and collect from there. The warmup
+                // is idempotent and cheap once the graph is populated.
+                let styles;
+                if (isClientRoot) {
+                  try {
+                    await viteDevServer.environments.ssr.warmupRequest(
+                      rootModule
+                    );
+                  } catch {
+                    // If warmup fails (e.g. transform error), fall through
+                    // and let the actual render surface the real error.
+                  }
+                  styles = collectStylesheets?.(rootModule, "ssr") ?? [];
+                } else {
+                  styles = collectStylesheets?.(rootModule) ?? [];
+                }
                 styles.unshift(...(getContext(STYLES_CONTEXT) ?? []));
                 context$(STYLES_CONTEXT, styles);
 

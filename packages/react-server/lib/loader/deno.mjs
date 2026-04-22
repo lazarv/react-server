@@ -29,6 +29,11 @@ export async function generateDenoImportMap(options = {}) {
       outDir,
       "server/render.mjs"
     ),
+    "@lazarv/react-server/dist/server/render-action": join(
+      cwd,
+      outDir,
+      "server/render-action.mjs"
+    ),
     "@lazarv/react-server/dist/server/root": join(
       cwd,
       outDir,

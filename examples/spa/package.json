@@ -6,9 +6,14 @@
   "license": "ISC",
   "author": "",
   "scripts": {
-    "dev": "react-server ./src/index.jsx",
-    "build": "react-server build ./src/index.jsx",
-    "start": "react-server start"
+    "dev": "react-server ./src/index.ssr.jsx",
+    "dev:rsc": "react-server ./src/index.rsc.jsx",
+    "build": "react-server build ./src/index.ssr.jsx --outDir .react-server-ssr --edge",
+    "build:rsc": "react-server build ./src/index.rsc.jsx --outDir .react-server-rsc --edge",
+    "start": "react-server start --outDir .react-server-ssr",
+    "start:rsc": "react-server start --outDir .react-server-rsc",
+    "bench": "node bench.mjs",
+    "bench:build": "node bench.mjs --build"
   },
   "dependencies": {
     "@lazarv/react-server": "workspace:^"

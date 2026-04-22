@@ -154,6 +154,13 @@ export async function render(Component, props = {}, options = {}) {
     const streaming = new Promise(async (resolve, reject) => {
       const context = getContext(HTTP_CONTEXT);
       const signal = context?.signal;
+      // Hoisted so the outer catch can release any start callback that
+      // is waiting on `streamReady` if the renderStream call rejects
+      // before the explicit resolveStreamReady() at the end of the
+      // try-block runs. Without this, a renderStream rejection would
+      // leave `await streamReady` pending forever in the start handler
+      // (a hang, not an error).
+      let resolveStreamReady;
       try {
         revalidate$();
 
@@ -949,6 +956,18 @@ export async function render(Component, props = {}, options = {}) {
           const scrollRestorationModule = getContext(SCROLL_RESTORATION_MODULE);
           let isStarted = false;
 
+          // Indirection so the start callback never closes directly over
+          // the `const stream = await renderStream(...)` TDZ binding. In
+          // inline-channel (edge) mode `worker.postMessage` is synchronous,
+          // so the start handler can be queued as a microtask BEFORE the
+          // await continuation drains and assigns `stream`. Awaiting
+          // `streamReady` inside start defers the read until we explicitly
+          // resolve it after the assignment — independent of microtask
+          // ordering.
+          const streamReady = new Promise((r) => {
+            resolveStreamReady = r;
+          });
+
           const stream = await renderStream({
             stream: flight,
             headScripts: scrollRestorationModule
@@ -964,6 +983,16 @@ export async function render(Component, props = {}, options = {}) {
             defer: context.request.headers.get("react-server-defer") === "true",
             start: async () => {
               isStarted = true;
+              // Read the stream via streamReady (resolved below after
+              // the `const stream = await ...` assignment) — never via
+              // the outer `stream` binding, which may still be in TDZ
+              // when start fires.
+              const awaitedStream = await streamReady;
+              // streamReady is resolved with `null` from the outer
+              // catch when renderStream rejected before the assignment
+              // below. The error path will already have resolved the
+              // response via ERROR_CONTEXT, so just bail out.
+              if (!awaitedStream) return;
               ContextStorage.run(contextStore, async () => {
                 const redirect = getContext(REDIRECT_CONTEXT);
                 if (redirect?.response) {
@@ -976,7 +1005,7 @@ export async function render(Component, props = {}, options = {}) {
                 };
                 const headers = getContext(HTTP_HEADERS) ?? new Headers();
 
-                const [responseStream, cacheStream] = stream.tee();
+                const [responseStream, cacheStream] = awaitedStream.tee();
                 const payload = [];
                 (async () => {
                   if (!hasError) {
@@ -1085,6 +1114,8 @@ export async function render(Component, props = {}, options = {}) {
               url: context.url.toString(),
             },
           });
+          // Stream is now bound — release any start callback awaiting it.
+          resolveStreamReady(stream);
         } else {
           return resolve(
             new Response(null, {
@@ -1094,6 +1125,10 @@ export async function render(Component, props = {}, options = {}) {
           );
         }
       } catch (e) {
+        // Release any start callback awaiting the stream so it does
+        // not hang forever when renderStream rejects before we reach
+        // the explicit resolveStreamReady(stream) below.
+        resolveStreamReady?.(null);
         logger.error(e);
         getContext(ERROR_CONTEXT)?.(e)?.then(resolve, reject);
       }

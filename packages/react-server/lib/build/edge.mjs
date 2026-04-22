@@ -235,6 +235,27 @@ export default async function edgeBuild(root, options) {
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/render.mjs")
                   );
+                case "@lazarv/react-server/dist/server/render-action": {
+                  // server/render-action.mjs is emitted by lib/build/server.mjs
+                  // only for client-root builds (isClientRootBuild). For non-
+                  // client-root builds the file is absent and the runtime
+                  // dispatcher in lib/start/ssr-handler.mjs falls back to the
+                  // primary `render` entry. Node's runtime import() throws on
+                  // a missing path and the try/catch catches it; rolldown
+                  // resolves statically and would fail the bundle, so we
+                  // stat-check and fall through to the empty stub here.
+                  const renderActionPath = sys.normalizePath(
+                    join(cwd, options.outDir, "server/render-action.mjs")
+                  );
+                  try {
+                    if (await stat(renderActionPath)) {
+                      return renderActionPath;
+                    }
+                    return "virtual:empty-module";
+                  } catch {
+                    return "virtual:empty-module";
+                  }
+                }
                 case "@lazarv/react-server/dist/server/render-dom":
                   return sys.normalizePath(
                     join(cwd, options.outDir, "server/render-dom.mjs")
@@ -279,7 +300,12 @@ export default async function edgeBuild(root, options) {
             },
             load(id) {
               if (id === "virtual:empty-module") {
-                return "export default null;";
+                // Both `default` and `render` are exported as null so the
+                // module satisfies any consumer that destructures either
+                // shape — error-boundary uses `{ default }`, render-action
+                // uses `{ render }`. Add new named exports here when adding
+                // new optional dist entries that fall back to this stub.
+                return "export default null; export const render = null;";
               }
             },
           },
@@ -342,6 +368,27 @@ export default async function edgeBuild(root, options) {
               return sys.normalizePath(
                 join(cwd, options.outDir, "server/render.mjs")
               );
+            case "@lazarv/react-server/dist/server/render-action": {
+              // server/render-action.mjs is emitted by lib/build/server.mjs
+              // only for client-root builds (isClientRootBuild). For non-
+              // client-root builds the file is absent and the runtime
+              // dispatcher in lib/start/ssr-handler.mjs falls back to the
+              // primary `render` entry. Node's runtime import() throws on
+              // a missing path and the try/catch catches it; rolldown
+              // resolves statically and would fail the bundle, so we
+              // stat-check and fall through to the empty stub here.
+              const renderActionPath = sys.normalizePath(
+                join(cwd, options.outDir, "server/render-action.mjs")
+              );
+              try {
+                if (await stat(renderActionPath)) {
+                  return renderActionPath;
+                }
+                return "virtual:empty-module";
+              } catch {
+                return "virtual:empty-module";
+              }
+            }
             case "@lazarv/react-server/dist/server/render-dom":
               return sys.normalizePath(
                 join(cwd, options.outDir, "server/render-dom.mjs")
@@ -386,7 +433,12 @@ export default async function edgeBuild(root, options) {
         },
         load(id) {
           if (id === "virtual:empty-module") {
-            return "export default null;";
+            // Both `default` and `render` are exported as null so the
+            // module satisfies any consumer that destructures either
+            // shape — error-boundary uses `{ default }`, render-action
+            // uses `{ render }`. Add new named exports here when adding
+            // new optional dist entries that fall back to this stub.
+            return "export default null; export const render = null;";
           }
         },
       },

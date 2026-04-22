@@ -1005,7 +1005,18 @@ export default async function createServer(root, options) {
         }
       : null,
     [MEMORY_CACHE_CONTEXT]: new StorageCache(memoryDriver),
-    [COLLECT_STYLESHEETS]: function collectCss(rootModule) {
+    [COLLECT_STYLESHEETS]: function collectCss(rootModule, environmentName) {
+      // Pick the environment whose module graph still has the user's
+      // original imports. The default "rsc" graph is what render-rsc.jsx
+      // sees — but for a "use client" root, lib/plugins/use-client.mjs
+      // rewrites the root's body to a bare `registerClientReference` stub
+      // and Vite re-parses the *transformed* code's imports, so the rsc
+      // graph loses every CSS import the source file declared. Callers
+      // routing through the client-root SSR shortcut pass "ssr" here so
+      // we walk the SSR graph instead, which preserves the original body.
+      const env =
+        viteDevServer.environments[environmentName] ??
+        viteDevServer.environments.rsc;
       const styles = [];
       const visited = new Set();
       function collectCss(moduleId) {
@@ -1015,7 +1026,7 @@ export default async function createServer(root, options) {
           !moduleId.startsWith("virtual:")
         ) {
           visited.add(moduleId);
-          const mod = viteDevServer.environments.rsc.moduleGraph.getModuleById(
+          const mod = env.moduleGraph.getModuleById(
             sys.normalizePath(moduleId)
           );
           if (!mod) return;

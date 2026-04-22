@@ -235,6 +235,48 @@ if (import.meta.env.DEV) {
   }
 }
 
+// Client-root SSR shortcut: when server/render-ssr.jsx rendered the page,
+// an inline <script> set `self.__react_server_root__ = "id#name"` in place
+// of the usual inline flight chunks. Split the string, dynamic-import the
+// module, and stash the resolved component on a separate global so
+// ReactServerComponent's FlightComponent can read it synchronously in its
+// initial useState. Root components never receive props.
+//
+// Subsequent updates (Refresh / Link navigation / server-function
+// responses) still flow through the flight path via setComponent, keeping
+// the PAGE_ROOT wrapper the authoritative owner of its children.
+if (
+  typeof self !== "undefined" &&
+  typeof self.__react_server_root__ === "string" &&
+  typeof self.__react_server_root_component__ !== "function"
+) {
+  const spec = self.__react_server_root__;
+  const hashIndex = spec.indexOf("#");
+  const id = hashIndex === -1 ? spec : spec.slice(0, hashIndex);
+  const name = hashIndex === -1 ? "default" : spec.slice(hashIndex + 1);
+  try {
+    // eslint-disable-next-line no-unsanitized/method
+    const mod = await import(/* @vite-ignore */ id);
+    const Component = mod?.[name] ?? mod?.default;
+    if (typeof Component !== "function") {
+      throw new Error(`client-root: module "${id}" did not export "${name}"`);
+    }
+    self.__react_server_root_component__ = Component;
+    // Mark PAGE_ROOT as hydrated. The flight-stream path sets this in
+    // ClientProvider.getFlightResponse after consuming the inline stream;
+    // the client-root path skips that entirely, so we set it here. Test
+    // utilities (waitForHydration) and ClientProvider's defer/refresh
+    // paths both gate on this marker.
+    self[`__flightHydration__${PAGE_ROOT}__`] = true;
+  } catch (e) {
+    // Log and let the normal path take over — ReactServerComponent's
+    // initialClientRootComponent returns null when the component global
+    // is missing, so it falls back to getFlightResponse (which will
+    // produce its own, more specific, error).
+    console.error("[react-server] client-root bootstrap failed:", e);
+  }
+}
+
 startTransition(() => {
   hydrateRoot(
     self.__react_server_hydration_container__?.() ?? document,

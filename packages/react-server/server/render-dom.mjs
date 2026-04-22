@@ -1,3 +1,4 @@
+import React from "react";
 import { renderToReadableStream, resume } from "react-dom/server.edge";
 import { prerender } from "react-dom/static.edge";
 import {
@@ -12,7 +13,10 @@ import { Parser } from "parse5";
 import { getEnv, immediate } from "../lib/sys.mjs";
 import dom2flight from "./dom-flight.mjs";
 import { remoteTemporaryReferences } from "./temporary-references.mjs";
-import { attachSharedRequestCache } from "../cache/request-cache-shared.mjs";
+import {
+  attachSharedRequestCache,
+  createInProcessRequestCache,
+} from "../cache/request-cache-shared.mjs";
 import { syncHash } from "@lazarv/react-server/storage-cache";
 import { syncToBuffer } from "@lazarv/rsc/server";
 import { ContextStorage, getContext } from "./context.mjs";
@@ -252,6 +256,408 @@ class Postponed extends Error {
 
 const PRERENDER_TIMEOUT = 30000;
 
+// ── Client-root SSR shortcut ────────────────────────────────────────────────
+//
+// When the project's root entry is a "use client" module, ssr-handler.mjs
+// swaps the render entry to server/render-ssr.jsx, which sends a
+// `clientRoot: { id, name, props }` payload to the worker instead of a flight
+// stream. The worker resolves the module from its id, builds a React
+// element directly, and renders HTML — bypassing flight encode/decode/
+// forward entirely.
+//
+// The HTML pipeline is intentionally simpler than the standard flight path:
+// no inline flight-writer scripts, no incremental cache hydration, no
+// remote-component dom-flight conversion. Just `<head>` injection +
+// `renderToReadableStream(tree, { bootstrapModules })`. Everything the
+// browser needs is the bootstrap module (entry.client.jsx) plus the
+// `self.__react_server_root__` spec already embedded in `<head>`.
+async function renderClientRoot({
+  id,
+  clientRoot,
+  clientRootSpec,
+  clientRootStyles,
+  clientRootModules,
+  clientRootBase,
+  clientRootIsDev,
+  importMap,
+  headScripts,
+  bootstrapModules,
+  nonce,
+  formState,
+  httpContext,
+  parentPort,
+  moduleCacheStorage,
+  linkQueueStorage,
+}) {
+  // module-loader.mjs reads MODULE_CACHE / LINK_QUEUE storage via getContext +
+  // getRuntime; those ALS-backed stores are populated per-request by the
+  // main flight path (see `context.moduleCacheStorage.run(new Map(), ...)`
+  // below). Our shortcut path reaches serverRequireModule directly, so we
+  // have to stand up the same ALS chain before calling it — otherwise we
+  // throw "Module cache not found in context" the moment we resolve the
+  // client root module. Wrap the whole body so any transitive module loads
+  // during render (CSS imports, dynamic imports) also see the ALS frame.
+  const moduleCacheMap = new Map();
+  const linkQueue = new Set();
+
+  // Request-scoped cache plumbing for the client-root shortcut.
+  //
+  // Unlike the regular flight path, the RSC pipeline never runs here — so a
+  // SAB attached from the main thread is *always* empty in this code path,
+  // and a SAB has no .write either (only the main thread can write to it).
+  // What we actually need is a writable + readable cache that the SSR-side
+  // `useCache` (cache/ssr.mjs) can populate, and that flushCacheEntries can
+  // walk to inject hydration scripts into the HTML stream.
+  //
+  // Use an in-process cache unconditionally. It satisfies both roles
+  // (reader for cache hits, writer for first-time entries) and provides the
+  // hydratedEntries() method our flushCacheEntries branch consumes. We
+  // ignore any incoming requestCacheBuffer for this same reason — there's
+  // nothing in it.
+  const sharedCacheReader = createInProcessRequestCache();
+  const contextInit = { [REQUEST_CACHE_SHARED]: sharedCacheReader };
+
+  // Edge mode (`lib/start/render-dom.mjs::createRenderer`) wires up the
+  // bundled createRenderer with `{ parentPort }` only — no ALS instances,
+  // because the inline channel pair shares an event loop with the SSR
+  // handler and inherits its ContextStorage frame on synchronous fan-out.
+  // The regular flight path below uses `getContext(MODULE_CACHE) ??
+  // moduleCacheStorage` for the same reason; we mirror that here so the
+  // client-root shortcut works under edge as well as worker/dev/static.
+  const moduleCacheALS = getContext(MODULE_CACHE) ?? moduleCacheStorage;
+  const linkQueueALS = getContext(LINK_QUEUE) ?? linkQueueStorage;
+  if (!moduleCacheALS || !linkQueueALS) {
+    throw new Error(
+      "client-root SSR shortcut: MODULE_CACHE / LINK_QUEUE AsyncLocalStorage not available in this runtime"
+    );
+  }
+
+  return RequestCacheStorage.run(sharedCacheReader ?? null, () =>
+    ContextStorage.run(contextInit, () =>
+      moduleCacheALS.run(moduleCacheMap, () =>
+        linkQueueALS.run(linkQueue, () =>
+          renderClientRootImpl(sharedCacheReader)
+        )
+      )
+    )
+  );
+
+  async function renderClientRootImpl(sharedCacheReader) {
+    try {
+      // Resolve the client module via the SSR-environment module loader.
+      // For a "use client" module, the SSR build passes through the original
+      // implementation (use-client.mjs returns null for the ssr environment),
+      // so this gives us the real component function — not a registerClient-
+      // Reference stub. The promise may have already resolved on a prior
+      // request; module-loader.mjs annotates fulfilled promises with
+      // `.value`/`.status` so steady-state is sync.
+      const mod = await serverRequireModule(clientRoot.id);
+      const RootComponent = mod?.[clientRoot.name] ?? mod?.default;
+      if (typeof RootComponent !== "function") {
+        throw new Error(
+          `client-root module "${clientRoot.id}" did not export a "${clientRoot.name}" function`
+        );
+      }
+
+      // Build the React tree. The user's RootComponent owns the shell —
+      // including whether to render `<html>/<body>` at all. We only contribute
+      // `<link>` elements for stylesheets and module preloads; React 19 floats
+      // these to `<head>` automatically via document metadata hoisting.
+      //
+      // Stylesheet href / preload href prefix logic mirrors render-rsc.jsx's
+      // <Styles> / <ModulePreloads> helpers (configBaseHref). No remote-host
+      // rewriting here — the client-root path is local-only.
+      const baseHrefPrefix = clientRootBase
+        ? (link) =>
+            `/${clientRootBase}/${link?.id || link}`.replace(/\/+/g, "/")
+        : (link) => link?.id || link;
+      const StyleLinks =
+        Array.isArray(clientRootStyles) && clientRootStyles.length > 0
+          ? clientRootStyles.map((link) => {
+              const href = baseHrefPrefix(link);
+              return React.createElement("link", {
+                key: `style:${href}`,
+                rel: "stylesheet",
+                href,
+                precedence: "default",
+              });
+            })
+          : null;
+      const PreloadLinks =
+        Array.isArray(clientRootModules) && clientRootModules.length > 0
+          ? clientRootModules.map((mod) => {
+              const href = baseHrefPrefix(mod);
+              return React.createElement("link", {
+                key: `mp:${href}`,
+                rel: "modulepreload",
+                href,
+              });
+            })
+          : null;
+      // Root component is rendered without props by contract — see render-ssr.jsx.
+      const tree = React.createElement(
+        React.Fragment,
+        null,
+        StyleLinks,
+        PreloadLinks,
+        React.createElement(RootComponent)
+      );
+
+      let error = null;
+      // Wrap rendering in HttpContextStorage so client components can read
+      // request/url via @lazarv/react-server/http-context during SSR. Mirrors
+      // the contract of the main flight-decode path above.
+      const httpStore = httpContext
+        ? {
+            ...httpContext,
+            request: {
+              ...httpContext.request,
+              headers: Object.entries(httpContext.request.headers).reduce(
+                (h, [k, v]) => {
+                  h.append(k, v);
+                  return h;
+                },
+                new Headers()
+              ),
+            },
+            url: new URL(httpContext.url),
+          }
+        : null;
+      // Note: bootstrapModules deliberately NOT passed to React. The flight
+      // path (this file, ~L1041) owns bootstrap script ordering manually so
+      // the `__react_server_hydrate__=true` flag and `__react_server_root__`
+      // spec land before @hmr's deferred module evaluation. We do the same.
+      const renderHtml = () =>
+        renderToReadableStream(tree, {
+          formState,
+          onError(e) {
+            error = e;
+          },
+        });
+      const html = await (httpStore
+        ? HttpContextStorage.run(httpStore, renderHtml)
+        : renderHtml());
+
+      const encoder = new TextEncoder();
+      const nonceAttr = nonce ? ` nonce="${nonce}"` : "";
+
+      // Build the bootstrap tail in two stages: a head-only block (importmap +
+      // scrollRestoration head scripts) emitted after we've decided the
+      // hydration container, and the hydrate-init + bootstrap-modules block
+      // emitted at end of stream. Splitting lets us defer the container
+      // decision until after the first chunk arrives — same byte-level check
+      // the flight path uses (~L1011) to switch between document and
+      // document.body.
+      let headPrefix = "";
+      if (typeof importMap === "object" && importMap !== null) {
+        headPrefix += `<script type="importmap"${nonceAttr}>${JSON.stringify(importMap)}</script>`;
+      }
+      if (Array.isArray(headScripts) && headScripts.length > 0) {
+        headPrefix += headScripts
+          .map(
+            (src) =>
+              `<script type="module" src="${src}"${nonceAttr} async></script>`
+          )
+          .join("");
+      }
+
+      // Inline-script string-literal escape for the bare `id#name` spec.
+      // The spec values (paths and JS identifiers) shouldn't contain quotes
+      // or backslashes, but the `</script>` guard prevents premature script
+      // termination if any future id format ever does.
+      const rootSpecLiteral =
+        typeof clientRootSpec === "string"
+          ? `"${clientRootSpec
+              .replace(/\\/g, "\\\\")
+              .replace(/"/g, '\\"')
+              .replace(/<\/(script)/gi, "<\\/$1")}"`
+          : "null";
+
+      const buildBootstrapTail = (hydrationContainer) => {
+        let tail =
+          `<script${nonceAttr}>` +
+          (clientRootIsDev ? `self.__react_server_hydrate__=true;` : ``) +
+          `self.__react_server_hydration_container__=()=>${hydrationContainer};` +
+          `self.__react_server_root__=${rootSpecLiteral};` +
+          `</script>`;
+        if (Array.isArray(bootstrapModules) && bootstrapModules.length > 0) {
+          tail += bootstrapModules
+            .map(
+              (mod) =>
+                `<script type="module" src="${mod}"${nonceAttr} async></script>`
+            )
+            .join("");
+        }
+        return tail;
+      };
+
+      // ── Incremental request-cache hydration injection ─────────────────────
+      // Mirrors the RSC path's flushCacheEntries (~L1180): emit a script that
+      // populates self.__react_server_request_cache_entries__ so the browser's
+      // cache/client.mjs `getHydratedValue` lookup hits instead of recomputing.
+      // Tracks emitted keys so each entry ships exactly once across the stream.
+      const decoder = new TextDecoder("utf-8");
+      const injectedCacheKeys = new Set();
+      function* flushCacheEntries() {
+        if (!sharedCacheReader) return;
+
+        const hydrationPayload = {};
+        let hasEntries = false;
+
+        if (sharedCacheReader.hydratedRawEntries) {
+          // SAB mode: Map<string, Uint8Array> of RSC Flight bytes.
+          for (const [
+            key,
+            rscBytes,
+          ] of sharedCacheReader.hydratedRawEntries()) {
+            if (injectedCacheKeys.has(key)) continue;
+            injectedCacheKeys.add(key);
+            hydrationPayload[syncHash(key)] = decoder.decode(rscBytes);
+            hasEntries = true;
+          }
+        } else if (sharedCacheReader.hydratedEntries) {
+          // In-process mode: Map<string, any> — serialize to RSC bytes.
+          // Skip pending Promises (Suspense not yet resolved) — picked up later.
+          for (const [key, value] of sharedCacheReader.hydratedEntries()) {
+            if (injectedCacheKeys.has(key)) continue;
+            if (
+              value != null &&
+              typeof value.then === "function" &&
+              value.status !== "fulfilled"
+            ) {
+              continue;
+            }
+            injectedCacheKeys.add(key);
+            try {
+              const rscBytes = syncToBuffer(value);
+              hydrationPayload[syncHash(key)] = decoder.decode(rscBytes);
+              hasEntries = true;
+            } catch {
+              // Non-serializable value — skip
+            }
+          }
+        }
+
+        if (hasEntries) {
+          const payload = JSON.stringify(hydrationPayload).replace(
+            /</g,
+            "\\u003c"
+          );
+          yield encoder.encode(
+            `<script${nonceAttr}>Object.assign(self.__react_server_request_cache_entries__??={},${payload});document.currentScript.parentNode.removeChild(document.currentScript);</script>`
+          );
+        }
+      }
+
+      let started = false;
+      const stream = new ReadableStream({
+        type: "bytes",
+        async start(controller) {
+          try {
+            const reader = html.getReader();
+            let firstChunk = true;
+            let hydrationContainer = "document";
+            // React's renderToReadableStream does not align chunk boundaries
+            // to HTML tag boundaries — a chunk can end with just `<` while the
+            // matching `p class="...">` lands in the next chunk. Injecting our
+            // hydration <script> between those two halves yields literal
+            // `<<script>...</script>p class=...` on the wire, which the HTML
+            // parser silently drops along with whatever follows (in the SPA
+            // example this ate the entire Products + Activity sections).
+            //
+            // Mirror the RSC path's `force` byte check (~L1159): only flush
+            // cache entries after a chunk ending with `>` (0x3e). If a chunk
+            // ends mid-tag, enqueue it and keep reading without injecting.
+            const GT = 0x3e;
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              if (!started) {
+                started = true;
+                parentPort.postMessage({
+                  id,
+                  start: true,
+                  error: error?.message,
+                  stack: error?.stack,
+                  digest: error?.digest,
+                });
+              }
+              if (firstChunk && value) {
+                firstChunk = false;
+                // Same byte-level probe the flight path uses: if the user's
+                // tree opens with `<html` we hydrate against `document`,
+                // otherwise we target `document.body` (a body-fragment render).
+                if (!bytesContain(value, HTML_TAG_BYTES)) {
+                  hydrationContainer = "document.body";
+                }
+                if (headPrefix) {
+                  controller.enqueue(encoder.encode(headPrefix));
+                }
+              }
+              controller.enqueue(value);
+              // Only inject cache scripts when the chunk ends at a safe HTML
+              // boundary (closing `>`); otherwise the script lands inside an
+              // open tag and the browser silently swallows it.
+              if (value && value.length > 0 && value[value.length - 1] === GT) {
+                for (const chunk of flushCacheEntries()) {
+                  controller.enqueue(chunk);
+                }
+              }
+            }
+            // Final sweep before bootstrap — captures any entries that landed
+            // after the last html chunk (synchronous post-render writes).
+            for (const chunk of flushCacheEntries()) {
+              controller.enqueue(chunk);
+            }
+            controller.enqueue(
+              encoder.encode(buildBootstrapTail(hydrationContainer))
+            );
+            controller.close();
+            parentPort.postMessage({ id, done: true });
+          } catch (e) {
+            try {
+              controller.close();
+            } catch {
+              /* already closed */
+            }
+            parentPort.postMessage({
+              id,
+              done: true,
+              error: e?.message,
+              stack: e?.stack,
+              digest: e?.digest,
+            });
+          }
+        },
+      });
+
+      try {
+        parentPort.postMessage({ id, stream }, [stream]);
+      } catch {
+        // Transferable failed (Edge mode in-process channel). Fall back to
+        // chunked postMessage like the main path does.
+        parentPort.postMessage({ id, stream: true });
+        (async () => {
+          const reader = stream.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            parentPort.postMessage({ id, stream: true, value });
+          }
+        })();
+      }
+    } catch (e) {
+      parentPort.postMessage({
+        id,
+        done: true,
+        error: e?.message,
+        stack: e?.stack,
+        digest: e?.digest,
+      });
+    }
+  }
+}
+
 export const createRenderer = ({
   moduleCacheStorage,
   linkQueueStorage,
@@ -283,7 +689,41 @@ export const createRenderer = ({
     requestCacheBuffer,
     httpContext,
     devtools,
+    // ── Client-root SSR shortcut payload ───────────────────────────────────
+    // When set by server/render-ssr.jsx, the worker skips the RSC flight
+    // decode pipeline and renders the client component directly. Worker
+    // composes <link> elements for styles/preloads into the React tree, so
+    // they hoist to <head> via React 19's metadata float — no string-HTML
+    // shell wrapping. See renderClientRoot for the full contract.
+    clientRoot,
+    clientRootSpec,
+    clientRootStyles,
+    clientRootModules,
+    clientRootBase,
+    clientRootIsDev,
   }) => {
+    if (clientRoot) {
+      return renderClientRoot({
+        id,
+        clientRoot,
+        clientRootSpec,
+        clientRootStyles,
+        clientRootModules,
+        clientRootBase,
+        clientRootIsDev,
+        importMap,
+        headScripts,
+        bootstrapModules,
+        nonce,
+        formState,
+        httpContext,
+        parentPort,
+        moduleCacheStorage,
+        linkQueueStorage,
+        requestCacheBuffer,
+      });
+    }
+
     if (!flight && !streamMap.has(id)) {
       flight = new ReadableStream({
         type: "bytes",
@@ -870,6 +1310,17 @@ export const createRenderer = ({
                           const hydrationPayload = {};
                           let hasEntries = false;
 
+                          // The SAB-attached reader exposes BOTH surfaces:
+                          // hydratedRawEntries() for entries the RSC main
+                          // thread wrote, and hydratedEntries() for entries
+                          // the SSR worker wrote into its local Map (the
+                          // SAB is append-only-from-main, so SSR-side
+                          // request-cache writes land in-memory). Pure
+                          // in-process caches (Edge mode) only expose the
+                          // latter. Iterate both unconditionally — the
+                          // injectedCacheKeys set dedupes if a key
+                          // somehow appears in both (won't normally
+                          // happen, but cheap to guard against).
                           if (sharedCacheReader.hydratedRawEntries) {
                             // SAB mode: Map<string, Uint8Array> of RSC Flight bytes.
                             for (const [
@@ -882,8 +1333,9 @@ export const createRenderer = ({
                                 decoder.decode(rscBytes);
                               hasEntries = true;
                             }
-                          } else if (sharedCacheReader.hydratedEntries) {
-                            // In-process mode: Map<string, any> — serialize to RSC bytes.
+                          }
+                          if (sharedCacheReader.hydratedEntries) {
+                            // In-process / SSR-local: Map<string, any> — serialize to RSC bytes.
                             // Skip pending Promises (Suspense not yet resolved) — they
                             // will be picked up in a later flush once fulfilled.
                             // syncToBuffer blocks on unresolved Promises because the RSC

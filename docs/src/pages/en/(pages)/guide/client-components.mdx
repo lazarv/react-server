@@ -234,6 +234,78 @@ export async function createBadge(label) {
 
 The file is treated as a server function module because of the top-level `"use server"` directive, but the `Badge` component is extracted into a separate client module. When `createBadge` is called, it renders the `Badge` with the given props and returns it through the RSC protocol. The client component is fully interactive after hydration — `useState`, event handlers, and other client-side features all work as expected.
 
+<Link name="client-root-rendering">
+## Client-root rendering
+</Link>
+
+When the app's root module — the entry file you pass to `react-server` — is itself a `"use client"` module, the runtime detects this at startup and renders it through React DOM's `renderToReadableStream` directly, skipping the RSC flight pipeline entirely. There is nothing to enable; the rendering path is picked automatically based on the resolved root module's directive, and the choice applies to the whole app for the lifetime of the process.
+
+```jsx filename="src/index.ssr.jsx"
+"use client";
+
+import App from "./App.jsx";
+
+export default function Root() {
+  return <App />;
+}
+```
+
+```jsx filename="src/index.rsc.jsx"
+import App from "./App.jsx";
+
+export default function Root() {
+  return <App />;
+}
+```
+
+Both entries above produce the same HTML and the same hydrated React tree. The first goes through React DOM SSR directly. The second goes through the RSC pipeline, with `App` (a `"use client"` module) materialized as a client reference in the flight payload.
+
+The `children` prop is the bridge that lets a server entry compose server components inside a client root:
+
+```jsx filename="src/index.rsc.jsx"
+import App from "./App.jsx";          // "use client"
+import Stats from "./Stats.jsx";      // server component
+import Products from "./Products.jsx"; // server component
+
+export default function Root() {
+  return (
+    <App>
+      <Stats />
+      <Products />
+    </App>
+  );
+}
+```
+
+In this RSC entry, `<Stats />` and `<Products />` are evaluated as server components. The flight payload contains the pre-rendered React element trees, attached as `App`'s `children` prop. No client-side JavaScript ships for them.
+
+If the same JSX is written in a `"use client"` entry, the imports get pulled into the client bundle transitively, and `<Stats />` and `<Products />` become client components — they SSR through React DOM and hydrate normally:
+
+```jsx filename="src/index.ssr.jsx"
+"use client";
+
+import App from "./App.jsx";
+import Stats from "./Stats.jsx";
+import Products from "./Products.jsx";
+
+export default function Root() {
+  return (
+    <App>
+      <Stats />
+      <Products />
+    </App>
+  );
+}
+```
+
+The same component files are used in both entries. The directive on the entry decides their treatment.
+
+[`"use cache: request"`](/features/caching) functions continue to work in client-root rendering. The runtime flushes resolved cache entries into the HTML stream as a `self.__react_server_request_cache_entries__` payload, and the browser-side wrapper reads from it synchronously during hydration. A `use(cachedFn())` call inside a client component resolves on the first try without suspending.
+
+[Server functions](/guide/server-functions) invoked through POST requests are the one exception to the shortcut: they are routed back through the standard RSC entry even when the app root is a client module, because server function dispatch needs the full RSC pipeline to emit a `serverFunctionResult` flight. This is invisible to authors — the server function runs and `useActionState` consumes the result exactly as it would for any RSC root.
+
+Reach for client-root rendering when the whole app is going to be a client tree anyway: dashboard-style apps with pervasive interactivity, or single-page-application shells. For apps that are mostly server-rendered with a few interactive islands, the regular RSC pipeline remains the right default — you ship less JavaScript that way.
+
 <Link name="client-only-components">
 ## Client-only components
 </Link>

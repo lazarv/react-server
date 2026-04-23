@@ -1,0 +1,56 @@
+{
+  "name": "@lazarv/react-server-adapter-aws-lambda",
+  "version": "0.0.0",
+  "description": "React Server Adapter for AWS Lambda",
+  "module": "index.mjs",
+  "type": "module",
+  "sideEffects": true,
+  "exports": {
+    ".": "./index.mjs",
+    "./cdk": "./cdk/react-server-stack.mjs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "react",
+    "ssr",
+    "esm",
+    "server",
+    "aws",
+    "lambda"
+  ],
+  "author": "laz^arv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lazarv/react-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lazarv/react-server/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-core": "workspace:^",
+    "@vitest/coverage-v8": "^4.0.6",
+    "aws-cdk-lib": "^2.221.1",
+    "constructs": "^10.4.2",
+    "vite": "npm:rolldown-vite@7.0.12",
+    "vitest": "^4.0.6"
+  },
+  "dependencies": {
+    "@h4ad/serverless-adapter": "^4.4.0"
+  },
+  "peerDependencies": {
+    "@lazarv/react-server": "workspace:^",
+    "@lazarv/react-server-adapter-core": "workspace:^",
+    "aws-cdk-lib": ">=2.0.0",
+    "constructs": ">=10.0.0"
+  }
+}

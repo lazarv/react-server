@@ -75,6 +75,8 @@ export default function User({ id, name }) {
 }
 ```
 
+> **Matcher alias:** a parameter bracket can carry an `=alias` suffix — e.g. `[id=numeric].page.jsx` → `/[id=numeric]`. The alias binds the segment to a predicate supplied via `export const matchers`, letting you gate the route on the segment's shape before it matches. See [Route matchers](/router/define-routes#route-matchers) below. Plain `[id]` extracts the param without filtering.
+
 <Link name="route-parameters-for-multiple-segments">
 ### Route parameters for multiple segments
 </Link>
@@ -203,6 +205,76 @@ export default products.createPage(() => {
 
 When validation fails (e.g. `/user/abc` with the numeric validation above), `useParams()` returns `null` and `useSearchParams()` returns an empty object `{}`, letting you handle the error in your component or fall through to a fallback route.
 
+<Link name="route-matchers">
+## Route matchers
+</Link>
+
+Matchers are predicates that gate **whether** a route matches a URL in the first place. They run during routing, before any page code loads, and they let sibling routes divide the same parameter space by shape.
+
+Use the matcher syntax by adding an `=alias` suffix inside a parameter bracket in the file name. The alias is the key you'll use in `export const matchers`:
+
+| Bracket form | Example | Matcher receives |
+|--------------|---------|------------------|
+| `[name=alias]` | `[id=numeric].page.tsx` | `string` |
+| `[[name=alias]]` | `[[tab=known]].page.tsx` | `string` |
+| `[...name=alias]` | `[...slug=nested].page.tsx` | `string[]` |
+| `[[...name=alias]]` | `[[...path=valid]].page.tsx` | `string[]` |
+
+Export a `matchers` object from the page (or middleware or API route) whose keys are the aliases used in the path. Each value is a predicate that returns `true` to accept the URL and `false` to reject it. Rejected URLs fall through to sibling routes — they're not 404s by themselves.
+
+```tsx filename="pages/product/[sku=uppercase].page.tsx"
+import { productSkuUppercase } from "@lazarv/react-server/routes";
+
+export const matchers = productSkuUppercase.createMatchers({
+  uppercase: (value) => /^[A-Z0-9-]+$/.test(value),
+});
+
+export default productSkuUppercase.createPage(({ sku }) => {
+  return <h1>Product {sku}</h1>;
+});
+```
+
+Place a sibling `[sku].page.tsx` next to it to catch rejected values:
+
+```tsx filename="pages/product/[sku].page.tsx"
+import { product } from "@lazarv/react-server/routes";
+
+export default product.createPage(({ sku }) => {
+  return <h1>Fallback: {sku}</h1>;
+});
+```
+
+The generated route names (`productSkuUppercase` and `product`) come directly from the derivation rule described in [Route naming](/router/define-routes#routes-module-naming): a matcher-gated segment contributes both its param name and its alias, while a bare dynamic segment is stripped. No explicit `route` override needed.
+
+Now `/product/ABC-123` renders the matcher-gated page, and `/product/abc-123` falls through to the sibling. The runtime tries matcher-gated routes first — more specific routes always rank above less specific siblings at the same path shape.
+
+**Catch-all matchers receive arrays.** The alias suffix works identically on `[...slug]` and `[[...slug]]`, but the predicate gets the whole segment array, not a string:
+
+```tsx filename="pages/docs/[...slug=nested].page.tsx"
+import { docsSlugNested } from "@lazarv/react-server/routes";
+
+export const matchers = docsSlugNested.createMatchers({
+  nested: (slug) => slug.length >= 2,
+});
+
+export default docsSlugNested.createPage(({ slug }) => {
+  return <article>{slug.join("/")}</article>;
+});
+```
+
+Here `/docs/intro` falls through (length 1) but `/docs/guide/install` matches.
+
+**Typed aliases.** The aliases you can pass to `createMatchers` are extracted from the route path at type-generation time. A path like `[id=numeric]` produces `{ numeric?: (value: string) => boolean }`; a path like `[...slug=nested]` produces `{ nested?: (value: string[]) => boolean }`. Using an alias that isn't in the path is a type error.
+
+**Matchers vs validation.** They solve different problems:
+
+- **Matchers** gate **routing**. A rejection means "this URL is not for this route" — sibling routes and fallbacks get a chance. No page code loads.
+- **Validation** gates **the matched route's params**. A rejection means "this route matched, but the params don't satisfy the schema" — `useParams()` returns `null`, the page still renders and must handle the error.
+
+Use matchers when several sibling routes share the same parameter slot but differ in its shape. Use validation when a single route needs to constrain the already-extracted params before rendering.
+
+**Scope.** Matchers are honored on pages, outlet pages, middlewares, and API route handlers. Layouts and error/loading/fallback boundaries don't participate in matcher dispatch — they're selected by containment and by the page they wrap.
+
 <Link name="routes-module">
 ## Routes module
 </Link>
@@ -229,6 +301,7 @@ Plus context-aware helper functions for typing your page components:
 - **`.createError(component)`** — typed error boundary component
 - **`.createFallback(component)`** — typed fallback component
 - **`.createMiddleware(handler)`** — typed middleware with request params
+- **`.createMatchers(matchers)`** — typed matcher map (only on routes whose path contains an `=alias` bracket). Aliases are extracted from the path; catch-all aliases receive `string[]`, single aliases receive `string`. See [Route matchers](/router/define-routes#route-matchers).
 
 These helpers are identity functions at runtime — they return the component unchanged. They exist purely for TypeScript to infer the correct prop types from your route path, `validate` export, and outlet structure.
 
@@ -245,8 +318,10 @@ Route names are derived automatically from the file path using camelCase:
 | `pages/user/[id].page.tsx` | `user` |
 | `pages/user/posts.page.tsx` | `userPosts` |
 | `pages/dashboard/settings.page.tsx` | `dashboardSettings` |
+| `pages/product/[sku=uppercase].page.tsx` | `productSkuUppercase` |
+| `pages/docs/[...slug=nested].page.tsx` | `docsSlugNested` |
 
-Dynamic segments like `[id]` are stripped from the name. Purely dynamic paths like `pages/[id].page.tsx` use the parameter name (`id`) as the route name.
+Dynamic segments like `[id]` are stripped from the name. Purely dynamic paths like `pages/[id].page.tsx` use the parameter name (`id`) as the route name. When a segment carries a matcher alias (e.g. `[sku=uppercase]`), both the param name and the alias contribute to the derived name — so a matcher-gated page and its bare sibling get distinct names automatically, without numeric suffixes. Numeric suffixes are still applied as a last-resort fallback only when the derivation produces a true collision.
 
 You can override the auto-derived name by exporting a `route` constant from your page file:
 

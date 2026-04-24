@@ -10,6 +10,8 @@ import {
   useResponseCache,
 } from "@lazarv/react-server";
 import {
+  loadMatchers$,
+  matchersFor,
   middlewares,
   pages,
   routes,
@@ -36,9 +38,13 @@ export async function init$() {
     async (context) => {
       context$(POSTPONE_CONTEXT, false);
       context$(PAGE_PATH, usePathname());
+      // Resolve all routing-level matchers once per process. After this awaits,
+      // every downstream useMatch(path, …) call can read matchersFor(path)
+      // synchronously. Paths without matchers remain zero-cost.
+      await loadMatchers$();
       const initMiddlewares = await Promise.all(
         middlewares.reduce((acc, [path, init$]) => {
-          const params = useMatch(path);
+          const params = useMatch(path, { matchers: matchersFor(path) });
           if (params) {
             acc.push([params, init$]);
           }
@@ -76,7 +82,7 @@ export async function init$() {
       for (const [method, path, _route] of routes) {
         match =
           method === "*" || method === context.request.method
-            ? useMatch(path, { exact: true })
+            ? useMatch(path, { exact: true, matchers: matchersFor(path) })
             : null;
         if (match) {
           route = _route;
@@ -129,7 +135,10 @@ export async function init$() {
           ([, type, outlet]) => type === "page" && outlet === reactServerOutlet
         );
         for (const [path, , , , , lazy] of outlets) {
-          const match = useMatch(path, { exact: true });
+          const match = useMatch(path, {
+            exact: true,
+            matchers: matchersFor(path),
+          });
           if (match) {
             let errorBoundary =
               pages.find(
@@ -228,7 +237,12 @@ export async function init$() {
       const selector = async () => {
         for (const [path, type, outlet, lazy, src] of pages) {
           match =
-            type === "page" && !outlet ? useMatch(path, { exact: true }) : null;
+            type === "page" && !outlet
+              ? useMatch(path, {
+                  exact: true,
+                  matchers: matchersFor(path),
+                })
+              : null;
           if (match) {
             const { default: Component, init$: page_init$ } = await lazy();
             await page_init$?.();
@@ -238,7 +252,12 @@ export async function init$() {
           }
 
           match =
-            type === "page" && outlet ? useMatch(path, { exact: true }) : null;
+            type === "page" && outlet
+              ? useMatch(path, {
+                  exact: true,
+                  matchers: matchersFor(path),
+                })
+              : null;
           if (match) {
             const [, , , lazy] =
               pages.find(

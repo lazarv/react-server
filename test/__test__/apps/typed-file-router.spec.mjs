@@ -235,6 +235,48 @@ describe("typed-file-router — resource routes", () => {
   });
 });
 
+// ── Route matchers ──
+
+describe("typed-file-router — route matchers", () => {
+  test("[sku=uppercase] matches uppercase SKU, sibling [sku] does not steal", async () => {
+    await page.goto(`${hostname}/product/ABC-123`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="route"]')).toBe(
+      "matched=[sku=uppercase]"
+    );
+    expect(await page.textContent('[data-testid="sku-upper"]')).toBe("ABC-123");
+  });
+
+  test("[sku=uppercase] rejects lowercase, [sku] catches the fallback", async () => {
+    await page.goto(`${hostname}/product/abc-123`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="route"]')).toBe(
+      "matched=[sku]"
+    );
+    expect(await page.textContent('[data-testid="sku-any"]')).toBe("abc-123");
+  });
+
+  test("[...slug=nested] matcher receives array, matches when length ≥ 2", async () => {
+    await page.goto(`${hostname}/docs/getting-started/install`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="route"]')).toBe(
+      "matched=[...slug=nested]"
+    );
+    expect(await page.textContent('[data-testid="slug"]')).toBe(
+      "getting-started/install"
+    );
+  });
+
+  test("[...slug=nested] rejects single segment, [...slug] catches fallback", async () => {
+    await page.goto(`${hostname}/docs/intro`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent('[data-testid="route"]')).toBe(
+      "matched=[...slug]"
+    );
+    expect(await page.textContent('[data-testid="slug"]')).toBe("intro");
+  });
+});
+
 // ── Browser history ──
 
 describe("typed-file-router — browser history", () => {

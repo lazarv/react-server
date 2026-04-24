@@ -75,6 +75,8 @@ export default function User({ id, name }) {
 }
 ```
 
+> **マッチャーエイリアス:** パラメータブラケットには`=alias`サフィックスを付けることができます。たとえば`[id=numeric].page.jsx` → `/[id=numeric]`。エイリアスは`export const matchers`で指定した述語にセグメントを結び付け、ルートがマッチする前にセグメントの形状でゲートをかけることができます。後述の[ルートマッチャー](/router/define-routes#route-matchers)を参照してください。プレーンな`[id]`はフィルタリングなしでパラメータを抽出します。
+
 <Link name="route-parameters-for-multiple-segments">
 ### 複数セグメントのルートパラメータ
 </Link>
@@ -203,6 +205,76 @@ export default products.createPage(() => {
 
 バリデーションが失敗した場合（例：上記の数値バリデーションで`/user/abc`）、`useParams()`は`null`を返し、`useSearchParams()`は空のオブジェクト`{}`を返します。これにより、コンポーネントでエラーを処理したり、フォールバックルートに遷移させたりできます。
 
+<Link name="route-matchers">
+## ルートマッチャー
+</Link>
+
+マッチャーは、**URL がそもそもルートにマッチするかどうか**をゲートする述語です。ルーティング時にページコードが読み込まれる前に実行され、同じパラメータ空間を形状によって分割する兄弟ルートを定義できます。
+
+マッチャー構文を使用するには、ファイル名のパラメータブラケット内に`=alias`サフィックスを追加します。エイリアスは`export const matchers`で使用するキーになります。
+
+| ブラケット形式 | 例 | マッチャーが受け取る値 |
+|---------------|-----|----------------------|
+| `[name=alias]` | `[id=numeric].page.tsx` | `string` |
+| `[[name=alias]]` | `[[tab=known]].page.tsx` | `string` |
+| `[...name=alias]` | `[...slug=nested].page.tsx` | `string[]` |
+| `[[...name=alias]]` | `[[...path=valid]].page.tsx` | `string[]` |
+
+ページ（またはミドルウェアや API ルート）から`matchers`オブジェクトをエクスポートします。キーはパスで使用しているエイリアスと一致させます。各値は URL を受け入れる場合は`true`、拒否する場合は`false`を返す述語です。拒否された URL は兄弟ルートにフォールスルーします — それ自体では 404 にはなりません。
+
+```tsx filename="pages/product/[sku=uppercase].page.tsx"
+import { productSkuUppercase } from "@lazarv/react-server/routes";
+
+export const matchers = productSkuUppercase.createMatchers({
+  uppercase: (value) => /^[A-Z0-9-]+$/.test(value),
+});
+
+export default productSkuUppercase.createPage(({ sku }) => {
+  return <h1>Product {sku}</h1>;
+});
+```
+
+その隣に兄弟の`[sku].page.tsx`を配置すると、拒否された値を受け止めます。
+
+```tsx filename="pages/product/[sku].page.tsx"
+import { product } from "@lazarv/react-server/routes";
+
+export default product.createPage(({ sku }) => {
+  return <h1>Fallback: {sku}</h1>;
+});
+```
+
+生成されるルート名（`productSkuUppercase`と`product`）は、[ルート命名](/router/define-routes#routes-module-naming)で説明されている導出ルールから直接得られます。マッチャーでゲートされたセグメントはパラメータ名とエイリアスの両方を寄与させ、ベアなダイナミックセグメントは取り除かれます。明示的な`route`オーバーライドは不要です。
+
+これで`/product/ABC-123`はマッチャーでゲートされたページをレンダリングし、`/product/abc-123`は兄弟にフォールスルーします。ランタイムはマッチャーでゲートされたルートを最初に試します — 同じパス形状でより具体的なルートは、常により具体的でない兄弟よりも上位にランクされます。
+
+**キャッチオールマッチャーは配列を受け取ります。** エイリアスサフィックスは`[...slug]`や`[[...slug]]`でも同様に動作しますが、述語はセグメントの配列全体を受け取り、文字列は受け取りません。
+
+```tsx filename="pages/docs/[...slug=nested].page.tsx"
+import { docsSlugNested } from "@lazarv/react-server/routes";
+
+export const matchers = docsSlugNested.createMatchers({
+  nested: (slug) => slug.length >= 2,
+});
+
+export default docsSlugNested.createPage(({ slug }) => {
+  return <article>{slug.join("/")}</article>;
+});
+```
+
+ここで`/docs/intro`はフォールスルーし（長さ 1）、`/docs/guide/install`はマッチします。
+
+**型付きエイリアス。** `createMatchers`に渡せるエイリアスは、型生成時にルートパスから抽出されます。`[id=numeric]`のようなパスは`{ numeric?: (value: string) => boolean }`を生成し、`[...slug=nested]`のようなパスは`{ nested?: (value: string[]) => boolean }`を生成します。パスに存在しないエイリアスを使用するのは型エラーです。
+
+**マッチャーとバリデーションの違い。** これらは異なる問題を解決します。
+
+- **マッチャー**は**ルーティング**をゲートします。拒否は「この URL はこのルート用ではない」という意味です — 兄弟ルートとフォールバックにチャンスが与えられます。ページコードは読み込まれません。
+- **バリデーション**は**マッチしたルートのパラメータ**をゲートします。拒否は「このルートはマッチしたが、パラメータがスキーマを満たさない」という意味です — `useParams()`は`null`を返し、ページは依然としてレンダリングされ、エラーを処理する必要があります。
+
+複数の兄弟ルートが同じパラメータスロットを共有しつつ、その形状が異なる場合はマッチャーを使用してください。単一のルートがレンダリング前に抽出済みのパラメータを制約する必要がある場合はバリデーションを使用してください。
+
+**スコープ。** マッチャーはページ、アウトレットページ、ミドルウェア、および API ルートハンドラーで尊重されます。レイアウトとエラー/ローディング/フォールバックの境界はマッチャーディスパッチに参加しません — それらは包含関係とラップするページによって選択されます。
+
 <Link name="routes-module">
 ## ルートモジュール
 </Link>
@@ -229,6 +301,7 @@ import { index, about, user, dashboard } from "@lazarv/react-server/routes";
 - **`.createError(component)`** — 型付きエラーバウンダリコンポーネント
 - **`.createFallback(component)`** — 型付きフォールバックコンポーネント
 - **`.createMiddleware(handler)`** — リクエストパラメータ付きの型付きミドルウェア
+- **`.createMatchers(matchers)`** — 型付きマッチャーマップ（パスに`=alias`ブラケットを含むルートでのみ利用可能）。エイリアスはパスから抽出されます。キャッチオールエイリアスは`string[]`を、シングルエイリアスは`string`を受け取ります。[ルートマッチャー](/router/define-routes#route-matchers)を参照してください。
 
 これらのヘルパーはランタイムではアイデンティティ関数です — コンポーネントをそのまま返します。ルートパス、`validate`エクスポート、アウトレット構造から正しいプロップ型を推論するためにTypeScript専用で存在します。
 
@@ -245,8 +318,10 @@ import { index, about, user, dashboard } from "@lazarv/react-server/routes";
 | `pages/user/[id].page.tsx` | `user` |
 | `pages/user/posts.page.tsx` | `userPosts` |
 | `pages/dashboard/settings.page.tsx` | `dashboardSettings` |
+| `pages/product/[sku=uppercase].page.tsx` | `productSkuUppercase` |
+| `pages/docs/[...slug=nested].page.tsx` | `docsSlugNested` |
 
-`[id]`のような動的セグメントは名前から除去されます。`pages/[id].page.tsx`のような純粋に動的なパスでは、パラメータ名（`id`）がルート名として使用されます。
+`[id]`のような動的セグメントは名前から除去されます。`pages/[id].page.tsx`のような純粋に動的なパスでは、パラメータ名（`id`）がルート名として使用されます。セグメントがマッチャーエイリアス（例：`[sku=uppercase]`）を持つ場合、パラメータ名とエイリアスの両方が導出名に寄与します — そのため、マッチャーでゲートされたページとそのベアな兄弟は、数値サフィックスなしで自動的に別々の名前を取得します。数値サフィックスは、導出が真の衝突を生み出した場合の最後の手段としてのみ適用されます。
 
 ページファイルから`route`定数をエクスポートすることで、自動導出された名前をオーバーライドできます：
 

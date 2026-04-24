@@ -209,6 +209,7 @@ export function reload(url?: URL | string, outlet?: string): void;
  *  status(404, 'Not Found');
  *  return <h1>404 Not Found</h1>;
  * }
+ * ```
  */
 export function status(status?: number, statusText?: string): void;
 

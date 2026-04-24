@@ -128,6 +128,7 @@ declare module "@lazarv/react-server/navigation" {
    *   <Refresh>Refresh</Refresh>
    *  );
    * }
+   * ```
    */
   export function Refresh(props: RefreshProps): React.JSX.Element;
 

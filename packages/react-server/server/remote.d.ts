@@ -20,6 +20,7 @@
  *    </>
  *  );
  * }
+ * ```
  */
 export const RemoteComponent: React.FC<{
   src: string;

@@ -112,7 +112,9 @@ export default function Layout({
           {sidebar}
           <article>
             {breadcrumb}
-            <EditPage pathname={pathname} />
+            {!new RegExp(`^/(${languages.join("|")})/api(/|$)`).test(
+              pathname
+            ) && <EditPage pathname={pathname} />}
             <ViewMarkdown pathname={pathname} />
             {children}
             <PageMeta

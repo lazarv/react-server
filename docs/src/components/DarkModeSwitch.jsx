@@ -14,6 +14,11 @@ export default function DarkModeSwitch({ className }) {
   }, []);
 
   useEffect(() => {
+    // Skip the initial `null` render — otherwise the mount-time effect
+    // would overwrite the cookie to `dark=0` and strip the class the
+    // server already applied, before the sibling effect that reads the
+    // real cookie has a chance to call `setDark`.
+    if (dark === null) return;
     if (dark) {
       document.documentElement.classList.remove("light");
       document.documentElement.classList.add("dark");

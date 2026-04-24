@@ -1,6 +1,7 @@
 import { join, relative } from "node:path";
 
-import { defaultLanguage } from "./const.mjs";
+import { defaultLanguage, languages } from "./const.mjs";
+import { apiReferenceIndex } from "./lib/api-reference.mjs";
 
 const frontmatterLoaders = import.meta.glob(
   "./pages/*/\\(pages\\)/**/*.{md,mdx}",
@@ -8,12 +9,36 @@ const frontmatterLoaders = import.meta.glob(
 );
 const loaders = import.meta.glob("./pages/*/\\(pages\\)/**/*.{md,mdx}");
 const indexPages = import.meta.glob("./pages/*/*.\\(index\\).{md,mdx}");
-export const pages = await Promise.all(
-  Object.entries(frontmatterLoaders).map(async ([key, load]) => [
-    key,
-    { frontmatter: await load() },
+
+// Synthetic entries for the dynamic `/api/:slug` pages. They don't exist
+// on disk — the docs render them from `@lazarv/react-server`'s `.d.ts`
+// definitions via `./lib/api-reference.mjs` — but the sidebar,
+// breadcrumbs, and SSG path enumerator all consume this `pages` array
+// as their source of truth, so we add entries here with a shape that
+// mirrors what an equivalent MDX file would produce.
+const apiIndex = apiReferenceIndex();
+const apiSyntheticPages = languages.flatMap((lang) =>
+  apiIndex.map((p) => [
+    `./pages/${lang}/(pages)/api/${p.slug}.mdx`,
+    {
+      frontmatter: {
+        title: p.title,
+        category: p.category,
+        order: p.order,
+      },
+    },
   ])
 );
+
+export const pages = [
+  ...(await Promise.all(
+    Object.entries(frontmatterLoaders).map(async ([key, load]) => [
+      key,
+      { frontmatter: await load() },
+    ])
+  )),
+  ...apiSyntheticPages,
+];
 
 export const categories = [
   "Guide",
@@ -23,6 +48,7 @@ export const categories = [
   "Deploy",
   "Tutorials",
   "Advanced",
+  "API",
   "Team",
 ];
 
@@ -76,7 +102,10 @@ export function getPages(pathname, lang) {
             frontmatter,
             category,
             src,
-            page: () => loaders[src]().then((m) => m.default),
+            page: async () => {
+              const mod = await loaders[src]?.();
+              return mod?.default ?? null;
+            },
           };
 
           if (

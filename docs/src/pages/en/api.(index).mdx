@@ -1,0 +1,105 @@
+---
+title: API Reference
+category: API
+slug: api
+order: 0
+---
+
+import { m } from "../../i18n.mjs";
+
+<h1>{m.api_landing_title()}</h1>
+
+{m.api_translation_banner() ? <blockquote>{m.api_translation_banner()}</blockquote> : null}
+
+Every public export of `@lazarv/react-server`, grouped by subpath. Signatures, JSDoc descriptions, and examples are generated directly from the runtime's TypeScript definitions — what you read here mirrors what your editor shows on hover.
+
+Within each page, symbols are sorted alphabetically inside their group (Functions, Constants, Classes, Interfaces, Types). Overloaded functions collapse into a single entry with all signatures listed.
+
+## Runtime
+
+<dl>
+  <dt>[Core](/api/core) &nbsp;·&nbsp; `@lazarv/react-server`</dt>
+  <dd>The core runtime entry point. HTTP context hooks, cookie helpers, caching utilities, and rendering controls.</dd>
+
+  <dt>[Client](/api/client) &nbsp;·&nbsp; `@lazarv/react-server/client`</dt>
+  <dd>Client and outlet contexts for navigation, refresh, and prefetching, plus the `ClientOnly` component for post-hydration code.</dd>
+
+  <dt>[Router](/api/router) &nbsp;·&nbsp; `@lazarv/react-server/router`</dt>
+  <dd>Typed routing primitives for the file-system and programmatic routers — route factories, schema validators, and param extractors.</dd>
+
+  <dt>[Navigation](/api/navigation) &nbsp;·&nbsp; `@lazarv/react-server/navigation`</dt>
+  <dd>`<Link>`, `<Form>`, `<Refresh>`, `<ReactServerComponent>`, navigation hooks and guards, redirect helpers, and scroll restoration.</dd>
+</dl>
+
+## Data, rendering, resiliency
+
+<dl>
+  <dt>[Resources](/api/resources) &nbsp;·&nbsp; `@lazarv/react-server/resources`</dt>
+  <dd>`createResource` and `createResources` — typed server resources binding validated data loaders to routes.</dd>
+
+  <dt>[Remote Components](/api/remote) &nbsp;·&nbsp; `@lazarv/react-server/remote`</dt>
+  <dd>Load a remote React component from another `@lazarv/react-server` deployment and render it server-side.</dd>
+
+  <dt>[Error Boundary](/api/error-boundary) &nbsp;·&nbsp; `@lazarv/react-server/error-boundary`</dt>
+  <dd>Error boundaries for server components — catch rendering errors, render fallbacks, surface info to observability.</dd>
+
+  <dt>[Prerender](/api/prerender) &nbsp;·&nbsp; `@lazarv/react-server/prerender`</dt>
+  <dd>Partial pre-rendering controls: `usePrerender` to mark a component for build-time rendering and the `withPrerender` HOC.</dd>
+</dl>
+
+## Caching
+
+<dl>
+  <dt>[Memory Cache](/api/memory-cache) &nbsp;·&nbsp; `@lazarv/react-server/memory-cache`</dt>
+  <dd>Default in-memory cache provider. `useCache`, `invalidate`, and client-side cache helpers.</dd>
+
+  <dt>[Storage Cache](/api/storage-cache) &nbsp;·&nbsp; `@lazarv/react-server/storage-cache`</dt>
+  <dd>Durable cache backend on [unstorage](https://unstorage.unjs.io/) — Redis, Cloudflare KV, Upstash, filesystem, and more.</dd>
+
+  <dt>[RSC](/api/rsc) &nbsp;·&nbsp; `@lazarv/react-server/rsc`</dt>
+  <dd>Low-level RSC serialization helpers — serialize and deserialize React server component payloads directly.</dd>
+</dl>
+
+## Advanced
+
+<dl>
+  <dt>[Worker](/api/worker) &nbsp;·&nbsp; `@lazarv/react-server/worker`</dt>
+  <dd>Helpers for modules with the `"use worker"` directive — Node Worker Threads on the server, Web Workers on the client.</dd>
+
+  <dt>[MCP](/api/mcp) &nbsp;·&nbsp; `@lazarv/react-server/mcp`</dt>
+  <dd>Model Context Protocol primitives — typed tools, resources, and prompts exposed via an MCP server handler.</dd>
+
+  <dt>[HTTP](/api/http) &nbsp;·&nbsp; `@lazarv/react-server/http`</dt>
+  <dd>Low-level HTTP context types shared across middleware, route handlers, and server functions.</dd>
+</dl>
+
+## Config, build, deploy
+
+<dl>
+  <dt>[Config](/api/config) &nbsp;·&nbsp; `@lazarv/react-server/config`</dt>
+  <dd>Configuration schema and helpers — `ReactServerConfig` for typed `react-server.config.mjs` and `generateJsonSchema`.</dd>
+
+  <dt>[Adapters](/api/adapters) &nbsp;·&nbsp; `@lazarv/react-server/adapters/*`</dt>
+  <dd>Shared types and helpers for deploy adapters. The same surface is re-exported from every target.</dd>
+
+  <dt>[Node](/api/node) &nbsp;·&nbsp; `@lazarv/react-server/node`</dt>
+  <dd>Mount the runtime inside an existing Node.js server — Express, Fastify, NestJS, raw `http`. Used in middleware mode.</dd>
+
+  <dt>[Dev](/api/dev) &nbsp;·&nbsp; `@lazarv/react-server/dev`</dt>
+  <dd>Programmatic entry point to the development server. Equivalent to running `react-server` without arguments.</dd>
+
+  <dt>[Build](/api/build) &nbsp;·&nbsp; `@lazarv/react-server/build`</dt>
+  <dd>Programmatic build entry point — useful for custom build pipelines. Equivalent to `react-server build`.</dd>
+</dl>
+
+## Observability & tooling
+
+<dl>
+  <dt>[DevTools](/api/devtools) &nbsp;·&nbsp; `@lazarv/react-server/devtools`</dt>
+  <dd>Configuration surface for the in-browser DevTools panel.</dd>
+
+  <dt>[Telemetry](/api/telemetry) &nbsp;·&nbsp; `@lazarv/react-server/telemetry`</dt>
+  <dd>OpenTelemetry integration. Safe no-op when OpenTelemetry packages are not installed — import directly without guarding.</dd>
+</dl>
+
+All content on these pages is auto-generated from the TypeScript definitions in `packages/react-server/**/*.d.ts`. Edit the JSDoc on the corresponding declaration to update the rendered output.

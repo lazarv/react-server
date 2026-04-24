@@ -61,9 +61,15 @@ export default function Header({ lang }) {
           </a>
           <a
             href={`${baseUrl}tutorials`}
-            className={`mr-auto xl:mr-0 hidden lg:inline${activeClass("tutorials")}`}
+            className={`hidden lg:inline${activeClass("tutorials")}`}
           >
             {m.category_tutorials()}
+          </a>
+          <a
+            href={`${baseUrl}api`}
+            className={`mr-auto xl:mr-0 hidden lg:inline${activeClass("api")}`}
+          >
+            {m.category_api()}
           </a>
           <a
             href={`${baseUrl}team`}

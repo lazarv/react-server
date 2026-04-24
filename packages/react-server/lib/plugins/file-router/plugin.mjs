@@ -280,43 +280,65 @@ async function isClientSource(src) {
 }
 
 /**
- * Extract `export const route = "name"` and detect `export const validate`
- * from a source file using AST parsing.
+ * Extract `export const route = "name"` and detect `export const validate` /
+ * `export const matchers` from a source file using AST parsing.
  */
 async function extractRouteExports(src) {
   const { ast } = await parseFileAST(src);
-  if (!ast) return { name: null, hasValidate: false };
+  if (!ast) return { name: null, hasValidate: false, hasMatchers: false };
   const routeInit = findExportedConst(ast, "route");
   const name = getStringValue(routeInit);
   const hasValidate = findExportedConst(ast, "validate") !== null;
-  return { name, hasValidate };
+  const hasMatchers = findExportedConst(ast, "matchers") !== null;
+  return { name, hasValidate, hasMatchers };
 }
 
 /**
- * Derive a camelCase route name from a path like "/user/[id]/posts" → "userPosts".
+ * Derive a camelCase route name from a path.
+ *
+ *   "/user/[id]/posts"         → "userPosts"
+ *   "/product/[sku=uppercase]" → "productSkuUppercase"
+ *   "/docs/[...slug=nested]"   → "docsSlugNested"
+ *   "/[id]"                    → "id"
+ *
+ * Rule: a dynamic segment without a matcher alias is stripped (legacy
+ * behavior). A dynamic segment *with* a matcher alias contributes both its
+ * param name and the alias to the name, camelCased. This makes matcher-gated
+ * siblings name-distinct from their bare counterparts without needing numeric
+ * suffixes.
  */
 function deriveRouteName(path) {
   if (path === "/") return "index";
+  const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+  // Replace every `[...]`/`[[...]]` bracket with a name-contribution.
+  //   [name]            / [[name]]            → ""                 (strip)
+  //   [...name]         / [[...name]]         → ""                 (strip)
+  //   [name=alias]      / [[name=alias]]      → "<name><Alias>"    (include)
+  //   [...name=alias]   / [[...name=alias]]   → "<name><Alias>"    (include)
+  const replaceBrackets = (segment) =>
+    segment.replace(
+      /\[\[?\.{0,3}([^\]=]+)(?:=([^\]]+))?\]\]?/g,
+      (_, name, alias) => (alias ? `${name}${cap(alias)}` : "")
+    );
   const segments = path
     .replace(/^\//, "")
     .split("/")
-    .map((s) => s.replace(/\[\.{0,3}([^\]]+)\]/g, "").replace(/^@/, ""))
+    .map((s) => replaceBrackets(s).replace(/^@/, ""))
     .filter(Boolean);
   if (segments.length === 0) {
-    // Path is purely dynamic like "/[id]"
-    const dynamicSegments = path
+    // Purely dynamic path with no matchers (every bracket stripped to "").
+    // Fall back to the first bracket's param name so the route gets a name.
+    const first = path
       .replace(/^\//, "")
       .split("/")
       .map((s) => {
-        const m = s.match(/\[\.{0,3}([^\]]+)\]/);
+        const m = s.match(/\[\[?\.{0,3}([^\]=]+)/);
         return m ? m[1] : "";
       })
-      .filter(Boolean);
-    return dynamicSegments[0] ?? "index";
+      .filter(Boolean)[0];
+    return first ?? "index";
   }
-  return segments
-    .map((s, i) => (i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)))
-    .join("");
+  return segments.map((s, i) => (i === 0 ? s : cap(s))).join("");
 }
 
 /**
@@ -513,6 +535,16 @@ export default function viteReactServerRouter(options = {}) {
     return paramCount;
   }
 
+  // Count matcher-gated bracket segments in a path (e.g. "[id=numeric]",
+  // "[...slug=nested]", "[[...slug=nested]]"). Used to rank more-specific
+  // routes ahead of less-specific siblings in the match order.
+  function getMatcherCount(path) {
+    let count = 0;
+    const re = /\[[^\]]*?=[^\]]*?\]/g;
+    while (re.exec(path) !== null) count++;
+    return count;
+  }
+
   function getRoutes(routes) {
     return routes
       .map(
@@ -622,6 +654,11 @@ export default function viteReactServerRouter(options = {}) {
           (aPath.includes("...") || bPath.includes("...")
             ? bPath.split("/").length - aPath.split("/").length
             : aPath.split("/").length - bPath.split("/").length) ||
+          // More matcher-gated segments = more specific → try first.
+          // Placed before localeCompare (which ignores punctuation under
+          // default CLDR collation and would otherwise rank "[sku]" ahead of
+          // "[sku=uppercase]", short-circuiting the matcher sibling).
+          getMatcherCount(bPath) - getMatcherCount(aPath) ||
           aPath.localeCompare(bPath) ||
           (bType === "page") - (aType === "page")
       );
@@ -752,12 +789,60 @@ export default function viteReactServerRouter(options = {}) {
         lines.push(`    ): typeof mapping;`);
       }
 
+      // Matchers — typed per alias present in the route path.
+      // Only emitted when the path contains at least one [param=alias] form,
+      // including catch-alls (which widen the signature to string[]).
+      const matcherAliases = extractMatcherAliases(path);
+      const matcherAliasEntries = Object.entries(matcherAliases);
+      if (matcherAliasEntries.length > 0) {
+        const matcherShape = matcherAliasEntries
+          .map(([alias, arity]) => `${alias}?: (value: ${arity}) => boolean`)
+          .join("; ");
+        lines.push(`    createMatchers(`);
+        lines.push(`      matchers: { ${matcherShape} }`);
+        lines.push(`    ): typeof matchers;`);
+      }
+
       lines.push(`  }`);
       lines.push(`  export const ${name}: ${interfaceName};\n`);
     }
 
     lines.push(`}`);
     return lines.join("\n");
+  }
+
+  /**
+   * Extract matcher aliases from a route path into an alias → arity map.
+   * e.g. "/user/[id=numeric]" → { numeric: "string" }
+   *      "/docs/[...slug=nested]" → { nested: "string[]" }
+   * Required and optional variants collapse to the same arity:
+   *   [id=a] / [[id=a]]           → "string"
+   *   [...id=a] / [[...id=a]]     → "string[]"
+   */
+  function extractMatcherAliases(path) {
+    const aliases = {};
+    // Normalize to inner contents per bracket, preserving "..." marker.
+    // Patterns to match, longest first:
+    //   [[...name=alias]]   optionalCatchAll
+    //   [...name=alias]     catchAll
+    //   [[name=alias]]      optionalParam
+    //   [name=alias]        param
+    const re =
+      /\[\[\.\.\.([^\]=]+)=([^\]]+)\]\]|\[\.\.\.([^\]=]+)=([^\]]+)\]|\[\[([^\]=]+)=([^\]]+)\]\]|\[([^\]=/]+)=([^\]/]+)\]/g;
+    let m;
+    while ((m = re.exec(path)) !== null) {
+      if (m[1] !== undefined) {
+        aliases[m[2]] = "string[]";
+      } else if (m[3] !== undefined) {
+        aliases[m[4]] = "string[]";
+      } else if (m[5] !== undefined) {
+        aliases[m[6]] = "string";
+      } else if (m[7] !== undefined) {
+        // If already string[], keep the wider type.
+        if (aliases[m[8]] !== "string[]") aliases[m[8]] = "string";
+      }
+    }
+    return aliases;
   }
 
   /**
@@ -774,7 +859,8 @@ export default function viteReactServerRouter(options = {}) {
     while ((m = regex.exec(path)) !== null) {
       const optional = m[0].startsWith("[[");
       const spread = m[0].includes("...");
-      const name = m[2];
+      // Strip matcher alias suffix (e.g. "id=numeric" → "id")
+      const name = m[2].split("=")[0];
       if (spread) {
         params.push(`${name}${optional ? "?" : ""}: string[]`);
       } else {
@@ -787,6 +873,28 @@ export default function viteReactServerRouter(options = {}) {
   // Cached route infos — invalidated on createManifest()
   let routeInfosCache = null;
   let routeInfosPromise = null;
+
+  // Per-src cache of whether the module exports `matchers`.
+  // Invalidated on createManifest() to pick up edits in dev.
+  const matchersExportCache = new Map();
+  async function hasMatchersExport(src) {
+    if (matchersExportCache.has(src)) return matchersExportCache.get(src);
+    // Virtual sources (prefixed) don't correspond to on-disk files we can AST-scan.
+    // Treat them as having no matchers export.
+    if (src.startsWith("\0") || src.includes("://")) {
+      matchersExportCache.set(src, false);
+      return false;
+    }
+    try {
+      const { ast } = await parseFileAST(src);
+      const result = !!ast && findExportedConst(ast, "matchers") !== null;
+      matchersExportCache.set(src, result);
+      return result;
+    } catch {
+      matchersExportCache.set(src, false);
+      return false;
+    }
+  }
 
   /**
    * Build route info objects: group manifest entries by path, extract route names,
@@ -869,13 +977,14 @@ export default function viteReactServerRouter(options = {}) {
         const mainPageSrc = pageEntries.find((e) => !e.outlet)?.src;
         const exports = mainPageSrc
           ? await extractRouteExports(mainPageSrc)
-          : { name: null, hasValidate: false };
+          : { name: null, hasValidate: false, hasMatchers: false };
         const name = exports.name ?? deriveRouteName(info.path);
         routeInfos.push({
           ...info,
           name,
           src: mainPageSrc,
           hasValidate: exports.hasValidate,
+          hasMatchers: exports.hasMatchers,
         });
       }
 
@@ -899,6 +1008,7 @@ export default function viteReactServerRouter(options = {}) {
     routeInfosCache = null;
     routeInfosPromise = null;
     clientPageCache.clear();
+    matchersExportCache.clear();
 
     if (viteCommand === "serve" && viteServer) {
       const manifestModule = viteServer.moduleGraph.getModuleById(
@@ -1844,6 +1954,7 @@ ${routeExportLines.join("\n")}
         const routeInfos = await buildRouteInfos();
         const exportLines = [];
         const lazyValidateLines = [];
+        const lazyMatchersLines = [];
         for (const info of routeInfos) {
           exportLines.push(
             `export const ${info.name} = __withHelpers(__createRoute("${info.path}"));`
@@ -1854,6 +1965,11 @@ ${routeExportLines.join("\n")}
             // so we can't statically import from page files here.
             lazyValidateLines.push(
               `import("${info.src}").then(__m => { ${info.name}.validate = __m.validate; });`
+            );
+          }
+          if (info.src && info.hasMatchers) {
+            lazyMatchersLines.push(
+              `import("${info.src}").then(__m => { ${info.name}.matchers = __m.matchers; });`
             );
           }
         }
@@ -1868,12 +1984,15 @@ function __withHelpers(descriptor) {
   descriptor.createLoading = __identity;
   descriptor.createFallback = __identity;
   descriptor.createResourceMapping = __identity;
+  descriptor.createMatchers = __identity;
   return descriptor;
 }
 
 ${exportLines.join("\n")}
 
 ${lazyValidateLines.join("\n")}
+
+${lazyMatchersLines.join("\n")}
 `;
       }
       if (id === "virtual:@lazarv/react-server/__resources__") {
@@ -1980,6 +2099,68 @@ ${lazyValidateLines.join("\n")}
           })
           .join(",\n");
 
+        // --- Matcher loaders -------------------------------------------------
+        // Collect (path, src) pairs for every routing participant that exports
+        // `matchers`: pages (non-resource), middlewares, and api routes.
+        // Layouts and error/loading/fallback boundaries are excluded — they
+        // don't participate in routing decisions via useMatch.
+        const matcherEntries = [];
+        for (const [src, path, , type] of manifest.pages) {
+          if (type === "resource") continue;
+          if (await hasMatchersExport(src)) {
+            matcherEntries.push([path, src]);
+          }
+        }
+        for (const [src, path] of manifest.middlewares) {
+          if (await hasMatchersExport(src)) {
+            matcherEntries.push([path, src]);
+          }
+        }
+        for (const apiRow of entry.api) {
+          const { src, _virtualPath } = apiRow;
+          // Derive the api route's path the same way the manifest row does.
+          let path = _virtualPath;
+          if (path === undefined) {
+            const normalized = apiRow.filename
+              .replace(/^\+*/g, "")
+              .replace(/\.\.\./g, "_dot_dot_dot_")
+              .replace(/(\{)[^}]*(\})/g, (m) => m.replace(/\./g, "_dot_"))
+              .split(".");
+            const [, name, ext] = apiEndpointRegExp.test(apiRow.filename)
+              ? normalized
+              : [
+                  "*",
+                  normalized[0] === "server" ? "" : normalized[0],
+                  normalized[0] === "server"
+                    ? ""
+                    : normalized.slice(1).join("."),
+                ];
+            path = `/${apiRow.directory}/${ext ? name : ""}`
+              .replace(/\/+$/g, "")
+              .replace(/_dot_dot_dot_/g, "...")
+              .replace(/_dot_/g, ".")
+              .replace(/(\{)([^}]*)(\})/g, "$2")
+              .replace(/^\/+/, "/");
+          }
+          if (await hasMatchersExport(src)) {
+            matcherEntries.push([path, src]);
+          }
+        }
+        // Deduplicate (same path + src can appear across manifest + outlet rows).
+        const matcherSeen = new Set();
+        const matcherLoaderEntries = matcherEntries
+          .filter(([path, src]) => {
+            const key = `${path}::${src}`;
+            if (matcherSeen.has(key)) return false;
+            matcherSeen.add(key);
+            return true;
+          })
+          .map(
+            ([path, src]) =>
+              `["${path}", async () => { const __m = await ${cachedImport(src)}; return __m.matchers; }]`
+          )
+          .join(",\n");
+
         // Generate cache variable declarations
         const cacheVarDecls = Array.from(importCacheMap.values())
           .map((v) => `let ${v};`)
@@ -1993,14 +2174,64 @@ ${lazyValidateLines.join("\n")}
           const routes = [
               ${routeEntries}
           ].toSorted(
-            ([aMethod, aPath], [bMethod, bPath]) =>
-              (aMethod === "*") - (bMethod === "*") ||
-              aPath.split("/").length - bPath.split("/").length ||
-              aPath.localeCompare(bPath)
+            ([aMethod, aPath], [bMethod, bPath]) => {
+              const aMatchers = (aPath.match(/\\[[^\\]]*?=[^\\]]*?\\]/g) || []).length;
+              const bMatchers = (bPath.match(/\\[[^\\]]*?=[^\\]]*?\\]/g) || []).length;
+              return (
+                (aMethod === "*") - (bMethod === "*") ||
+                aPath.split("/").length - bPath.split("/").length ||
+                bMatchers - aMatchers ||
+                aPath.localeCompare(bPath)
+              );
+            }
           );
           const pages = [
             ${pageEntries}
           ];
+
+          ${
+            matcherLoaderEntries
+              ? `
+          // Matcher loaders: [path, () => Promise<matchers>] for every
+          // routing participant that exports a \`matchers\` object. Paths not
+          // present here have no matchers; \`matchersFor(path)\` returns
+          // undefined and useMatch skips matcher evaluation.
+          const __matcherLoaders = [
+            ${matcherLoaderEntries}
+          ];
+          const __resolvedMatchers = new Map();
+          let __matchersLoaded = false;
+          let __matchersLoadPromise = null;
+          // Returns a pending promise while loading, null once settled — so
+          // callers can skip the await entirely on the hot path. Awaiting an
+          // already-resolved promise still queues a microtask, which is
+          // measurable under benchmark load.
+          function loadMatchers$() {
+            if (__matchersLoaded) return null;
+            if (__matchersLoadPromise) return __matchersLoadPromise;
+            __matchersLoadPromise = Promise.all(
+              __matcherLoaders.map(async ([path, loader]) => {
+                const m = await loader();
+                if (m && typeof m === "object") {
+                  __resolvedMatchers.set(path, m);
+                }
+              })
+            ).then(() => {
+              __matchersLoaded = true;
+              __matchersLoadPromise = null;
+            });
+            return __matchersLoadPromise;
+          }
+          function matchersFor(path) {
+            return __resolvedMatchers.get(path);
+          }`
+              : `
+          // No routing participant exports a \`matchers\` object in this app —
+          // emit no-op helpers so the routing hot path stays matcher-free
+          // with zero per-request cost.
+          function loadMatchers$() { return null; }
+          function matchersFor() { return undefined; }`
+          }
 
           function warmup$() {
             return Promise.all([${Array.from(importCacheMap.keys())
@@ -2008,7 +2239,7 @@ ${lazyValidateLines.join("\n")}
               .join(", ")}]);
           }
 
-          export { middlewares, routes, pages, warmup$ };`;
+          export { middlewares, routes, pages, warmup$, loadMatchers$, matchersFor };`;
         return code;
       } else if (id.startsWith("virtual:__react_server_router_page__")) {
         let [path, src] = id
@@ -2143,6 +2374,7 @@ ${lazyValidateLines.join("\n")}
             viteCommand === "build" ? "MANIFEST, " : ""
           }COLLECT_STYLESHEETS, STYLES_CONTEXT, COLLECT_CLIENT_MODULES, CLIENT_MODULES_CONTEXT, POSTPONE_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
           import { useMatch } from "@lazarv/react-server/router";
+          import { matchersFor } from "@lazarv/react-server/file-router/manifest";
           ${hasClientRoutes || hasResources || clientSiblings.length > 0 ? `import { Route } from "@lazarv/react-server/router";` : ""}
           ${
             errorBoundaries.length > 0
@@ -2385,7 +2617,7 @@ ${lazyValidateLines.join("\n")}
               const match = [];
               const pages = components.filter(([, , , type]) => type === "page");
               for (const [src, path, outlet, type] of pages){
-                const params = useMatch(path, { exact: true });
+                const params = useMatch(path, { exact: true, matchers: matchersFor(path) });
                 if (params) {
                   match.push({
                     src,

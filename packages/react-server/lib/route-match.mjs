@@ -83,16 +83,20 @@ export function parse(path) {
     } else if (token.type === "param") {
       const value = token.value.slice(1, -1);
       if (value.startsWith("...")) {
+        const [param, matcher] = value.slice(3).split("=");
         currentSegment.push({
           type: "catchAll",
-          param: value.slice(3),
+          param,
+          matcher,
           start: token.start,
           end: token.end,
         });
       } else if (value.startsWith("[...") && value.endsWith("]")) {
+        const [param, matcher] = value.slice(4, -1).split("=");
         currentSegment.push({
           type: "optionalCatchAll",
-          param: value.slice(4, -1),
+          param,
+          matcher,
           start: token.start,
           end: token.end,
         });
@@ -192,9 +196,9 @@ export function match(route, path, options = {}) {
           }
           if (
             part.matcher &&
-            typeof options.matchers[part.matcher] === "function"
+            typeof options.matchers?.[part.matcher] === "function"
           ) {
-            const matcher = options.matchers[part.matcher];
+            const matcher = options.matchers?.[part.matcher];
             if (!matcher(paramValue)) {
               if (part.type === "param") {
                 return null;
@@ -224,9 +228,9 @@ export function match(route, path, options = {}) {
           }
           if (
             part.matcher &&
-            typeof options.matchers[part.matcher] === "function"
+            typeof options.matchers?.[part.matcher] === "function"
           ) {
-            const matcher = options.matchers[part.matcher];
+            const matcher = options.matchers?.[part.matcher];
             if (!matcher(pathSegments[pathIndex])) {
               segmentMatch = false;
               break;
@@ -238,8 +242,8 @@ export function match(route, path, options = {}) {
           if (pathIndex < pathSegments.length) {
             if (
               !part.matcher ||
-              (typeof options.matchers[part.matcher] === "function" &&
-                options.matchers[part.matcher](pathSegments[pathIndex]))
+              (typeof options.matchers?.[part.matcher] === "function" &&
+                options.matchers?.[part.matcher](pathSegments[pathIndex]))
             ) {
               consumedOptionalParams.push(part);
               segmentParams[part.param] = pathSegments[pathIndex];
@@ -250,6 +254,7 @@ export function match(route, path, options = {}) {
           part.type === "catchAll" ||
           part.type === "optionalCatchAll"
         ) {
+          const catchAllStart = pathIndex;
           const remainingPath = pathSegments.slice(pathIndex);
           if (routeIndex < routeSegments.length - 1) {
             const nextStaticSegment = routeSegments
@@ -282,6 +287,22 @@ export function match(route, path, options = {}) {
           ) {
             segmentMatch = false;
             break;
+          }
+
+          if (
+            part.matcher &&
+            typeof options.matchers?.[part.matcher] === "function" &&
+            Array.isArray(segmentParams[part.param]) &&
+            segmentParams[part.param].length > 0 &&
+            !options.matchers[part.matcher](segmentParams[part.param])
+          ) {
+            if (part.type === "catchAll") {
+              segmentMatch = false;
+              break;
+            }
+            // optionalCatchAll rejection: rewind and treat as absent
+            segmentParams[part.param] = [];
+            pathIndex = catchAllStart;
           }
         }
       }

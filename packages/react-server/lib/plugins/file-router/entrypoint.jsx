@@ -38,10 +38,13 @@ export async function init$() {
     async (context) => {
       context$(POSTPONE_CONTEXT, false);
       context$(PAGE_PATH, usePathname());
-      // Resolve all routing-level matchers once per process. After this awaits,
-      // every downstream useMatch(path, …) call can read matchersFor(path)
-      // synchronously. Paths without matchers remain zero-cost.
-      await loadMatchers$();
+      // Resolve all routing-level matchers once per process. loadMatchers$()
+      // returns null synchronously when there are no matchers to load (either
+      // because the app declared none, or because a previous request already
+      // resolved them) — awaiting a resolved promise still queues a microtask
+      // per request, so the synchronous skip matters under benchmark load.
+      const matchersReady = loadMatchers$();
+      if (matchersReady) await matchersReady;
       const initMiddlewares = await Promise.all(
         middlewares.reduce((acc, [path, init$]) => {
           const params = useMatch(path, { matchers: matchersFor(path) });

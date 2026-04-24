@@ -45,6 +45,11 @@ describe("typed-file-router — basic routes", () => {
     expect(navText).toContain("About");
     expect(navText).toContain("User 42");
     expect(navText).toContain("Dashboard");
+    // Nav includes matcher-gated demo routes
+    expect(navText).toContain("Product ABC-123");
+    expect(navText).toContain("Product abc-123");
+    expect(navText).toContain("Docs nested");
+    expect(navText).toContain("Docs flat");
   });
 });
 
@@ -274,6 +279,95 @@ describe("typed-file-router — route matchers", () => {
       "matched=[...slug]"
     );
     expect(await page.textContent('[data-testid="slug"]')).toBe("intro");
+  });
+
+  // Typed Link href construction — these asserts lock in the buildHref fix
+  // for matcher-aliased brackets. Before the fix, an alias-gated bracket was
+  // left verbatim in the emitted href (e.g. `/product/[sku=uppercase]`).
+  test("typed Link for [sku=uppercase] emits concrete URL with substituted params", async () => {
+    await page.goto(hostname);
+    await page.waitForLoadState("load");
+    const link = await page.$('nav a[href="/product/ABC-123"]');
+    expect(link).not.toBeNull();
+    expect(await link.textContent()).toContain("Product ABC-123");
+  });
+
+  test("typed Link for [sku] fallback emits concrete URL with substituted params", async () => {
+    await page.goto(hostname);
+    await page.waitForLoadState("load");
+    const link = await page.$('nav a[href="/product/abc-123"]');
+    expect(link).not.toBeNull();
+    expect(await link.textContent()).toContain("Product abc-123");
+  });
+
+  test("typed Link for [...slug=nested] joins array params into a concrete URL", async () => {
+    await page.goto(hostname);
+    await page.waitForLoadState("load");
+    const link = await page.$('nav a[href="/docs/getting-started/install"]');
+    expect(link).not.toBeNull();
+    expect(await link.textContent()).toContain("Docs nested");
+  });
+
+  test("typed Link for [...slug] catch-all joins a single segment into a URL", async () => {
+    await page.goto(hostname);
+    await page.waitForLoadState("load");
+    const link = await page.$('nav a[href="/docs/intro"]');
+    expect(link).not.toBeNull();
+    expect(await link.textContent()).toContain("Docs flat");
+  });
+
+  // Client-side navigation — verifies matcher dispatch still runs correctly
+  // after hydration, not just on initial SSR. The cross-link on each demo
+  // page points at its sibling; clicking must re-match against the matcher.
+  test("client-side navigation from matcher page to fallback sibling re-runs matcher dispatch", async () => {
+    await page.goto(`${hostname}/product/ABC-123`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const prevUrl = page.url();
+    const fallbackLink = await page.$('a[href="/product/abc-123"]');
+    expect(fallbackLink).not.toBeNull();
+    await fallbackLink.click();
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("/product/abc-123");
+    expect(await page.textContent('[data-testid="route"]')).toBe(
+      "matched=[sku]"
+    );
+  });
+
+  test("client-side navigation from fallback back to matcher page", async () => {
+    await page.goto(`${hostname}/product/abc-123`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const prevUrl = page.url();
+    const matcherLink = await page.$('a[href="/product/ABC-123"]');
+    expect(matcherLink).not.toBeNull();
+    await matcherLink.click();
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("/product/ABC-123");
+    expect(await page.textContent('[data-testid="route"]')).toBe(
+      "matched=[sku=uppercase]"
+    );
+  });
+
+  test("client-side navigation from flat docs fallback to nested docs matcher", async () => {
+    await page.goto(`${hostname}/docs/intro`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const prevUrl = page.url();
+    const nestedLink = await page.$('a[href="/docs/getting-started/install"]');
+    expect(nestedLink).not.toBeNull();
+    await nestedLink.click();
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("/docs/getting-started/install");
+    expect(await page.textContent('[data-testid="route"]')).toBe(
+      "matched=[...slug=nested]"
+    );
   });
 });
 

@@ -2189,6 +2189,9 @@ ${lazyMatchersLines.join("\n")}
             ${pageEntries}
           ];
 
+          ${
+            matcherLoaderEntries
+              ? `
           // Matcher loaders: [path, () => Promise<matchers>] for every
           // routing participant that exports a \`matchers\` object. Paths not
           // present here have no matchers; \`matchersFor(path)\` returns
@@ -2197,8 +2200,14 @@ ${lazyMatchersLines.join("\n")}
             ${matcherLoaderEntries}
           ];
           const __resolvedMatchers = new Map();
+          let __matchersLoaded = false;
           let __matchersLoadPromise = null;
+          // Returns a pending promise while loading, null once settled — so
+          // callers can skip the await entirely on the hot path. Awaiting an
+          // already-resolved promise still queues a microtask, which is
+          // measurable under benchmark load.
           function loadMatchers$() {
+            if (__matchersLoaded) return null;
             if (__matchersLoadPromise) return __matchersLoadPromise;
             __matchersLoadPromise = Promise.all(
               __matcherLoaders.map(async ([path, loader]) => {
@@ -2207,11 +2216,21 @@ ${lazyMatchersLines.join("\n")}
                   __resolvedMatchers.set(path, m);
                 }
               })
-            );
+            ).then(() => {
+              __matchersLoaded = true;
+              __matchersLoadPromise = null;
+            });
             return __matchersLoadPromise;
           }
           function matchersFor(path) {
             return __resolvedMatchers.get(path);
+          }`
+              : `
+          // No routing participant exports a \`matchers\` object in this app —
+          // emit no-op helpers so the routing hot path stays matcher-free
+          // with zero per-request cost.
+          function loadMatchers$() { return null; }
+          function matchersFor() { return undefined; }`
           }
 
           function warmup$() {

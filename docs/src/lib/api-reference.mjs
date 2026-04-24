@@ -27,21 +27,33 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 
-// Lazy-require `typescript` via createRequire — Rolldown does not
-// statically analyze `require()` calls made through createRequire,
-// so the TypeScript package never enters any bundle (SSR or edge
-// worker). Node's SSG build loads it on demand; the edge worker
-// never reaches `getTs()` for pre-rendered-miss paths (the
-// `apiReferencePageVersion` guard returns early with `null`).
+// `createRequire` gives us a Node CJS resolver we can call at runtime.
+// Used for two separate things:
 //
-// Also used for `@lazarv/react-server/*` `.d.ts` resolution — the
-// package's `"./*": "./*"` exports catch-all makes any file in the
-// runtime reachable by package name, no repo-layout assumptions.
+//  1. Loading the `typescript` package on demand for the `.d.ts`
+//     parser. The require argument is held in a variable, not a
+//     literal — Rolldown only statically inlines `require("literal")`
+//     and leaves `require(var)` as runtime resolution. This keeps
+//     `typescript` out of every bundle, including the Cloudflare edge
+//     worker where `noExternal: true` would otherwise inline it and
+//     fail on its CJS `__filename` references.
+//
+//     At SSG build time (Node) `require(tsModuleId)` resolves the
+//     package from the workspace's `node_modules`. At edge runtime
+//     `getTs()` is never reached for any path that actually ships —
+//     pre-rendered pages are served as assets and never invoke the
+//     parser — so the missing module never matters.
+//
+//  2. Resolving `@lazarv/react-server/*` `.d.ts` file paths via the
+//     runtime package's `"./*": "./*"` exports catch-all, which makes
+//     every file inside the package reachable by package name without
+//     any repo-layout assumption.
 const require = createRequire(import.meta.url);
+const tsModuleId = "typescript";
 
 let _ts;
 function getTs() {
-  if (!_ts) _ts = require("typescript");
+  if (!_ts) _ts = require(tsModuleId);
   return _ts;
 }
 let _printer;
@@ -508,7 +520,7 @@ function slugify(name) {
 function normalizeExample(raw) {
   const body = (raw ?? "").replace(/^\s*\n/, "").replace(/\s+$/, "");
   if (!body) return null;
-  if (body.startsWith('```')) {
+  if (body.startsWith("```")) {
     const lines = body.split("\n");
     const openMatch = lines[0].match(/^```(\S*)/);
     const lang = (openMatch && openMatch[1]) || "tsx";

@@ -1,7 +1,6 @@
 import { createRequire } from "node:module";
 
 import { useRender, useUrl } from "@lazarv/react-server";
-import hljs from "react-server-highlight.js";
 import "react-server-highlight.js/styles/github-dark.min.css";
 
 import { style, remoteStyle } from "./error-styles.mjs";
@@ -10,12 +9,28 @@ import { forRoot } from "../config/context.mjs";
 
 const _require = createRequire(import.meta.url);
 
+// The `highlight.js` JS library (~650KB) is only used to syntax-colour
+// the code frame shown on the dev error page — `error.code` is set by
+// `prepareError()`, which only runs in dev. Production error pages
+// never call `hljs.highlight`, so the top-level import used to be pure
+// bloat. Load it dynamically with a variable specifier so Rolldown
+// can't statically bundle it into the edge worker chunk (~900KB →
+// ~small KB).
+// const hljsModuleId = "react-server-highlight.js";
+
 export default async function GlobalError({ error }) {
   const url = useUrl();
   const { isRemote } = useRender();
+  let highlightedCode = null;
 
   if (import.meta.env.DEV) {
     error = await prepareError(error);
+    if (error.code) {
+      const { default: hljs } = await import("react-server-highlight.js");
+      highlightedCode = hljs.highlight(error.code, {
+        language: "javascript",
+      }).value;
+    }
     const [{ getContext }, { SERVER_CONTEXT }] = await Promise.all([
       import("@lazarv/react-server/server/context.mjs"),
       import("@lazarv/react-server/server/symbols.mjs"),
@@ -72,16 +87,13 @@ export default async function GlobalError({ error }) {
             }}
           />
         ) : null}
-        {error.code ? (
+        {highlightedCode ? (
           <details>
             <summary></summary>
             <pre className="react-server-global-error-code">
               <code
                 className="hljs"
-                dangerouslySetInnerHTML={{
-                  __html: hljs.highlight(error.code, { language: "javascript" })
-                    .value,
-                }}
+                dangerouslySetInnerHTML={{ __html: highlightedCode }}
               />
               {error.loc ? (
                 <div

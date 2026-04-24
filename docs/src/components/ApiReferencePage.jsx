@@ -1,7 +1,3 @@
-import { compile, run } from "@mdx-js/mdx";
-import rehypeHighlight from "rehype-highlight";
-import rehypeMdxCodeProps from "rehype-mdx-code-props";
-import remarkGfm from "remark-gfm";
 import * as runtime from "react/jsx-runtime";
 
 import { m, useLanguage } from "../i18n.mjs";
@@ -14,6 +10,41 @@ import {
 } from "../lib/api-reference.mjs";
 
 import Link from "./Link.jsx";
+
+// Lazy-load the MDX compiler pipeline via dynamic imports with
+// non-literal specifiers — Rolldown only bundles `import("literal")`,
+// leaving `import(variable)` as runtime resolution. Without this,
+// `@mdx-js/mdx` alone is ~500KB and inflates the Cloudflare edge
+// worker bundle to well past what it needs to be.
+//
+// The worker never actually reaches this code — pre-rendered pages
+// are served from the ASSETS binding, and `/api/:slug` paths that
+// don't match the matchers fall through to the 404 page without
+// invoking `ApiReferencePage`. At SSG build time (Node), the dynamic
+// imports resolve normally from `node_modules`.
+const mdxModuleId = "@mdx-js/mdx";
+const rehypeHighlightId = "rehype-highlight";
+const rehypeMdxCodePropsId = "rehype-mdx-code-props";
+const remarkGfmId = "remark-gfm";
+
+let _pipeline;
+async function getMdxPipeline() {
+  if (_pipeline) return _pipeline;
+  const [mdx, rh, rmcp, rg] = await Promise.all([
+    import(/* @vite-ignore */ mdxModuleId),
+    import(/* @vite-ignore */ rehypeHighlightId),
+    import(/* @vite-ignore */ rehypeMdxCodePropsId),
+    import(/* @vite-ignore */ remarkGfmId),
+  ]);
+  _pipeline = {
+    compile: mdx.compile,
+    run: mdx.run,
+    rehypeHighlight: rh.default ?? rh,
+    rehypeMdxCodeProps: rmcp.default ?? rmcp,
+    remarkGfm: rg.default ?? rg,
+  };
+  return _pipeline;
+}
 
 // Compiled-component cache keyed by (slug, locale, *global* mtime).
 // The global mtime means a JSDoc edit on any page invalidates every
@@ -236,6 +267,9 @@ async function compileForSlug(slug, { lang, banner } = {}) {
   if (!source) return null;
 
   const table = apiReferenceSymbolTable();
+
+  const { compile, run, rehypeHighlight, rehypeMdxCodeProps, remarkGfm } =
+    await getMdxPipeline();
 
   const compiled = await compile(source, {
     remarkPlugins: [remarkGfm],

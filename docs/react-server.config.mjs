@@ -31,7 +31,10 @@ export default {
     return [
       ...paths.map(({ path }) => ({
         path: path.replace(/^\/en/, ""),
-        filename: path === "/" ? "index.html" : `${path.slice(1)}.html`,
+        filename: (path === "/"
+          ? "index.html"
+          : `${path.slice(1)}.html`
+        ).replace(/^en\//, "/"),
         rsc: false,
       })),
       // Markdown versions of all docs pages for AI usage

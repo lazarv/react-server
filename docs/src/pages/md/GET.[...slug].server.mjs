@@ -3,11 +3,20 @@ import { join } from "node:path";
 
 import { useMatch } from "@lazarv/react-server/router";
 
+import { m } from "../../i18n.mjs";
+import {
+  apiReferenceIndex,
+  renderApiReferenceLandingMarkdown,
+  renderApiReferencePageMarkdown,
+} from "../../lib/api-reference.mjs";
+
 // Lazy loaders for frontmatter only
 const moduleLoaders = import.meta.glob([
   "../en/*/**/*.{md,mdx}",
   "../en/*.\\(index\\).{md,mdx}",
 ]);
+
+const apiSlugs = new Set(apiReferenceIndex().map((p) => p.slug));
 
 function getSlug(key) {
   // For pages in (pages)/ directory: (pages)/guide/quick-start.mdx → guide/quick-start
@@ -81,14 +90,49 @@ function cleanMdx(raw) {
   return content.trim();
 }
 
-// Export all available slugs so they can be used for static generation
-export const slugs = Array.from(slugToKey.keys());
+// Export all available slugs so they can be used for static generation.
+// In addition to the MDX-derived slugs, publish every API reference slug —
+// those pages have no on-disk source; their `.md` form is rendered live
+// by `renderApiReferencePageMarkdown`.
+export const slugs = [
+  ...slugToKey.keys(),
+  "api",
+  ...[...apiSlugs].map((s) => `api/${s}`),
+];
 
 export default async function MarkdownRoute() {
   const { slug } = useMatch("/md/[[...slug]]");
   const path = slug?.join("/");
 
   if (!path) {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  // Dynamic API reference pages — rendered on demand from the `.d.ts`
+  // files in `packages/react-server`, no on-disk source exists.
+  if (path === "api") {
+    return new Response(
+      renderApiReferenceLandingMarkdown({
+        title: m.api_landing_title(),
+        banner: m.api_translation_banner(),
+      }),
+      {
+        headers: { "Content-Type": "text/markdown; charset=utf-8" },
+      }
+    );
+  }
+  if (path.startsWith("api/")) {
+    const apiSlug = path.slice("api/".length);
+    if (apiSlugs.has(apiSlug)) {
+      const markdown = renderApiReferencePageMarkdown(apiSlug, {
+        banner: m.api_translation_banner(),
+      });
+      if (markdown) {
+        return new Response(markdown, {
+          headers: { "Content-Type": "text/markdown; charset=utf-8" },
+        });
+      }
+    }
     return new Response("Not Found", { status: 404 });
   }
 

@@ -231,7 +231,9 @@ article {
   }
 
   & p code,
-  & li code {
+  & li code,
+  & dt code,
+  & dd code {
     @apply bg-gray-100 dark:bg-gray-500 dark:text-white rounded-md text-sm p-1 font-semibold;
   }
 
@@ -537,4 +539,30 @@ footer {
   @media (prefers-reduced-motion) {
     animation: none;
   }
+}
+
+/* API reference index — classical TOC style: each <dt>/<dd> pair
+   separated by vertical spacing, <dd> muted and indented. */
+article dl {
+  @apply my-6;
+}
+article dl dt {
+  @apply mt-4 first:mt-0;
+}
+article dl dd {
+  @apply ml-6 text-gray-600 dark:text-gray-400;
+}
+
+/* Cross-reference links inside code blocks on API pages: keep the
+   highlight.js coloring, add a dotted underline to signal they're
+   clickable without repainting the token. */
+code a.api-xref,
+pre code a.api-xref {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+code a.api-xref:hover,
+pre code a.api-xref:hover {
+  border-bottom-style: solid;
 }

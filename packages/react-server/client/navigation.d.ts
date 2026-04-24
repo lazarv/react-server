@@ -133,6 +133,7 @@ export type RefreshProps = React.PropsWithChildren<{
  *   <Refresh>Refresh</Refresh>
  *  );
  * }
+ * ```
  */
 export function Refresh(props: RefreshProps): React.JSX.Element;
 
@@ -216,6 +217,7 @@ export type ReactServerComponentProps = React.PropsWithChildren<{
  *     <ReactServerComponent url="/todos" outlet="todos" defer />
  *   );
  * }
+ * ```
  */
 export function ReactServerComponent(
   props: ReactServerComponentProps

@@ -455,6 +455,7 @@ export function createRouter<
  *   </Route>
  *  );
  * }
+ * ```
  */
 export const Route: React.FC<
   React.PropsWithChildren<{

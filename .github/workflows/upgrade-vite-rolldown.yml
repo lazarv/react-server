@@ -184,51 +184,15 @@ jobs:
 
       - name: Replace Vite version in all package.json files
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true' && steps.check.outputs.vite_changed == 'true'
-        run: |
-          OLD="${{ steps.current.outputs.vite }}"
-          NEW="${{ steps.latest.outputs.vite }}"
-          echo "Replacing Vite $OLD → $NEW in all package.json files..."
-
-          find . -name 'package.json' -not -path '*/node_modules/*' | while read -r file; do
-            if grep -q "\"$OLD\"" "$file"; then
-              echo "  Updating: $file"
-              sed -i "s|\"$OLD\"|\"$NEW\"|g" "$file"
-            fi
-          done
-
-          echo "Done replacing Vite versions."
+        run: bash .github/scripts/bump-package-dep.sh vite "${{ steps.latest.outputs.vite }}"
 
       - name: Replace Rolldown version in all package.json files
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true' && steps.check.outputs.rolldown_changed == 'true'
-        run: |
-          OLD="${{ steps.current.outputs.rolldown }}"
-          NEW="${{ steps.latest.outputs.rolldown }}"
-          echo "Replacing Rolldown $OLD → $NEW in all package.json files..."
-
-          find . -name 'package.json' -not -path '*/node_modules/*' | while read -r file; do
-            if grep -q "\"$OLD\"" "$file"; then
-              echo "  Updating: $file"
-              sed -i "s|\"$OLD\"|\"$NEW\"|g" "$file"
-            fi
-          done
-
-          echo "Done replacing Rolldown versions."
+        run: bash .github/scripts/bump-package-dep.sh rolldown "${{ steps.latest.outputs.rolldown }}"
 
       - name: Replace Vitest version in all package.json files
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true' && steps.check.outputs.vitest_changed == 'true'
-        run: |
-          OLD="${{ steps.current.outputs.vitest }}"
-          NEW="${{ steps.latest.outputs.vitest }}"
-          echo "Replacing Vitest $OLD → $NEW in all package.json files..."
-
-          find . -name 'package.json' -not -path '*/node_modules/*' | while read -r file; do
-            if grep -q "$OLD" "$file"; then
-              echo "  Updating: $file"
-              sed -i "s|$OLD|$NEW|g" "$file"
-            fi
-          done
-
-          echo "Done replacing Vitest versions."
+        run: bash .github/scripts/bump-package-dep.sh vitest "${{ steps.latest.outputs.vitest }}"
 
       - name: Install deps
         if: steps.pr.outputs.exists == 'false' && steps.check.outputs.needed == 'true'

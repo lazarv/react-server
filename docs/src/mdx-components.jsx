@@ -20,6 +20,11 @@ export default function useMDXComponents() {
         </pre>
       );
     },
+    table: (props) => (
+      <div className="max-w-full overflow-x-auto mb-4">
+        <table {...props} className={`${props.className ?? ""} !mb-0`} />
+      </div>
+    ),
     a: ({ children, href, ...props }) => {
       const lang = useLanguage();
       return (

@@ -118,6 +118,44 @@ docker run -p 8080:8080 -e PORT=8080 my-app:latest
 
 `--sourcemap` でビルドした場合、Dockerfile に `NODE_OPTIONS="--enable-source-maps"` も設定されます。
 
+<Link name="kubernetes">
+## Kubernetes
+</Link>
+
+Kubernetesにデプロイする場合、組み込みのヘルスチェックエンドポイントを使用してlivenessプローブとreadinessプローブを設定します：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  template:
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: app
+          image: my-app:latest
+          ports:
+            - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /__react_server_health__
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /__react_server_ready__
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+```
+
+サーバーは`SIGTERM`でグレースフルシャットダウンを自動的に処理します。新しいコネクションの受け入れを停止し、処理中のリクエストをドレインしてから終了します。Keep-Aliveタイムアウト、リクエストタイムアウト、シャットダウン動作の調整については、[HTTPレイヤー](/ja/features/http-layer)ページを参照してください。
+
+> **ヒント:** AWS ALBまたはNLBの背後で実行する場合、デフォルトの`keepAliveTimeout`は65秒に設定されており、ロードバランサーの60秒アイドルタイムアウトを超えるため、高負荷時の502エラーを防ぎます。`react-server.config.mjs`の`server.keepAliveTimeout`で調整できます。
+
 <Link name="how-it-works">
 ## 仕組み
 </Link>

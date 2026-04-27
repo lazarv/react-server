@@ -37,4 +37,6 @@ You can also enable cluster mode by setting the `cluster` option in your `react-
 }
 ```
 
+In cluster mode, if a worker process dies unexpectedly, it is automatically restarted. During graceful shutdown (`SIGTERM`/`SIGINT`), the primary process waits for all workers to drain their connections before exiting. See the [HTTP layer](/features/http-layer) page for tuning `shutdownTimeout` and other production server options.
+
 > **Note:** It's best to not use more cluster workers than the number of CPU cores available on your machine.

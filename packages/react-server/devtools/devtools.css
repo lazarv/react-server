@@ -1,5 +1,6 @@
 /* ── Reset ── */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -15,19 +16,19 @@ html, body {
 :root {
   --dt-bg: #ffffff;
   --dt-bg-gradient: linear-gradient(to bottom, #ffffff, #e5e7eb);
-  --dt-fg: #111827;          /* gray-900 */
-  --dt-muted: #4b5563;       /* gray-600 */
-  --dt-dimmed: #9ca3af;      /* gray-400 */
-  --dt-faint: #d1d5db;       /* gray-300 */
-  --dt-border: #e5e7eb;      /* gray-200 */
-  --dt-surface: #f9fafb;     /* gray-50 */
-  --dt-row-border: #f3f4f6;  /* gray-100 */
-  --dt-accent: #6366f1;      /* indigo-500 */
+  --dt-fg: #111827; /* gray-900 */
+  --dt-muted: #4b5563; /* gray-600 */
+  --dt-dimmed: #9ca3af; /* gray-400 */
+  --dt-faint: #d1d5db; /* gray-300 */
+  --dt-border: #e5e7eb; /* gray-200 */
+  --dt-surface: #f9fafb; /* gray-50 */
+  --dt-row-border: #f3f4f6; /* gray-100 */
+  --dt-accent: #6366f1; /* indigo-500 */
   --dt-accent-subtle: color-mix(in srgb, #6366f1 12%, transparent);
-  --dt-warn: #d97706;        /* amber-600 */
-  --dt-link: #4338ca;        /* indigo-700 */
+  --dt-warn: #d97706; /* amber-600 */
+  --dt-link: #4338ca; /* indigo-700 */
   --dt-link-underline: color-mix(in srgb, #4338ca 25%, transparent);
-  --dt-success: #16a34a;     /* green-600 */
+  --dt-success: #16a34a; /* green-600 */
   --dt-toolbar-bg: #f9fafb;
   --dt-toolbar-border: #e5e7eb;
   --dt-toolbar-fg: #4b5563;
@@ -35,21 +36,21 @@ html, body {
 }
 
 .dark {
-  --dt-bg: #18181b;          /* zinc-900 */
+  --dt-bg: #18181b; /* zinc-900 */
   --dt-bg-gradient: linear-gradient(to bottom, #27272a, #18181b);
-  --dt-fg: #d1d5db;          /* gray-300 */
-  --dt-muted: #9ca3af;       /* gray-400 */
-  --dt-dimmed: #71717a;      /* zinc-500 */
-  --dt-faint: #52525b;       /* zinc-600 */
-  --dt-border: #3f3f46;      /* zinc-700 */
-  --dt-surface: #27272a;     /* zinc-800 */
-  --dt-row-border: #27272a;  /* zinc-800 */
-  --dt-accent: #ca8a04;      /* yellow-600 */
+  --dt-fg: #d1d5db; /* gray-300 */
+  --dt-muted: #9ca3af; /* gray-400 */
+  --dt-dimmed: #71717a; /* zinc-500 */
+  --dt-faint: #52525b; /* zinc-600 */
+  --dt-border: #3f3f46; /* zinc-700 */
+  --dt-surface: #27272a; /* zinc-800 */
+  --dt-row-border: #27272a; /* zinc-800 */
+  --dt-accent: #ca8a04; /* yellow-600 */
   --dt-accent-subtle: color-mix(in srgb, #ca8a04 12%, transparent);
-  --dt-warn: #ca8a04;        /* yellow-600 */
-  --dt-link: #a5b4fc;        /* indigo-300 */
+  --dt-warn: #ca8a04; /* yellow-600 */
+  --dt-link: #a5b4fc; /* indigo-300 */
   --dt-link-underline: color-mix(in srgb, #a5b4fc 25%, transparent);
-  --dt-success: #86efac;     /* green-300 */
+  --dt-success: #86efac; /* green-300 */
   --dt-toolbar-bg: #27272a;
   --dt-toolbar-border: #3f3f46;
   --dt-toolbar-fg: #9ca3af;
@@ -61,7 +62,8 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
   color: var(--dt-fg);
   background: var(--dt-bg);
@@ -87,7 +89,9 @@ html, body {
   border-bottom: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s, border-color 0.15s;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .dt-tab:hover {
@@ -225,18 +229,42 @@ html, body {
   flex-shrink: 0;
 }
 
-.dt-tag-indigo   { background: #6366f1; }
-.dt-tag-violet   { background: #8b5cf6; }
-.dt-tag-green    { background: #22c55e; }
-.dt-tag-amber    { background: #f59e0b; }
-.dt-tag-red      { background: #ef4444; }
-.dt-tag-cyan     { background: #06b6d4; }
-.dt-tag-teal     { background: #14b8a6; }
-.dt-tag-pink     { background: #ec4899; }
-.dt-tag-orange   { background: #f97316; }
-.dt-tag-sky      { background: #0ea5e9; }
-.dt-tag-gray     { background: #6b7280; }
-.dt-tag-purple   { background: #7c3aed; }
+.dt-tag-indigo {
+  background: #6366f1;
+}
+.dt-tag-violet {
+  background: #8b5cf6;
+}
+.dt-tag-green {
+  background: #22c55e;
+}
+.dt-tag-amber {
+  background: #f59e0b;
+}
+.dt-tag-red {
+  background: #ef4444;
+}
+.dt-tag-cyan {
+  background: #06b6d4;
+}
+.dt-tag-teal {
+  background: #14b8a6;
+}
+.dt-tag-pink {
+  background: #ec4899;
+}
+.dt-tag-orange {
+  background: #f97316;
+}
+.dt-tag-sky {
+  background: #0ea5e9;
+}
+.dt-tag-gray {
+  background: #6b7280;
+}
+.dt-tag-purple {
+  background: #7c3aed;
+}
 
 /* ── Mono text ── */
 .dt-mono {
@@ -627,7 +655,9 @@ html, body {
   color: var(--dt-dimmed);
   cursor: pointer;
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
 .dt-remote-action:hover {
@@ -637,8 +667,12 @@ html, body {
 
 /* ── Card flash animation (used when navigating to an outlet) ── */
 @keyframes dt-flash {
-  0%   { box-shadow: 0 0 0 2px var(--dt-accent); }
-  100% { box-shadow: 0 0 0 2px transparent; }
+  0% {
+    box-shadow: 0 0 0 2px var(--dt-accent);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
 }
 
 .dt-card-flash {
@@ -690,7 +724,10 @@ html, body {
   font-size: 16px;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  transition:
+    opacity 0.15s,
+    color 0.15s,
+    background 0.15s;
 }
 
 .dt-outlet-card:hover .dt-outlet-refresh {
@@ -881,9 +918,15 @@ html, body {
   font-weight: 600;
 }
 
-.dt-cache-stat-hit { color: #22c55e; }
-.dt-cache-stat-miss { color: #f59e0b; }
-.dt-cache-stat-revalidate { color: #6366f1; }
+.dt-cache-stat-hit {
+  color: #22c55e;
+}
+.dt-cache-stat-miss {
+  color: #f59e0b;
+}
+.dt-cache-stat-revalidate {
+  color: #6366f1;
+}
 
 .dt-cache-filters {
   display: flex;
@@ -921,7 +964,8 @@ html, body {
   gap: 8px;
   padding: 5px 8px;
   font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   border-bottom: 1px solid var(--dt-row-border);
 }
 
@@ -991,7 +1035,10 @@ a.dt-cache-loc:hover {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    color 0.15s;
 }
 
 .dt-cache-event:hover .dt-cache-invalidate {
@@ -1180,8 +1227,12 @@ a.dt-cache-loc:hover {
   color: var(--dt-muted);
 }
 
-.dt-worker-stat-server { color: #8b5cf6; }
-.dt-worker-stat-client { color: #0ea5e9; }
+.dt-worker-stat-server {
+  color: #8b5cf6;
+}
+.dt-worker-stat-client {
+  color: #0ea5e9;
+}
 
 .dt-worker-filters {
   display: flex;

@@ -93,14 +93,48 @@ const server = createServer((req, res) => {
   middlewares(req, res);
 });
 
+// Apply keep-alive and timeout settings to prevent 502s behind load balancers
+server.keepAliveTimeout = 65_000;
+server.headersTimeout = 66_000;
+server.requestTimeout = 30_000;
+
+// During shutdown, set Connection: close so clients stop reusing keep-alive
+let isShuttingDown = false;
+server.on("request", (_req, res) => {
+  if (isShuttingDown && !res.headersSent) {
+    res.setHeader("Connection", "close");
+  }
+});
+
 server.listen(port, host, () => {
   console.log(`Server listening on http://${host}:${port}`);
 });
 
-// Graceful shutdown
-function shutdown() {
+// Graceful shutdown — drain connections before exiting
+function shutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`${signal} received, draining connections...`);
+
+  // Connections finishing a response after this get a 1ms keep-alive timer
+  server.keepAliveTimeout = 1;
+  // Destroy connections that are already idle right now
+  if (typeof server.closeIdleConnections === "function") {
+    server.closeIdleConnections();
+  }
+  // After a grace period, force-close ALL remaining connections.
+  // This handles sockets that Node.js hasn't marked as idle yet
+  // (e.g. response flushing, keep-alive state transitions).
+  const forceClose = setTimeout(() => {
+    if (typeof server.closeAllConnections === "function") {
+      server.closeAllConnections();
+    }
+  }, 1500);
+  forceClose.unref?.();
+
   server.close(() => process.exit(0));
-  setTimeout(() => process.exit(1), 5000);
+  const forceTimeout = setTimeout(() => process.exit(1), 25_000);
+  forceTimeout.unref?.();
 }
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

@@ -90,6 +90,42 @@ export const DESCRIPTIONS = {
   "server.middlewareMode":
     "Create Vite dev server to be used as a middleware in an existing server.",
   "server.trustProxy": "Trust the X-Forwarded-* headers from reverse proxies.",
+  "server.keepAliveTimeout":
+    "Keep-alive timeout in milliseconds. Must exceed your load balancer's idle timeout to prevent 502 errors. Default: 65000.",
+  "server.headersTimeout":
+    "Headers timeout in milliseconds. Maximum time to wait for the client to send full request headers. Must exceed keepAliveTimeout. Default: 66000.",
+  "server.requestTimeout":
+    "Request timeout in milliseconds. Maximum time allowed for the client to send the complete request. Set to 0 to disable. Default: 30000.",
+  "server.maxConcurrentRequests":
+    "Maximum concurrent requests before the server responds with 503. Set to 0 to disable. Default: 0 (disabled).",
+  "server.shutdownTimeout":
+    "Graceful shutdown timeout in milliseconds. Time to wait for in-flight requests to drain after SIGTERM/SIGINT. Default: 25000.",
+  "server.connectionsCheckingInterval":
+    "How often (ms) the HTTP server scans for connections that have exceeded their headers/request timeouts. Lower = faster slow-loris detection, higher = less overhead. Node's default is 30000ms which can leave timeouts mostly unenforced; we override to 5000. Default: 5000.",
+  "server.clusterRespawnLimit":
+    "Crash-loop trip wire: max worker exits within `clusterRespawnWindow` before the master gives up and exits. Default: numCPUs * 5.",
+  "server.clusterRespawnWindow":
+    "Sliding window (ms) used by `clusterRespawnLimit` to detect crash loops. Default: 60000.",
+  "server.backpressure":
+    "Adaptive backpressure configuration using Event Loop Utilization (ELU). Node.js-only — does not load on edge runtimes or in serverless invocations. When active, dynamically adjusts the concurrency limit based on event loop saturation. Adds an admission-control middleware to the chain (~10μs/request).",
+  "server.backpressure.enabled":
+    "Enable adaptive backpressure. Defaults: enabled when running in cluster mode, disabled in single-process. Override via env var REACT_SERVER_BACKPRESSURE=1|0 (env wins over config), or set this flag explicitly.",
+  "server.backpressure.initialLimit":
+    "Starting concurrency limit. Defaults to maxLimit (start wide open, tighten under overload).",
+  "server.backpressure.minLimit":
+    "Minimum concurrency limit (floor). The adaptive limit never drops below this. Default: 1.",
+  "server.backpressure.maxLimit":
+    "Maximum concurrency limit (ceiling). Capped by maxConcurrentRequests when set. Default: 1000.",
+  "server.backpressure.eluMax":
+    "Event Loop Utilization threshold (0–1). Above this, the limit decreases and excess requests skip the queue. Default: 0.95.",
+  "server.backpressure.sampleWindow":
+    "Interval (ms) for recalculation and ELU sampling. Default: 1000.",
+  "server.backpressure.smoothingFactor":
+    "EWMA smoothing factor for the `smoothedLatency` field in the limiter's stats output. Observability-only — does not affect admission decisions. Default: 0.2.",
+  "server.backpressure.queueSize":
+    "Maximum requests waiting in the backpressure queue. Beyond this, requests are immediately rejected with 503. Default: 100.",
+  "server.backpressure.queueTimeout":
+    "Maximum time (ms) a request waits in the queue before being rejected with 503. Default: 5000.",
   "server.headers": "Custom response headers for the dev server.",
   "server.warmup": "Warm up files to pre-transform on server start.",
   "server.preTransformRequests":
@@ -540,6 +576,83 @@ export function generateJsonSchema() {
             origin: prop({ type: "string" }, "server.origin"),
             proxy: prop({ type: "object" }, "server.proxy"),
             trustProxy: prop({ type: "boolean" }, "server.trustProxy"),
+            keepAliveTimeout: prop(
+              { type: "integer", minimum: 0 },
+              "server.keepAliveTimeout"
+            ),
+            headersTimeout: prop(
+              { type: "integer", minimum: 0 },
+              "server.headersTimeout"
+            ),
+            requestTimeout: prop(
+              { type: "integer", minimum: 0 },
+              "server.requestTimeout"
+            ),
+            maxConcurrentRequests: prop(
+              { type: "integer", minimum: 0 },
+              "server.maxConcurrentRequests"
+            ),
+            shutdownTimeout: prop(
+              { type: "integer", minimum: 0 },
+              "server.shutdownTimeout"
+            ),
+            connectionsCheckingInterval: prop(
+              { type: "integer", minimum: 100 },
+              "server.connectionsCheckingInterval"
+            ),
+            clusterRespawnLimit: prop(
+              { type: "integer", minimum: 1 },
+              "server.clusterRespawnLimit"
+            ),
+            clusterRespawnWindow: prop(
+              { type: "integer", minimum: 1000 },
+              "server.clusterRespawnWindow"
+            ),
+            backpressure: prop(
+              {
+                type: "object",
+                properties: {
+                  enabled: prop(
+                    { type: "boolean" },
+                    "server.backpressure.enabled"
+                  ),
+                  initialLimit: prop(
+                    { type: "integer", minimum: 1 },
+                    "server.backpressure.initialLimit"
+                  ),
+                  minLimit: prop(
+                    { type: "integer", minimum: 1 },
+                    "server.backpressure.minLimit"
+                  ),
+                  maxLimit: prop(
+                    { type: "integer", minimum: 1 },
+                    "server.backpressure.maxLimit"
+                  ),
+                  eluMax: prop(
+                    { type: "number", minimum: 0, maximum: 1 },
+                    "server.backpressure.eluMax"
+                  ),
+                  sampleWindow: prop(
+                    { type: "integer", minimum: 100 },
+                    "server.backpressure.sampleWindow"
+                  ),
+                  smoothingFactor: prop(
+                    { type: "number", minimum: 0, maximum: 1 },
+                    "server.backpressure.smoothingFactor"
+                  ),
+                  queueSize: prop(
+                    { type: "integer", minimum: 0 },
+                    "server.backpressure.queueSize"
+                  ),
+                  queueTimeout: prop(
+                    { type: "integer", minimum: 0 },
+                    "server.backpressure.queueTimeout"
+                  ),
+                },
+                additionalProperties: false,
+              },
+              "server.backpressure"
+            ),
             headers: prop({ type: "object" }, "server.headers"),
             warmup: prop({ type: "object" }, "server.warmup"),
             preTransformRequests: prop(

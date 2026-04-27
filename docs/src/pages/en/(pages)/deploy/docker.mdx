@@ -118,6 +118,44 @@ docker run -p 8080:8080 -e PORT=8080 my-app:latest
 
 If you build with `--sourcemap`, the Dockerfile will also set `NODE_OPTIONS="--enable-source-maps"`.
 
+<Link name="kubernetes">
+## Kubernetes
+</Link>
+
+When deploying to Kubernetes, configure liveness and readiness probes using the built-in health check endpoints:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  template:
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: app
+          image: my-app:latest
+          ports:
+            - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /__react_server_health__
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /__react_server_ready__
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+```
+
+The server automatically handles graceful shutdown on `SIGTERM` — it stops accepting new connections and drains in-flight requests before exiting. See the [HTTP layer](/features/http-layer) page for tuning keep-alive timeouts, request timeouts, and shutdown behavior.
+
+> **Tip:** When running behind an AWS ALB or NLB, the default `keepAliveTimeout` of 65 seconds is configured to exceed the load balancer's 60-second idle timeout, preventing 502 errors under load. You can adjust this in your `react-server.config.mjs` via `server.keepAliveTimeout`.
+
 <Link name="how-it-works">
 ## How it works
 </Link>

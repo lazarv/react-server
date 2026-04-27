@@ -200,6 +200,165 @@ export interface ServerConfig {
   trustProxy?: boolean;
 
   /**
+   * Keep-alive timeout in milliseconds. How long the server keeps idle connections
+   * open before closing them. Must exceed your load balancer's idle timeout to
+   * prevent 502 errors (e.g. AWS ALB defaults to 60s, so use ≥65000).
+   * @default 65000
+   * @example `keepAliveTimeout: 65000`
+   */
+  keepAliveTimeout?: number;
+
+  /**
+   * Headers timeout in milliseconds. Maximum time to wait for the client to send
+   * the full request headers. Must exceed `keepAliveTimeout`.
+   * @default 66000
+   * @example `headersTimeout: 66000`
+   */
+  headersTimeout?: number;
+
+  /**
+   * Request timeout in milliseconds. Maximum time allowed for the client to send
+   * the complete request (headers + body). Set to `0` to disable.
+   * @default 30000
+   * @example `requestTimeout: 30000`
+   */
+  requestTimeout?: number;
+
+  /**
+   * Maximum number of concurrent requests before the server responds with 503.
+   * Set to `0` to disable admission control.
+   * @default 0
+   * @example `maxConcurrentRequests: 100`
+   */
+  maxConcurrentRequests?: number;
+
+  /**
+   * Graceful shutdown timeout in milliseconds. After receiving SIGTERM/SIGINT,
+   * the server stops accepting new connections and waits up to this duration
+   * for in-flight requests to complete before force-exiting.
+   * @default 25000
+   * @example `shutdownTimeout: 25000`
+   */
+  shutdownTimeout?: number;
+
+  /**
+   * How often (ms) Node's HTTP server scans for connections that have exceeded
+   * their `headersTimeout` or `requestTimeout`. Node's default is 30000ms,
+   * which means slow-loris connections can hold a socket for up to 30s past
+   * their configured deadline. We override the default to 5000 so timeouts
+   * fire much closer to their configured value. Lower = faster detection,
+   * higher = less overhead.
+   * @default 5000
+   * @example `connectionsCheckingInterval: 5000`
+   */
+  connectionsCheckingInterval?: number;
+
+  /**
+   * Crash-loop trip wire (cluster mode). The master exits if it observes more
+   * than this many worker exits within `clusterRespawnWindow` milliseconds —
+   * preventing a fork-bomb when the worker is failing deterministically.
+   * @default numCPUs * 5
+   * @example `clusterRespawnLimit: 20`
+   */
+  clusterRespawnLimit?: number;
+
+  /**
+   * Sliding window (ms) used by `clusterRespawnLimit` to detect crash loops.
+   * @default 60000
+   * @example `clusterRespawnWindow: 60000`
+   */
+  clusterRespawnWindow?: number;
+
+  /**
+   * Adaptive backpressure configuration using Event Loop Utilization (ELU).
+   * The server dynamically adjusts its concurrency limit based on event loop
+   * saturation using AIMD (Additive Increase, Multiplicative Decrease).
+   *
+   * **Node.js-only.** Relies on `performance.eventLoopUtilization()` and a
+   * long-lived event loop, so it does not load on edge runtimes (Cloudflare
+   * Workers, Vercel Edge, Deno Deploy) or in serverless invocations
+   * (Lambda, Vercel Functions).
+   *
+   * When enabled, an admission-control middleware is inserted into the request
+   * chain (~10μs/request overhead). When disabled, that middleware is omitted
+   * entirely — zero per-request cost. The limiter starts wide open and only
+   * tightens when the event loop is genuinely saturated (ELU ≥ 0.95).
+   *
+   * **Resolution priority** (highest first):
+   *   1. `REACT_SERVER_BACKPRESSURE` env var (`1`/`true` enables, `0`/`false` disables)
+   *   2. `enabled` flag in this config (explicit boolean)
+   *   3. Cluster mode default — `on` when running under cluster, `off` otherwise
+   *
+   * When both `backpressure` and `maxConcurrentRequests` are configured,
+   * `maxConcurrentRequests` acts as the hard ceiling for the adaptive limit.
+   *
+   * @example `backpressure: { enabled: true }` to force-enable
+   */
+  backpressure?: {
+    /**
+     * Enable adaptive backpressure explicitly. When unset, falls back to the
+     * cluster-mode default (`on` in cluster, `off` in single-process). Set
+     * to `false` to force-disable. The `REACT_SERVER_BACKPRESSURE` env var
+     * overrides this flag if both are set.
+     * @default cluster ? true : false
+     */
+    enabled?: boolean;
+
+    /**
+     * Starting concurrency limit. Defaults to `maxLimit` (start wide open,
+     * tighten under overload).
+     * @default maxLimit
+     */
+    initialLimit?: number;
+
+    /**
+     * Minimum concurrency limit (floor). The adaptive limit never drops below this.
+     * @default 1
+     */
+    minLimit?: number;
+
+    /**
+     * Maximum concurrency limit (ceiling). Capped by `maxConcurrentRequests` when set.
+     * @default 1000
+     */
+    maxLimit?: number;
+
+    /**
+     * Event Loop Utilization threshold (0–1). When ELU exceeds this, the limit
+     * decreases and excess requests skip the queue.
+     * @default 0.95
+     */
+    eluMax?: number;
+
+    /**
+     * Interval (ms) for recalculating the concurrency limit and sampling ELU.
+     * @default 1000
+     */
+    sampleWindow?: number;
+
+    /**
+     * EWMA smoothing factor for the `smoothedLatency` field in the limiter's
+     * stats output. Observability-only — does not affect admission decisions.
+     * @default 0.2
+     */
+    smoothingFactor?: number;
+
+    /**
+     * Maximum number of requests waiting in the backpressure queue. When the
+     * queue is full, additional requests are immediately rejected with 503.
+     * @default 100
+     */
+    queueSize?: number;
+
+    /**
+     * Maximum time (ms) a request waits in the queue before being rejected
+     * with 503. Should be shorter than your load balancer's request timeout.
+     * @default 5000
+     */
+    queueTimeout?: number;
+  };
+
+  /**
    * Custom response headers for the dev server.
    * @example `headers: { "X-Custom": "value" }`
    */

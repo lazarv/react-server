@@ -1,0 +1,161 @@
+---
+title: HTTP layer
+category: Features
+order: 9
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# HTTP layer
+
+The production HTTP server in `@lazarv/react-server` is built on Node.js `node:http` (or `node:http2` for HTTPS without proxy) and includes built-in support for keep-alive management, request timeouts, admission control, health check endpoints, and graceful shutdown. These features are critical when running behind a load balancer (e.g. AWS ALB/NLB, k8s Ingress) to prevent 502 errors, connection exhaustion, and dropped requests during deployments.
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+All HTTP layer options live under the `server` section of your config file. Every value has a safe default that works well with common load balancer configurations.
+
+```mjs filename="react-server.config.mjs"
+export default {
+  server: {
+    keepAliveTimeout: 65000,
+    headersTimeout: 66000,
+    requestTimeout: 30000,
+    maxConcurrentRequests: 100,
+    shutdownTimeout: 25000,
+  },
+};
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `keepAliveTimeout` | `65000` | How long (ms) the server keeps idle connections open. Must exceed your load balancer's idle timeout to prevent 502 errors. AWS ALB defaults to 60s, so 65s is a safe starting point. |
+| `headersTimeout` | `66000` | Maximum time (ms) to wait for the client to send the full request headers. Must exceed `keepAliveTimeout`. |
+| `requestTimeout` | `30000` | Maximum time (ms) for the client to send the complete request (headers + body). Set to `0` to disable. |
+| `maxConcurrentRequests` | `0` | Maximum number of concurrent requests before the server responds with `503 Service Busy`. Set to `0` to disable admission control. |
+| `shutdownTimeout` | `25000` | After receiving `SIGTERM`/`SIGINT`, the server stops accepting new connections and waits up to this duration (ms) for in-flight requests to complete before force-exiting. Should be less than your k8s `terminationGracePeriodSeconds` (default 30s). |
+
+<Link name="keep-alive">
+## Keep-alive and timeouts
+</Link>
+
+Node.js defaults `keepAliveTimeout` to 5 seconds, which is far too low for environments with a load balancer. If the server closes an idle connection before the load balancer does, the load balancer may send a request on a connection the server has already torn down, resulting in a **502 Bad Gateway**.
+
+The default values in `@lazarv/react-server` are chosen to avoid this:
+
+- `keepAliveTimeout` (65s) exceeds the AWS ALB default idle timeout (60s)
+- `headersTimeout` (66s) exceeds `keepAliveTimeout` as required by Node.js
+- `requestTimeout` (30s) prevents slow or stalled clients from holding sockets indefinitely
+
+<Link name="admission-control">
+## Admission control
+</Link>
+
+When `maxConcurrentRequests` is set to a value greater than `0`, the server tracks in-flight requests and responds with `503 Service Busy` (with a `Retry-After: 1` header) when the limit is reached. This prevents thundering-herd scenarios where all requests compete for CPU/memory simultaneously, causing all of them to be slow rather than serving some fast and rejecting others.
+
+The counter is decremented after the response is fully sent, ensuring accurate tracking even for streaming responses. On error paths, the counter is also properly decremented.
+
+<Link name="adaptive-backpressure">
+## Adaptive backpressure
+</Link>
+
+`@lazarv/react-server` ships with an adaptive backpressure system that is **enabled by default** in production. It uses **Event Loop Utilization (ELU)** — `performance.eventLoopUtilization()` — as a direct measure of Node.js event loop saturation. Unlike CPU% or latency-based algorithms, ELU is unaffected by workload heterogeneity (switching between fast and slow routes) and only rises when the event loop itself is genuinely saturated.
+
+The control loop uses **AIMD (Additive Increase, Multiplicative Decrease)**:
+- **ELU &lt; 0.95**: increase the limit by `√limit` per window (fast recovery)
+- **ELU ≥ 0.95**: decrease the limit by 10% per window (gentle backoff)
+
+The limiter starts wide open (`initialLimit = maxLimit`) and has **zero overhead** on the fast path — it is invisible under normal load and only tightens when the event loop is genuinely saturated.
+
+To customize or disable it, use `server.backpressure`:
+
+```mjs filename="react-server.config.mjs"
+export default {
+  server: {
+    backpressure: {
+      enabled: true,        // set to false to disable
+      initialLimit: 1000,   // starting limit (defaults to maxLimit)
+      minLimit: 1,          // floor
+      maxLimit: 1000,       // ceiling
+      eluMax: 0.95,         // skip queuing above 95% ELU
+      sampleWindow: 1000,   // recalculate every 1s
+      smoothingFactor: 0.2, // EWMA latency smoothing
+      queueSize: 100,       // max requests waiting for a slot
+      queueTimeout: 5000,   // max wait time (ms) before 503
+    },
+  },
+};
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Enable adaptive backpressure. Set to `false` to disable and fall back to static `maxConcurrentRequests`. |
+| `initialLimit` | `maxLimit` | Starting concurrency limit. Defaults to `maxLimit` (start wide open, tighten under overload). |
+| `minLimit` | `1` | Floor — the adaptive limit never drops below this. |
+| `maxLimit` | `1000` | Ceiling — capped by `maxConcurrentRequests` when both are set. |
+| `eluMax` | `0.95` | ELU level (0–1) where the limit decreases and excess requests skip the queue. |
+| `sampleWindow` | `1000` | Interval (ms) for recalculation and ELU sampling. |
+| `smoothingFactor` | `0.2` | EWMA factor (0–1) for latency smoothing. Higher = more reactive. |
+| `queueSize` | `100` | Maximum requests waiting in the backpressure queue. When full, additional requests are immediately rejected with 503. |
+| `queueTimeout` | `5000` | Maximum time (ms) a request waits in the queue before being rejected with 503. Should be shorter than your load balancer's request timeout. |
+
+When both `backpressure.enabled` and `maxConcurrentRequests` are configured, the static limit acts as the hard ceiling for the adaptive limit. This gives you a safety net: the algorithm can explore up to `maxConcurrentRequests` but never exceed it.
+
+### How the queue works
+
+Instead of immediately rejecting requests when the concurrency limit is reached, the limiter places them in a bounded FIFO queue. When an in-flight request completes, the freed slot is handed directly to the next queued waiter rather than returning to the general pool — ensuring fair ordering.
+
+Requests are removed from the queue when:
+- A slot becomes available → the request proceeds normally
+- `queueTimeout` expires → the request is rejected with 503
+- The client disconnects → the request is silently discarded (no wasted work)
+- ELU exceeds `eluMax` → requests bypass the queue entirely and are immediately rejected
+
+This absorbs short traffic bursts transparently while still shedding load during sustained overload.
+
+> **Tip:** Start with the defaults and monitor. The limiter exposes stats (current limit, inflight count, queue depth, ELU, smoothed latency) that you can pipe into your observability stack to tune the parameters for your workload.
+
+<Link name="health-check">
+## Health check endpoints
+</Link>
+
+The production server exposes two built-in endpoints for Kubernetes liveness and readiness probes. These endpoints are registered at the very top of the middleware chain, bypassing all other middleware for minimal latency.
+
+| Endpoint | Purpose | Response |
+|---|---|---|
+| `/__react_server_health__` | Liveness probe | `200 ok` — the process is alive |
+| `/__react_server_ready__` | Readiness probe | `200 ok` when the worker thread is running, `503 not ready` when the worker has exited |
+
+Example Kubernetes pod spec:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /__react_server_health__
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /__react_server_ready__
+    port: 3000
+  initialDelaySeconds: 3
+  periodSeconds: 5
+```
+
+> **Tip:** Point your liveness probe at `/__react_server_health__` rather than `/`. The health endpoint returns instantly without touching the SSR pipeline, so it won't false-fail under heavy rendering load.
+
+<Link name="graceful-shutdown">
+## Graceful shutdown
+</Link>
+
+When the server receives `SIGTERM` or `SIGINT`:
+
+1. It stops accepting new connections
+2. In-flight requests are allowed to complete
+3. After `shutdownTimeout` milliseconds, the process force-exits
+
+In [cluster mode](/features/cluster), the primary process waits for all workers to drain before exiting. If a worker dies unexpectedly during normal operation, it is automatically restarted — rather than taking down the entire service.
+
+This ensures zero-downtime rolling deployments on Kubernetes and other container orchestrators. The default `shutdownTimeout` of 25 seconds leaves a 5-second buffer within the default k8s `terminationGracePeriodSeconds` of 30 seconds.

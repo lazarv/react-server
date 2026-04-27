@@ -65,7 +65,8 @@
     "*.mdx",
     "*.md",
     "*.json",
-    "*-lock.*"
+    "*-lock.*",
+    ".*-cache"
   ],
   "overrides": [
     {

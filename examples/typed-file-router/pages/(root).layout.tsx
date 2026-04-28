@@ -10,6 +10,7 @@ import {
   productSkuUppercase,
   docs,
   docsSlugNested,
+  panels,
 } from "@lazarv/react-server/routes";
 
 export default index.createLayout(({ children }) => {
@@ -32,6 +33,7 @@ export default index.createLayout(({ children }) => {
           <about.Link>About</about.Link>
           <user.Link params={{ id: "42" }}>User 42</user.Link>
           <dashboard.Link>Dashboard</dashboard.Link>
+          <panels.Link>Panels</panels.Link>
           <counter.Link>Counter</counter.Link>
           <clock.Link>Clock</clock.Link>
           <todos.Link>Todos</todos.Link>

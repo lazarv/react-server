@@ -64,4 +64,12 @@ export default function RootLayout({ sidebar, children }) {
 }
 ```
 
+ファイルシステムベースのルーターを使用している場合、ランタイムは仮想的な`@lazarv/react-server/outlets`モジュールも生成します。このモジュールは、宣言された各アウトレットに対して、型付き`url`・文字列指定不要のアウトレット名・初期描画でのSSRコンテンツを備えた、型付きでサーバープリロードされるバインド済みの`ReactServerComponent`を公開します。詳細は[型付きアウトレットコンポーネント](/router/define-routes#routes-module-bound-outlets)を参照してください。
+
+```tsx
+import { sidebar } from "@lazarv/react-server/outlets";
+
+<sidebar.Outlet url="/dashboard/nav" />
+```
+
 アウトレットを使用した例を確認するには、[チュートリアルのPhotoセクション](/tutorials/photos#outlet)をご覧ください。

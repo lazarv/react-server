@@ -64,4 +64,12 @@ export default function RootLayout({ sidebar, children }) {
 }
 ```
 
+When you're using the file-system based router, the runtime also generates a virtual `@lazarv/react-server/outlets` module that exposes a typed, server-preloading bound `ReactServerComponent` per declared outlet — typed `url`, no stringly-typed outlet name, and SSR content out of the box. See [typed outlet components](/router/define-routes#routes-module-bound-outlets) for the full shape.
+
+```tsx
+import { sidebar } from "@lazarv/react-server/outlets";
+
+<sidebar.Outlet url="/dashboard/nav" />
+```
+
 To check out an example using outlets, see the [Photos tutorial](/tutorials/photos#outlet).

@@ -1,0 +1,161 @@
+---
+title: HTTPレイヤー
+category: Features
+order: 9
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# HTTPレイヤー
+
+`@lazarv/react-server` のプロダクションHTTPサーバーは、Node.jsの `node:http`（またはプロキシなしHTTPSの場合は `node:http2`）上に構築されており、Keep-Alive管理、リクエストタイムアウト、アドミッション制御、ヘルスチェックエンドポイント、グレースフルシャットダウンの組み込みサポートを含んでいます。これらの機能は、ロードバランサー（AWS ALB/NLB、k8s Ingressなど）の背後で実行する場合に、502エラー、コネクション枯渇、デプロイ中のリクエスト消失を防ぐために重要です。
+
+<Link name="configuration">
+## 設定
+</Link>
+
+HTTPレイヤーのすべてのオプションは、設定ファイルの `server` セクションに配置します。すべての値には、一般的なロードバランサー設定で適切に動作する安全なデフォルト値があります。
+
+```mjs filename="react-server.config.mjs"
+export default {
+  server: {
+    keepAliveTimeout: 65000,
+    headersTimeout: 66000,
+    requestTimeout: 30000,
+    maxConcurrentRequests: 100,
+    shutdownTimeout: 25000,
+  },
+};
+```
+
+| オプション | デフォルト | 説明 |
+|---|---|---|
+| `keepAliveTimeout` | `65000` | アイドルコネクションを開いたままにする時間（ミリ秒）。502エラーを防ぐため、ロードバランサーのアイドルタイムアウトを超える値に設定してください。AWS ALBのデフォルトは60秒なので、65秒が安全な開始点です。 |
+| `headersTimeout` | `66000` | クライアントが完全なリクエストヘッダーを送信するまでの最大待機時間（ミリ秒）。`keepAliveTimeout`を超える値に設定してください。 |
+| `requestTimeout` | `30000` | クライアントが完全なリクエスト（ヘッダー＋ボディ）を送信するまでの最大時間（ミリ秒）。`0`に設定すると無効になります。 |
+| `maxConcurrentRequests` | `0` | サーバーが`503 Service Busy`を返すまでの最大同時リクエスト数。`0`に設定するとアドミッション制御が無効になります。 |
+| `shutdownTimeout` | `25000` | `SIGTERM`/`SIGINT`を受信後、サーバーは新しいコネクションの受け入れを停止し、処理中のリクエストが完了するまでこの時間（ミリ秒）待機してから強制終了します。k8sの`terminationGracePeriodSeconds`（デフォルト30秒）より短く設定してください。 |
+
+<Link name="keep-alive">
+## Keep-Aliveとタイムアウト
+</Link>
+
+Node.jsのデフォルトの `keepAliveTimeout` は5秒であり、ロードバランサーがある環境では短すぎます。ロードバランサーよりも先にサーバーがアイドルコネクションを閉じると、ロードバランサーはサーバーが既に切断したコネクションでリクエストを送信する可能性があり、**502 Bad Gateway** が発生します。
+
+`@lazarv/react-server` のデフォルト値は、これを回避するように選択されています：
+
+- `keepAliveTimeout`（65秒）はAWS ALBのデフォルトアイドルタイムアウト（60秒）を超えます
+- `headersTimeout`（66秒）はNode.jsの要件通り `keepAliveTimeout` を超えます
+- `requestTimeout`（30秒）は低速またはストールしたクライアントがソケットを無期限に保持するのを防ぎます
+
+<Link name="admission-control">
+## アドミッション制御
+</Link>
+
+`maxConcurrentRequests` が `0` より大きい値に設定されている場合、サーバーは処理中のリクエストを追跡し、制限に達すると `503 Service Busy`（`Retry-After: 1` ヘッダー付き）で応答します。これにより、すべてのリクエストがCPU/メモリを同時に奪い合い、すべてが遅くなるのではなく、一部を高速に処理し残りを拒否するサンダリングハードシナリオを防ぎます。
+
+カウンターはレスポンスが完全に送信された後にデクリメントされるため、ストリーミングレスポンスでも正確な追跡が保証されます。エラーパスでもカウンターは適切にデクリメントされます。
+
+<Link name="adaptive-backpressure">
+## アダプティブバックプレッシャー
+</Link>
+
+`@lazarv/react-server` はプロダクション環境で**デフォルトで有効**なアダプティブバックプレッシャーシステムを搭載しています。**イベントループ使用率（ELU）** — `performance.eventLoopUtilization()` — を使用してNode.jsのイベントループ飽和度を直接測定します。CPU%やレイテンシーベースのアルゴリズムとは異なり、ELUはワークロードの不均一性（高速ルートと低速ルートの切り替え）の影響を受けず、イベントループ自体が真に飽和したときのみ上昇します。
+
+制御ループは**AIMD（加法増加・乗法減少）**を使用します：
+- **ELU &lt; 0.95**: ウィンドウごとに `√limit` ずつ制限を増加（高速回復）
+- **ELU ≥ 0.95**: ウィンドウごとに10%ずつ制限を減少（緩やかなバックオフ）
+
+リミッターは全開（`initialLimit = maxLimit`）で開始し、ファストパスで**オーバーヘッドゼロ** — 通常の負荷では不可視で、イベントループが真に飽和したときのみ制限を強化します。
+
+カスタマイズまたは無効にするには `server.backpressure` を使用します：
+
+```mjs filename="react-server.config.mjs"
+export default {
+  server: {
+    backpressure: {
+      enabled: true,        // falseで無効化
+      initialLimit: 1000,   // 開始制限（デフォルトはmaxLimit）
+      minLimit: 1,          // 下限
+      maxLimit: 1000,       // 上限
+      eluMax: 0.95,         // ELU 95%超でキューをスキップ
+      sampleWindow: 1000,   // 1秒ごとに再計算
+      smoothingFactor: 0.2, // EWMAレイテンシー平滑化
+      queueSize: 100,       // スロット待ちの最大リクエスト数
+      queueTimeout: 5000,   // 503までの最大待機時間（ミリ秒）
+    },
+  },
+};
+```
+
+| オプション | デフォルト | 説明 |
+|---|---|---|
+| `enabled` | `true` | アダプティブバックプレッシャーを有効化。`false`に設定すると無効になり、静的な`maxConcurrentRequests`にフォールバックします。 |
+| `initialLimit` | `maxLimit` | 開始時の同時実行制限。デフォルトは`maxLimit`（最初は全開、過負荷時に制限）。 |
+| `minLimit` | `1` | 下限 — アダプティブ制限はこの値を下回りません。 |
+| `maxLimit` | `1000` | 上限 — 両方が設定されている場合、`maxConcurrentRequests`で制限されます。 |
+| `eluMax` | `0.95` | 制限が縮小し、超過リクエストがキューをスキップするELUレベル（0–1）。 |
+| `sampleWindow` | `1000` | 再計算とELUサンプリングの間隔（ミリ秒）。 |
+| `smoothingFactor` | `0.2` | レイテンシー平滑化のEWMA係数（0–1）。高い値 = より反応的。 |
+| `queueSize` | `100` | バックプレッシャーキューで待機できる最大リクエスト数。満杯の場合、追加のリクエストは即座に503で拒否されます。 |
+| `queueTimeout` | `5000` | リクエストがキューで待機する最大時間（ミリ秒）。503で拒否されるまでの時間です。ロードバランサーのリクエストタイムアウトより短く設定してください。 |
+
+`backpressure.enabled` と `maxConcurrentRequests` の両方が設定されている場合、静的制限がアダプティブ制限のハードシーリングとして機能します。これにより安全ネットが提供されます：アルゴリズムは `maxConcurrentRequests` まで探索できますが、それを超えることはありません。
+
+### キューの仕組み
+
+同時実行制限に達したとき、リクエストを即座に拒否するのではなく、リミッターは制限付きのFIFOキューに配置します。処理中のリクエストが完了すると、解放されたスロットは汎用プールに戻るのではなく、次のキュー待ちのリクエストに直接渡されます — 公平な順序を保証します。
+
+リクエストは以下の場合にキューから削除されます：
+- スロットが利用可能になった場合 → リクエストは通常通り処理されます
+- `queueTimeout` が期限切れになった場合 → リクエストは503で拒否されます
+- クライアントが切断した場合 → リクエストはサイレントに破棄されます（無駄な作業なし）
+- ELUが `eluMax` を超えた場合 → リクエストはキューを完全にバイパスし、即座に拒否されます
+
+これにより、短いトラフィックバーストは透過的に吸収されながら、持続的な過負荷時には負荷が適切にシェッドされます。
+
+> **ヒント:** デフォルト値で開始し、監視してください。リミッターは統計情報（現在の制限、処理中の数、キュー深度、ELU、平滑化されたレイテンシー）を公開しており、これをオブザーバビリティスタックに送信してワークロードに合わせてパラメーターを調整できます。
+
+<Link name="health-check">
+## ヘルスチェックエンドポイント
+</Link>
+
+プロダクションサーバーは、Kubernetesのlivenessプローブおよびreadinessプローブ用に2つの組み込みエンドポイントを公開しています。これらのエンドポイントはミドルウェアチェーンの最上位に登録されており、最小限のレイテンシーのために他のすべてのミドルウェアをバイパスします。
+
+| エンドポイント | 目的 | レスポンス |
+|---|---|---|
+| `/__react_server_health__` | Livenessプローブ | `200 ok` — プロセスが生存中 |
+| `/__react_server_ready__` | Readinessプローブ | ワーカースレッドが実行中の場合は`200 ok`、ワーカーが終了している場合は`503 not ready` |
+
+Kubernetes Podスペックの例：
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /__react_server_health__
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /__react_server_ready__
+    port: 3000
+  initialDelaySeconds: 3
+  periodSeconds: 5
+```
+
+> **ヒント:** livenessプローブは `/` ではなく `/__react_server_health__` に向けてください。ヘルスエンドポイントはSSRパイプラインに触れることなく即座にレスポンスを返すため、レンダリング高負荷時に誤って失敗することがありません。
+
+<Link name="graceful-shutdown">
+## グレースフルシャットダウン
+</Link>
+
+サーバーが `SIGTERM` または `SIGINT` を受信した場合：
+
+1. 新しいコネクションの受け入れを停止します
+2. 処理中のリクエストは完了が許可されます
+3. `shutdownTimeout` ミリ秒後にプロセスが強制終了します
+
+[クラスタモード](/ja/features/cluster)では、プライマリプロセスはすべてのワーカーがドレインされるまで待機してから終了します。通常の運用中にワーカーが予期せず終了した場合、サービス全体を停止するのではなく、自動的に再起動されます。
+
+これにより、Kubernetesやその他のコンテナオーケストレーターでのゼロダウンタイムローリングデプロイメントが保証されます。デフォルトの `shutdownTimeout` の25秒は、k8sのデフォルトの `terminationGracePeriodSeconds`（30秒）内に5秒のバッファーを残します。

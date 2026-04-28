@@ -442,6 +442,99 @@
           "type": "boolean",
           "description": "Trust the X-Forwarded-* headers from reverse proxies."
         },
+        "keepAliveTimeout": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Keep-alive timeout in milliseconds. Must exceed your load balancer's idle timeout to prevent 502 errors. Default: 65000."
+        },
+        "headersTimeout": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Headers timeout in milliseconds. Maximum time to wait for the client to send full request headers. Must exceed keepAliveTimeout. Default: 66000."
+        },
+        "requestTimeout": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Request timeout in milliseconds. Maximum time allowed for the client to send the complete request. Set to 0 to disable. Default: 30000."
+        },
+        "maxConcurrentRequests": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum concurrent requests before the server responds with 503. Set to 0 to disable. Default: 0 (disabled)."
+        },
+        "shutdownTimeout": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Graceful shutdown timeout in milliseconds. Time to wait for in-flight requests to drain after SIGTERM/SIGINT. Default: 25000."
+        },
+        "connectionsCheckingInterval": {
+          "type": "integer",
+          "minimum": 100,
+          "description": "How often (ms) the HTTP server scans for connections exceeding their headers/request timeouts. Lower = faster slow-loris detection. Node's default is 30000ms; we override to 5000. Default: 5000."
+        },
+        "clusterRespawnLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Crash-loop trip wire: max worker exits within `clusterRespawnWindow` before the master gives up and exits. Default: numCPUs * 5."
+        },
+        "clusterRespawnWindow": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Sliding window (ms) used by `clusterRespawnLimit` to detect crash loops. Default: 60000."
+        },
+        "backpressure": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable adaptive backpressure. Defaults: enabled when running in cluster mode, disabled in single-process. Override via env var REACT_SERVER_BACKPRESSURE=1|0 (env wins over config), or set this flag explicitly."
+            },
+            "initialLimit": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Starting concurrency limit. Defaults to maxLimit (start wide open, tighten under overload)."
+            },
+            "minLimit": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Minimum concurrency limit (floor). The adaptive limit never drops below this. Default: 1."
+            },
+            "maxLimit": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum concurrency limit (ceiling). Capped by maxConcurrentRequests when set. Default: 1000."
+            },
+            "eluMax": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Event Loop Utilization threshold (0–1). Above this, the limit decreases and excess requests skip the queue. Default: 0.95."
+            },
+            "sampleWindow": {
+              "type": "integer",
+              "minimum": 100,
+              "description": "Interval (ms) for recalculation and ELU sampling. Default: 1000."
+            },
+            "smoothingFactor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "EWMA smoothing factor for the `smoothedLatency` field in the limiter's stats output. Observability-only — does not affect admission decisions. Default: 0.2."
+            },
+            "queueSize": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum requests waiting in the backpressure queue. Beyond this, requests are immediately rejected with 503. Default: 100."
+            },
+            "queueTimeout": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum time (ms) a request waits in the queue before being rejected with 503. Default: 5000."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Adaptive backpressure configuration using Event Loop Utilization (ELU). Enabled by default in production with zero overhead. Dynamically adjusts concurrency limit based on event loop saturation."
+        },
         "headers": {
           "type": "object",
           "description": "Custom response headers for the dev server."

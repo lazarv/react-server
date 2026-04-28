@@ -76,9 +76,24 @@ export function createMiddleware(handler, options = {}) {
           ? xfFor.split(/[,]/)[0].trim()
           : req.socket?.remoteAddress;
       const fullUrl = `${protocol}://${host}${req.url}`;
+      // Sanitize headers for the WHATWG Request constructor.
+      // Under Node's HTTP/2 compat layer, `req.headers` contains:
+      //   - `Symbol(sensitiveHeaders)` — Node's internal sensitive-header
+      //     tracking; webidl's `record<ByteString, ByteString>` chokes on
+      //     symbol keys with a TypeError before the constructor can fall
+      //     back to anything sensible.
+      //   - HTTP/2 pseudo-headers (`:method`, `:path`, `:authority`,
+      //     `:scheme`) which WHATWG Headers reject as forbidden header names.
+      // Both have to be stripped explicitly. We build a plain string-keyed
+      // record so `req.headers` itself is left untouched (other code paths,
+      // logging, observability all still see the raw shape).
+      const fetchHeaders = {};
+      for (const k of Object.keys(headersObj)) {
+        if (k[0] !== ":") fetchHeaders[k] = headersObj[k];
+      }
       const requestInit = {
         method: req.method,
-        headers: headersObj,
+        headers: fetchHeaders,
       };
       if (!(req.method === "GET" || req.method === "HEAD")) {
         if (isDeno) {
@@ -223,7 +238,7 @@ export function createMiddleware(handler, options = {}) {
 
       try {
         const { afterHooks } = ctx;
-        if (afterHooks) {
+        if (afterHooks?.size > 0) {
           const logger = getRuntime(LOGGER_CONTEXT);
           await ContextStorage.run(
             {
@@ -251,6 +266,27 @@ export function createMiddleware(handler, options = {}) {
           metrics?.httpActiveRequests.add(-1, { "http.method": req.method });
         } catch {
           // no-op if OTel not available
+        }
+      }
+      // Run afterHooks on error path too (e.g. admission control decrement).
+      // Use the same ContextStorage wrapping as the success path so hooks
+      // that read from runtime context (logger, etc.) keep working when the
+      // request errored out.
+      if (ctx?.afterHooks?.size > 0) {
+        try {
+          const logger = getRuntime(LOGGER_CONTEXT);
+          await ContextStorage.run(
+            {
+              [AFTER_CONTEXT]: true,
+              [LOGGER_CONTEXT]: logger,
+            },
+            () =>
+              Promise.allSettled(
+                Array.from(ctx.afterHooks).map((hook) => hook(e))
+              )
+          );
+        } catch {
+          // no-op
         }
       }
       if (e.name !== "AbortError" && e.message !== "aborted") {

@@ -409,3 +409,117 @@ export default function MyComponent() {
   return <p>Render lock</p>;
 }
 ```
+
+<Link name="logger">
+## ロガー
+</Link>
+
+`logger` を使用すると、ランタイムの組み込みロガーを使ってメッセージをログに記録できます。`logger` オブジェクトは `info`、`warn`、`error`、`debug` メソッドを提供し、ランタイムのロギングシステムと統合されて、一貫したフォーマットの出力を提供します。
+
+```jsx
+import { logger } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  logger.info("Rendering MyComponent");
+
+  return <p>Hello World</p>;
+}
+```
+
+`logger` は開発モードではランタイムのVite統合ロガーを自動的に使用してきれいにフォーマットされた出力を提供し、プロダクションでは `console` にフォールバックします。コンテキストを認識するため、`after()` コールバック内で呼び出された場合、ログ出力に `(after)` ラベルが付加され、レスポンス後のログとレンダリングログを区別できます。
+
+```jsx
+import { after, logger } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  logger.info("Rendering component");
+
+  after(() => {
+    logger.info("Response sent"); // 開発モードでは (after) ラベル付きでログ出力
+  });
+
+  return <p>Hello World</p>;
+}
+```
+
+利用可能なメソッド：
+
+| メソッド | 説明 |
+|---|---|
+| `logger.info(msg, ...args)` | 情報メッセージをログに記録 |
+| `logger.warn(msg, ...args)` | 警告メッセージをログに記録 |
+| `logger.error(msg, ...args)` | エラーメッセージまたは `Error` オブジェクトをログに記録 |
+| `logger.debug(msg, ...args)` | デバッグメッセージをログに記録 |
+
+> **Note:** `logger` はサーバー上のどこでも使用できます — コンポーネント、サーバー関数、ミドルウェア、ルートハンドラ、ワーカー、`after()` コールバック内で利用可能です。リクエストコンテキストは必須ではありませんが、利用可能な場合はコンテキスト固有のロガーインスタンスを使用します。
+
+<Link name="after">
+## After
+</Link>
+
+`after()` を使用すると、**レスポンスがクライアントに送信された後**に実行されるコールバック関数を登録できます。これは、クリーンアップタスク、ロギング、アナリティクス、またはレスポンスを遅延させるべきではない副作用を実行するのに便利です。
+
+```jsx
+import { after, logger } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  after(() => {
+    logger.info("Response sent to client.");
+  });
+
+  return <p>Hello World</p>;
+}
+```
+
+`after()` フックは複数回呼び出して複数のコールバックを登録できます。登録されたすべてのコールバックは、レスポンスストリームが完了した後に `Promise.allSettled` を介して並行して実行されるため、1つのコールバックが失敗しても他のコールバックの実行は妨げられません。リクエストがエラーで失敗した場合、エラーは最初の引数として各コールバックに渡されます：
+
+```jsx
+import { after, logger } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  after((error) => {
+    if (error) {
+      logger.error("Request failed:", error.message);
+    } else {
+      logger.info("Request completed successfully");
+    }
+  });
+
+  return <p>Hello World</p>;
+}
+```
+
+```jsx
+import { after } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  after(async () => {
+    await saveAnalytics({ page: "/home", timestamp: Date.now() });
+  });
+
+  after(async () => {
+    await cleanupTempFiles();
+  });
+
+  return <p>Home</p>;
+}
+```
+
+サーバー関数、ミドルウェア、ルートハンドラ、またはリクエストコンテキスト内で実行されるサーバーサイドコードでも `after()` を使用できます：
+
+```jsx
+import { after } from "@lazarv/react-server";
+
+export async function submitForm(formData) {
+  "use server";
+
+  const data = Object.fromEntries(formData.entries());
+  await saveToDatabase(data);
+
+  after(async () => {
+    await sendNotificationEmail(data.email);
+  });
+}
+```
+
+> **Note:** `after()` フックはリクエスト中にのみ呼び出すことができます。リクエストコンテキスト外（モジュールスコープやスタンドアロンスクリプトなど）で呼び出すとエラーがスローされます。

@@ -472,7 +472,23 @@ export default function MyComponent() {
 }
 ```
 
-The `after()` hook can be called multiple times to register multiple callbacks. All registered callbacks run concurrently via `Promise.allSettled` after the response stream completes, so one failing callback does not prevent the others from running.
+The `after()` hook can be called multiple times to register multiple callbacks. All registered callbacks run concurrently via `Promise.allSettled` after the response stream completes, so one failing callback does not prevent the others from running. If the request failed with an error, the error is passed to each callback as the first argument:
+
+```jsx
+import { after, logger } from "@lazarv/react-server";
+
+export default function MyComponent() {
+  after((error) => {
+    if (error) {
+      logger.error("Request failed:", error.message);
+    } else {
+      logger.info("Request completed successfully");
+    }
+  });
+
+  return <p>Hello World</p>;
+}
+```
 
 ```jsx
 import { after } from "@lazarv/react-server";

@@ -3,12 +3,13 @@
  *
  * Usage:
  *   1. pnpm --filter @lazarv/react-server-example-benchmark build
- *   2. node bench.mjs [--save <label>] [--compare <file>] [--cluster <n>]
+ *   2. node bench.mjs [--save <label>] [--compare <file>] [--cluster <n>] [--only <names>]
  *
  * Options:
  *   --save <label>     Save results to results-<label>.json
  *   --compare <file>   Compare against a previous results JSON file
  *   --cluster <n>      Run in cluster mode with n workers (uses react-server start)
+ *   --only <names>     Run only specific benchmarks (comma-separated, e.g. --only 404-miss,cached)
  *
  * Runs autocannon against each benchmark route and prints a summary table.
  */
@@ -37,6 +38,14 @@ const filters = filterArg
       .map((s) => s.trim())
       .filter(Boolean)
   : null;
+
+// --only name1,name2  or  --only name1 --only name2
+const onlyFilter = new Set(
+  args.reduce((acc, a, i, arr) => {
+    if (a === "--only" && arr[i + 1]) acc.push(...arr[i + 1].split(","));
+    return acc;
+  }, [])
+);
 
 function parseCluster() {
   const idx = args.findIndex((a) => a.startsWith("--cluster"));
@@ -179,7 +188,12 @@ const BENCHMARKS = [
     path: null, // resolved dynamically
     desc: "Static file (JS bundle)",
   },
-  { name: "404-miss", path: "/nonexistent", desc: "404 miss → SSR" },
+  {
+    name: "404-miss",
+    path: "/nonexistent",
+    desc: "404 miss → SSR",
+    expect: 404,
+  },
   {
     name: "hybrid-min",
     path: "/hybrid",
@@ -297,27 +311,47 @@ for (const b of BENCHMARKS) {
     console.log(`⏭  Skipping ${b.name} (no path resolved)`);
     continue;
   }
+  if (onlyFilter.size > 0 && !onlyFilter.has(b.name)) continue;
 
   process.stdout.write(`▶  ${b.name.padEnd(14)} ${b.desc}...`);
   const url = `http://localhost:${PORT}${b.path}`;
   const data = await runAutocannon(url);
 
+  const total2xx = data["2xx"] ?? 0;
+  const totalNon2xx = (data.non2xx ?? 0) + (data.errors ?? 0);
+  const totalRequests = total2xx + totalNon2xx;
+  const durationSec = data.duration ?? DURATION;
+
+  // For routes with expected non-2xx responses (e.g. 404), count all
+  // completed requests as "ok". Otherwise only count 2xx.
+  const totalOk = b.expect ? totalRequests - (data.errors ?? 0) : total2xx;
+  const okReqSec = durationSec > 0 ? totalOk / durationSec : 0;
+
+  // Unexpected non-2xx: for a 404 route, the 404s are expected — only
+  // connection errors and 503s are unexpected failures
+  const unexpectedErrors = b.expect ? (data.errors ?? 0) : totalNon2xx;
+
   const result = {
     name: b.name,
     desc: b.desc,
     path: b.path,
-    reqSec: data.requests.average,
+    reqSec: okReqSec,
+    totalReqSec: data.requests.average,
     latencyAvg: data.latency.average,
     latencyP50: data.latency.p50,
     latencyP99: data.latency.p99,
     throughputMB: (data.throughput.average / 1024 / 1024).toFixed(1),
-    total2xx: data["2xx"],
-    errors: data.errors,
+    total2xx,
+    totalNon2xx,
+    totalRequests,
+    unexpectedErrors,
+    errors: data.errors ?? 0,
   };
   results.push(result);
 
+  const status = unexpectedErrors > 0 ? ` | ${unexpectedErrors} non-2xx` : "";
   console.log(
-    ` ${result.reqSec.toFixed(0)} req/s | avg ${result.latencyAvg}ms | p99 ${result.latencyP99}ms`
+    ` ${result.reqSec.toFixed(0)} req/s | avg ${result.latencyAvg}ms | p99 ${result.latencyP99}ms${status}`
   );
 }
 
@@ -344,8 +378,12 @@ function fmtDelta(current, baseline, lowerIsBetter = false) {
   return ` ${arrow}${sign}${pct.toFixed(0)}%`;
 }
 
+function fmtErrors(r) {
+  return r.unexpectedErrors > 0 ? String(r.unexpectedErrors) : "";
+}
+
 if (compareData) {
-  console.log("\n" + "═".repeat(130));
+  console.log("\n" + "═".repeat(140));
   console.log(
     "  " +
       "Benchmark".padEnd(16) +
@@ -354,10 +392,11 @@ if (compareData) {
       "P50 (ms)".padStart(14) +
       "P99 (ms)".padStart(14) +
       "Throughput".padStart(12) +
+      "Errors".padStart(10) +
       "  " +
       "Description"
   );
-  console.log("─".repeat(130));
+  console.log("─".repeat(140));
   for (const r of results) {
     const base = compareData.get(r.name);
     console.log(
@@ -370,13 +409,14 @@ if (compareData) {
         String(r.latencyP50).padStart(14) +
         String(r.latencyP99).padStart(14) +
         `${r.throughputMB} MB/s`.padStart(12) +
+        fmtErrors(r).padStart(10) +
         "  " +
         r.desc
     );
   }
-  console.log("═".repeat(130));
+  console.log("═".repeat(140));
 } else {
-  console.log("\n" + "═".repeat(110));
+  console.log("\n" + "═".repeat(120));
   console.log(
     "  " +
       "Benchmark".padEnd(16) +
@@ -385,10 +425,11 @@ if (compareData) {
       "P50 (ms)".padStart(10) +
       "P99 (ms)".padStart(10) +
       "Throughput".padStart(12) +
+      "Errors".padStart(10) +
       "  " +
       "Description"
   );
-  console.log("─".repeat(110));
+  console.log("─".repeat(120));
   for (const r of results) {
     console.log(
       "  " +
@@ -398,11 +439,12 @@ if (compareData) {
         String(r.latencyP50).padStart(10) +
         String(r.latencyP99).padStart(10) +
         `${r.throughputMB} MB/s`.padStart(12) +
+        fmtErrors(r).padStart(10) +
         "  " +
         r.desc
     );
   }
-  console.log("═".repeat(110));
+  console.log("═".repeat(120));
 }
 
 // ── Save results ─────────────────────────────────────────────────────────────

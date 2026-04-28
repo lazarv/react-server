@@ -305,6 +305,8 @@ import { index, about, user, dashboard } from "@lazarv/react-server/routes";
 
 これらのヘルパーはランタイムではアイデンティティ関数です — コンポーネントをそのまま返します。ルートパス、`validate`エクスポート、アウトレット構造から正しいプロップ型を推論するためにTypeScript専用で存在します。
 
+`@lazarv/react-server/routes`と並んで、ファイルルーター内のすべてのアウトレットに対して、型付きでサーバープリロードされるバインド済みの`ReactServerComponent`を公開する仮想モジュール`@lazarv/react-server/outlets`も生成されます。詳細は下の[型付きアウトレットコンポーネント](#routes-module-bound-outlets)を参照してください。
+
 <Link name="routes-module-naming">
 ### ルート命名
 </Link>
@@ -411,6 +413,53 @@ export default dashboard.createLayout(({ children, sidebar, content }) => {
 **Nullableアウトレット：** アウトレットディレクトリに`@outletName.default.tsx`ファイルがある場合、アウトレットは常にレンダリングされます（non-nullable）。デフォルトがない場合、アウトレットは`ReactElement | null`になります — TypeScriptがnullチェックを強制します。
 
 上の例では、`content`にはデフォルト（`@content.default.tsx`）があるため常に`ReactElement`です。`sidebar`にデフォルトがない場合、`ReactElement | null`として型付けされます。
+
+<Link name="routes-module-bound-outlets">
+### 型付きアウトレットコンポーネント
+</Link>
+
+前のセクションでは*受け取り側* — 隣接する`@outletName/`ディレクトリからファイルルーターが埋めるアウトレットスロットを消費するレイアウト — を示しました。*送り出し側*にも独自の型付きエントリーポイントがあります：ファイルルーターで宣言されたアウトレットごとに1つの名前空間をエクスポートする、仮想的な`@lazarv/react-server/outlets`モジュールです。
+
+```tsx
+import { sidebar, content } from "@lazarv/react-server/outlets";
+
+<sidebar.Outlet url="/dashboard/nav" />
+<content.Outlet url="/dashboard/feed" />
+```
+
+各名前空間は、そのアウトレット名にバインドされた1つの`Outlet`コンポーネント（PascalCase、JSX呼び出し可能）を公開します。背後にある`<ReactServerComponent outlet="sidebar" url="…" />`形式と比較して、これは3つの利点をもたらします：
+
+- **文字列指定のアウトレット名が不要。** アウトレット識別子はインポート時にバインドされます。タイポは起こり得ず、未知のアウトレット名はコンパイル時に失敗します。
+- **型付きの`url`。** `url`プロップは`Link.to`と同じユニオン — ファイルルーター内のすべての静的・動的ルート — を受け入れます。タイポは拒否され、動的セグメントは既に具体化されている必要があります（例：`/user/42`であって`/user/[id]`ではない）。
+- **ブランド付きの戻り型。** コンポーネントは`Outlet<"sidebar">`（またはその名前）を返すため、キャストなしで同名の`createLayout`スロットを満たせます。
+
+デフォルトではアウトレットはサーバー側でプリロードされます：バインドされたコンポーネントがサーバーコンポーネント内でレンダリングされると、ランタイムは`url`をファイルルーターのマニフェストに対して解決し、対応する`@outletName/...page.tsx`（または`@outletName.default.tsx`フォールバック）を見つけ、それをレンダリングして結果を`children`として`ReactServerComponent`に渡します。そのため、SSRのHTMLには初回描画の時点でアウトレットコンテンツが含まれており、クライアントのラウンドトリップは不要です。
+
+2つのオプトアウト：
+
+- **`defer={true}`** — プリロードをスキップし、ハイドレーション後にクライアントがURLをフェッチするようにします。アウトレットの内容がブラウザ依存の状態に依存する場合や、親ページのレンダリングをアウトレット解決でブロックしたくない場合に有用です。
+- **明示的な`children`** — 自分でchildrenを渡すと、プリロードは完全にバイパスされ、あなたのツリーがそのまま使われます。
+
+```tsx filename="pages/panels.page.tsx"
+import { sidebar, content } from "@lazarv/react-server/outlets";
+
+export default function Panels() {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "200px 1fr" }}>
+      <aside>
+        {/* /dashboard/nav をサーバー側でサイドバースロットに解決します */}
+        <sidebar.Outlet url="/dashboard/nav" />
+      </aside>
+      <main>
+        {/* `defer` でハイドレーション後のクライアントフェッチに切り替えます */}
+        <content.Outlet url="/dashboard/feed" defer />
+      </main>
+    </div>
+  );
+}
+```
+
+ランタイムは`.react-server`ディレクトリの`react-server-routes.d.ts`の隣に`react-server-outlets.d.ts`を書き出します。このファイルは`@lazarv/react-server/outlets`モジュールを宣言し、マニフェストで検出された各アウトレット名に対して1つの名前空間を持ちます。有効なJavaScript識別子ではないアウトレット名（例：ハイフン付きのディレクトリ名）はこのモジュールから除外されます — そのようなアウトレットは引き続き文字列指定の`<ReactServerComponent outlet="..." />`形式で到達可能です。
 
 <Link name="routes-module-loading">
 ### 型付きローディングとエラーコンポーネント

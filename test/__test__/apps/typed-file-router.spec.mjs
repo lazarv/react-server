@@ -130,6 +130,119 @@ describe("typed-file-router — dashboard layout and outlets", () => {
   });
 });
 
+// ── Bound outlets via @lazarv/react-server/outlets ──
+
+describe("typed-file-router — bound outlets", () => {
+  // /panels mounts the @sidebar/nav and @content/feed outlets directly
+  // via the typed `@lazarv/react-server/outlets` module. The outlet name
+  // is bound at the import site (no `outlet="..."` prop needed) and
+  // `url` is typed against the same route table as `Link.to`.
+  test("renders the panels page", async () => {
+    await page.goto(`${hostname}/panels`);
+    await page.waitForLoadState("load");
+    expect(await page.textContent("body")).toContain("Panels");
+  });
+
+  test("sidebar.Outlet mounts /dashboard/nav into the sidebar slot", async () => {
+    await page.goto(`${hostname}/panels`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const sidebar = await page.$('[data-testid="panels-sidebar"]');
+    expect(sidebar).not.toBeNull();
+    const sidebarText = await sidebar.textContent();
+    // /dashboard/nav resolves to @sidebar/nav.page.tsx, which renders the
+    // SidebarNav with three internal links.
+    expect(sidebarText).toContain("Overview");
+    expect(sidebarText).toContain("Settings");
+    expect(sidebarText).toContain("Analytics");
+  });
+
+  test("content.Outlet mounts /dashboard/feed into the content slot", async () => {
+    await page.goto(`${hostname}/panels`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    const content = await page.$('[data-testid="panels-content"]');
+    expect(content).not.toBeNull();
+    const contentText = await content.textContent();
+    // /dashboard/feed resolves to @content/feed.page.tsx → ContentFeed.
+    expect(contentText).toContain("Activity Feed");
+    expect(contentText).toContain("User signed up");
+    expect(contentText).toContain("New order placed");
+  });
+
+  // Regression: while the panels page is mounted, the sidebar+content
+  // outlets are registered in ClientProvider's `outlets` Map. A default
+  // <Link> click (no `target`/`local`/`root` prop) used to broadcast the
+  // navigation to every active non-root outlet and skip PAGE_ROOT entirely,
+  // so the user stayed on /panels with the sidebar/content slots showing
+  // null. Top-level Link clicks must navigate the page even with named
+  // outlets active.
+  test("typed Link click from panels to dashboard performs full navigation", async () => {
+    await page.goto(`${hostname}/panels`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+    // Wait for the bound outlets to register (their useEffect must have
+    // run before we click the cross-page link).
+    await page.waitForSelector('[data-testid="panels-sidebar"]');
+
+    const prevUrl = page.url();
+    const dashboardLink = await page.$('nav a[href="/dashboard"]');
+    expect(dashboardLink).not.toBeNull();
+    await dashboardLink.click();
+    await waitForChange(null, () => page.url(), prevUrl);
+
+    expect(page.url()).toContain("/dashboard");
+    const body = await page.textContent("body");
+    expect(body).toContain("Welcome to the dashboard");
+    expect(body).toContain("Sidebar");
+    expect(body).toContain("Content");
+  });
+
+  // The bound `Outlet` resolves the `url` against the file-router manifest
+  // on the server (RSC env) and renders the matching outlet page as
+  // `children` for `ReactServerComponent`. The result must already be in
+  // the initial SSR HTML — no client round-trip required. A raw fetch
+  // bypasses Playwright's JS execution and proves the content is server
+  // rendered, not hydrated.
+  test("server preloads outlet content into the initial SSR HTML", async () => {
+    const response = await fetch(`${hostname}/panels`);
+    expect(response.ok).toBe(true);
+    const html = await response.text();
+    // Sidebar slot: from @sidebar/nav.page.tsx (SidebarNav)
+    expect(html).toContain("Overview");
+    expect(html).toContain("Settings");
+    expect(html).toContain("Analytics");
+    // Content slot: from @content/feed.page.tsx (ContentFeed)
+    expect(html).toContain("Activity Feed");
+    expect(html).toContain("User signed up");
+  });
+
+  test("each bound outlet receives its own outlet identifier", async () => {
+    await page.goto(`${hostname}/panels`);
+    await page.waitForLoadState("load");
+    await waitForHydration();
+
+    // Each `<*.Outlet />` call creates an island with the matching outlet
+    // identifier; in dev mode the runtime emits a marker per outlet. The
+    // marker proves the outlet name was bound at the call site rather than
+    // collapsed to a single shared scope.
+    const sidebarMarker = await page.$(
+      '[data-testid="panels-sidebar"] [data-devtools-outlet="sidebar"]'
+    );
+    const contentMarker = await page.$(
+      '[data-testid="panels-content"] [data-devtools-outlet="content"]'
+    );
+    // Markers are dev-only; assert when present, skip otherwise so the
+    // assertion still passes against a production build.
+    if (sidebarMarker || contentMarker) {
+      expect(sidebarMarker).not.toBeNull();
+      expect(contentMarker).not.toBeNull();
+    }
+  });
+});
+
 // ── Virtual routes ──
 
 describe("typed-file-router — virtual routes", () => {

@@ -448,6 +448,30 @@ const navigateOutlet = async (
 };
 
 const navigate = (to, options = {}) => {
+  // When the caller didn't specify an outlet, distinguish between two intents:
+  //   - same-pathname change (e.g. `?filter=active`)  → broadcast to every
+  //     active non-root outlet so dashboards / multi-pane filters stay in sync.
+  //   - pathname change (e.g. <Link to="/dashboard">) → it's a top-level page
+  //     navigation; target PAGE_ROOT and skip the broadcast. Otherwise any
+  //     route that mounts named outlets via `<*.Outlet />` would get stuck:
+  //     the broadcast skips PAGE_ROOT and fans the new URL out to stale
+  //     outlets, where the server has no matching outlet page and renders
+  //     null — leaving the previous page on screen with empty outlet content.
+  if (options.outlet === undefined) {
+    try {
+      const targetPathname = decodeURIComponent(
+        new URL(to, location.origin).pathname
+      );
+      const currentPathname = decodeURIComponent(location.pathname);
+      if (targetPathname !== currentPathname) {
+        options = { ...options, outlet: PAGE_ROOT };
+      }
+    } catch {
+      // Malformed URL — fall through; navigateOutlet's PAGE_ROOT default
+      // will still fire if we end up in the single-outlet branch.
+    }
+  }
+
   const isRoot = options.outlet === PAGE_ROOT;
   if (!isRoot && outlets.size > 1) {
     const activeOutlets = new Set(outlets.keys());

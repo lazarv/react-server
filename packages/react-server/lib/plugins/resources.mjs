@@ -2,19 +2,20 @@
  * Vite plugin providing virtual module fallbacks:
  * - @lazarv/react-server/__resources__  (resource descriptor collection)
  * - @lazarv/react-server/routes         (typed route descriptors)
+ * - @lazarv/react-server/outlets        (per-outlet bound ReactServerComponent)
  *
  * When the file-router is active (RSC build), its prePlugin (enforce: "pre")
  * resolves __resources__ first, so this plugin's resolveId is never called
  * for that module. The file-router's mainPlugin then handles the load.
  *
- * In the SSR build, pass { useStore: true } so both resources and routes
+ * In the SSR build, pass { useStore: true } so resources, routes, and outlets
  * are served from the store (populated by the RSC build's configResolved).
  * The store uses promises so the SSR build (which runs in parallel with
  * RSC) can safely await content that hasn't been set yet. The SSR build
  * includes a resource-transform plugin that adds __rs_descriptor__ exports.
  *
- * In the client build, pass { useStore: true } to read both resources and
- * routes from the store.
+ * In the client build, pass { useStore: true } to read resources, routes,
+ * and outlets from the store.
  */
 
 /**
@@ -61,11 +62,12 @@ export function setVirtualModuleContent(key, content) {
 
 const RESOURCES_ID = "\0react-server:resources";
 const ROUTES_ID = "\0react-server:routes";
+const OUTLETS_ID = "\0react-server:outlets";
 
 /**
  * @param {object} opts
- * @param {boolean} [opts.useStore] - Read both resources and routes from store (client build)
- * @param {boolean} [opts.useRouteStore] - Read only routes from store (SSR build)
+ * @param {boolean} [opts.useStore] - Read resources, routes, and outlets from store (client build)
+ * @param {boolean} [opts.useRouteStore] - Read only routes and outlets from store (SSR build)
  */
 export default function resources({
   useStore = false,
@@ -73,6 +75,7 @@ export default function resources({
 } = {}) {
   const readResources = useStore;
   const readRoutes = useStore || useRouteStore;
+  const readOutlets = useStore || useRouteStore;
 
   return {
     name: "react-server:resources",
@@ -82,6 +85,9 @@ export default function resources({
       }
       if (id === "@lazarv/react-server/routes" && readRoutes) {
         return ROUTES_ID;
+      }
+      if (id === "@lazarv/react-server/outlets" && readOutlets) {
+        return OUTLETS_ID;
       }
     },
     async load(id) {
@@ -104,6 +110,19 @@ export default function resources({
         // (via initStoreEntry). Without file-router, fall through
         // and let Vite's normal resolution handle it.
         const entry = store.routes;
+        if (entry) {
+          await entry.promise;
+          return entry.content;
+        }
+      }
+      if (id === OUTLETS_ID && readOutlets) {
+        // Outlets follow the same pattern as routes — the RSC build sets
+        // the content during configResolved; SSR/client builds await it
+        // here. Without a file-router, the entry is undefined and Vite's
+        // normal resolution applies (which will fail — but importing
+        // `@lazarv/react-server/outlets` only makes sense with a
+        // file-router).
+        const entry = store.outlets;
         if (entry) {
           await entry.promise;
           return entry.content;

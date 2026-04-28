@@ -305,6 +305,8 @@ Plus context-aware helper functions for typing your page components:
 
 These helpers are identity functions at runtime — they return the component unchanged. They exist purely for TypeScript to infer the correct prop types from your route path, `validate` export, and outlet structure.
 
+A companion virtual module — `@lazarv/react-server/outlets` — is generated alongside `@lazarv/react-server/routes` and exposes a typed, server-preloading bound `ReactServerComponent` for every outlet in your file-router. See [typed outlet components](#routes-module-bound-outlets) below.
+
 <Link name="routes-module-naming">
 ### Route naming
 </Link>
@@ -411,6 +413,53 @@ export default dashboard.createLayout(({ children, sidebar, content }) => {
 **Nullable outlets:** If an outlet directory has a `@outletName.default.tsx` file, the outlet is always rendered (non-nullable). If there's no default, the outlet is `ReactElement | null` — TypeScript enforces null checks.
 
 In the example above, `content` has a default (`@content.default.tsx`) so it's always a `ReactElement`. If `sidebar` had no default, it would be typed as `ReactElement | null`.
+
+<Link name="routes-module-bound-outlets">
+### Typed outlet components
+</Link>
+
+The previous section showed the *receiving* side — a layout consuming outlet slots that are populated by the file-router from neighbouring `@outletName/` directories. The *producing* side has its own typed entry point: a virtual `@lazarv/react-server/outlets` module that exports one namespace per outlet declared in the file-router.
+
+```tsx
+import { sidebar, content } from "@lazarv/react-server/outlets";
+
+<sidebar.Outlet url="/dashboard/nav" />
+<content.Outlet url="/dashboard/feed" />
+```
+
+Each namespace exposes a single `Outlet` component (PascalCase, JSX-callable) bound to its outlet name. Compared to the underlying `<ReactServerComponent outlet="sidebar" url="…" />` form, this gives you three things:
+
+- **No stringly-typed outlet name.** The outlet identifier is bound at the import site; you can't typo it, and unknown outlet names fail at compile time.
+- **Typed `url`.** The `url` prop accepts the same union as `Link.to` — every static and dynamic route in the file-router. Typos are rejected, and dynamic segments must already be concrete (e.g. `/user/42`, not `/user/[id]`).
+- **Branded return type.** The component returns `Outlet<"sidebar">` (or whichever name), so it satisfies a `createLayout` slot of the same name without casts.
+
+By default the outlet preloads on the server: when the bound component is rendered in a server component, the runtime resolves the `url` against the file-router manifest, finds the matching `@outletName/...page.tsx` (or the `@outletName.default.tsx` fallback), renders it, and passes the result as `children` to `ReactServerComponent`. The SSR HTML therefore contains the outlet content on first paint — no client round-trip.
+
+Two opt-outs:
+
+- **`defer={true}`** — skip preload and let the client fetch the URL after hydration. Useful when the outlet content depends on browser-only state, or when you want to avoid blocking the parent page's render on the outlet resolution.
+- **Explicit `children`** — when you pass your own children, preload is bypassed entirely and your tree is used as-is.
+
+```tsx filename="pages/panels.page.tsx"
+import { sidebar, content } from "@lazarv/react-server/outlets";
+
+export default function Panels() {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "200px 1fr" }}>
+      <aside>
+        {/* Server-resolves /dashboard/nav into the sidebar slot */}
+        <sidebar.Outlet url="/dashboard/nav" />
+      </aside>
+      <main>
+        {/* `defer` opts into client-side fetch after hydration */}
+        <content.Outlet url="/dashboard/feed" defer />
+      </main>
+    </div>
+  );
+}
+```
+
+The runtime writes a `react-server-outlets.d.ts` file alongside `react-server-routes.d.ts` in the `.react-server` directory. It declares the `@lazarv/react-server/outlets` module with one namespace per outlet name discovered in your manifest. Outlet names that aren't valid JavaScript identifiers (e.g. hyphenated directory names) are skipped from this module — those outlets remain reachable via the stringly-typed `<ReactServerComponent outlet="..." />` form.
 
 <Link name="routes-module-loading">
 ### Typed loading and error components

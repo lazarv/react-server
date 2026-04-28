@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import mime from "mime";
 
+import { shouldDeferToServer } from "../../adapters/shared/accept.mjs";
 import { prerender$ } from "../../server/prerender-storage.mjs";
 import {
   POSTPONE_STATE,
@@ -119,6 +120,19 @@ export default async function staticHandler(dir, options = {}) {
         // Bail out early — no point checking postponed/compressed variants.
         return;
       }
+    }
+
+    // Defer to the SSR handler when the client clearly prefers a non-HTML
+    // media type and the static reply would be HTML. This lets
+    // content-negotiation middleware rewrite to the matching `.md` (or other)
+    // pre-rendered variant for the same canonical URL. Browsers, which
+    // always list `text/html` / `*/*`, still get the static HTML.
+    const candidate = files.get(basename);
+    if (
+      candidate?.mime === "text/html" &&
+      shouldDeferToServer(context.request)
+    ) {
+      return;
     }
 
     let prelude = null;

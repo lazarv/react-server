@@ -2,6 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 import { reactServer } from "@lazarv/react-server/edge";
 import { createContext } from "@lazarv/react-server/http";
+import { isHtmlRoute, shouldDeferToServer } from "../../shared/accept.mjs";
 import { finalizeResponse } from "../../shared/edge-handler.mjs";
 
 let serverPromise = null;
@@ -174,8 +175,14 @@ async function handleRequest(event, context) {
   // ---- Static files (GET only) ----
   if (request.method === "GET") {
     const url = new URL(request.url);
-    const staticResponse = tryServeStatic(url.pathname);
-    if (staticResponse) return staticResponse;
+    // For HTML routes, defer to SSR when the client clearly prefers a
+    // non-HTML media type (e.g. agents sending `Accept: text/markdown`)
+    // so content-negotiation middleware can serve the matching variant.
+    const deferToSsr = isHtmlRoute(url) && shouldDeferToServer(request);
+    if (!deferToSsr) {
+      const staticResponse = tryServeStatic(url.pathname);
+      if (staticResponse) return staticResponse;
+    }
   }
 
   // ---- SSR via react-server ----

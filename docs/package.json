@@ -33,7 +33,8 @@
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
     "three": "^0.183.1",
-    "vite-plugin-svgr": "^4.5.0"
+    "vite-plugin-svgr": "^4.5.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@inlang/paraglide-js": "1.11.8",

@@ -75,6 +75,30 @@ export const adapter = createAdapter({
             "Content-Type": "text/x-component; charset=utf-8",
           },
         },
+        // Bare paths (no file extension) where the client did *not* list
+        // `text/html` in its `Accept` header are routed to the function
+        // before the filesystem so content-negotiation middleware can
+        // respond with the matching variant for the same canonical URL.
+        // Browsers always include `text/html`/`application/xhtml+xml`, so
+        // their navigation hits the static layer untouched. Static asset
+        // requests (paths with extensions like `.css`, `.png`, `.json`)
+        // are excluded by the `src` pattern and continue to be served
+        // directly by Vercel's CDN.
+        ...(adapterOptions?.serverlessFunctions !== false
+          ? [
+              {
+                src: "^/[^.]*$",
+                has: [
+                  {
+                    type: "header",
+                    key: "accept",
+                    value: "^(?!.*text/html).+",
+                  },
+                ],
+                dest: "/",
+              },
+            ]
+          : []),
         { handle: "filesystem" },
         ...(adapterOptions?.routes ?? []),
         adapterOptions?.routes?.find((route) => route.status === 404) ?? {

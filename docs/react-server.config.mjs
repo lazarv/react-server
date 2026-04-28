@@ -7,12 +7,7 @@ import remarkMath from "remark-math";
 export default {
   root: "src/pages",
   public: "public",
-  adapter: [
-    "cloudflare",
-    {
-      serverlessFunctions: false,
-    },
-  ],
+  adapter: "cloudflare",
   mdx: {
     remarkPlugins: [remarkGfm, remarkMath],
     rehypePlugins: [

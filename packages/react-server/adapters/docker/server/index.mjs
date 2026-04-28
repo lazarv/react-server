@@ -4,6 +4,8 @@ import { readFileSync, existsSync } from "node:fs";
 
 import { reactServer } from "@lazarv/react-server/node";
 
+import { isHtmlRoute, shouldDeferToServer } from "../../shared/accept.mjs";
+
 const port = parseInt(process.env.PORT, 10) || 3000;
 const host = process.env.HOST || "0.0.0.0";
 
@@ -88,8 +90,14 @@ const { middlewares } = await reactServer({
 });
 
 const server = createServer((req, res) => {
-  // Try static files first, then fall through to react-server
-  if (tryServeStatic(req, res)) return;
+  // Try static files first, then fall through to react-server. For HTML
+  // routes the client may legitimately prefer a non-HTML media type
+  // (e.g. agents sending `Accept: text/markdown`) — in that case skip
+  // static and let content-negotiation middleware serve the matching
+  // variant from the same canonical URL.
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const deferToServer = isHtmlRoute(url) && shouldDeferToServer(req);
+  if (!deferToServer && tryServeStatic(req, res)) return;
   middlewares(req, res);
 });
 

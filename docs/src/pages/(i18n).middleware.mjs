@@ -3,22 +3,21 @@ import { useMatch } from "@lazarv/react-server/router";
 
 import { defaultLanguage, languages } from "../const.mjs";
 
+// Pathnames that bypass locale resolution — they are language-agnostic
+// resources or endpoints handled by other middlewares / API routes.
+const NON_LOCALIZED = (pathname) =>
+  pathname === "/sitemap.xml" ||
+  pathname === "/schema.json" ||
+  pathname === "/mcp" ||
+  pathname.startsWith("/mcp/") ||
+  pathname.startsWith("/.well-known/") ||
+  pathname.startsWith("/md/") ||
+  pathname.endsWith(".md");
+
 export default function I18n() {
   const { pathname } = useUrl();
 
-  if (pathname === "/sitemap.xml" || pathname === "/schema.json") {
-    return;
-  }
-
-  // Rewrite .md requests to the markdown API route
-  if (pathname.endsWith(".md")) {
-    const mdPath = pathname.replace(/\.md$/, "");
-    rewrite(`/md${mdPath}`);
-    return;
-  }
-
-  // Skip /md/ API route paths from i18n handling
-  if (pathname.startsWith("/md/")) {
+  if (NON_LOCALIZED(pathname)) {
     return;
   }
 

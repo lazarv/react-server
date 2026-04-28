@@ -129,6 +129,12 @@ export const config = {
       message("creating", "server function");
 
       // Create index.mjs that re-exports from the bundled edge.mjs
+      // Note: `preferStatic` is intentionally omitted (Netlify default
+      // `false`) so the function runs for every request and can do
+      // Accept-aware content negotiation. The framework's in-process
+      // static handler still serves matching files directly without SSR
+      // overhead. Users who don't need content negotiation can opt back
+      // in via `adapterOptions.functions.config.preferStatic = true`.
       const entryFile = join(outServerDir, "index.mjs");
       writeFileSync(
         entryFile,
@@ -136,7 +142,6 @@ export const config = {
 
 export const config = {
   path: "/*",
-  preferStatic: true,
   ...${JSON.stringify(adapterOptions?.functions?.config ?? {})},
 };
 `

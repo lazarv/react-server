@@ -8,6 +8,7 @@ import { build as viteBuild } from "vite";
 import { forRoot } from "../../config/index.mjs";
 import { resolveTelemetryConfig } from "../../server/telemetry.mjs";
 
+import inlineCjsJson from "../plugins/inline-cjs-json.mjs";
 import optionalDeps from "../plugins/optional-deps.mjs";
 import * as sys from "../sys.mjs";
 import customLogger from "./custom-logger.mjs";
@@ -44,7 +45,13 @@ export default async function edgeBuild(root, options) {
     logLevel: options.silent ? "silent" : undefined,
     define: config.define,
     json: {
+      // Default to named exports so individual JSON keys can be tree-shaken
+      // when imported as ESM. Allow user override (e.g. when bundling CJS
+      // dependencies that `require('foo.json')` and iterate `Object.keys` —
+      // rolldown's CJS interop adds `__esModule` to the exports under
+      // `namedExports: true`, breaking iteration in those consumers).
       namedExports: true,
+      ...config.json,
     },
     envDir: config.envDir,
     envPrefix:
@@ -183,6 +190,7 @@ export default async function edgeBuild(root, options) {
           return false;
         },
         plugins: [
+          inlineCjsJson(),
           optionalDeps([/^@opentelemetry\//], { forceEmpty: otelForceEmpty }),
           replace({
             preventAssignment: true,

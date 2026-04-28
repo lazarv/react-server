@@ -1,1 +1,14 @@
+# @lazarv/react-server is an open-source React Server Components runtime.
+# We welcome AI agents — this site is documentation, and we want LLMs to
+# index it, cite it, and answer user questions about it accurately.
+#
+# Content-Signal (https://blog.cloudflare.com/content-signals/):
+#   search   — build a search index and link in search results
+#   ai-input — use content as live input for AI answers (RAG, in-context)
+#   ai-train — train or fine-tune AI models
+
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Allow: /
+
 Sitemap: https://react-server.dev/sitemap.xml

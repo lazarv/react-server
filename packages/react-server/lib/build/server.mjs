@@ -15,6 +15,7 @@ import resourcesPlugin from "../plugins/resources.mjs";
 import optionalDeps from "../plugins/optional-deps.mjs";
 import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
+import inlineCjsJson from "../plugins/inline-cjs-json.mjs";
 
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
@@ -851,6 +852,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
       fileListingReporterPlugin("RSC"),
       manifestRegistry(),
       manifestGenerator(clientManifest, serverManifest),
+      inlineCjsJson(),
       jsonNamedExports(),
       resourcesPlugin(),
       !root || root === "@lazarv/react-server/file-router"

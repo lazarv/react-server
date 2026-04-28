@@ -9,6 +9,7 @@ import { useMatch } from "@lazarv/react-server/router";
 import EditPage from "../components/EditPage.jsx";
 import PageMeta from "../components/PageMeta.jsx";
 import ViewMarkdown from "../components/ViewMarkdown.jsx";
+import WebMCP from "../components/WebMCP.jsx";
 import { useLanguage, m } from "../i18n.mjs";
 import { defaultLanguage, defaultLanguageRE, languages } from "../const.mjs";
 import { categories, getPageFrontmatter } from "../pages.mjs";
@@ -107,6 +108,7 @@ export default function Layout({
         />
       </head>
       <body data-path={pathname} suppressHydrationWarning>
+        <WebMCP />
         {header}
         <main>
           {sidebar}

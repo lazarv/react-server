@@ -55,6 +55,7 @@ import {
   STYLES_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
+import { mergeContextHeaders } from "../http/middleware-response.mjs";
 import * as sys from "../sys.mjs";
 
 globalThis.AsyncLocalStorage = AsyncLocalStorage;
@@ -424,11 +425,17 @@ export default async function ssrHandler(root, options = {}) {
                   for (const middleware of middlewares) {
                     const response = await middleware(httpContext);
                     if (response) {
-                      return resolve(
+                      const final =
                         typeof response === "function"
                           ? await response(httpContext)
-                          : response
-                      );
+                          : response;
+                      // Merge headers set by earlier middlewares (via
+                      // setHeader / appendHeader / headers()) into the
+                      // short-circuit Response. Without this, common
+                      // discovery headers like `Link` set by an earlier
+                      // middleware would be silently dropped when a later
+                      // middleware returned a Response directly.
+                      return resolve(mergeContextHeaders(final));
                     }
                   }
                 }

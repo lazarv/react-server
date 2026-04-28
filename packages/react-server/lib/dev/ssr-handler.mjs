@@ -38,6 +38,7 @@ import {
   SERVER_CONTEXT,
   STYLES_CONTEXT,
 } from "../../server/symbols.mjs";
+import { mergeContextHeaders } from "../http/middleware-response.mjs";
 import * as sys from "../sys.mjs";
 import errorHandler from "../handlers/error.mjs";
 import getModules from "./modules.mjs";
@@ -258,9 +259,15 @@ export default async function ssrHandler(root) {
                     for (const middleware of middlewares) {
                       const response = await middleware(httpContext);
                       if (response) {
-                        return typeof response === "function"
-                          ? await response(httpContext)
-                          : response;
+                        const final =
+                          typeof response === "function"
+                            ? await response(httpContext)
+                            : response;
+                        // Merge headers set by earlier middlewares (via
+                        // setHeader / appendHeader / headers()) into the
+                        // short-circuit Response — see ssrHandler in
+                        // start/ssr-handler.mjs for the rationale.
+                        return mergeContextHeaders(final);
                       }
                     }
                   }

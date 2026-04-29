@@ -299,9 +299,13 @@ export function hasClientComponents(filePath) {
   if (!/\.(js|jsx|ts|tsx|mjs|mts)$/.test(filePath)) return false;
 
   const content = readFileCached(filePath);
+  // Loose substring probe — leaves the closing quote off so that any
+  // modifier form (`"use client; no-ssr"`, …) still matches without
+  // having to enumerate variants. False positives are harmless: callers
+  // use this only as a fast bail-out before deeper inspection.
   return (
     content &&
-    (content.includes(`"use client"`) || content.includes(`'use client'`))
+    (content.includes('"use client') || content.includes("'use client"))
   );
 }
 
@@ -383,8 +387,8 @@ export async function hasClientComponentsAsync(pkgPath) {
             const content = await readFileCachedAsync(fullPath);
             if (
               content &&
-              (content.includes(`"use client"`) ||
-                content.includes(`'use client'`))
+              (content.includes('"use client') ||
+                content.includes("'use client"))
             ) {
               return true;
             }

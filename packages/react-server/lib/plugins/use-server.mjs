@@ -3,6 +3,7 @@ import { extname, relative } from "node:path";
 import { encryptActionId } from "../../server/action-crypto.mjs";
 import * as sys from "../sys.mjs";
 import { codegen, parse } from "../utils/ast.mjs";
+import { parseClientDirective } from "../utils/directives.mjs";
 
 const cwd = sys.cwd();
 
@@ -27,7 +28,7 @@ export default function useServer(type, manifest) {
           .map(({ directive }) => directive);
 
         if (!directives.includes("use server")) return null;
-        if (directives.includes("use client"))
+        if (parseClientDirective(directives)?.isClient)
           throw new Error(
             "Cannot use both 'use client' and 'use server' in the same module."
           );

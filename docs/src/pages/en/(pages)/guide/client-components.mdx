@@ -327,3 +327,63 @@ export default function MyServerComponent() {
   );
 }
 ```
+
+`ClientOnly` is a *rendering* guard — it controls when its children render, but it does not control what gets bundled. The wrapped component and its imports still ship in the SSR bundle and run during server rendering. For components that pull in heavy browser-only dependencies (WebGL, Canvas, IntersectionObserver-based libraries, anything that touches `window` at module scope), use the [`"use client; no-ssr"`](#no-ssr-client-components) directive below — it removes the implementation from the SSR bundle entirely.
+
+<Link name="no-ssr-client-components">
+## No-SSR client components
+</Link>
+
+A `"use client"` component still renders on the server during SSR — only its interactivity is deferred to the client. Its module graph is part of the SSR bundle, so any imports it pulls in are bundled and evaluated on the server. For components whose dependencies only make sense in the browser — Three.js, charting libraries, code editors, anything that touches `window` or `document` at module scope — that means shipping (and parsing) hundreds of KiB of code into your edge worker just to render an empty wrapper.
+
+The `"use client; no-ssr"` directive avoids this. It tells the runtime to compile the module differently for each environment:
+
+- **Server build**: the module is replaced with a null-rendering stub. None of the original code or its imports appear in the SSR bundle.
+- **Client build**: the module is wrapped in `ClientOnly` automatically. The real component imports its dependencies as normal, but only renders after hydration — matching the server's null output and avoiding hydration mismatch.
+
+```jsx filename="src/components/Scene.jsx"
+"use client; no-ssr";
+
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
+
+export default function Scene() {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const renderer = new THREE.WebGLRenderer();
+    ref.current.appendChild(renderer.domElement);
+    // ...
+    return () => renderer.dispose();
+  }, []);
+
+  return <div ref={ref} />;
+}
+```
+
+Used from a server component, the import looks identical to any other client component:
+
+```jsx
+import Scene from "./components/Scene.jsx";
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Welcome</h1>
+      <Scene />
+    </main>
+  );
+}
+```
+
+The server renders `<main><h1>Welcome</h1></main>` — no `<Scene />` markup, no Three.js evaluation, no Three.js code in the SSR bundle. After the page hydrates, the browser loads the `Scene` chunk, runs the effect, and mounts the canvas in place.
+
+Reach for `"use client; no-ssr"` when:
+
+- The component depends on browser-only globals (`window`, `document`, `navigator`, WebGL/Canvas contexts) at module scope.
+- The dependency graph is large and only meaningful in the browser (3D scenes, rich-text editors, video players, charting libraries with DOM measurement).
+- You want the module to be a separate client chunk that loads only on pages where the component appears.
+
+For interactive components that have no browser-only dependencies, plain `"use client"` is the right default — it gives you SSR markup for free, which is what users see before hydration completes.
+
+> **Note:** Like `ClientOnly`, a `"use client; no-ssr"` component renders nothing until after hydration. Reserve it for components where the alternative (no SSR markup) is acceptable, and consider rendering a placeholder around it for layout stability.

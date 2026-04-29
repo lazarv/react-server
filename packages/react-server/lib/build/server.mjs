@@ -36,6 +36,7 @@ import { serverReferenceMapVirtual } from "../plugins/server-reference-map.mjs";
 import { clientReferenceMapVirtual } from "../plugins/client-reference-map.mjs";
 import * as sys from "../sys.mjs";
 import { parse as parseAst } from "../utils/ast.mjs";
+import { parseClientDirective } from "../utils/directives.mjs";
 import { makeResolveAlias } from "../utils/config.mjs";
 import merge from "../utils/merge.mjs";
 import {
@@ -337,8 +338,13 @@ export default async function serverBuild(root, options, clientManifestBus) {
   let isGlobalErrorClientComponent = false;
   try {
     const code = await readFile(globalError, "utf8");
+    // Substring check is intentionally loose: it matches both the bare
+    // `"use client"` directive and any modifier form (`"use client;
+    // no-ssr"`, `"use client; deferred"`, …) by leaving the closing
+    // quote off. Refining further would require a full parse just to
+    // set a single boolean — not worth it for the global error file.
     isGlobalErrorClientComponent =
-      code.includes(`"use client"`) || code.includes(`'use client'`);
+      code.includes('"use client') || code.includes("'use client");
   } catch {
     // ignore
   }
@@ -373,13 +379,14 @@ export default async function serverBuild(root, options, clientManifestBus) {
   if (rootModulePath && !rootModulePath.startsWith("virtual:")) {
     try {
       const code = await readFile(rootModulePath, "utf8");
-      if (code.includes(`"use client"`) || code.includes(`'use client'`)) {
+      if (code.includes('"use client') || code.includes("'use client")) {
         const ast = await parseAst(code, rootModulePath);
         if (ast) {
           const directives = ast.body
             .filter((node) => node.type === "ExpressionStatement")
             .map(({ directive }) => directive);
-          isClientRootBuild = directives.includes("use client");
+          isClientRootBuild =
+            parseClientDirective(directives)?.isClient ?? false;
         }
       }
     } catch {

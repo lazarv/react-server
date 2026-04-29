@@ -228,7 +228,20 @@ export function createServer({
       startStream = resolve;
     });
     const onClose = [];
+    // Streams returned to a `Response` body MUST yield bytes on workerd /
+    // Cloudflare Workers — a default-mode stream that enqueues strings raises
+    // `TypeError: This ReadableStream did not return bytes`. The MCP SDK's
+    // transport hands chunks to `write`/`end` as strings (it targets a Node
+    // ServerResponse), so we encode here to keep both runtimes happy.
+    const encoder = new TextEncoder();
+    const toBytes = (chunk) =>
+      typeof chunk === "string"
+        ? encoder.encode(chunk)
+        : chunk instanceof Uint8Array
+          ? chunk
+          : encoder.encode(String(chunk));
     const stream = new ReadableStream({
+      type: "bytes",
       async start(controller) {
         await transport.handleRequest(
           {
@@ -248,7 +261,7 @@ export function createServer({
             },
             end(chunk) {
               if (chunk) {
-                controller.enqueue(chunk);
+                controller.enqueue(toBytes(chunk));
                 controller.close();
                 onClose.forEach((callback) => callback());
               }
@@ -261,7 +274,7 @@ export function createServer({
             },
             write(chunk) {
               if (chunk) {
-                controller.enqueue(chunk);
+                controller.enqueue(toBytes(chunk));
               }
             },
             flushHeaders() {

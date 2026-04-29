@@ -335,8 +335,16 @@ export default async function clientBuild(
           format: "esm",
           minifyInternalExports:
             config.resolve?.shared?.length > 0 ? false : undefined,
-          entryFileNames: "client/[name].[hash].mjs",
-          chunkFileNames: "client/[name].[hash].mjs",
+          // Cloudflare Workers Static Assets returns 404 for paths whose
+          // segments start with `@` (interpreted as a URL userinfo separator),
+          // so virtual ids like `/@module-loader` would emit broken filenames.
+          // Strip leading `@` from chunk names to keep them servable on every
+          // host. Inner `@` (e.g. npm scopes) is fine — only the segment-start
+          // matters.
+          entryFileNames: ({ name }) =>
+            `client/${name.replace(/^@/, "")}.[hash].mjs`,
+          chunkFileNames: ({ name }) =>
+            `client/${name.replace(/^@/, "")}.[hash].mjs`,
           codeSplitting: {
             groups: [
               {

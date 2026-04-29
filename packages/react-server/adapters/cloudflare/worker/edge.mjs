@@ -24,7 +24,13 @@ export default {
     if (env.ASSETS && !deferToWorker) {
       try {
         const assetResponse = await env.ASSETS.fetch(request);
-        if (assetResponse.ok) {
+        // Fall through to SSR only when the asset genuinely doesn't exist.
+        // `Response.ok` is `false` for 304 Not Modified (and redirects),
+        // so the obvious `if (assetResponse.ok)` check would forward every
+        // cached asset request to SSR on the second page load — which then
+        // returns the 404 page with a text/html body, breaking every CSS,
+        // image, and JS module the moment the browser starts revalidating.
+        if (assetResponse.status !== 404) {
           return assetResponse;
         }
       } catch {

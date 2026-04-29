@@ -1,5 +1,6 @@
 "use server";
 
+import { useHttpContext } from "@lazarv/react-server";
 import {
   createPrompt,
   createResource,
@@ -34,15 +35,21 @@ const pageIndex = (() => {
 
 async function readDocsMarkdown(slug) {
   // The docs site exports a `.md` form for every page at build time
-  // (see `react-server.config.mjs`). Fetch it back at runtime; this works
-  // identically on Node, Bun, Deno, and Cloudflare Workers without
-  // requiring filesystem access from the worker bundle.
+  // (see `react-server.config.mjs`). On Cloudflare we read it directly via
+  // the `ASSETS` binding — sub-fetching the public hostname would resolve to
+  // the *deployed* worker via DNS, returning the wrong build during dev.
+  // On Node-based adapters we sub-fetch the same origin so the in-process
+  // static handler answers.
   const cleaned = slug.replace(/^\/+|\/+$/g, "");
   if (!cleaned) return null;
-  const url = `${SITE}/${cleaned}.md`;
-  const res = await fetch(url, {
-    headers: { Accept: "text/markdown" },
-  });
+  const platformEnv = useHttpContext().platform?.env;
+  const res = platformEnv?.ASSETS
+    ? await platformEnv.ASSETS.fetch(
+        new URL(`/${cleaned}.md`, "http://assets.local")
+      )
+    : await fetch(`${SITE}/${cleaned}.md`, {
+        headers: { Accept: "text/markdown" },
+      });
   if (!res.ok) return null;
   return await res.text();
 }

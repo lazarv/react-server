@@ -87,6 +87,15 @@ export const adapter = createAdapter({
       assets: {
         directory: ".cloudflare/static",
         binding: "ASSETS",
+        // Make the worker the first thing every request hits. The worker
+        // then calls `env.ASSETS.fetch()` itself, which lets it skip the
+        // assets binding for HTML routes whose client clearly prefers a
+        // non-HTML media type (e.g. agents asking for `Accept: text/markdown`)
+        // so content-negotiation middleware can serve the matching variant.
+        // Without this, Cloudflare's default "assets-first" mode would
+        // short-circuit pre-rendered HTML before the worker ever runs.
+        run_worker_first: true,
+        ...adapterOptions?.assets,
       },
       ...(options.sourcemap ? { upload_source_maps: true } : {}),
       ...(typeof adapterOptions?.wrangler === "object"

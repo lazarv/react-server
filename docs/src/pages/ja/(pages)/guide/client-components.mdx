@@ -255,3 +255,63 @@ export default function MyServerComponent() {
   );
 }
 ```
+
+`ClientOnly`は*レンダリング*ガードです — 子コンポーネントがいつレンダリングされるかは制御しますが、何がバンドルされるかは制御しません。ラップされたコンポーネントとそのインポートは依然としてSSRバンドルに含まれ、サーバーレンダリング中に実行されます。ブラウザ専用の重い依存関係（WebGL、Canvas、IntersectionObserverベースのライブラリ、モジュールスコープで`window`に触れるものすべて）を読み込むコンポーネントには、以下の[`"use client; no-ssr"`](#no-ssr-client-components)ディレクティブを使用してください — 実装そのものをSSRバンドルから完全に取り除きます。
+
+<Link name="no-ssr-client-components">
+## SSRなしのクライアントコンポーネント
+</Link>
+
+`"use client"`コンポーネントは、SSR中に依然としてサーバーでレンダリングされます — クライアントに延期されるのはそのインタラクティブ性だけです。そのモジュールグラフはSSRバンドルの一部であり、取り込まれるすべてのインポートはサーバーでバンドルされ評価されます。依存関係がブラウザでしか意味を持たないコンポーネント — Three.js、チャートライブラリ、コードエディタ、モジュールスコープで`window`や`document`に触れるもの — の場合、これは空のラッパーをレンダリングするためだけに数百KiBのコードをエッジワーカーに配信し（そして解析する）ことを意味します。
+
+`"use client; no-ssr"`ディレクティブはこれを回避します。ランタイムに対して、モジュールを環境ごとに異なる方法でコンパイルするよう指示します：
+
+- **サーバービルド**: モジュールはnullを返すスタブに置き換えられます。元のコードもそのインポートも、SSRバンドルには現れません。
+- **クライアントビルド**: モジュールは`ClientOnly`で自動的にラップされます。実コンポーネントは通常通り依存関係をインポートしますが、ハイドレーション後にのみレンダリングされます — サーバーのnull出力と一致し、ハイドレーション不一致を回避します。
+
+```jsx filename="src/components/Scene.jsx"
+"use client; no-ssr";
+
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
+
+export default function Scene() {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const renderer = new THREE.WebGLRenderer();
+    ref.current.appendChild(renderer.domElement);
+    // ...
+    return () => renderer.dispose();
+  }, []);
+
+  return <div ref={ref} />;
+}
+```
+
+サーバーコンポーネントから使用すると、インポートは他のクライアントコンポーネントとまったく同じに見えます：
+
+```jsx
+import Scene from "./components/Scene.jsx";
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Welcome</h1>
+      <Scene />
+    </main>
+  );
+}
+```
+
+サーバーは`<main><h1>Welcome</h1></main>`をレンダリングします — `<Scene />`のマークアップも、Three.jsの評価も、SSRバンドル内のThree.jsのコードもありません。ページがハイドレーションされた後、ブラウザは`Scene`チャンクを読み込み、エフェクトを実行し、その場所にcanvasをマウントします。
+
+次の場合に`"use client; no-ssr"`を使用してください：
+
+- コンポーネントがモジュールスコープでブラウザ専用のグローバル（`window`、`document`、`navigator`、WebGL/Canvasコンテキスト）に依存する。
+- 依存関係グラフが大きく、ブラウザでのみ意味を持つ（3Dシーン、リッチテキストエディタ、動画プレイヤー、DOM計測を伴うチャートライブラリ）。
+- そのモジュールを、コンポーネントが現れるページでのみ読み込まれる別のクライアントチャンクにしたい。
+
+ブラウザ専用の依存関係を持たないインタラクティブなコンポーネントには、通常の`"use client"`が適切なデフォルトです — ハイドレーションが完了するまでにユーザーが目にするSSRマークアップを無料で得られます。
+
+> **注意:** `ClientOnly`と同様に、`"use client; no-ssr"`コンポーネントはハイドレーション後までは何もレンダリングしません。代替（SSRマークアップなし）が許容できるコンポーネントに留めて、レイアウトの安定性のために周囲にプレースホルダをレンダリングすることを検討してください。

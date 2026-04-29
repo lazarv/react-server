@@ -486,12 +486,22 @@ export default function useDirectiveInline(configs) {
         if (outermost.length === 0) return null;
 
         // Filter out functions whose directive is configured to be skipped
-        // when the module itself has a certain directive
+        // when the module itself has a certain directive. The
+        // `skipIfModuleDirective` field accepts either an array of
+        // strings (strict equality match against `moduleDirectives`) or
+        // a predicate function — the function form is what permissive
+        // directive grammars (e.g. `"use client; no-ssr"`) need so they
+        // can normalise on the way in instead of enumerating every
+        // whitespace variant.
         const toProcess = outermost.filter(({ directive }) => {
           const cfg = configByDirective.get(directive);
           if (cfg.skipIfModuleDirective) {
-            for (const skip of cfg.skipIfModuleDirective) {
-              if (moduleDirectives.includes(skip)) return false;
+            if (typeof cfg.skipIfModuleDirective === "function") {
+              if (cfg.skipIfModuleDirective(moduleDirectives)) return false;
+            } else {
+              for (const skip of cfg.skipIfModuleDirective) {
+                if (moduleDirectives.includes(skip)) return false;
+              }
             }
           }
           return true;

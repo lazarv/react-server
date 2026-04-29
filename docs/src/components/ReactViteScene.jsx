@@ -1,11 +1,19 @@
-"use client";
+"use client; no-ssr";
 
 import { useRef, useEffect } from "react";
+
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+
+// `"use client; no-ssr"` keeps three.js out of the SSR/edge bundle: the
+// SSR build replaces this module with a null-stub (no imports) and the
+// client build wraps the export in <ClientOnly>, so the heavy WebGL
+// shaders and post-processing helpers only ever ship — and only ever
+// execute — in the browser. Static imports here are deliberate; the
+// directive handles the "don't bundle on the server" half.
 
 function isDarkMode() {
   return document.documentElement.classList.contains("dark");

@@ -1,8 +1,9 @@
-import { realpath } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { extname, relative } from "node:path";
 
 import * as sys from "../sys.mjs";
 import { codegen, parse, walk } from "../utils/ast.mjs";
+import { parseClientDirective } from "../utils/directives.mjs";
 
 const cwd = sys.cwd();
 const isClientComponent = new Map();
@@ -53,8 +54,21 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
       if (source === "client-components-bus") {
         return source;
       }
+      if (source.startsWith("virtual:no-ssr-original:")) {
+        return source;
+      }
     },
-    load(id) {
+    async load(id) {
+      if (id.startsWith("virtual:no-ssr-original:")) {
+        // Loaded only by the client build, when wrapping a
+        // `"use client; no-ssr"` module. Returns the original source
+        // verbatim — the directive is preserved so any directive-aware
+        // plugin downstream still recognises the module as a client
+        // component. The transform handler skips this id explicitly to
+        // avoid re-entering the wrapper transform for the same source.
+        const realPath = id.slice("virtual:no-ssr-original:".length);
+        return await readFile(realPath, "utf-8");
+      }
       if (id === "client-components-bus") {
         return new Promise((resolve) => {
           try {
@@ -103,13 +117,14 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
           .filter((node) => node.type === "ExpressionStatement")
           .map(({ directive }) => directive);
 
-        const type = directives.includes("use client");
+        const isClientDirective =
+          parseClientDirective(directives)?.isClient ?? false;
+        const type = isClientDirective;
         const prevType = isClientComponent.get(file);
         isClientComponent.set(file, type);
 
         if (
-          (this.environment.name === "rsc" &&
-            !directives.includes("use client")) ||
+          (this.environment.name === "rsc" && !isClientDirective) ||
           prevType !== type
         ) {
           this.environment.hot.send({
@@ -141,8 +156,29 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
         const viteEnv = this.environment.name;
         const mode = this.environment.mode;
 
+        // The wrapper emitted by this plugin imports the original source
+        // through `virtual:no-ssr-original:<path>`. When the loader hands
+        // that source back to the transform pipeline we must NOT re-enter
+        // the wrapper logic, otherwise the bundler graph would loop on
+        // itself. Skip the virtual id and let downstream plugins handle
+        // the original module like any other `"use client"` file.
+        if (id.startsWith("virtual:no-ssr-original:")) return null;
+
+        // Cheap source-string probe: only the client build needs to enter
+        // this transform when a `"use client; no-ssr"` module is involved
+        // (so it can emit a wrapper that imports the original through the
+        // `virtual:no-ssr-original:` channel). The check is loose on
+        // purpose — directive whitespace is permissive ("use client;
+        // no-ssr", "use client;   no-ssr", …) — and false positives are
+        // caught by the parsed-directive guard below.
+        const maybeNoSSR =
+          type === "client" &&
+          mode === "build" &&
+          enforce === "pre" &&
+          code.includes("no-ssr");
+
         if (
-          type === "client" ||
+          (type === "client" && !maybeNoSSR) ||
           (mode !== "build" && (viteEnv === "client" || viteEnv === "ssr"))
         ) {
           return null;
@@ -160,7 +196,15 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
             .filter((node) => node.type === "ExpressionStatement")
             .map(({ directive }) => directive);
 
-          if (!directives.includes("use client")) return null;
+          const parsedClient = parseClientDirective(directives);
+          const isClientDirective = parsedClient?.isClient ?? false;
+          const isNoSSR = parsedClient?.isNoSSR ?? false;
+
+          if (!isClientDirective) return null;
+          // Safety net for the loose `code.includes("no-ssr")` fast-path:
+          // a non-no-ssr client module that slipped through must not run
+          // the registerClientReference path in the client build.
+          if (type === "client" && !isNoSSR) return null;
           if (directives.includes("use server"))
             throw new Error(
               "Cannot use both 'use client' and 'use server' in the same module."
@@ -276,6 +320,85 @@ export default function useClient(type, manifest, enforce, clientComponentBus) {
                 name,
                 exports: Array.from(exportNames),
               });
+            }
+          }
+
+          // `"use client; no-ssr"` short-circuits the normal client/SSR
+          // flow. The SSR build emits a null stub (no imports of the
+          // implementation, so heavy deps stay out of the worker bundle)
+          // while the client build emits a wrapper that pulls the real
+          // module in through a virtual id and renders it inside
+          // <ClientOnly>, preventing hydration mismatch against the
+          // null-rendering SSR stub.
+          if (isNoSSR && mode === "build" && enforce === "pre") {
+            // Detect default + named exports for stub/wrapper generation.
+            // Mirrors the manifest-population walk above, kept local so the
+            // standard `"use client"` path is untouched.
+            const hasDefault = ast.body.some(
+              (node) =>
+                node.type === "ExportDefaultDeclaration" ||
+                (node.type === "ExportNamedDeclaration" &&
+                  node.specifiers?.find(
+                    ({ exported }) => exported?.name === "default"
+                  ))
+            );
+            const namedExportNames = new Set();
+            for (const node of ast.body) {
+              if (node.type === "ExportNamedDeclaration") {
+                const names = [
+                  ...(node.declaration?.id?.name
+                    ? [node.declaration.id.name]
+                    : []),
+                  ...(node.declaration?.declarations?.map(
+                    ({ id }) => id.name
+                  ) || []),
+                  ...node.specifiers.map(({ exported }) => exported.name),
+                ];
+                names.forEach((n) => {
+                  if (n !== "default") namedExportNames.add(n);
+                });
+              }
+            }
+
+            if (type === "ssr") {
+              const stubLines = [];
+              if (hasDefault) {
+                stubLines.push("export default function () { return null; }");
+              }
+              for (const n of namedExportNames) {
+                stubLines.push(`export function ${n}() { return null; }`);
+              }
+              const stubCode = stubLines.join("\n") + "\n";
+              buildCache?.set(processKey, { originalId: id, code: stubCode });
+              isClientComponent.set(id, true);
+              return stubCode;
+            }
+
+            if (type === "client") {
+              const realIdNoQuery = realId.split("?")[0];
+              const wrapperLines = [
+                '"use client";',
+                `import * as __rs_orig__ from "virtual:no-ssr-original:${realIdNoQuery}";`,
+                'import { ClientOnly as __rs_ClientOnly__ } from "@lazarv/react-server/client";',
+                'import { createElement as __rs_createElement__ } from "react";',
+              ];
+              if (hasDefault) {
+                wrapperLines.push(
+                  "export default function (props) { return __rs_createElement__(__rs_ClientOnly__, null, __rs_createElement__(__rs_orig__.default, props)); }"
+                );
+              }
+              for (const n of namedExportNames) {
+                wrapperLines.push(
+                  `export function ${n}(props) { return __rs_createElement__(__rs_ClientOnly__, null, __rs_createElement__(__rs_orig__.${n}, props)); }`
+                );
+              }
+              const wrapperCode = wrapperLines.join("\n") + "\n";
+              buildCache?.set(processKey, {
+                originalId: id,
+                code: wrapperCode,
+              });
+              isClientComponent.set(id, true);
+              return wrapperCode;
             }
           }
 

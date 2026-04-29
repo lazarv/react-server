@@ -6,6 +6,7 @@ import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parse as parseAST } from "../../utils/ast.mjs";
+import { parseClientDirective } from "../../utils/directives.mjs";
 import { loadConfig } from "@lazarv/react-server/config";
 import { forChild, forRoot } from "@lazarv/react-server/config/context.mjs";
 import * as sys from "@lazarv/react-server/lib/sys.mjs";
@@ -168,7 +169,7 @@ async function isClientPageSource(src) {
     const directives = ast.body
       .filter((node) => node.type === "ExpressionStatement")
       .map(({ directive }) => directive);
-    if (!directives.includes("use client")) {
+    if (!parseClientDirective(directives)?.isClient) {
       clientPageCache.set(src, false);
       return false;
     }
@@ -276,7 +277,7 @@ async function isClientSource(src) {
   const directives = ast.body
     .filter((node) => node.type === "ExpressionStatement")
     .map(({ directive }) => directive);
-  return directives.includes("use client");
+  return parseClientDirective(directives)?.isClient ?? false;
 }
 
 /**

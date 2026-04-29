@@ -1,3 +1,5 @@
+import { parseClientDirective } from "../utils/directives.mjs";
+
 // Inject captured scope variables as destructured props for client components.
 function injectCapturedParams(fnSource, targetFn, capturedVars) {
   const capturedList = capturedVars.join(", ");
@@ -45,7 +47,8 @@ function injectCapturedParams(fnSource, targetFn, capturedVars) {
 export const useClientInlineConfig = {
   directive: "use client",
   queryKey: "use-client-inline",
-  skipIfModuleDirective: ["use client"],
+  skipIfModuleDirective: (moduleDirectives) =>
+    parseClientDirective(moduleDirectives)?.isClient ?? false,
   injectCapturedParams,
   buildCallSiteReplacement(importName, inlineId, capturedVars) {
     if (capturedVars.length === 0) return null; // use default (inline import)

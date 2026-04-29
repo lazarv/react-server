@@ -36,7 +36,7 @@ const apiCatalog = {
       ],
       describedby: [
         {
-          href: `${SITE}/.well-known/mcp/server-card.json`,
+          href: `${SITE}/.well-known/mcp-server-card`,
           type: "application/json",
         },
       ],
@@ -69,27 +69,58 @@ const agentSkillsIndex = {
   ],
 };
 
+// MCP Server Card per SEP-1649 / PR #2127.
+// https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2127
+//
+// `name` MUST be reverse-DNS with exactly one `/` separating namespace and
+// server. `remotes[]` is the spec field for HTTP transports. We additionally
+// emit the legacy `serverInfo` / `transport` / `capabilities` keys that
+// pre-SEP scanners (e.g. isitagentready.com) still look for, so the card
+// validates against both readers without forcing either to upgrade.
 const mcpServerCard = {
   $schema:
-    "https://modelcontextprotocol.io/schemas/draft/2025-09-29/server-card.json",
-  name: "react-server-docs",
-  title: "@lazarv/react-server Documentation",
-  description:
-    "Search and read the @lazarv/react-server documentation as Model Context Protocol resources and tools. Provides a search_docs tool and exposes every documentation page as a markdown resource.",
+    "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+  name: "dev.react-server/docs",
   version,
-  homepage: SITE,
-  documentation: `${SITE}/features/mcp`,
-  endpoints: {
-    streamable_http: `${SITE}/mcp`,
+  description:
+    "Search and read the @lazarv/react-server documentation as Model Context Protocol resources and tools. Provides search_docs and read_doc tools, exposes every documentation page as a markdown resource, and offers an explain-topic prompt.",
+  title: "@lazarv/react-server Documentation",
+  websiteUrl: SITE,
+  repository: {
+    url: "https://github.com/lazarv/react-server",
+    source: "github",
+  },
+  remotes: [
+    {
+      type: "streamable-http",
+      url: `${SITE}/mcp`,
+      supportedProtocolVersions: ["2025-06-18", "2025-03-12", "2024-11-05"],
+    },
+  ],
+  // Legacy fields — kept for compatibility with pre-SEP readers that look for
+  // `serverInfo.name`/`transport.type`/`capabilities` rather than the SEP-1649
+  // shape above.
+  serverInfo: {
+    name: "react-server-docs",
+    version,
+  },
+  transport: {
+    type: "streamable-http",
+    url: `${SITE}/mcp`,
   },
   capabilities: {
     tools: { listChanged: false },
     resources: { listChanged: false, subscribe: false },
     prompts: { listChanged: false },
   },
-  contact: {
-    repository: "https://github.com/lazarv/react-server",
-  },
+  documentation: `${SITE}/features/mcp`,
+};
+
+// Discovery endpoints MUST be CORS-readable (RFC 8615 / SEP-1649 §CORS).
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET",
+  "Access-Control-Allow-Headers": "Content-Type",
 };
 
 const wellKnown = {
@@ -104,8 +135,13 @@ const wellKnown = {
       headers: {
         "Content-Type": "text/markdown; charset=utf-8",
         "Cache-Control": "public, max-age=3600",
+        ...CORS_HEADERS,
       },
     }),
+  // SEP-1649 canonical path.
+  "/.well-known/mcp-server-card": () => json(mcpServerCard),
+  // Legacy path that some early scanners (incl. isitagentready.com) still
+  // probe — alias to keep both readers happy until the spec is final.
   "/.well-known/mcp/server-card.json": () => json(mcpServerCard),
 };
 
@@ -114,6 +150,7 @@ function json(body, contentType = "application/json; charset=utf-8") {
     headers: {
       "Content-Type": contentType,
       "Cache-Control": "public, max-age=3600",
+      ...CORS_HEADERS,
     },
   });
 }
@@ -128,6 +165,7 @@ function json(body, contentType = "application/json; charset=utf-8") {
 
 const linkHeader = [
   '</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"',
+  '</.well-known/mcp-server-card>; rel="service-meta"; type="application/json"',
   '</mcp>; rel="service-meta"; type="application/json"',
   '</llms.txt>; rel="describedby"; type="text/plain"',
   '</sitemap.xml>; rel="sitemap"; type="application/xml"',

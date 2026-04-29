@@ -1,3 +1,42 @@
 [[routes]]
 pattern = "react-server.dev"
 custom_domain = true
+
+# The docs site needs the worker to run before assets on HTML routes so the
+# content-negotiation middleware can serve the pre-rendered `.md` sibling
+# when an agent sends `Accept: text/markdown`. Without this, Cloudflare's
+# default assets-first router would short-circuit pre-rendered HTML before
+# the middleware ever runs.
+#
+# Pattern form (vs the simpler `true`) excludes paths the worker has nothing
+# to do for: bundled assets, client modules, and any path with a static-file
+# extension. Those bypass the worker entirely and Cloudflare's `_headers`
+# rules still apply directly. URLs without an extension (`/`,
+# `/router/file-router`, `/.well-known/*`, `/mcp`, …) fall through to the
+# worker so content negotiation, the agent-discovery middleware, and SSR
+# routes keep working.
+[assets]
+run_worker_first = [
+  "/*",
+  "!/assets/*",
+  "!/client/*",
+  "!/*.svg",
+  "!/*.png",
+  "!/*.jpg",
+  "!/*.jpeg",
+  "!/*.gif",
+  "!/*.webp",
+  "!/*.ico",
+  "!/*.css",
+  "!/*.js",
+  "!/*.mjs",
+  "!/*.json",
+  "!/*.xml",
+  "!/*.txt",
+  "!/*.woff",
+  "!/*.woff2",
+  "!/*.ttf",
+  "!/*.eot",
+  "!/*.html",
+  "!/*.md",
+]

@@ -31,6 +31,10 @@ export default {
         // returns the 404 page with a text/html body, breaking every CSS,
         // image, and JS module the moment the browser starts revalidating.
         if (assetResponse.status !== 404) {
+          // Note: response headers set by Cloudflare's `_headers` file are
+          // preserved here — this is a worker-proxied response, not a
+          // worker-generated one (the Cloudflare docs warning about
+          // `_headers` being bypassed only applies to the latter).
           return assetResponse;
         }
       } catch {

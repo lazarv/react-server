@@ -1,0 +1,13 @@
+# RFC 8288 discovery Link header for agent readiness (isitagentready.com,
+# SEP-1649 scanners, etc.). Cloudflare applies these to the pre-rendered
+# HTML pages served by the static-assets binding. Worker-generated responses
+# (the SSR / `Accept: text/markdown` branch) get the same Link header from
+# `(agent-discovery).middleware.mjs`.
+
+/*
+  Link: </.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"
+  Link: </.well-known/mcp-server-card>; rel="service-meta"; type="application/json"
+  Link: </mcp>; rel="service-meta"; type="application/json"
+  Link: </llms.txt>; rel="describedby"; type="text/plain"
+  Link: </sitemap.xml>; rel="sitemap"; type="application/xml"
+  Link: </.well-known/agent-skills/index.json>; rel="https://agent-skills.dev/rel/index"; type="application/json"

@@ -118,6 +118,10 @@ export async function clearDirectory(dir) {
 export async function getFiles(pattern, srcDir = cwd) {
   return glob(pattern, {
     onlyFiles: true,
+    // Include dot-prefixed entries (e.g. `.well-known/...`). Without this,
+    // `fast-glob` silently excludes any path under a dot-directory from the
+    // adapter copy step — even when the prerender wrote a real file there.
+    dot: true,
     cwd: srcDir,
   });
 }

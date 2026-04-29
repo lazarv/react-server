@@ -1424,6 +1424,10 @@ ${namespaces}
           {
             cwd: join(cwd, root),
             absolute: true,
+            // Walk into dot-prefixed directories (e.g. `.well-known/`) so
+            // route files under public-by-convention paths are picked up.
+            // fast-glob defaults to `dot: false`.
+            dot: true,
           }
         );
 
@@ -1501,6 +1505,10 @@ ${namespaces}
             {
               cwd: join(cwd, root),
               absolute: true,
+              // Match the dev `watch()` below and the build glob above:
+              // pick up route files under dot-prefixed directories like
+              // `.well-known/`. fast-glob defaults to `dot: false`.
+              dot: true,
             }
           )
         );

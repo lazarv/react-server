@@ -8,13 +8,25 @@ custom_domain = true
 # default assets-first router would short-circuit pre-rendered HTML before
 # the middleware ever runs.
 #
-# Pattern form (vs the simpler `true`) excludes paths the worker has nothing
-# to do for: bundled assets, client modules, and any path with a static-file
-# extension. Those bypass the worker entirely and Cloudflare's `_headers`
-# rules still apply directly. URLs without an extension (`/`,
-# `/router/file-router`, `/.well-known/*`, `/mcp`, …) fall through to the
-# worker so content negotiation, the agent-discovery middleware, and SSR
-# routes keep working.
+# Pattern form (vs the simpler `true`) bypasses the worker for paths that
+# are unambiguously served by ASSETS: bundled binary/font assets, the
+# prerendered `*.md` siblings of every page (worker has no route for
+# them), and `*.txt` files like `robots.txt` / `llms.txt`. We deliberately
+# do NOT exclude `.json`, `.html`, or `.xml`: the agent-discovery
+# middleware serves dynamic `.json` endpoints under `/.well-known/` whose
+# paths are never on disk, and the content-negotiation middleware needs
+# the worker to run for HTML requests with `Accept: text/markdown`. For
+# the real static `.json` assets (e.g. `/schema.json`) and `.xml`
+# (`/sitemap.xml`), the worker's edge handler proxies the request to
+# `env.ASSETS.fetch()` and only falls through to SSR on a genuine 404, so
+# worker-first costs one cheap proxy hop and Cloudflare's `_headers` rules
+# still apply (worker-proxied, not worker-generated).
+#
+# Any dynamic endpoint that *must* be served at an excluded extension
+# (e.g. `.well-known/agent-skills/react-server/SKILL.md`) has to be
+# materialized into the static-assets directory at build time so the
+# ASSETS-only path can serve it. The agent-discovery middleware is then
+# only the dev-mode fallback.
 [assets]
 run_worker_first = [
   "/*",
@@ -30,13 +42,10 @@ run_worker_first = [
   "!/*.css",
   "!/*.js",
   "!/*.mjs",
-  "!/*.json",
-  "!/*.xml",
-  "!/*.txt",
   "!/*.woff",
   "!/*.woff2",
   "!/*.ttf",
   "!/*.eot",
-  "!/*.html",
+  "!/*.txt",
   "!/*.md",
 ]

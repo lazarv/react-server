@@ -40,6 +40,21 @@ export default async function ContentNegotiation() {
     return;
   }
 
+  // Skip machine-only endpoints — they have their own response shape.
+  // This MUST run before the `.md` rewrite below: `/.well-known/` paths can
+  // legitimately end in `.md` (e.g. the agent-skills SKILL.md endpoint), and
+  // those are served by the agent-discovery middleware / prerender pipeline,
+  // not the page-markdown handler.
+  if (
+    pathname === "/sitemap.xml" ||
+    pathname === "/schema.json" ||
+    pathname === "/mcp" ||
+    pathname.startsWith("/mcp/") ||
+    pathname.startsWith("/.well-known/")
+  ) {
+    return;
+  }
+
   // Explicit `.md` URLs route through the dynamic `/md/[...slug]` handler.
   // Build-time pre-rendering relies on this rewrite to capture each page's
   // markdown into a static asset; without it the export step writes empty
@@ -50,17 +65,6 @@ export default async function ContentNegotiation() {
   if (pathname.endsWith(".md")) {
     const mdPath = pathname.replace(/\.md$/, "");
     rewrite(`/md${mdPath}`);
-    return;
-  }
-
-  // Skip machine-only endpoints — they have their own response shape.
-  if (
-    pathname === "/sitemap.xml" ||
-    pathname === "/schema.json" ||
-    pathname === "/mcp" ||
-    pathname.startsWith("/mcp/") ||
-    pathname.startsWith("/.well-known/")
-  ) {
     return;
   }
 

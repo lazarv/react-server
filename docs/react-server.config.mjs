@@ -54,6 +54,19 @@ export default {
           accept: "application/json",
         },
       },
+      // Prerender the agent-skills SKILL.md to a real static asset. The
+      // `(agent-discovery).middleware.mjs` dispatcher serves it dynamically in
+      // dev, but in production the Cloudflare adapter excludes `.md` from
+      // `run_worker_first` so ASSETS-only handles `.md` requests — the file
+      // must exist on disk for SKILL.md to be reachable.
+      {
+        path: "/.well-known/agent-skills/react-server/SKILL.md",
+        filename: ".well-known/agent-skills/react-server/SKILL.md",
+        method: "GET",
+        headers: {
+          accept: "text/markdown",
+        },
+      },
     ];
   },
 };

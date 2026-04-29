@@ -108,6 +108,92 @@ If you encounter this, the library usually still works correctly — the warning
 
 Occasionally, a library might bundle its own copy of React instead of importing it as a peer dependency. This can cause the "multiple React instances" problem — hooks errors (`Invalid hook call`) or context not being shared. However, `@lazarv/react-server` already deduplicates `react` and `react-dom` automatically, so most of these cases are handled for you without any extra configuration.
 
+<Link name="react-compiler">
+## React Compiler
+</Link>
+
+[React Compiler](https://react.dev/learn/react-compiler) is an opt-in Babel plugin that automatically memoizes React components and hooks. It removes most of the manual `useMemo`, `useCallback`, and `React.memo` boilerplate by analyzing your code at build time and emitting `useMemoCache` calls for the values that need to be cached.
+
+Because `@lazarv/react-server` already uses `@vitejs/plugin-react` internally to apply the React Babel transform, enabling React Compiler is a matter of providing your own `@vitejs/plugin-react` instance with `babel-plugin-react-compiler` configured. When the runtime detects a user-supplied `vite:react` plugin in your config, it uses yours in place of the built-in one — so the runtime's React aliasing, JSX transform, and Fast Refresh continue to work exactly as before.
+
+### Install
+
+```sh
+pnpm add -D @vitejs/plugin-react babel-plugin-react-compiler
+```
+
+You do **not** need to install `react` or `react-dom` — see [No React in your package.json](#no-react-in-your-package-json).
+
+### Configure
+
+Add `@vitejs/plugin-react` with `babel-plugin-react-compiler` to your `react-server.config.mjs`:
+
+```js filename="./react-server.config.mjs"
+import react from "@vitejs/plugin-react";
+
+export default {
+  plugins: [
+    react({
+      babel: {
+        plugins: [
+          [
+            "babel-plugin-react-compiler",
+            {
+              target: "19",
+            },
+          ],
+        ],
+      },
+    }),
+  ],
+};
+```
+
+The `target: "19"` option tells React Compiler to emit calls to React 19's built-in `useMemoCache` hook, which the React build that ships with `@lazarv/react-server` supports natively. No `react-compiler-runtime` polyfill is required.
+
+### Verify it is running
+
+After a build (`react-server build`), inspect a compiled client component bundle in `.react-server/client/`. Compiled components contain a call like `c(N)` (the `useMemoCache` cache) and `Symbol.for("react.memo_cache_sentinel")` slot initializers. If you see those, the compiler is active.
+
+### Compilation modes
+
+By default, React Compiler runs in `infer` mode and tries to memoize every component it can prove safe. To opt in selectively instead, set `compilationMode: "annotation"` and add a `"use memo"` directive to the components or hooks you want compiled:
+
+```js filename="./react-server.config.mjs"
+react({
+  babel: {
+    plugins: [
+      [
+        "babel-plugin-react-compiler",
+        {
+          target: "19",
+          compilationMode: "annotation",
+        },
+      ],
+    ],
+  },
+}),
+```
+
+```jsx filename="./Chart.jsx"
+"use client";
+
+function Chart({ data }) {
+  "use memo";
+  // …only this component is compiled.
+}
+```
+
+### Server vs. client components
+
+The Babel transform runs across all three environments (`rsc`, `ssr`, and `client`), so React Compiler may compile both server and client components. Only client components benefit from re-render memoization in the browser; server components are still useful to compile because the same transform runs during SSR. If a particular file should not be compiled, exclude it via the standard `babel-plugin-react-compiler` options (`sources` filter or `"use no memo"` directive).
+
+For server functions (`"use server"`) the compiler is a no-op — they are not React components and the compiler ignores them by structure.
+
+### Example
+
+A complete working setup is available in the [`react-compiler` example](https://github.com/lazarv/react-server/tree/main/examples/react-compiler).
+
 <Link name="typescript-types">
 ## TypeScript types
 </Link>

@@ -108,6 +108,92 @@ export default function Counter() {
 
 まれに、ピア依存関係としてインポートする代わりに、独自のReactコピーをバンドルするライブラリがあります。これは「複数のReactインスタンス」問題を引き起こす可能性があります — フックエラー（`Invalid hook call`）やコンテキストが共有されないなどの症状が現れます。ただし、`@lazarv/react-server`は`react`と`react-dom`の重複排除を自動的に行うため、これらのケースのほとんどは追加の設定なしで処理されます。
 
+<Link name="react-compiler">
+## React Compiler
+</Link>
+
+[React Compiler](https://react.dev/learn/react-compiler)は、Reactコンポーネントとフックを自動的にメモ化するオプトインのBabelプラグインです。コードをビルド時に解析し、キャッシュが必要な値に対して`useMemoCache`呼び出しを生成することで、`useMemo`、`useCallback`、`React.memo`の手動コードのほとんどを不要にします。
+
+`@lazarv/react-server`は内部で`@vitejs/plugin-react`を使用してReactのBabel変換を適用しているため、React Compilerを有効化するには、`babel-plugin-react-compiler`を設定した独自の`@vitejs/plugin-react`インスタンスを提供するだけで済みます。設定内にユーザー指定の`vite:react`プラグインが検出されると、ランタイムは組み込みのものの代わりにあなたのプラグインを使用します — そのため、ランタイムのReactエイリアシング、JSX変換、Fast Refreshはこれまで通り動作します。
+
+### インストール
+
+```sh
+pnpm add -D @vitejs/plugin-react babel-plugin-react-compiler
+```
+
+`react`や`react-dom`をインストールする必要は**ありません** — [package.jsonにReactは不要](#no-react-in-your-package-json)を参照してください。
+
+### 設定
+
+`react-server.config.mjs`に`@vitejs/plugin-react`と`babel-plugin-react-compiler`を追加します:
+
+```js filename="./react-server.config.mjs"
+import react from "@vitejs/plugin-react";
+
+export default {
+  plugins: [
+    react({
+      babel: {
+        plugins: [
+          [
+            "babel-plugin-react-compiler",
+            {
+              target: "19",
+            },
+          ],
+        ],
+      },
+    }),
+  ],
+};
+```
+
+`target: "19"`オプションは、`@lazarv/react-server`に同梱されているReactビルドがネイティブサポートするReact 19の組み込み`useMemoCache`フックへの呼び出しを生成するようReact Compilerに指示します。`react-compiler-runtime`ポリフィルは不要です。
+
+### 動作確認
+
+ビルド（`react-server build`）後、`.react-server/client/`内の生成されたクライアントコンポーネントのバンドルを確認してください。コンパイルされたコンポーネントには`c(N)`（`useMemoCache`キャッシュ）の呼び出しと`Symbol.for("react.memo_cache_sentinel")`によるスロット初期化が含まれます。これらが見つかればコンパイラが動作しています。
+
+### コンパイルモード
+
+デフォルトではReact Compilerは`infer`モードで動作し、安全にメモ化できると判断したすべてのコンポーネントをメモ化しようとします。代わりに選択的にオプトインしたい場合は、`compilationMode: "annotation"`を設定し、コンパイルしたいコンポーネントやフックに`"use memo"`ディレクティブを追加します:
+
+```js filename="./react-server.config.mjs"
+react({
+  babel: {
+    plugins: [
+      [
+        "babel-plugin-react-compiler",
+        {
+          target: "19",
+          compilationMode: "annotation",
+        },
+      ],
+    ],
+  },
+}),
+```
+
+```jsx filename="./Chart.jsx"
+"use client";
+
+function Chart({ data }) {
+  "use memo";
+  // …このコンポーネントだけがコンパイルされます。
+}
+```
+
+### サーバーコンポーネントとクライアントコンポーネント
+
+Babel変換は3つの環境（`rsc`、`ssr`、`client`）すべてで実行されるため、React Compilerはサーバーコンポーネントとクライアントコンポーネントの両方をコンパイルする可能性があります。再レンダリングのメモ化の恩恵を受けるのはブラウザ上のクライアントコンポーネントだけですが、SSR時にも同じ変換が走るためサーバーコンポーネントをコンパイルすることにも意味があります。特定のファイルをコンパイルから除外したい場合は、標準の`babel-plugin-react-compiler`オプション（`sources`フィルターまたは`"use no memo"`ディレクティブ）を使用してください。
+
+サーバー関数（`"use server"`）に対してコンパイラはノーオペレーションです — Reactコンポーネントではないため、コンパイラは構造を見て無視します。
+
+### サンプル
+
+完全に動作する設定は[`react-compiler`サンプル](https://github.com/lazarv/react-server/tree/main/examples/react-compiler)で確認できます。
+
 <Link name="typescript-types">
 ## TypeScript型定義
 </Link>

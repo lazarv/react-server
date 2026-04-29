@@ -1,0 +1,20 @@
+{
+  "name": "@lazarv/react-server-example-react-compiler",
+  "private": true,
+  "description": "@lazarv/react-server React Compiler example application",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx",
+    "start": "react-server start"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.2",
+    "babel-plugin-react-compiler": "^1.0.0"
+  }
+}

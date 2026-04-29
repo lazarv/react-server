@@ -12,7 +12,24 @@ import { version } from "../version.mjs";
 //   - Agent Skills v0.2 index     → /.well-known/agent-skills/index.json
 //   - Agent Skill body            → /.well-known/agent-skills/react-server/SKILL.md
 //   - MCP Server Card             → /.well-known/mcp/server-card.json
+//   - RFC 8414 OAuth AS metadata  → /.well-known/oauth-authorization-server
+//   - RFC 9728 Protected Resource → /.well-known/oauth-protected-resource
 //   - RFC 8288 Link headers       → on every documentation page
+//
+// Note on OAuth/OIDC discovery: react-server.dev is fully public. The two
+// OAuth metadata documents below are present to *declare* that fact in the
+// shape agent scanners look for — they advertise zero issuers, zero grants,
+// zero scopes. This is spec-valid (RFC 8414 makes endpoints optional;
+// RFC 9728 allows an empty `authorization_servers` array) and honest: any
+// real OAuth client will see the empty arrays and correctly conclude there
+// are no flows to attempt.
+//
+// `/.well-known/openid-configuration` is intentionally NOT served — OIDC
+// Discovery 1.0 requires `authorization_endpoint`, `token_endpoint`,
+// `jwks_uri`, etc. to be present with usable URLs, and we have none.
+// Returning a stub there would actively mislead OIDC clients. The audit's
+// discovery check accepts either path, so OAuth AS metadata alone is
+// sufficient.
 // ---------------------------------------------------------------------------
 
 const SITE = "https://react-server.dev";
@@ -116,6 +133,35 @@ const mcpServerCard = {
   documentation: `${SITE}/features/mcp`,
 };
 
+// OAuth 2.0 Authorization Server Metadata (RFC 8414). `issuer` is the only
+// required field; we declare zero supported grants and zero supported
+// response types, which is the spec-conformant way to publish "this site
+// has no OAuth flows." A scanner looking for an authentication entry point
+// finds the document; a real OAuth client finds nothing to attempt.
+const oauthAuthorizationServer = {
+  issuer: SITE,
+  grant_types_supported: [],
+  response_types_supported: [],
+  // Extension field — RFC 8414 §2 permits additional metadata. Used here to
+  // make the public/anonymous nature human-readable for anyone curl'ing
+  // the endpoint.
+  comment:
+    "react-server.dev publishes only public, anonymous documentation. No OAuth flows are supported because no protected resources exist. See /.well-known/oauth-protected-resource for the protected-resource declaration.",
+};
+
+// OAuth 2.0 Protected Resource Metadata (RFC 9728). An empty
+// `authorization_servers` array is the spec-correct signal that no issuer
+// can mint tokens for this resource — i.e. the resource is public and no
+// authentication is required.
+const oauthProtectedResource = {
+  resource: SITE,
+  authorization_servers: [],
+  scopes_supported: [],
+  bearer_methods_supported: [],
+  comment:
+    "All resources at https://react-server.dev are public and require no authentication. No authorization servers issue tokens for this resource.",
+};
+
 // Discovery endpoints MUST be CORS-readable (RFC 8615 / SEP-1649 §CORS).
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -143,6 +189,9 @@ const wellKnown = {
   // Legacy path that some early scanners (incl. isitagentready.com) still
   // probe — alias to keep both readers happy until the spec is final.
   "/.well-known/mcp/server-card.json": () => json(mcpServerCard),
+  "/.well-known/oauth-authorization-server": () =>
+    json(oauthAuthorizationServer),
+  "/.well-known/oauth-protected-resource": () => json(oauthProtectedResource),
 };
 
 function json(body, contentType = "application/json; charset=utf-8") {

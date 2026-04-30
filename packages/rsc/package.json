@@ -44,12 +44,12 @@
     "bench:report": "node __bench__/report.mjs --current bench-raw.json --markdown comment.md"
   },
   "devDependencies": {
-    "@vitest/coverage-istanbul": "^4.1.5",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-istanbul": "^5.0.0-beta.1",
+    "@vitest/coverage-v8": "^5.0.0-beta.1",
     "react": "0.0.0-experimental-ab18f33d-20260220",
     "react-dom": "0.0.0-experimental-ab18f33d-20260220",
     "react-server-dom-webpack": "0.0.0-experimental-ab18f33d-20260220",
-    "vitest": "^4.1.5"
+    "vitest": "^5.0.0-beta.1"
   },
   "peerDependencies": {
     "react": ">=19.0.0 || >=0.0.0-experimental"

@@ -95,6 +95,38 @@ export default {
 };
 ```
 
+<Link name="streaming-export">
+## エクスポートパスソースのストリーミング
+</Link>
+
+通常の関数形式の`export`は配列を受け取ります。ファイルシステムルーターが解決したすべてのパスを一度に受け取る形です。ほとんどのアプリではこれで十分ですが、非常に大規模なエクスポート（数万ページ、CMSから取得するページネーションされたコンテンツ、動的に生成されるパスなど）では、レンダリング開始前にリスト全体をメモリ上に展開するのは効率的ではありません。ピークメモリがパス数に比例して増大し、最後のパスが収集されるまで最初のレンダリングを開始できないからです。
+
+`export`を`async function*`（非同期ジェネレーター）として宣言すると、ストリーミングモードに切り替わります。ジェネレーターはファイルシステムルーターと`exportPaths`が生成するライブな`AsyncIterable`を受け取り、レンダラーにパスを1つずつ`yield`できます。レンダラーはワーカーが空いたときにのみパスをプルするため、ジェネレーターはエクスポートのちょうど1ステップ先を進む形になります。ピークメモリは総パス数に関係なく`O(パス記述子1つ分)`に保たれ、最初に`yield`されたパスからレンダリングが開始されます。並列レンダリングのために[`--export-concurrency`](/features/cli#build-export-concurrency)と組み合わせると効果的です。
+
+```js filename="react-server.config.mjs"
+export default {
+  async *export(paths) {
+    // ファイルシステムルーターが解決したパスをそのまま流す。
+    for await (const p of paths) {
+      yield p;
+    }
+
+    // その後、追加のパスを遅延的にyieldする。例: CMSからページ単位で取得、
+    // 大規模なDBクエリから計算、ファイルから読み込み、など。
+    let cursor = null;
+    do {
+      const { items, next } = await fetchPage(cursor);
+      for (const item of items) {
+        yield { path: `/posts/${item.slug}` };
+      }
+      cursor = next;
+    } while (cursor);
+  },
+};
+```
+
+> **注意:** 検出は関数の種別で行われます。`export`の値として`async function*`（または`function*`）を**直接**書く必要があります。通常の関数を返すラッパー（メモ化、デコレーターなど）を介すると、レガシーな配列変換契約にフォールバックします。通常の関数形式は変更されておらず、「配列を渡してくれれば、変換した配列を返す」という用途には引き続きこちらが適しています。
+
 <Link name="static-export-api-routes">
 ## APIルートの静的エクスポート
 </Link>

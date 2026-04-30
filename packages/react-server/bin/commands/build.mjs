@@ -15,6 +15,10 @@ export default (cli) =>
     .option("--no-check", "skip dependency checks", { default: false })
     .option("--no-validation", "skip config validation", { default: false })
     .option("--export", "[boolean] static export")
+    .option(
+      "--export-concurrency <n>",
+      "[number] number of parallel processes for static export (1 = single-process; >1 = multi-process)"
+    )
     .option("--compression", "[boolean] enable compression", { default: false })
     .option("--adapter <adapter>", "[boolean|string] adapter", {
       default: "",

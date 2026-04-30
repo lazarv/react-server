@@ -72,13 +72,17 @@ export default async function ContentNegotiation() {
     return;
   }
 
-  // Strip any leading language prefix; the canonical markdown is always
-  // served from the English path.
-  const stripped = pathname.replace(
-    new RegExp(`^/(${languages.join("|")})(?=/|$)`),
-    ""
+  // Keep the language prefix — the markdown route resolves a separate
+  // translation per language (`/ja/foo.md` serves Japanese, `/foo.md`
+  // serves English). For the homepage, the language-only pathname
+  // (`/`, `/ja`, `/ja/`) collapses to empty so we fall through to the
+  // llms.txt summary below; agents asking for the site's overview
+  // get the same canonical document regardless of the URL they used.
+  const isLanguageOnly = languages.some(
+    (lang) => pathname === `/${lang}` || pathname === `/${lang}/`
   );
-  const mdPath = stripped === "" || stripped === "/" ? "" : stripped;
+  const mdPath =
+    pathname === "/" || isLanguageOnly ? "" : pathname.replace(/\/$/, "");
 
   // Always advertise the response varies on Accept so caches don't poison
   // each other across HTML/markdown.

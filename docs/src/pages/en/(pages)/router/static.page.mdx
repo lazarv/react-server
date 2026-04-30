@@ -95,6 +95,38 @@ export default {
 };
 ```
 
+<Link name="streaming-export">
+## Streaming the export path source
+</Link>
+
+The regular-function form of `export` receives an array — every path the file-system router resolved, all at once. That's fine for most apps, but for very large exports (tens of thousands of pages, paginated content sourced from a CMS, on-the-fly path generation) materializing the full list before rendering starts is wasteful: peak memory grows with the path count, and the first render can't start until the last path is collected.
+
+Declare `export` as an `async function*` (an async generator) and you opt into streaming instead. The generator receives the live `AsyncIterable` of paths produced by the file-system router and `exportPaths`, and it can `yield` paths to the renderer one at a time. The renderer pulls paths only when a worker is free, so the generator stays one step ahead of the export — peak memory is `O(one path descriptor)` regardless of the total count, and rendering starts on the first yielded path. Pairs naturally with [`--export-concurrency`](/features/cli#build-export-concurrency) for parallel rendering.
+
+```js filename="react-server.config.mjs"
+export default {
+  async *export(paths) {
+    // Pass through whatever the file-system router resolved.
+    for await (const p of paths) {
+      yield p;
+    }
+
+    // Then yield additional paths lazily — e.g. fetched page-by-page from
+    // a CMS, computed from a large database query, or read from a file.
+    let cursor = null;
+    do {
+      const { items, next } = await fetchPage(cursor);
+      for (const item of items) {
+        yield { path: `/posts/${item.slug}` };
+      }
+      cursor = next;
+    } while (cursor);
+  },
+};
+```
+
+> **Note:** detection is by function kind. You must write `async function*` (or `function*`) **directly** as the value of `export` — wrappers that return an ordinary function (memoization, decorators, …) fall back to the legacy array-transform contract. The regular-function form is unchanged and remains the right choice for "give me the array, let me return a transformed array."
+
 <Link name="static-export-api-routes">
 ## Static export API routes
 </Link>

@@ -1153,13 +1153,60 @@ export interface ReactServerConfig {
   compression?: boolean;
 
   /**
-   * Static export configuration. Provide paths to export, a function returning paths, or boolean.
-   * @example `export: ["/", "/about"]` or `export: [{ path: "/" }]` or `export: true`
+   * Static export configuration. Provide paths to export, a function
+   * returning paths, or a boolean. Functions written as
+   * `async function*` (or `function*`) are treated as streaming
+   * transforms — they receive an `AsyncIterable<ExportPathDescriptor>`
+   * and yield paths lazily, without ever materializing the full list.
+   * Regular functions keep the legacy array-in / array-out contract
+   * (the path list is materialized for them).
+   * @example `export: ["/", "/about"]`
+   * @example `export: [{ path: "/" }]`
+   * @example `export: true`
+   * @example
+   * ```js
+   * // Streaming transform — handles arbitrarily large path sources.
+   * export: async function* (paths) {
+   *   for await (const p of paths) {
+   *     if (!p.path.startsWith("/draft/")) yield p;
+   *   }
+   * }
+   * ```
    */
   export?:
     | boolean
     | ((paths: string[]) => string[] | ExportPathDescriptor[])
+    | ((
+        paths: AsyncIterable<ExportPathDescriptor>
+      ) =>
+        | Iterable<string | ExportPathDescriptor>
+        | AsyncIterable<string | ExportPathDescriptor>)
     | (string | ExportPathDescriptor)[];
+
+  /**
+   * Number of parallel processes for static export.
+   *
+   * - `1` runs the export in the current process (single-threaded
+   *   RSC + one SSR worker).
+   * - `> 1` forks N child processes, each with its own RSC main thread
+   *   and SSR worker, distributing paths via IPC. This is what gives
+   *   true CPU parallelism for RSC-bound workloads (heavy server
+   *   components, syntax highlighters like Shiki, etc.) — main-thread
+   *   RSC is single-thread per process, so N processes = N parallel
+   *   renders.
+   *
+   * HTML/RSC bytes never cross the IPC boundary; each child writes
+   * directly to disk. Memory at the coordinator stays O(workerCount);
+   * memory per child stays O(one-chunk × few-sinks) thanks to streaming
+   * fanout. The combined ceiling scales to effectively unbounded path
+   * counts.
+   *
+   * Default: `Math.max(2, Math.min(availableParallelism() - 1, 4))`.
+   * Set to `1` to opt out of multi-process and avoid fork startup cost
+   * on tiny exports.
+   * @example `exportConcurrency: 8`
+   */
+  exportConcurrency?: number;
 
   /**
    * Enable prerendering.

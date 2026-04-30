@@ -199,6 +199,15 @@ export default async function createServer(root, options) {
         });
       }
     },
+    // Establish the per-request PrerenderStorage scope before any static
+    // handler runs. The static handler for HTML serves `.postponed.json`
+    // sidecars by calling `prerender$(POSTPONE_STATE, …)`, which mutates
+    // the active PrerenderStorage store; without a scope here that mutation
+    // is a write to `undefined` and the request 500s. Has to be ahead of
+    // the static handlers, not just ahead of `ssrHandler`.
+    async function prerenderInit() {
+      PrerenderStorage.enterWith({});
+    },
     // Static files are served before admission control — they are cheap I/O
     // and should not be gated by the concurrency limiter or count toward inflight.
     staticHandler(join(cwd, options.outDir, "dist"), {
@@ -289,9 +298,6 @@ export default async function createServer(root, options) {
             },
           ]
         : []),
-    async function prerenderInit() {
-      PrerenderStorage.enterWith({});
-    },
     cookie(config.cookies),
     ...(config.handlers?.pre ?? []),
     ssrHandler(root, options),

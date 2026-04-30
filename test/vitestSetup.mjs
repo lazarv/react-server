@@ -138,7 +138,18 @@ test.beforeAll(async (_context, suite) => {
             outDir: `.react-server-build-${id}-${hash}`,
             server: true,
             client: true,
-            export: false,
+            // The build action gates static export with `options.export
+            // !== false` (see lib/build/action.mjs); leaving this `false`
+            // means an on-disk `configRoot.export` never runs. Specs that
+            // need static export pass `initialConfig: { export: true }`
+            // (a serializable flag) to flip this; the actual path source
+            // — which can be a function or async generator — is owned by
+            // the fixture's react-server.config.mjs, since functions
+            // can't cross the build-worker fork boundary.
+            export: initialConfig?.export
+              ? Boolean(initialConfig.export)
+              : false,
+            compression: false,
             adapter: ["false"],
             minify: false,
             edge: process.env.EDGE || process.env.EDGE_ENTRY ? true : undefined,
@@ -259,7 +270,15 @@ test.beforeAll(async (_context, suite) => {
                 outDir: `.react-server-build-${id}-${hash}`,
                 server: true,
                 client: true,
-                export: false,
+                // Mirrors the build-only-phase block above: derive the
+                // build-time export flag from `initialConfig.export` so a
+                // spec can opt in without on-disk config gymnastics. The
+                // actual path source still comes from the fixture's
+                // react-server.config.mjs.
+                export: initialConfig?.export
+                  ? Boolean(initialConfig.export)
+                  : false,
+                compression: false,
                 adapter: ["false"],
                 minify: false,
                 edge:

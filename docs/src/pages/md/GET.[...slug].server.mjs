@@ -3,49 +3,61 @@ import { join } from "node:path";
 
 import { useMatch } from "@lazarv/react-server/router";
 
-import { m } from "../../i18n.mjs";
+import { defaultLanguage, languages } from "../../const.mjs";
+import {
+  api_landing_title,
+  api_translation_banner,
+} from "../../paraglide/messages.js";
 import {
   apiReferenceIndex,
   renderApiReferenceLandingMarkdown,
   renderApiReferencePageMarkdown,
 } from "../../lib/api-reference.mjs";
 
-// Lazy loaders for frontmatter only
+// Lazy loaders for frontmatter only. Glob both languages so requests
+// for `/md/<lang>/...` can resolve to the corresponding translation.
+// API reference pages have no on-disk source — they render live from
+// the `.d.ts` files; non-default languages get the English content
+// with a translation banner.
 const moduleLoaders = import.meta.glob([
   "../en/*/**/*.{md,mdx}",
   "../en/*.\\(index\\).{md,mdx}",
+  "../ja/*/**/*.{md,mdx}",
+  "../ja/*.\\(index\\).{md,mdx}",
 ]);
 
 const apiSlugs = new Set(apiReferenceIndex().map((p) => p.slug));
 
-function getSlug(key) {
+function getSlug(relPath) {
   // For pages in (pages)/ directory: (pages)/guide/quick-start.mdx → guide/quick-start
-  let match = key.match(/\(pages\)\/(.+?)\.mdx?$/);
+  let match = relPath.match(/\(pages\)\/(.+?)\.mdx?$/);
   if (match) {
     return match[1].replace(/\.page$/, "").replace(/\/index$/, "");
   }
   // For category index pages: guide.(index).mdx → guide
-  match = key.match(/^(.+?)\.\(index\)\.mdx?$/);
+  match = relPath.match(/^(.+?)\.\(index\)\.mdx?$/);
   if (match) {
     return match[1];
   }
   return null;
 }
 
-// Map from glob key to raw file path relative to pages/en/
-function globKeyToRelPath(globKey) {
-  return globKey.replace(/^\.\.\/en\//, "");
+// Build per-language slug maps. Each entry maps a slug like
+// `guide/quick-start` to the glob key + relative path for that
+// language, so the route handler can fetch the right translation.
+const slugByLang = new Map();
+for (const globKey of Object.keys(moduleLoaders)) {
+  const langMatch = globKey.match(/^\.\.\/([^/]+)\//);
+  const lang = langMatch?.[1];
+  if (!lang || !languages.includes(lang)) continue;
+  const relPath = globKey.replace(/^\.\.\/[^/]+\//, "");
+  const slug = getSlug(relPath);
+  if (!slug) continue;
+  if (!slugByLang.has(lang)) slugByLang.set(lang, new Map());
+  slugByLang.get(lang).set(slug, { globKey, relPath });
 }
 
-// Build slug → keys mapping
-const slugToKey = new Map();
-for (const globKey of Object.keys(moduleLoaders)) {
-  const relPath = globKeyToRelPath(globKey);
-  const slug = getSlug(relPath);
-  if (slug) {
-    slugToKey.set(slug, { globKey, relPath });
-  }
-}
+const enSlugs = slugByLang.get(defaultLanguage) ?? new Map();
 
 function cleanMdx(raw) {
   // Remove frontmatter
@@ -91,30 +103,59 @@ function cleanMdx(raw) {
 }
 
 // Export all available slugs so they can be used for static generation.
-// In addition to the MDX-derived slugs, publish every API reference slug —
-// those pages have no on-disk source; their `.md` form is rendered live
-// by `renderApiReferencePageMarkdown`.
-export const slugs = [
-  ...slugToKey.keys(),
-  "api",
-  ...[...apiSlugs].map((s) => `api/${s}`),
-];
+// Default-language slugs are exposed bare (e.g. `guide/quick-start`),
+// every other configured language is also exposed under a language
+// prefix (e.g. `ja/guide/quick-start`) so the file-router emits a
+// per-language `.md` artifact for each page. API reference slugs are
+// always exposed under every language prefix — there is no Japanese
+// `.d.ts` source, so non-default languages get the English content
+// with a translation banner via `api_translation_banner`.
+export const slugs = (() => {
+  const out = [];
+  for (const lang of languages) {
+    const prefix = lang === defaultLanguage ? "" : `${lang}/`;
+    const langSlugs = slugByLang.get(lang) ?? new Map();
+    for (const slug of langSlugs.keys()) out.push(`${prefix}${slug}`);
+    out.push(`${prefix}api`);
+    for (const apiSlug of apiSlugs) out.push(`${prefix}api/${apiSlug}`);
+  }
+  return out;
+})();
 
 export default async function MarkdownRoute() {
   const { slug } = useMatch("/md/[[...slug]]");
-  const path = slug?.join("/");
+  const segs = slug ?? [];
 
-  if (!path) {
+  if (segs.length === 0) {
     return new Response("Not Found", { status: 404 });
   }
 
-  // Dynamic API reference pages — rendered on demand from the `.d.ts`
-  // files in `packages/react-server`, no on-disk source exists.
+  // Detect a language prefix on the slug. URLs of the form
+  // `/md/<lang>/...` route to that language's translation; bare
+  // `/md/...` paths use the default language. Anything else
+  // (`segs[0]` not a known language) is treated as a default-language
+  // slug whose first segment happens to share a name with no language.
+  let lang = defaultLanguage;
+  let pathSegs = segs;
+  if (
+    segs.length > 0 &&
+    languages.includes(segs[0]) &&
+    segs[0] !== defaultLanguage
+  ) {
+    lang = segs[0];
+    pathSegs = segs.slice(1);
+  }
+  const path = pathSegs.join("/");
+
+  // API reference: content is generated from `.d.ts` files (English
+  // only). Non-default languages get the English content with a
+  // translation banner; the banner itself is fetched in the active
+  // language so it reads naturally to the agent making the request.
   if (path === "api") {
     return new Response(
       renderApiReferenceLandingMarkdown({
-        title: m.api_landing_title(),
-        banner: m.api_translation_banner(),
+        title: api_landing_title({}, { languageTag: lang }),
+        banner: api_translation_banner({}, { languageTag: lang }),
       }),
       {
         headers: { "Content-Type": "text/markdown; charset=utf-8" },
@@ -125,7 +166,7 @@ export default async function MarkdownRoute() {
     const apiSlug = path.slice("api/".length);
     if (apiSlugs.has(apiSlug)) {
       const markdown = renderApiReferencePageMarkdown(apiSlug, {
-        banner: m.api_translation_banner(),
+        banner: api_translation_banner({}, { languageTag: lang }),
       });
       if (markdown) {
         return new Response(markdown, {
@@ -136,13 +177,22 @@ export default async function MarkdownRoute() {
     return new Response("Not Found", { status: 404 });
   }
 
-  const keys = slugToKey.get(path);
+  // MDX page lookup: prefer the requested language; if a translation
+  // is missing (e.g. `pages/ja/(pages)/advanced/...` doesn't exist
+  // for some pages that exist under en/), fall back to English so
+  // the URL still resolves with content rather than 404.
+  const langMap = slugByLang.get(lang) ?? new Map();
+  let keys = langMap.get(path);
+  let resolvedLang = lang;
+  if (!keys && lang !== defaultLanguage) {
+    keys = enSlugs.get(path);
+    resolvedLang = defaultLanguage;
+  }
   if (!keys) {
     return new Response("Not Found", { status: 404 });
   }
 
-  // Read raw source file from disk (works in dev and during static export build)
-  const pagesDir = join(process.cwd(), "src", "pages", "en");
+  const pagesDir = join(process.cwd(), "src", "pages", resolvedLang);
   const raw = await readFile(join(pagesDir, keys.relPath), "utf-8");
   const mod = await moduleLoaders[keys.globKey]();
   const title = mod?.frontmatter?.title;

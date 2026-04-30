@@ -242,6 +242,24 @@ Static export. Default is `false`.
 
 You can export your app as static HTML pages. You can define the routes to export in your `react-server.config.mjs` file. See more details at [Static generation](/router/static).
 
+<Link name="build-export-concurrency">
+### --export-concurrency
+</Link>
+
+Number of parallel processes used to render static export paths. Default is between `2` and `4`, scaled to the number of available CPU cores.
+
+Pass `1` to run the export in a single in-process pipeline — paths are rendered one at a time in the main process, with no fork or IPC overhead. This is the lowest-overhead mode and is a good fit for small exports or for debugging.
+
+Pass `>1` to fork that many render-worker child processes. Each child runs its own RSC main thread plus an SSR worker thread and renders one path at a time. The coordinator dispatches paths to free children over IPC; output bytes never cross the IPC boundary — every artifact (HTML, `.gz` / `.br` sidecars, `.postponed.json`, `.prerender-cache.json`) is written to disk inside the child. Both modes produce the same artifact set.
+
+This is the right knob to reach for when exporting tens of thousands of pages or when individual pages do heavy server-side work (Shiki highlighting, large MDX trees, costly server components). On smaller exports the per-fork startup cost dominates and a value of `1` may be faster overall.
+
+```sh
+pnpm react-server build --export --export-concurrency 8
+```
+
+You can also set this in your `react-server.config.mjs` as `exportConcurrency`.
+
 <Link name="build-compression">
 ### --compression
 </Link>

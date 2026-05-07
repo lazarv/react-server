@@ -20,13 +20,13 @@
     "rolldown": "1.0.0-rc.18",
     "tinyglobby": "^0.2.13",
     "unstorage": "^1.16.0",
-    "vite": "8.0.10"
+    "vite": "8.0.11"
   },
   "devDependencies": {
     "@playwright/test": "^1.53.1",
-    "@vitest/ui": "^5.0.0-beta.1",
+    "@vitest/ui": "^5.0.0-beta.2",
     "npm-run-all2": "^8.0.4",
     "playwright-chromium": "^1.53.1",
-    "vitest": "^5.0.0-beta.1"
+    "vitest": "^5.0.0-beta.2"
   }
 }

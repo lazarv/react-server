@@ -303,6 +303,40 @@ describe.skipIf(isEdge)("remote example", () => {
       "This component demonstrates live updates using a generator function"
     );
 
+    // On failure, dump the actual rendered importmaps + script ordering
+    // in the page so the next CI run tells us what shape the host
+    // produced (rather than relying on inference). This fires only when
+    // there are real console errors to assert on — green runs see
+    // nothing.
+    if (consoleErrors.length > 0) {
+      const pageDiagnostic = await page.evaluate(() => {
+        const importmaps = Array.from(
+          document.querySelectorAll('script[type="importmap"]')
+        ).map((s) => ({
+          parentTag: s.parentElement?.tagName,
+          // Truncate to keep CI logs bounded.
+          contentPreview: (s.textContent ?? "").slice(0, 1500),
+          contentLength: (s.textContent ?? "").length,
+        }));
+        const scripts = Array.from(
+          document.querySelectorAll(
+            "script[type='module'], script[src], link[rel='modulepreload']"
+          )
+        )
+          .slice(0, 30)
+          .map((s) => ({
+            tag: s.tagName,
+            type: s.getAttribute("type"),
+            rel: s.getAttribute("rel"),
+            src: s.getAttribute("src") ?? s.getAttribute("href"),
+          }));
+        return { importmaps, scripts };
+      });
+      console.error(
+        "[remote.spec] page importmaps + script ordering:\n" +
+          JSON.stringify(pageDiagnostic, null, 2)
+      );
+    }
     expect(consoleErrors).toEqual([]);
   });
 });

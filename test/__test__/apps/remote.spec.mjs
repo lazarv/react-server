@@ -182,6 +182,105 @@ describe.skipIf(isEdge)("remote example", () => {
     await page.goto(hostname, { waitUntil: "domcontentloaded" });
     await waitForHydration();
 
+    // Capture the rendered page's importmap content + module-script
+    // ordering BEFORE we start polling. The polling can hang for the
+    // full timeout if cross-bundle React sharing is broken (Refresh /
+    // Form throw in render, content never appears), and a `Test timed
+    // out` from vitest aborts the test before any later diagnostic
+    // would run. Logging here unconditionally guarantees the snapshot
+    // reaches CI logs even when the polling hangs.
+    //
+    // What we want to see:
+    //   - Are `<script type="importmap">` tags rendered at all?
+    //   - Do they contain entries for `react`, `Refresh`, `Form`, etc.
+    //     mapping the remote URL → host URL?
+    //   - Does any `<link rel="modulepreload">` or `<script type="module">`
+    //     appear BEFORE the importmaps in document order? Browsers'
+    //     preload scanner runs ahead of the parser; if a remote module
+    //     URL is preloaded before the importmap is parsed, the remap
+    //     misses for that module's first load.
+    const pageDiagnostic = await page.evaluate(() => {
+      // Walk light DOM AND open shadow roots — every remote in this
+      // test uses `isolate={true}`, which puts its importmap-template
+      // inside a `<template shadowrootmode="open">`. Light-DOM-only
+      // queries miss those, even though that's where the bug likely
+      // hides.
+      function collectAcrossShadow(selectors) {
+        /** @type {Array<{location: string, el: Element}>} */
+        const out = [];
+        function walk(root, location) {
+          for (const sel of selectors) {
+            for (const el of root.querySelectorAll(sel)) {
+              out.push({ location, el });
+            }
+          }
+          // Find every element that has an attached shadow root and
+          // recurse. `el.shadowRoot` is non-null only for `mode: "open"`.
+          for (const el of root.querySelectorAll("*")) {
+            const sr = /** @type {Element & { shadowRoot?: ShadowRoot }} */ (
+              el
+            ).shadowRoot;
+            if (sr) {
+              const id = el.id ? `#${el.id}` : el.tagName;
+              walk(sr, `${location} > shadow(${id})`);
+            }
+          }
+        }
+        walk(document, "document");
+        return out;
+      }
+
+      const importmapEls = collectAcrossShadow([
+        'script[type="importmap"]',
+        "template[data-script-attrs]",
+      ]);
+      const importmaps = importmapEls.map(({ location, el }) => {
+        const isTemplate = el.tagName === "TEMPLATE";
+        const attrs = isTemplate
+          ? (() => {
+              try {
+                return JSON.parse(el.getAttribute("data-script-attrs") ?? "{}");
+              } catch {
+                return null;
+              }
+            })()
+          : null;
+        // For templates, the script's content is in template.content.
+        const text = isTemplate
+          ? (el.content?.textContent ?? "")
+          : (el.textContent ?? "");
+        return {
+          location,
+          tag: el.tagName,
+          // Was this still wrapped as a template at capture time? (i.e.
+          // the runtime's `activateScriptTemplates` has NOT processed
+          // it yet — meaning the importmap is inert.)
+          stillWrapped: isTemplate,
+          attrs,
+          contentPreview: text.slice(0, 2000),
+          contentLength: text.length,
+        };
+      });
+
+      const moduleNodes = Array.from(
+        document.querySelectorAll(
+          "script[type='module'], script[src], script[type='importmap'], link[rel='modulepreload'], link[rel='preload']"
+        )
+      )
+        .slice(0, 40)
+        .map((s) => ({
+          tag: s.tagName,
+          type: s.getAttribute("type"),
+          rel: s.getAttribute("rel"),
+          src: s.getAttribute("src") ?? s.getAttribute("href") ?? null,
+        }));
+      return { importmaps, moduleNodes };
+    });
+    console.error(
+      "[remote.spec] page importmaps + script ordering:\n" +
+        JSON.stringify(pageDiagnostic, null, 2)
+    );
+
     // The host renders each remote section with `isolate={true}`, which
     // wraps the remote payload inside a `<template shadowrootmode="open">`
     // that the browser hoists into an attached shadow root. `body.textContent`
@@ -303,40 +402,6 @@ describe.skipIf(isEdge)("remote example", () => {
       "This component demonstrates live updates using a generator function"
     );
 
-    // On failure, dump the actual rendered importmaps + script ordering
-    // in the page so the next CI run tells us what shape the host
-    // produced (rather than relying on inference). This fires only when
-    // there are real console errors to assert on — green runs see
-    // nothing.
-    if (consoleErrors.length > 0) {
-      const pageDiagnostic = await page.evaluate(() => {
-        const importmaps = Array.from(
-          document.querySelectorAll('script[type="importmap"]')
-        ).map((s) => ({
-          parentTag: s.parentElement?.tagName,
-          // Truncate to keep CI logs bounded.
-          contentPreview: (s.textContent ?? "").slice(0, 1500),
-          contentLength: (s.textContent ?? "").length,
-        }));
-        const scripts = Array.from(
-          document.querySelectorAll(
-            "script[type='module'], script[src], link[rel='modulepreload']"
-          )
-        )
-          .slice(0, 30)
-          .map((s) => ({
-            tag: s.tagName,
-            type: s.getAttribute("type"),
-            rel: s.getAttribute("rel"),
-            src: s.getAttribute("src") ?? s.getAttribute("href"),
-          }));
-        return { importmaps, scripts };
-      });
-      console.error(
-        "[remote.spec] page importmaps + script ordering:\n" +
-          JSON.stringify(pageDiagnostic, null, 2)
-      );
-    }
     expect(consoleErrors).toEqual([]);
   });
 });

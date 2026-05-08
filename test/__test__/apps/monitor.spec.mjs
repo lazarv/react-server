@@ -7,11 +7,18 @@ import {
 } from "playground/utils";
 import { beforeAll, describe, expect, test } from "vitest";
 
-beforeAll(async () => {
-  await server("./src/index.jsx", { cwd: appDir("examples/monitor") });
-});
+// The monitor example reads `node:os` for live system metrics and
+// drives updates over the live transport's Node-only socket.io path —
+// neither survives the edge build target. Skip the whole describe
+// under EDGE/EDGE_ENTRY (and put `beforeAll` inside the describe so
+// `describe.skipIf` short-circuits the setup too).
+const isEdge = !!process.env.EDGE || !!process.env.EDGE_ENTRY;
 
-describe("monitor example", () => {
+describe.skipIf(isEdge)("monitor example", () => {
+  beforeAll(async () => {
+    await server("./src/index.jsx", { cwd: appDir("examples/monitor") });
+  });
+
   test("renders the resource monitor SVG without errors", async () => {
     /** @type {string[]} */
     const consoleErrors = [];

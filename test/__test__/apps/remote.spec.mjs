@@ -54,50 +54,60 @@ const REMOTE_ENTRIES = [
   { name: "context", entry: "./context.jsx", port: 3007, host: "localhost" },
 ];
 
-beforeAll(async () => {
-  const cwd = appDir("examples/remote");
+// The remote example is Node-only: every aux origin runs the prebuilt
+// Node server (`node:http`, `worker_threads`, `module.register` loaders),
+// and the host's `with { type: "remote" }` resolution depends on the
+// same. Skip the whole describe under EDGE/EDGE_ENTRY rather than
+// individual tests — `beforeAll` would otherwise still try to spawn
+// seven aux builds against the edge build target and fail before any
+// test gets a chance to opt out. Putting `beforeAll` inside the
+// describe lets `describe.skipIf` short-circuit the setup too.
+const isEdge = !!process.env.EDGE || !!process.env.EDGE_ENTRY;
 
-  // Boot all seven remotes in parallel on their documented ports. Sequence
-  // failures map directly to a single misbehaving entry, so a port clash
-  // surfaces clearly in the test log.
-  //
-  // For the IPv6 entry (`remote.jsx` on 3001), bind `::1` explicitly to
-  // mirror the example's `dev:remote` script (`--host ::1`). The host's
-  // import literal is `http://[::1]:3001` — that URL must hit the aux
-  // directly, not via the dual-stack default which has proven flaky for
-  // IPv6 traffic in this combo.
-  await Promise.all(
-    REMOTE_ENTRIES.map(({ entry, port, host }) =>
-      auxServer(entry, {
-        cwd,
-        port,
-        ...(host === "[::1]" ? { host: "::1" } : {}),
-      })
-    )
-  );
+describe.skipIf(isEdge)("remote example", () => {
+  beforeAll(async () => {
+    const cwd = appDir("examples/remote");
 
-  // Readiness probe: `auxServer()` resolves on the http server's
-  // `listening` event — that's "socket bound", NOT "runtime ready to
-  // serve a remote-component request." In prod mode the loader thread,
-  // prebuilt-config dispatcher, and live-transport registry all
-  // initialize lazily on the first inbound request. If the host's build
-  // phase below starts pre-fetching remote URLs while one aux is still
-  // warming, that aux returns a partial/empty payload that bakes into
-  // the host bundle and only manifests at hydration. So before we hand
-  // off to `server()`, hit each aux at the same endpoint the host will
-  // hit and confirm a Flight payload comes back. Retry with a tight
-  // budget — a healthy aux warms in well under a second; a 10s ceiling
-  // is enough headroom without dragging out a real failure.
-  await Promise.all(
-    REMOTE_ENTRIES.map(({ name, port, host }) =>
-      probeRemoteReady(name, host, port, 10000)
-    )
-  );
+    // Boot all seven remotes in parallel on their documented ports. Sequence
+    // failures map directly to a single misbehaving entry, so a port clash
+    // surfaces clearly in the test log.
+    //
+    // For the IPv6 entry (`remote.jsx` on 3001), bind `::1` explicitly to
+    // mirror the example's `dev:remote` script (`--host ::1`). The host's
+    // import literal is `http://[::1]:3001` — that URL must hit the aux
+    // directly, not via the dual-stack default which has proven flaky for
+    // IPv6 traffic in this combo.
+    await Promise.all(
+      REMOTE_ENTRIES.map(({ entry, port, host }) =>
+        auxServer(entry, {
+          cwd,
+          port,
+          ...(host === "[::1]" ? { host: "::1" } : {}),
+        })
+      )
+    );
 
-  await server("./index.jsx", { cwd });
-});
+    // Readiness probe: `auxServer()` resolves on the http server's
+    // `listening` event — that's "socket bound", NOT "runtime ready to
+    // serve a remote-component request." In prod mode the loader thread,
+    // prebuilt-config dispatcher, and live-transport registry all
+    // initialize lazily on the first inbound request. If the host's build
+    // phase below starts pre-fetching remote URLs while one aux is still
+    // warming, that aux returns a partial/empty payload that bakes into
+    // the host bundle and only manifests at hydration. So before we hand
+    // off to `server()`, hit each aux at the same endpoint the host will
+    // hit and confirm a Flight payload comes back. Retry with a tight
+    // budget — a healthy aux warms in well under a second; a 10s ceiling
+    // is enough headroom without dragging out a real failure.
+    await Promise.all(
+      REMOTE_ENTRIES.map(({ name, port, host }) =>
+        probeRemoteReady(name, host, port, 10000)
+      )
+    );
 
-describe("remote example", () => {
+    await server("./index.jsx", { cwd });
+  });
+
   test("each remote origin serves an RSC payload over HTTP", async () => {
     // Smoke-test the aux ring before exercising the host. If a remote is
     // unreachable or returning HTML/error pages, this test fails BEFORE

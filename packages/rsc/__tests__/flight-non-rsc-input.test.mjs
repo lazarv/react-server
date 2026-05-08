@@ -76,23 +76,30 @@ describe("Flight deserializer — non-Flight input rejection", () => {
     await expect(result).resolves.toBe("hello");
   });
 
-  test("does not reject a Flight stream that legitimately starts with a digit", async () => {
-    // Multi-digit row id — still must start with a digit (`1` here) and
-    // must NOT trip the guard.
-    const result = createFromReadableStream(streamFromString("123:42\n"));
-    // The id is unimportant; what matters is that the guard does not
-    // throw before processData has a chance to handle it.
-    await expect(result).resolves.toBeDefined();
+  test("does not reject a Flight stream whose first row id is a multi-digit number", async () => {
+    // Flight resolves the root from row 0, so a stream that exercises
+    // multi-digit row ids must still emit row 0 — but the FIRST byte
+    // of the stream is the leading digit of the first row id, which
+    // here is `1` (from `123`). Proves the guard accepts any ASCII
+    // digit, not just `0`.
+    const stream = streamFromString('123:42\n0:"$123"\n');
+    await expect(createFromReadableStream(stream)).resolves.toBe(42);
   });
 
-  test("ignores leading empty chunk and validates the next non-empty one", async () => {
-    // Some producers may emit a zero-length first chunk. The guard must
-    // wait for the first non-empty chunk to make a decision.
+  test("validates across a chunk boundary when the first byte arrives in a later chunk", async () => {
+    // Real-world streams split rows across chunks. The guard must
+    // inspect the first BYTE that actually arrives — even if that byte
+    // came in a later chunk than the producer's initial flush. We can't
+    // test "leading empty chunk" directly because Node's bytes-mode
+    // ReadableStream rejects zero-length enqueues at the platform level;
+    // instead we split a single Flight row into two non-empty halves
+    // and confirm the guard doesn't false-positive on the boundary.
+    const encoder = new TextEncoder();
     const stream = new ReadableStream({
       type: "bytes",
       start(controller) {
-        controller.enqueue(new Uint8Array(0));
-        controller.enqueue(new TextEncoder().encode('0:"ok"\n'));
+        controller.enqueue(encoder.encode("0"));
+        controller.enqueue(encoder.encode(':"ok"\n'));
         controller.close();
       },
     });

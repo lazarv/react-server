@@ -55,6 +55,8 @@ export const DESCRIPTIONS = {
   cookies: "Cookie options for the session.",
   host: 'Host to listen on. Example: "0.0.0.0" or true (all interfaces).',
   port: "Port to listen on (0–65535).",
+  remoteComponents:
+    "Force-disable Remote Components rendering. Only `false` is meaningful — when set, the runtime ignores the `@__react_server_remote__` URL marker and never enters the Remote Components code path. Apps that don't host Remote Components can set this for defense-in-depth.",
   console: "Disable the dev console overlay.",
   overlay: "Disable the dev error overlay.",
   assetsInclude:
@@ -244,15 +246,16 @@ export const DESCRIPTIONS = {
   "cache.providers": "Cache storage providers.",
 
   // serverFunctions.*
-  serverFunctions: "Server functions (RPC) configuration.",
-  "serverFunctions.secret": "Secret key for signing server function calls.",
+  serverFunctions:
+    "Server Functions (RPC) configuration. Set to `false` to force-disable all Server Function processing — incoming POSTs are not decoded, the manifest is not queried, and the runtime falls through to normal page rendering. Object form configures crypto material and decode limits.",
+  "serverFunctions.secret": "Secret key for signing Server Function calls.",
   "serverFunctions.secretFile": "Path to a file containing the secret key.",
   "serverFunctions.previousSecrets":
     "Previously used secrets for key rotation.",
   "serverFunctions.previousSecretFiles":
     "Previously used secret files for key rotation.",
   "serverFunctions.limits":
-    "Resource ceilings for decoding server function payloads (per-request DoS protection).",
+    "Resource ceilings for decoding Server Function payloads (per-request DoS protection).",
   "serverFunctions.limits.maxRows":
     "Maximum number of outlined rows per reply. Default: 10000.",
   "serverFunctions.limits.maxDepth":
@@ -288,7 +291,7 @@ export const DESCRIPTIONS = {
 
   // telemetry.*
   telemetry:
-    "OpenTelemetry observability configuration. When enabled, the runtime instruments HTTP requests, rendering, server functions, and middleware.",
+    "OpenTelemetry observability configuration. When enabled, the runtime instruments HTTP requests, rendering, Server Functions, and middleware.",
   "telemetry.enabled":
     "Enable/disable telemetry. Also enabled by OTEL_EXPORTER_OTLP_ENDPOINT or REACT_SERVER_TELEMETRY env vars.",
   "telemetry.serviceName":
@@ -504,6 +507,7 @@ export function generateJsonSchema() {
       cookies: prop({ type: "object" }, "cookies"),
       host: prop({ oneOf: [{ type: "string" }, { const: true }] }, "host"),
       port: prop({ type: "integer", minimum: 0, maximum: 65535 }, "port"),
+      remoteComponents: prop({ const: false }, "remoteComponents"),
       console: prop({ type: "boolean" }, "console"),
       overlay: prop({ type: "boolean" }, "overlay"),
       assetsInclude: prop(
@@ -1017,6 +1021,12 @@ export function generateJsonSchema() {
       ),
 
       // ── serverFunctions.* ──
+      // The runtime validator additionally accepts the literal `false`
+      // to force-disable all server-function processing — see
+      // config/validate.mjs (`falseOrShape`).  The JSON schema below
+      // describes the canonical object form for IDE autocomplete; the
+      // boolean shortcut isn't surfaced here because most users opt out
+      // via JS config rather than JSON.
       serverFunctions: prop(
         {
           type: "object",

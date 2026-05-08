@@ -796,25 +796,25 @@ export interface CacheConfig {
   providers?: Record<string, unknown> | unknown[];
 }
 
-// ───── Server functions config ─────
+// ───── Server Functions config ─────
 
 /**
  * Resource ceilings applied when decoding a client → server RSC reply
- * (server function arguments).
+ * (Server Function arguments).
  *
- * These limits are enforced inside the reply decoder before any server
- * function runs. They cap the cost of payload deserialization and protect
- * the server from denial-of-service vectors that exploit the rich
- * RSC reply wire format (deep nesting, huge BigInts, oversized streams,
- * unbounded bound-argument lists, etc.).
+ * These limits are enforced inside the reply decoder before any
+ * Server Function runs. They cap the cost of payload deserialization
+ * and protect the server from denial-of-service vectors that exploit
+ * the rich RSC reply wire format (deep nesting, huge BigInts, oversized
+ * streams, unbounded bound-argument lists, etc.).
  *
  * Each limit is independent. A zero or negative value is treated as the
  * default. Setting a value larger than the default loosens the ceiling;
  * setting a smaller value tightens it.
  *
  * When a request exceeds any limit, the decoder throws a
- * `DecodeLimitError` and the request is rejected before the server
- * function is invoked.
+ * `DecodeLimitError` and the request is rejected before the
+ * Server Function is invoked.
  */
 export interface ServerFunctionDecodeLimits {
   /**
@@ -837,7 +837,7 @@ export interface ServerFunctionDecodeLimits {
   maxBytes?: number;
 
   /**
-   * Maximum number of bound arguments on a server reference.
+   * Maximum number of bound arguments on a Server Function reference.
    * Matches React's upstream default.
    * @default 256
    */
@@ -866,7 +866,7 @@ export interface ServerFunctionDecodeLimits {
 
 export interface ServerFunctionsConfig {
   /**
-   * Secret key for signing server function calls.
+   * Secret key for signing Server Function calls.
    * @example `secret: "my-secret-key"`
    */
   secret?: string;
@@ -890,7 +890,7 @@ export interface ServerFunctionsConfig {
   previousSecretFiles?: string[];
 
   /**
-   * Resource ceilings for decoding server function payloads.
+   * Resource ceilings for decoding Server Function payloads.
    *
    * Caps the maximum work the server will do per inbound RSC reply.
    * Defaults match the @lazarv/rsc decoder's built-in safe ceilings,
@@ -1444,14 +1444,26 @@ export interface ReactServerConfig {
   cache?: CacheConfig;
 
   /**
-   * Server functions (RPC) configuration.
-   * @example `serverFunctions: { secret: "my-secret-key" }`
+   * Server Functions (RPC) configuration. Set to `false` to force-disable
+   * all Server Function processing — incoming POSTs are not decoded, the
+   * manifest is not queried, and the runtime falls through to normal page
+   * rendering. Object form configures crypto material and decode limits.
+   * @example `serverFunctions: { secret: "my-secret-key" }  // or serverFunctions: false`
    */
-  serverFunctions?: ServerFunctionsConfig;
+  serverFunctions?: ServerFunctionsConfig | false;
+
+  /**
+   * Force-disable Remote Components rendering. Only `false` is meaningful —
+   * when set, the runtime ignores the `@__react_server_remote__` URL marker,
+   * the temporary-reference set is not created, and request bodies for
+   * Remote Components rendering are not decoded.
+   * @example `remoteComponents: false`
+   */
+  remoteComponents?: false;
 
   /**
    * OpenTelemetry observability configuration.
-   * When enabled, the runtime instruments HTTP requests, rendering, server functions, and middleware.
+   * When enabled, the runtime instruments HTTP requests, rendering, Server Functions, and middleware.
    * @example `telemetry: { enabled: true, serviceName: "my-app" }`
    */
   telemetry?: TelemetryConfig;

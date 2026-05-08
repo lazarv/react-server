@@ -196,11 +196,24 @@ export default async function ssrHandler(root) {
               const isMultipart = !!httpContext.request.headers
                 .get("content-type")
                 ?.includes("multipart/form-data");
+              // Mirror the feature gates render-rsc.jsx applies. When
+              // server functions or remote rendering are force-disabled
+              // via config, the corresponding request shapes get demoted
+              // to "regular request" here so we route them through the
+              // client-root SSR shortcut instead of activating the full
+              // RSC entry. Defense-in-depth: render-rsc.jsx re-checks the
+              // same gates, so even if a request slips through here it
+              // never reaches the action-dispatch code path.
+              const serverFunctionsEnabled =
+                configRoot.serverFunctions !== false;
+              const remoteEnabled = configRoot.remoteComponents !== false;
               const isActionRequest =
-                isMutating && (hasActionHeader || isMultipart);
-              const isRemoteRequest = httpContext.url.pathname.includes(
-                "@__react_server_remote__"
-              );
+                serverFunctionsEnabled &&
+                isMutating &&
+                (hasActionHeader || isMultipart);
+              const isRemoteRequest =
+                remoteEnabled &&
+                httpContext.url.pathname.includes("@__react_server_remote__");
               const entryModule =
                 isClientRoot && !isActionRequest && !isRemoteRequest
                   ? clientRootEntryModule

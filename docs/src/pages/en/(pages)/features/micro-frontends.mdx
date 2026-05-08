@@ -256,3 +256,24 @@ To run the example, clone the `@lazarv/react-server` repository and run the foll
 pnpm install
 pnpm --filter ./examples/remote dev
 ```
+
+<Link name="disabling-remote-components">
+## Disabling Remote Components rendering
+</Link>
+
+Applications that don't host Remote Components can force-disable the entire rendering path by setting `remoteComponents: false` in the runtime config. The runtime then ignores the `@__react_server_remote__` URL marker, never enters the Remote Components code path, and never parses request bodies as Remote Components payloads.
+
+```js
+// react-server.config.mjs
+export default {
+  remoteComponents: false,
+};
+```
+
+Two effects worth understanding:
+
+The remote-rendering routing is removed. URLs carrying the `@__react_server_remote__` marker are no longer treated as Remote Components fetches; they fall through to normal page rendering as if the marker weren't there.
+
+Temporary references — the runtime mechanism that lets non-serializable client values (callbacks, DOM refs, opaque thenables) round-trip through `$T` tags on the wire — are gated by the same flag. Their only legitimate use is round-tripping values back to the same client during a Remote Components render, so when `remoteComponents: false` is set, the temporary-reference set is not created and any `$T` tag in an incoming request body is rejected as malformed. This eliminates a small but real attack surface: a fabricated body otherwise allocates proxy objects and runs opaque lookups against the in-memory reference map.
+
+This pairs with `serverFunctions: false` (see [Disabling Server Functions entirely](../guide/server-functions#disabling-server-functions)) for apps that want to ship a strictly read-only surface — neither Server Functions nor Remote Components remain reachable, and any `POST`/`PUT`/`PATCH`/`DELETE` traffic flows through to normal rendering without parsing the request body.

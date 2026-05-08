@@ -2204,3 +2204,48 @@ describe("config validation — real-world configs", () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Feature gates — serverFunctions: false / remoteComponents: false
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("config validation — serverFunctions: false (force-disable)", () => {
+  it("accepts the literal `false`", () => {
+    expectValid({ serverFunctions: false });
+  });
+
+  it("still accepts the existing object form", () => {
+    expectValid({ serverFunctions: { secret: "k" } });
+  });
+
+  it("rejects any other boolean / non-object value", () => {
+    // `true` should not be accepted — that's a request to enable, but the
+    // shape doesn't carry the crypto material, so it's meaningless.
+    expectInvalid({ serverFunctions: true }, "serverFunctions");
+    expectInvalid({ serverFunctions: 0 }, "serverFunctions");
+    expectInvalid({ serverFunctions: "yes" }, "serverFunctions");
+  });
+
+  it("rejects unknown nested keys when using the object form", () => {
+    expectInvalid(
+      { serverFunctions: { foobar: true } },
+      "serverFunctions.foobar"
+    );
+  });
+});
+
+describe("config validation — remoteComponents: false (force-disable)", () => {
+  it("accepts the literal `false`", () => {
+    expectValid({ remoteComponents: false });
+  });
+
+  it("rejects `true` (only `false` is meaningful — default already enabled)", () => {
+    expectInvalid({ remoteComponents: true }, "remoteComponents");
+  });
+
+  it("rejects any other value", () => {
+    expectInvalid({ remoteComponents: 0 }, "remoteComponents");
+    expectInvalid({ remoteComponents: "off" }, "remoteComponents");
+    expectInvalid({ remoteComponents: {} }, "remoteComponents");
+  });
+});

@@ -506,8 +506,20 @@ export default async function ssrHandler(root, options = {}) {
               const isMultipart = !!httpContext.request.headers
                 .get("content-type")
                 ?.includes("multipart/form-data");
+              // Mirror the feature gates render-rsc.jsx applies. Demote
+              // gated request shapes to "regular request" here so the
+              // shortcut-vs-RSC routing avoids the heavier RSC entry.
+              // The manifest-emptiness half of the gate stays in
+              // render-rsc.jsx (it has the manifest in scope); this layer
+              // only honors the explicit `config.serverFunctions: false`
+              // and `config.remoteComponents: false` overrides.
+              const serverFunctionsEnabled =
+                configRoot.serverFunctions !== false;
+              const remoteEnabled = configRoot.remoteComponents !== false;
               const isActionRequest =
-                isMutating && (hasActionHeader || isMultipart);
+                serverFunctionsEnabled &&
+                isMutating &&
+                (hasActionHeader || isMultipart);
               // Remote-component fetches (`.remote.x-component`) expect a
               // flight payload the host's `createFromFetch` can parse.
               // render-ssr.jsx's remote branch falls into HTML SSR and the
@@ -522,7 +534,8 @@ export default async function ssrHandler(root, options = {}) {
               // the `.remote.x-component` suffix and the `@<outlet>.` prefix
               // from `httpContext.url.pathname`, so a `.includes("@__react_server_remote__")`
               // check would always read `false` for an actual remote request.
-              const isRemoteRequest = !!renderContext.flags?.isRemote;
+              const isRemoteRequest =
+                remoteEnabled && !!renderContext.flags?.isRemote;
               const useShortcut =
                 isClientRoot && !isActionRequest && !isRemoteRequest;
               const dispatchRender = useShortcut

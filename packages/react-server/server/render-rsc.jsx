@@ -194,9 +194,20 @@ export async function render(Component, props = {}, options = {}) {
         revalidate$();
 
         const renderContext = getContext(RENDER_CONTEXT);
-        const remote = renderContext.flags.isRemote;
+        // Feature gate for remote components.  When
+        // `config.remoteComponents === false` both flavours of
+        // remote-rendering signal are forced off so the request flows
+        // through normal rendering: the URL's `@__react_server_remote__`
+        // marker (which the SSR handler also re-checks) is ignored, and
+        // any upstream-propagated isRemote flag becomes irrelevant.
+        // Unlike the server-functions gate, there's no manifest to detect
+        // emptiness for — opting out is a deliberate user decision,
+        // configured via `remoteComponents: false`.
+        const remoteEnabled = config?.remoteComponents !== false;
+        const remote = remoteEnabled ? renderContext.flags.isRemote : false;
         const outlet = useOutlet();
-        const remoteRSC = outlet.includes("__react_server_remote__");
+        const remoteRSC =
+          remoteEnabled && outlet.includes("__react_server_remote__");
         const origin = remoteRSC
           ? context.url.origin
           : context.request.headers.get("origin");
@@ -217,10 +228,55 @@ export async function render(Component, props = {}, options = {}) {
         const serverActionHeader = decodeURIComponent(
           context.request.headers.get("react-server-action") ?? null
         );
-        if (
+
+        // Wire-shape detection for server-function call requests.  Used
+        // both by the action-dispatch gate below and by the remote-props
+        // body-read gate further down: action-shaped requests must never
+        // be parsed as remote-props, regardless of whether the dispatch
+        // actually runs.  Otherwise, a multipart action POST submitted
+        // to an app with `serverFunctions: false` would have its body
+        // pulled through `decodeReply` (which expects JSON), producing
+        // a `SyntaxError: No number after minus sign in JSON…` from the
+        // multipart form bytes.
+        const isActionRequest =
           "POST,PUT,PATCH,DELETE".includes(context.request.method) &&
-          ((serverActionHeader && serverActionHeader !== "null") ||
-            isFormData) &&
+          ((serverActionHeader && serverActionHeader !== "null") || isFormData);
+
+        // Feature gate for server functions.  When disabled, no part of
+        // the action-dispatch block runs — the request body is never
+        // parsed, the action token is never decrypted, the manifest is
+        // never queried.  An attacker can still POST at the endpoint
+        // but the runtime behaves as if it were a static site: the
+        // request flows through to normal page rendering.
+        //
+        // Two ways the gate is "off":
+        //   1. The user explicitly forced it off via `serverFunctions:
+        //      false` in the runtime config.
+        //   2. Production build with an empty server-reference manifest
+        //      (no `"use server"` modules and no inline server functions
+        //      survived the build).  The manifest is replaced by a
+        //      literal JSON object at build time via
+        //      lib/plugins/server-reference-map.mjs:writeBundle, so
+        //      Object.keys is meaningful.
+        //
+        // Dev mode always defaults to `true` because the dev manifest is
+        // a lazy Proxy that fabricates entries on demand — emptiness is
+        // not a reliable signal there, and devs are iterating anyway.
+        const serverFunctionsEnabled =
+          config?.serverFunctions !== false &&
+          (import.meta.env.DEV ||
+            (() => {
+              try {
+                return Object.keys(_serverReferenceMap).length > 0;
+              } catch {
+                // Be safe on any unexpected manifest shape.
+                return true;
+              }
+            })());
+
+        if (
+          serverFunctionsEnabled &&
+          isActionRequest &&
           !options.skipFunction
         ) {
           let action = async function () {
@@ -528,10 +584,48 @@ export async function render(Component, props = {}, options = {}) {
           throw options.middlewareError;
         }
 
-        const temporaryReferences = createTemporaryReferenceSet();
+        // Temporary references are only meaningful for remote-component
+        // round-trips: a non-serializable client value (callback, DOM ref,
+        // anything that earns a $T tag on the wire) needs both encoder
+        // and decoder sides to share the same reference set so the value
+        // can be passed back to the same client. Page renders and plain
+        // server-function calls don't depend on them.
+        //
+        // When `remoteComponents: false` is set, we don't create the set
+        // at all. Downstream decoders that receive `null` for
+        // `temporaryReferences` will reject any incoming `$T` tag (no
+        // legitimate origin for one to exist), and downstream encoders
+        // simply won't emit them.  This removes a small but real attack
+        // surface: a fabricated request body containing `$T` references
+        // would otherwise allocate proxy objects and execute opaque
+        // lookups against an in-memory map.
+        const temporaryReferences = remoteEnabled
+          ? createTemporaryReferenceSet()
+          : null;
         context$(RENDER_TEMPORARY_REFERENCES, temporaryReferences);
 
+        // Body-as-remote-props decoding is exclusively for remote component
+        // requests — it parses the request body into the prop tree the
+        // remote render uses (JSON-encoded reply format).  Three things
+        // to gate on:
+        //
+        //   1. `remoteEnabled` — when remote-component rendering is
+        //      force-disabled, this block never fires regardless of
+        //      request shape.
+        //   2. `!isActionRequest` — action-shaped requests (multipart
+        //      forms or `react-server-action` header) carry payloads
+        //      the action-dispatch path consumes. With the action
+        //      dispatch gated by `serverFunctions: false`, the body
+        //      stream is no longer locked by `context.request.formData()`,
+        //      so without this guard a multipart action POST would be
+        //      pulled into `decodeReply` and `JSON.parse` would throw
+        //      on the multipart bytes.
+        //   3. `!body.locked` — the existing safety check; if any earlier
+        //      consumer (action-dispatch in the default-enabled path)
+        //      already drained the stream, skip.
         if (
+          remoteEnabled &&
+          !isActionRequest &&
           !options.middlewareError &&
           context.request.body &&
           context.request.body instanceof ReadableStream &&
@@ -543,7 +637,7 @@ export async function render(Component, props = {}, options = {}) {
           }
           body = body || "{}";
         }
-        if (body) {
+        if (remoteEnabled && body) {
           const remoteProps = await decodeReply(body, serverReferenceMap, {
             temporaryReferences,
           });

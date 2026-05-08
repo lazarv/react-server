@@ -57,6 +57,25 @@ function objectShape(shape) {
   return fn;
 }
 
+/**
+ * Accepts the literal `false` OR an object that satisfies `shape`.
+ *
+ * Used for force-disable config keys like `serverFunctions: false` where
+ * the same key also accepts a richer object form for normal configuration.
+ *
+ * Returns a validator that passes for `false` or any object value.
+ * The `_shape` property is preserved so the engine's nested-shape recursion
+ * (validateObject) still validates inner keys when the value is an object.
+ * The recursion guard (`_shape && is.object(value)`) keeps `false` from
+ * being walked as an object.
+ */
+function falseOrShape(shape) {
+  const fn = (v) => v === false || is.object(v);
+  fn._shape = shape;
+  fn._allowFalse = true;
+  return fn;
+}
+
 function enumOf(...values) {
   const fn = (v) => values.includes(v);
   fn._enum = values;
@@ -211,6 +230,13 @@ const REACT_SERVER_SCHEMA = {
   ),
   host: optional(oneOf(is.string, (v) => v === true)),
   port: optional(is.number),
+
+  // Force-disable Remote Components rendering. When `false`, the runtime
+  // ignores the `@__react_server_remote__` URL marker, never enters the
+  // Remote Components code path, and never parses request bodies as
+  // Remote Components payloads. Any other value (or omitted) leaves
+  // Remote Components rendering enabled.
+  remoteComponents: optional((v) => v === false),
 
   // ── Dev overlay / console ──
   console: optional(is.boolean),
@@ -461,8 +487,14 @@ const REACT_SERVER_SCHEMA = {
   ),
 
   // ── serverFunctions.* ──
+  // Accepts the existing object shape OR the boolean `false` to force-disable
+  // all Server Functions processing. When `false`, the runtime's action-dispatch
+  // block never executes, the request body is never parsed for action calls,
+  // and the manifest is never queried — the request flows through to normal
+  // page rendering. Useful for apps that have no Server Functions and want
+  // to eliminate the action-dispatch surface as a precaution.
   serverFunctions: optional(
-    objectShape({
+    falseOrShape({
       secret: optional(is.string),
       secretFile: optional(is.string),
       previousSecrets: optional(arrayOf(is.string)),
@@ -607,6 +639,7 @@ const EXAMPLES = {
   cookies: `cookies: { secure: true, sameSite: "lax" }`,
   host: `host: "0.0.0.0"  // or true for all interfaces`,
   port: `port: 3000`,
+  remoteComponents: `remoteComponents: false  // disable Remote Components rendering`,
   console: `console: false  // disable dev console overlay`,
   overlay: `overlay: false  // disable dev error overlay`,
   assetsInclude: `assetsInclude: ["**/*.gltf"]  // or string | RegExp`,
@@ -714,7 +747,7 @@ const EXAMPLES = {
   cache: `cache: { profiles: { ... }, providers: { ... } }`,
   "cache.profiles": `cache: { profiles: { default: { ttl: 60 } } }`,
   "cache.providers": `cache: { providers: { memory: { ... } } }`,
-  serverFunctions: `serverFunctions: { secret: "my-secret-key" }`,
+  serverFunctions: `serverFunctions: { secret: "my-secret-key" }  // or serverFunctions: false to disable`,
   "serverFunctions.secret": `serverFunctions: { secret: "my-secret-key" }`,
   "serverFunctions.secretFile": `serverFunctions: { secretFile: "./secret.pem" }`,
   "serverFunctions.previousSecrets": `serverFunctions: { previousSecrets: ["old-secret"] }`,

@@ -1,29 +1,29 @@
 ---
-title: Server functions
+title: Server Functions
 order: 4
 ---
 
 import Link from "../../../../components/Link.jsx";
 
-# Server functions
+# Server Functions
 
-Server functions are async functions that can be called from the client-side. You don't have to implement API endpoints for these functions to be callable as the client can call these functions like a direct reference to the function itself. Server functions are usable on forms, buttons, submit inputs, and as props to client components. React and the runtime will manage calling these functions on the server-side.
+Server Functions are async functions that can be called from the client-side. You don't have to implement API endpoints for these functions to be callable as the client can call these functions like a direct reference to the function itself. Server Functions are usable on forms, buttons, submit inputs, and as props to client components. React and the runtime will manage calling these functions on the server-side.
 
-You can expose any `"use server";` marked function as a server function. Server functions can be called from the client using the `action` prop on a `<form>` element, `formAction` on a `<button>` or `<input>` element, or from a client component passing down the server function as a prop to the client component.
+You can expose any `"use server";` marked function as a Server Function. Server Functions can be called from the client using the `action` prop on a `<form>` element, `formAction` on a `<button>` or `<input>` element, or from a client component passing down the Server Function as a prop to the client component.
 
-> If you use TypeScript, all of your server functions are type-safe and you will get type errors if you pass the wrong parameters to a server function or if you try to access a property on the response object that doesn't exist.
+> If you use TypeScript, all of your Server Functions are type-safe and you will get type errors if you pass the wrong parameters to a Server Function or if you try to access a property on the response object that doesn't exist.
 
 <Link name="inline-server-functions">
-## Inline server functions
+## Inline Server Functions
 </Link>
 
-You can define server functions inline in your components as any other event handler in a React component.
+You can define Server Functions inline in your components as any other event handler in a React component.
 
 ```jsx
 export default function App() {
   async function action() {
     "use server";
-    console.log("Server function called!");
+    console.log("Server Function called!");
   }
 
   return (
@@ -34,9 +34,9 @@ export default function App() {
 }
 ```
 
-> **Progressive enhancement:** if you have JavaScript enabled, the server function will be called using the `fetch` API and the response will be used to update the DOM in a React transition. If you don't have JavaScript enabled, the server function will be called using a regular HTTP request.
+> **Progressive enhancement:** if you have JavaScript enabled, the Server Function will be called using the `fetch` API and the response will be used to update the DOM in a React transition. If you don't have JavaScript enabled, the Server Function will be called using a regular HTTP request.
 
-You can even define your server functions inline your JSX.
+You can even define your Server Functions inline your JSX.
 
 ```jsx
 export default function App() {
@@ -44,7 +44,7 @@ export default function App() {
     <form
       action={async () => {
         "use server";
-        console.log("Server function called!");
+        console.log("Server Function called!");
       }}
     >
       <button type="submit">Submit</button>
@@ -53,33 +53,33 @@ export default function App() {
 }
 ```
 
-> Server functions are able to access all variables in scope, including references to props and any variables available in the scope of the server function from the last render of the component as server functions are mapped on each render of the server component.
+> Server Functions are able to access all variables in scope, including references to props and any variables available in the scope of the Server Function from the last render of the component as Server Functions are mapped on each render of the server component.
 
 <Link name="server-function-modules">
-## Server function modules
+## Server Function modules
 </Link>
 
-If you want to keep your server functions in separate modules, you can do so by using the `"use server";` pragma at the top of your module. All exported functions from a server function module will be usable as server functions.
+If you want to keep your Server Functions in separate modules, you can do so by using the `"use server";` pragma at the top of your module. All exported functions from a Server Function module will be usable as Server Functions.
 
 ```js
 "use server";
 
 export async function action() {
-  console.log("Server function called!");
+  console.log("Server Function called!");
 }
 ```
 
 <Link name="server-function-parameters">
-## Server function parameters
+## Server Function parameters
 </Link>
 
-You will get all form data as an object as the first parameter to your server function.
+You will get all form data as an object as the first parameter to your Server Function.
 
 ```jsx
 export default function App() {
   async function action(formData) {
     "use server";
-    console.log(`Server function called by ${formData.get("name")}!`);
+    console.log(`Server Function called by ${formData.get("name")}!`);
   }
 
   return (
@@ -101,7 +101,7 @@ import { useActionState } from "@lazarv/react-server/router";
 export default function App() {
   async function action(formData) {
     "use server";
-    console.log(`Server function called by ${formData.get("name")}!`);
+    console.log(`Server Function called by ${formData.get("name")}!`);
   }
 
   const { error } = useActionState(action);
@@ -116,18 +116,18 @@ export default function App() {
 }
 ```
 
-To access the action state, you can use the `useActionState` hook. The `useActionState` hook takes the server function as the first parameter and returns an object with the following properties:
+To access the action state, you can use the `useActionState` hook. The `useActionState` hook takes the Server Function as the first parameter and returns an object with the following properties:
 
 - `formData`: the form data object
-- `data`: the data object returned by the server function
+- `data`: the data object returned by the Server Function
 - `error`: the error object if the action failed
 - `actionId`: the action ID of the current action
 
 <Link name="server-functions-with-client-components">
-## Server functions with client components
+## Server Functions with client components
 </Link>
 
-You can also pass server function references to client components as props and call them from the client component as any other async function.
+You can also pass Server Function references to client components as props and call them from the client component as any other async function.
 
 ```jsx
 "use client";
@@ -147,7 +147,7 @@ import MyClientComponent from "./MyClientComponent";
 export default function App() {
   async function action({ name }) {
     "use server";
-    console.log(`Server function called by ${name}!`);
+    console.log(`Server Function called by ${name}!`);
   }
 
   return (
@@ -159,10 +159,10 @@ export default function App() {
 ```
 
 <Link name="server-function-response-to-client-component-calls">
-## Server function response to client component calls
+## Server Function response to client component calls
 </Link>
 
-Server functions called from client components can return data to the client component directly. This can be useful if you want to display a message to the user after the server function has been completed or if you want to display an error message if the server function failed.
+Server Functions called from client components can return data to the client component directly. This can be useful if you want to display a message to the user after the Server Function has been completed or if you want to display an error message if the Server Function failed.
 
 ```jsx
 "use client";
@@ -190,7 +190,7 @@ import MyClientComponent from "./MyClientComponent";
 export default function App() {
   async function action({ name }) {
     "use server";
-    console.log(`Server function called by ${name}!`);
+    console.log(`Server Function called by ${name}!`);
     return { message: `Hello ${name}!` };
   }
 
@@ -203,10 +203,10 @@ export default function App() {
 ```
 
 <Link name="inline-server-functions-with-inline-client-components">
-## Inline server functions with inline client components
+## Inline Server Functions with inline client components
 </Link>
 
-You can combine inline `"use server"` functions and inline `"use client"` components in the same file. This is useful when a server function and the client UI that consumes it are closely related.
+You can combine inline `"use server"` functions and inline `"use client"` components in the same file. This is useful when a Server Function and the client UI that consumes it are closely related.
 
 ```jsx
 import { useState, useTransition } from "react";
@@ -245,13 +245,13 @@ export default function App() {
 }
 ```
 
-Both the server function and the client component are extracted into separate modules automatically. The server function can capture variables from the module scope, and the client component can call the server function directly.
+Both the Server Function and the client component are extracted into separate modules automatically. The Server Function can capture variables from the module scope, and the client component can call the Server Function directly.
 
 <Link name="returning-client-components-from-server-functions">
-## Returning client components from server functions
+## Returning client components from Server Functions
 </Link>
 
-A server function can define an inline `"use client"` component and return it as rendered JSX. The client component will be serialized through the RSC protocol and hydrated on the client, making it fully interactive.
+A Server Function can define an inline `"use client"` component and return it as rendered JSX. The client component will be serialized through the RSC protocol and hydrated on the client, making it fully interactive.
 
 ```jsx
 import { useState, useTransition } from "react";
@@ -296,13 +296,13 @@ export default function App() {
 }
 ```
 
-The `createCounter` server function defines a `Counter` client component, renders it with the given props, and returns the element. The framework extracts the nested directives into separate modules through a chain of virtual modules, so everything works from a single file.
+The `createCounter` Server Function defines a `Counter` client component, renders it with the given props, and returns the element. The framework extracts the nested directives into separate modules through a chain of virtual modules, so everything works from a single file.
 
 <Link name="inline-server-functions-in-use-client-files">
-## Inline server functions in "use client" files
+## Inline Server Functions in "use client" files
 </Link>
 
-You can define inline `"use server"` functions inside a file that already has a top-level `"use client"` directive. The server functions are automatically extracted from the client module, so you can keep related server logic and client UI together in a single file.
+You can define inline `"use server"` functions inside a file that already has a top-level `"use client"` directive. The Server Functions are automatically extracted from the client module, so you can keep related server logic and client UI together in a single file.
 
 ```jsx
 "use client";
@@ -340,19 +340,19 @@ export default function TodoApp() {
 }
 ```
 
-The file is treated as a client component because of the top-level `"use client"` directive, but the `addItem` function is extracted into a separate server module. This works the same way as defining the server function in a standalone `"use server"` file — the runtime handles the extraction automatically.
+The file is treated as a client component because of the top-level `"use client"` directive, but the `addItem` function is extracted into a separate server module. This works the same way as defining the Server Function in a standalone `"use server"` file — the runtime handles the extraction automatically.
 
 <Link name="security">
 ## Security
 </Link>
 
-Server function calls travel a round-trip across the network: the runtime emits a reference to the function, the client invokes it, and the runtime resolves and runs the function on the server. Two things need to be tamper-evident across that round-trip — the *identity* of the action being called, and any *captured values* that travel with it.
+Server Function calls travel a round-trip across the network: the runtime emits a reference to the function, the client invokes it, and the runtime resolves and runs the function on the server. Two things need to be tamper-evident across that round-trip — the *identity* of the action being called, and any *captured values* that travel with it.
 
 <Link name="action-identity-and-bound-captures">
 ### Action identity and bound captures
 </Link>
 
-Every server function reference is encoded as a single AES-256-GCM token. The token's plaintext is the pair `(actionId, bound)`, where `bound` is the array of values that were captured by `.bind(...)` or by an inline closure at render time, or `null` for unbound actions. The ciphertext is what the client sees on the wire, and what it sends back when the action is invoked.
+Every Server Function reference is encoded as a single AES-256-GCM token. The token's plaintext is the pair `(actionId, bound)`, where `bound` is the array of values that were captured by `.bind(...)` or by an inline closure at render time, or `null` for unbound actions. The ciphertext is what the client sees on the wire, and what it sends back when the action is invoked.
 
 ```jsx
 function ProfilePage({ userId }) {
@@ -369,14 +369,14 @@ function ProfilePage({ userId }) {
 }
 ```
 
-In the example above, `userId` is captured by the inline server function. The runtime emits a token that bundles both the action's identity and the captured `userId` together. The client never sees `userId` in plaintext, never round-trips it as a separate value, and cannot edit it without invalidating the token's authentication tag — which causes the call to be rejected.
+In the example above, `userId` is captured by the inline Server Function. The runtime emits a token that bundles both the action's identity and the captured `userId` together. The client never sees `userId` in plaintext, never round-trips it as a separate value, and cannot edit it without invalidating the token's authentication tag — which causes the call to be rejected.
 
-This applies to every form of server function:
+This applies to every form of Server Function:
 
 - Module-scope `"use server"` functions (no captures → bound is `null`)
 - Inline closures with render-time captures
-- Server-side `.bind(...)` usage to partially apply a server function
-- Bound server references passed as arguments to other server functions
+- Server-side `.bind(...)` usage to partially apply a Server Function
+- Bound server references passed as arguments to other Server Functions
 
 <Link name="security-configuration">
 ### Configuration
@@ -422,10 +422,27 @@ The same rotation applies to both action identity and bound captures — they sh
 ### Client-side `.bind()`
 </Link>
 
-When a bound server function is exposed to a client component and the client calls `.bind(...)` to add more arguments, those additional arguments are treated as *runtime arguments*, not as new captures. They travel as ordinary call args (alongside whatever the user passes at invocation), and they are not included inside the encrypted token. This is intentional: only the original server-emitted bound is integrity-protected. Client-added arguments are effectively just the arguments the client chooses to send at call time.
+When a bound Server Function is exposed to a client component and the client calls `.bind(...)` to add more arguments, those additional arguments are treated as *runtime arguments*, not as new captures. They travel as ordinary call args (alongside whatever the user passes at invocation), and they are not included inside the encrypted token. This is intentional: only the original server-emitted bound is integrity-protected. Client-added arguments are effectively just the arguments the client chooses to send at call time.
+
+<Link name="disabling-server-functions">
+### Disabling Server Functions entirely
+</Link>
+
+If your application has no Server Functions at all, set `serverFunctions: false` in the runtime config. The runtime then refuses to decode any action request: incoming `POST`/`PUT`/`PATCH`/`DELETE` traffic is not parsed for action calls, the manifest is not queried, and the request flows through to normal page rendering as if the action endpoints didn't exist. This eliminates the action-dispatch surface as an attack target and removes a small amount of per-request overhead.
+
+```js
+// react-server.config.mjs
+export default {
+  serverFunctions: false,
+};
+```
+
+In production builds with no `"use server"` modules and no inline Server Functions, the runtime auto-detects an empty manifest and applies the same gate without explicit configuration. The explicit `false` is for cases where you want the gate even before a build (development), or as a deliberate posture choice regardless of what the build sees.
+
+Remote Components rendering can be force-disabled in the same defense-in-depth spirit via `remoteComponents: false` — see [Disabling Remote Components rendering](../features/micro-frontends#disabling-remote-components) on the Micro-frontends page.
 
 <Link name="security-limitations">
 ### Limitations
 </Link>
 
-The token covers the values in the bound array. If a captured value is a `File` or `Blob`, the token covers the slot reference that points to the binary content, but not the binary content itself. Servers that bind server-constructed binary data into a closure should be aware that an attacker controlling the upload could substitute the binary content even with a valid token. In practice, captured `File`/`Blob` values are rare in server function closures.
+The token covers the values in the bound array. If a captured value is a `File` or `Blob`, the token covers the slot reference that points to the binary content, but not the binary content itself. Servers that bind server-constructed binary data into a closure should be aware that an attacker controlling the upload could substitute the binary content even with a valid token. In practice, captured `File`/`Blob` values are rare in Server Function closures.

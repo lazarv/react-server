@@ -65,7 +65,10 @@ import {
 import { cwd } from "../lib/sys.mjs";
 import { clientReferenceMap } from "@lazarv/react-server/dist/server/client-reference-map";
 import { serverReferenceMap as _serverReferenceMap } from "@lazarv/react-server/dist/server/server-reference-map";
-import { decryptActionId, wrapServerReferenceMap } from "./action-crypto.mjs";
+import {
+  decryptActionToken,
+  wrapServerReferenceMap,
+} from "./action-crypto.mjs";
 import { requireModule } from "./module-loader.mjs";
 import { ScrollRestoration } from "../client/ScrollRestoration.jsx";
 
@@ -77,12 +80,27 @@ const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
 // moduleResolver.  The Proxy is keyed by "moduleId#exportName" and returns
 // { id, chunks, name, async }.  We expose it as resolveClientReference(ref)
 // so that @lazarv/rsc's FlightRequest can resolve client components.
+//
+// `resolveServerReference` controls the wire shape of $h chunks. We return
+// `{ id, bound: null }` for every server reference: bound captures (when
+// present) are already bundled into the encrypted `$$id` token via
+// `encryptActionToken` in action-register.mjs, so emitting a plaintext
+// `bound` array on the wire would be redundant *and* would defeat the
+// integrity protection (the token is what's tamper-evident; the array is
+// not). Returning an explicit `bound: null` here tells the @lazarv/rsc
+// serializer to skip its plaintext-bound fallback — see the resolver
+// branch in packages/rsc/server/shared.mjs.
 function makeModuleResolver(map) {
   return {
     resolveClientReference(ref) {
       const $$id = ref.$$id ?? ref.$$typeof?.$$id;
       if (!$$id) return null;
       return map[$$id];
+    },
+    resolveServerReference(ref) {
+      const $$id = ref?.$$id;
+      if (typeof $$id !== "string") return null;
+      return { id: $$id, bound: null };
     },
   };
 }
@@ -110,13 +128,23 @@ function decodeReply(body, _manifestOrOpts, opts) {
   const realOpts = isManifest ? opts : _manifestOrOpts;
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
   const configLimits = config?.serverFunctions?.limits;
-  if (configLimits) {
-    return _decodeReply(body, {
-      ...realOpts,
-      limits: { ...configLimits, ...realOpts?.limits },
-    });
-  }
-  return _decodeReply(body, realOpts);
+  // Wire the token-decryption hook so any $h chunk inside an action call
+  // body (the callback-arg case — a bound server reference passed as a
+  // value to another action) recovers its bound captures from the
+  // encrypted id and prepends them at bind time.  The hook signature
+  // matches the @lazarv/rsc decoder contract: returns null on decrypt
+  // failure, or { actionId, bound } on success.
+  return _decodeReply(body, {
+    ...realOpts,
+    ...(configLimits
+      ? { limits: { ...configLimits, ...realOpts?.limits } }
+      : null),
+    decryptServerReferenceId(id) {
+      const decrypted = decryptActionToken(id);
+      if (!decrypted) return null;
+      return { actionId: decrypted.actionId, bound: decrypted.bound };
+    },
+  });
 }
 
 export async function render(Component, props = {}, options = {}) {
@@ -254,11 +282,22 @@ export async function render(Component, props = {}, options = {}) {
 
           if (!(input instanceof Error)) {
             if (serverActionHeader && serverActionHeader !== "null") {
-              // Decrypt the capability-protected action ID.
+              // Decrypt the capability-protected action token.
+              //
+              // The token bundles `(actionId, bound)` under AES-GCM — see
+              // `encryptActionToken` in action-crypto.mjs.  For unbound
+              // actions `bound` is null; for `.bind()`-applied actions
+              // (typically inline closures with render-time captures) it
+              // carries the captured values.  Bound never travels plaintext
+              // on the wire, so the call body holds only runtime args.
+              //
               // If decryption fails, fall back to the raw header value so
               // that plain-text action IDs still work (e.g. during dev).
-              const decryptedId = decryptActionId(serverActionHeader);
-              const resolvedActionId = decryptedId ?? serverActionHeader;
+              const decrypted = decryptActionToken(serverActionHeader);
+              const resolvedActionId = decrypted
+                ? decrypted.actionId
+                : serverActionHeader;
+              const tokenBound = decrypted?.bound ?? null;
               const [, serverReferenceName] = resolvedActionId.split("#");
 
               // Verify the action exists in the server reference map.
@@ -282,7 +321,13 @@ export async function render(Component, props = {}, options = {}) {
                   if (typeof fn !== "function") {
                     throw new ServerFunctionNotFoundError();
                   }
-                  const boundFn = fn.bind(null, ...input);
+                  // Prepend the token-recovered bound captures to the
+                  // client-supplied runtime args.  Order matches what the
+                  // original `.bind(null, ...captures)` produced server-side.
+                  const allArgs = tokenBound
+                    ? [...tokenBound, ...input]
+                    : input;
+                  const boundFn = fn.bind(null, ...allArgs);
                   const data = await boundFn();
                   return {
                     data,
@@ -313,8 +358,13 @@ export async function render(Component, props = {}, options = {}) {
                   }
                 }
                 if (formActionId) {
-                  const decryptedId = decryptActionId(formActionId);
-                  const resolvedActionId = decryptedId ?? formActionId;
+                  // Same token-with-bound contract as the header path —
+                  // recover both halves and prepend bound at invocation.
+                  const decrypted = decryptActionToken(formActionId);
+                  const resolvedActionId = decrypted
+                    ? decrypted.actionId
+                    : formActionId;
+                  const tokenBound = decrypted?.bound ?? null;
                   const [, serverReferenceName] = resolvedActionId.split("#");
                   const serverReference = serverReferenceMap[resolvedActionId];
                   if (!serverReference) {
@@ -333,7 +383,11 @@ export async function render(Component, props = {}, options = {}) {
                       if (typeof fn !== "function") {
                         throw new ServerFunctionNotFoundError();
                       }
-                      const data = await fn(formInput);
+                      // Progressive enhancement passes the FormData as a
+                      // single arg; bound captures (if any) come first.
+                      const data = tokenBound
+                        ? await fn(...tokenBound, formInput)
+                        : await fn(formInput);
                       return {
                         data,
                         actionId: resolvedActionId,

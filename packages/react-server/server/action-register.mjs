@@ -1,11 +1,30 @@
 import { registerServerReference as _registerServerReference } from "@lazarv/rsc/server";
-import { encryptActionId } from "./action-crypto.mjs";
+import { encryptActionId, encryptActionToken } from "./action-crypto.mjs";
 
 const REACT_SERVER_REFERENCE = Symbol.for("react.server.reference");
 
 /**
  * Custom bind for server references that preserves $$typeof, $$id, $$bound,
  * and the encrypting $$id getter on bound functions.
+ *
+ * The cached `$$id` token bundles BOTH the action identity and the bound
+ * argument array under AES-GCM.  This means the bound captures travel inside
+ * the same authenticated blob that already protects action identity — there
+ * is no plaintext bound array on the wire, and any tampering invalidates the
+ * auth tag.  At call time the server decrypts the token, recovers the bound
+ * array, and prepends it to the runtime args before invoking the action.
+ *
+ * `$$bound` is still kept plaintext on the function object for two reasons:
+ *
+ *   1. `Function.prototype.bind` already prepends bound args at JavaScript
+ *      invocation time, so the plaintext copy is what makes the function
+ *      *callable* server-side.
+ *   2. Progressive-enhancement form rendering (`$$FORM_ACTION` on the client)
+ *      reads `$$bound` to materialise hidden form fields. Dropping it would
+ *      break PE.
+ *
+ * Only the wire form drops bound — see `resolveServerReference` in
+ * `server-reference-map.mjs` and the @lazarv/rsc serializer.
  */
 function createServerRefBind(fullId) {
   return function serverRefBind(thisArg, ...boundArgs) {
@@ -38,12 +57,15 @@ function createServerRefBind(fullId) {
       writable: false,
     });
 
-    // Each bound instance gets its own cached encrypted ID
+    // Each bound instance gets its own cached encrypted token.  The token
+    // bundles `(fullId, accumulated)` so both halves are tamper-evident
+    // together; an attacker cannot edit either piece without breaking the
+    // GCM auth tag.
     let cachedEncryptedId = null;
     Object.defineProperty(boundFn, "$$id", {
       get() {
         if (!cachedEncryptedId) {
-          cachedEncryptedId = encryptActionId(fullId);
+          cachedEncryptedId = encryptActionToken(fullId, accumulated);
         }
         return cachedEncryptedId;
       },

@@ -340,4 +340,92 @@ export default function TodoApp() {
 }
 ```
 
-The file is treated as a client component because of the top-level `"use client"` directive, but the `addItem` function is extracted into a separate server module. This works the same way as defining the server function in a standalone `"use server"` file — the framework handles the extraction automatically.
+The file is treated as a client component because of the top-level `"use client"` directive, but the `addItem` function is extracted into a separate server module. This works the same way as defining the server function in a standalone `"use server"` file — the runtime handles the extraction automatically.
+
+<Link name="security">
+## Security
+</Link>
+
+Server function calls travel a round-trip across the network: the runtime emits a reference to the function, the client invokes it, and the runtime resolves and runs the function on the server. Two things need to be tamper-evident across that round-trip — the *identity* of the action being called, and any *captured values* that travel with it.
+
+<Link name="action-identity-and-bound-captures">
+### Action identity and bound captures
+</Link>
+
+Every server function reference is encoded as a single AES-256-GCM token. The token's plaintext is the pair `(actionId, bound)`, where `bound` is the array of values that were captured by `.bind(...)` or by an inline closure at render time, or `null` for unbound actions. The ciphertext is what the client sees on the wire, and what it sends back when the action is invoked.
+
+```jsx
+function ProfilePage({ userId }) {
+  return (
+    <form
+      action={async (formData) => {
+        "use server";
+        await db.users.update(userId, formData.get("name"));
+      }}
+    >
+      …
+    </form>
+  );
+}
+```
+
+In the example above, `userId` is captured by the inline server function. The runtime emits a token that bundles both the action's identity and the captured `userId` together. The client never sees `userId` in plaintext, never round-trips it as a separate value, and cannot edit it without invalidating the token's authentication tag — which causes the call to be rejected.
+
+This applies to every form of server function:
+
+- Module-scope `"use server"` functions (no captures → bound is `null`)
+- Inline closures with render-time captures
+- Server-side `.bind(...)` usage to partially apply a server function
+- Bound server references passed as arguments to other server functions
+
+<Link name="security-configuration">
+### Configuration
+</Link>
+
+There is one configuration property to set: a stable encryption secret. Without it, the runtime generates an ephemeral key per process — fine for development, but tokens won't survive a restart or be valid across multiple instances of the server.
+
+```js
+// react-server.config.mjs
+export default {
+  serverFunctions: {
+    secret: process.env.ACTION_SECRET, // 32-byte hex, or any string (hashed to 32 bytes)
+  },
+};
+```
+
+The key resolves in this order:
+
+1. `REACT_SERVER_FUNCTIONS_SECRET` environment variable
+2. `REACT_SERVER_FUNCTIONS_SECRET_FILE` environment variable (path to a file)
+3. `serverFunctions.secret` in the runtime config
+4. `serverFunctions.secretFile` in the runtime config (path to a file)
+5. A random ephemeral key (development fallback only)
+
+<Link name="key-rotation">
+### Key rotation
+</Link>
+
+To rotate without invalidating in-flight tokens, list the prior keys under `serverFunctions.previousSecrets` (or `serverFunctions.previousSecretFiles`). Incoming tokens are tried against the primary key first and then each previous key in turn:
+
+```js
+export default {
+  serverFunctions: {
+    secret: process.env.ACTION_SECRET,
+    previousSecrets: [process.env.ACTION_SECRET_PREVIOUS],
+  },
+};
+```
+
+The same rotation applies to both action identity and bound captures — they share one key.
+
+<Link name="client-side-bind">
+### Client-side `.bind()`
+</Link>
+
+When a bound server function is exposed to a client component and the client calls `.bind(...)` to add more arguments, those additional arguments are treated as *runtime arguments*, not as new captures. They travel as ordinary call args (alongside whatever the user passes at invocation), and they are not included inside the encrypted token. This is intentional: only the original server-emitted bound is integrity-protected. Client-added arguments are effectively just the arguments the client chooses to send at call time.
+
+<Link name="security-limitations">
+### Limitations
+</Link>
+
+The token covers the values in the bound array. If a captured value is a `File` or `Blob`, the token covers the slot reference that points to the binary content, but not the binary content itself. Servers that bind server-constructed binary data into a closure should be aware that an attacker controlling the upload could substitute the binary content even with a valid token. In practice, captured `File`/`Blob` values are rare in server function closures.

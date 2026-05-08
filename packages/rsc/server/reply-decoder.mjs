@@ -156,6 +156,18 @@ function buildReplyResponse(prefix, formData, options) {
     _moduleLoader: options.moduleLoader ?? null,
     _limits: { ...DEFAULT_LIMITS, ...options.limits },
     _depth: 0,
+    // Optional host hook: when a $h chunk's `id` is an opaque token
+    // (e.g. an AES-GCM blob that encrypts both the action id and the
+    // bound captures), the host can supply this hook to recover both
+    // halves.  Signature: (id: string) => { actionId: string,
+    // bound: unknown[] | null } | null.  When the hook returns a
+    // non-null result, `actionId` is what's passed to loadServerAction
+    // and `bound` is prepended (in order) to any client-supplied
+    // `parsed.bound` before binding to the action.
+    //
+    // When the hook is absent or returns null the decoder falls back to
+    // the legacy behaviour (parsed.id used as-is, parsed.bound used as-is).
+    _decryptServerReferenceId: options.decryptServerReferenceId ?? null,
   };
 
   if (formData) {
@@ -569,25 +581,58 @@ function decodeServerReference(response, hexId) {
   if (typeof loader !== "function") {
     throw new DecodeError("No server action loader configured");
   }
-  const action = loader(parsed.id);
-  const bound = parsed.bound;
-  if (Array.isArray(bound) && bound.length > 0) {
-    if (bound.length > response._limits.maxBoundArgs) {
-      throw new DecodeLimitError("maxBoundArgs", bound.length);
+
+  // Token decryption hook (callback-arg case): if the `id` field is an
+  // opaque token that encrypts both the action id and a bound array, the
+  // host hook recovers both pieces.  The returned `actionId` is what the
+  // loader sees, and `tokenBound` is prepended to any client-supplied
+  // `parsed.bound` before binding — so the same `(actionPath, bound)`
+  // pairing protected by the AEAD wins out at call time too.
+  let actionId = parsed.id;
+  let tokenBound = null;
+  if (typeof response._decryptServerReferenceId === "function") {
+    const decrypted = response._decryptServerReferenceId(parsed.id);
+    if (decrypted && typeof decrypted.actionId === "string") {
+      actionId = decrypted.actionId;
+      if (Array.isArray(decrypted.bound)) tokenBound = decrypted.bound;
     }
-    const boundArgs = bound.map((arg) =>
-      walkValue(response, arg, "", new WeakSet())
-    );
-    if (action && typeof action.then === "function") {
-      return action.then((fn) =>
-        typeof fn === "function" ? fn.bind(null, ...boundArgs) : fn
-      );
-    }
-    return typeof action === "function"
-      ? action.bind(null, ...boundArgs)
-      : action;
   }
-  return action;
+
+  const action = loader(actionId);
+  const wireBound = parsed.bound;
+  const wireBoundIsArray = Array.isArray(wireBound) && wireBound.length > 0;
+
+  // No bound from any source → return the bare action.
+  if (tokenBound === null && !wireBoundIsArray) {
+    return action;
+  }
+
+  // Combined limit: token-recovered bound + wire-supplied bound must fit
+  // within maxBoundArgs.  Token-recovered bound is server-controlled
+  // (came from our own AEAD) so it's nominally trustworthy, but we still
+  // count it against the limit to keep memory bounded.
+  const totalBoundLength =
+    (tokenBound ? tokenBound.length : 0) +
+    (wireBoundIsArray ? wireBound.length : 0);
+  if (totalBoundLength > response._limits.maxBoundArgs) {
+    throw new DecodeLimitError("maxBoundArgs", totalBoundLength);
+  }
+
+  const wireBoundArgs = wireBoundIsArray
+    ? wireBound.map((arg) => walkValue(response, arg, "", new WeakSet()))
+    : [];
+  const boundArgs = tokenBound
+    ? [...tokenBound, ...wireBoundArgs]
+    : wireBoundArgs;
+
+  if (action && typeof action.then === "function") {
+    return action.then((fn) =>
+      typeof fn === "function" ? fn.bind(null, ...boundArgs) : fn
+    );
+  }
+  return typeof action === "function"
+    ? action.bind(null, ...boundArgs)
+    : action;
 }
 
 // ─── Outlined model resolution ─────────────────────────────────────────────

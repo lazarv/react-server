@@ -1442,13 +1442,32 @@ function serializeValue(request, value, _parentObject, _parentKey) {
         return "$h" + cached;
       }
 
-      // Build the server reference metadata model
+      // Build the server reference metadata model.
+      //
+      // Resolver shape:
+      //   { id: string, bound?: unknown[] | null }
+      //
+      // If the resolver explicitly sets `bound` (including `null`), that
+      // value goes on the wire verbatim.  This lets a host suppress
+      // plaintext bound serialisation when the bound array has already been
+      // bundled into the encrypted `id` token (see action-crypto.mjs's
+      // `encryptActionToken`) — in that case the resolver returns
+      // `{ id: <token-with-bound>, bound: null }` and the captured values
+      // never leave the server in plaintext.
+      //
+      // When the resolver omits `bound`, the serializer falls back to
+      // `value.$$bound` and emits the bound array on the wire.  This
+      // preserves backward compatibility for resolvers that don't know
+      // about token-encoded bound (and for the bare $$id fallback path).
       let serverRefModel = null;
       const resolver = request.moduleResolver.resolveServerReference;
       if (resolver) {
         const metadata = resolver(value);
         if (metadata) {
-          if (value.$$bound && value.$$bound.length > 0) {
+          if ("bound" in metadata) {
+            // Resolver speaks for the wire shape — honor it as-is.
+            serverRefModel = { ...metadata };
+          } else if (value.$$bound && value.$$bound.length > 0) {
             const boundArgs = value.$$bound.map((arg, i) =>
               serializeValue(request, arg, value.$$bound, i)
             );
@@ -2614,31 +2633,52 @@ export function deserializeValue(value, options = {}, path = "") {
         );
       }
       const parsed = JSON.parse(partPayload);
-      const id = parsed.id;
       const loader = options.moduleLoader?.loadServerAction;
       if (!loader) {
         throw new Error("No server action loader configured");
       }
-      const action = loader(id);
-      if (
-        parsed.bound &&
-        Array.isArray(parsed.bound) &&
-        parsed.bound.length > 0
-      ) {
-        const boundArgs = parsed.bound.map((arg) =>
-          deserializeValue(arg, options, path)
-        );
-        // If loader returns a promise, wait for it then bind
-        if (action && typeof action.then === "function") {
-          return action.then((fn) =>
-            typeof fn === "function" ? fn.bind(null, ...boundArgs) : fn
-          );
+
+      // Token decryption hook (legacy path, parity with reply-decoder.mjs's
+      // primary $h handler).  When the host supplies a hook, an opaque
+      // token-as-id is decrypted to recover both the action id and any
+      // server-emitted bound captures, which prepend the wire-supplied
+      // bound at bind time.
+      let id = parsed.id;
+      let tokenBound = null;
+      if (typeof options.decryptServerReferenceId === "function") {
+        const decrypted = options.decryptServerReferenceId(id);
+        if (decrypted && typeof decrypted.actionId === "string") {
+          id = decrypted.actionId;
+          if (Array.isArray(decrypted.bound)) tokenBound = decrypted.bound;
         }
-        return typeof action === "function"
-          ? action.bind(null, ...boundArgs)
-          : action;
       }
-      return action;
+
+      const action = loader(id);
+      const wireBound =
+        parsed.bound && Array.isArray(parsed.bound) && parsed.bound.length > 0
+          ? parsed.bound.map((arg) => deserializeValue(arg, options, path))
+          : null;
+
+      // No bound from any source.
+      if (tokenBound === null && wireBound === null) {
+        return action;
+      }
+
+      const boundArgs = tokenBound
+        ? wireBound
+          ? [...tokenBound, ...wireBound]
+          : tokenBound
+        : wireBound;
+
+      // If loader returns a promise, wait for it then bind
+      if (action && typeof action.then === "function") {
+        return action.then((fn) =>
+          typeof fn === "function" ? fn.bind(null, ...boundArgs) : fn
+        );
+      }
+      return typeof action === "function"
+        ? action.bind(null, ...boundArgs)
+        : action;
     }
     if (value === "$T") {
       // Temporary reference — create an opaque proxy that maps back to the

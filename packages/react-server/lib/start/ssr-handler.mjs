@@ -495,7 +495,23 @@ export default async function ssrHandler(root, options = {}) {
                 ?.includes("multipart/form-data");
               const isActionRequest =
                 isMutating && (hasActionHeader || isMultipart);
-              const useShortcut = isClientRoot && !isActionRequest;
+              // Remote-component fetches (`.remote.x-component`) expect a
+              // flight payload the host's `createFromFetch` can parse.
+              // render-ssr.jsx's remote branch falls into HTML SSR and the
+              // host would wait forever parsing HTML as flight bytes — so
+              // route remote requests back through the full RSC entry too,
+              // same as server-action POSTs.
+              //
+              // Read the `isRemote` flag from `renderContext` (set by
+              // `createRenderContext` based on the URL extension match)
+              // rather than re-inspecting the pathname here: by the time
+              // dispatch runs, `createRenderContext` has already stripped
+              // the `.remote.x-component` suffix and the `@<outlet>.` prefix
+              // from `httpContext.url.pathname`, so a `.includes("@__react_server_remote__")`
+              // check would always read `false` for an actual remote request.
+              const isRemoteRequest = !!renderContext.flags?.isRemote;
+              const useShortcut =
+                isClientRoot && !isActionRequest && !isRemoteRequest;
               const dispatchRender = useShortcut
                 ? render
                 : (renderAction ?? render);

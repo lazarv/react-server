@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { join } from "node:path";
 
@@ -8,22 +8,20 @@ import {
   cors,
   createMiddleware,
 } from "@lazarv/react-server/http";
-import { Server } from "socket.io";
 
 import memoryDriver, { StorageCache } from "../../cache/index.mjs";
-import { getContext } from "../../server/context.mjs";
 import { PrerenderStorage } from "../../server/prerender-storage.mjs";
 import { getRuntime, runtime$ } from "../../server/runtime.mjs";
 import {
   CONFIG_CONTEXT,
   CONFIG_ROOT,
   EXEC_OPTIONS,
-  HTTP_CONTEXT,
-  LIVE_IO,
+  LIVE_TRANSPORT,
   LOGGER_CONTEXT,
   MEMORY_CACHE_CONTEXT,
   WORKER_THREAD,
 } from "../../server/symbols.mjs";
+import { loadTransport } from "../live/transport-registry.mjs";
 import {
   resolveTelemetryConfig,
   initTelemetry,
@@ -42,7 +40,19 @@ import ssrHandler from "./ssr-handler.mjs";
 const cwd = sys.cwd();
 
 export default async function createServer(root, options) {
-  runtime$(EXEC_OPTIONS, options);
+  // `EXEC_OPTIONS` is the canonical options bag every downstream
+  // subsystem reads back via `getRuntime(EXEC_OPTIONS)`. Several of
+  // those subsystems forward it across structured-clone boundaries
+  // (worker_threads `workerData`, loader registration `data`), so any
+  // non-cloneable value parked here detonates at the boundary —
+  // observed as `DataCloneError: function() { ... } could not be cloned`
+  // when user code spawns a `useWorker` proxy in production. Strip
+  // `httpServer` (a live `http.Server` carrying pre-bound listeners
+  // that can't be cloned) at the source so every consumer sees a clean
+  // bag without each having to remember to filter it again.
+  // oxlint-disable-next-line no-unused-vars
+  const { httpServer: _httpServer, ...cloneableOptions } = options;
+  runtime$(EXEC_OPTIONS, cloneableOptions);
 
   if (!options.outDir) {
     options.outDir = ".react-server";
@@ -53,8 +63,10 @@ export default async function createServer(root, options) {
     worker = await createRenderer({ root, options });
   } else {
     const { Worker } = await import("node:worker_threads");
+    // `cloneableOptions` is already stripped of non-cloneable values
+    // (see above) — reuse it for the renderer worker's `workerData`.
     worker = new Worker(new URL("./render-stream.mjs", import.meta.url), {
-      workerData: { root, options },
+      workerData: { root, options: cloneableOptions },
     });
   }
   runtime$(WORKER_THREAD, worker);
@@ -415,54 +427,101 @@ export default async function createServer(root, options) {
     }
   };
 
-  if (
-    httpServer &&
-    existsSync(join(cwd, options.outDir, "server/live-io.manifest.json"))
-  ) {
-    const corsConfig = getServerCors(config);
-    const io = new Server(httpServer, {
-      cors: {
-        ...corsConfig,
-        origin:
-          typeof corsConfig.origin === "function"
-            ? (origin, callback) => {
-                callback(
-                  null,
-                  corsConfig.origin(
-                    getContext(HTTP_CONTEXT) ?? {
-                      request: { headers: { get: () => origin } },
-                    }
-                  )
-                );
-              }
-            : cors.origin,
-      },
-    });
-    runtime$(LIVE_IO, {
-      io,
-      httpServer,
-      connections: new Set(),
-    });
+  // ── Live transport bootstrap ──
+  // The build emits `server/live-io.manifest.json` only when at least one
+  // module declared `"use live"`. When the manifest is absent, no transport
+  // is loaded and no network library (socket.io / ws) ever enters the
+  // process — that is the "no live components → no socket.io" guarantee.
+  //
+  // When the manifest is present we dynamically import each listed transport
+  // and attach it to the http server. Each transport is responsible for its
+  // own connection model (socket.io: namespaces; SSE: one Connect-style
+  // middleware; ws: server.upgrade hook). The runtime exposes them via the
+  // `LIVE_TRANSPORT` registry so server/live.jsx can dispatch by name.
+  const liveManifestPath = join(
+    cwd,
+    options.outDir,
+    "server/live-io.manifest.json"
+  );
+  /** @type {Map<string, import("../live/transport-registry.mjs").LiveTransport>} */
+  const liveTransports = new Map();
+  let liveDefaultTransport;
 
-    io.on("connection", async (socket) => {
-      const connections = getRuntime(LIVE_IO)?.connections ?? new Set();
-      connections.add(socket);
-
-      socket.on("disconnect", () => {
-        connections.delete(socket);
-      });
-    });
-
-    // Safety net: if anything teardown the http server without going through
-    // `server.shutdown()` (tests, embedders, future code), make sure socket.io
-    // also closes — otherwise it leaks upgrade connections.
-    httpServer.on("close", () => {
-      try {
-        io.close();
-      } catch {
-        // already closed
+  if (httpServer && existsSync(liveManifestPath)) {
+    let manifest;
+    try {
+      manifest = JSON.parse(readFileSync(liveManifestPath, "utf8"));
+    } catch {
+      manifest = null;
+    }
+    if (manifest?.hasLive && Array.isArray(manifest.transports)) {
+      const corsConfig = getServerCors(config);
+      liveDefaultTransport = manifest.default;
+      for (const name of manifest.transports) {
+        try {
+          const transport = await loadTransport(name);
+          await transport.attach({ httpServer, cors: corsConfig });
+          liveTransports.set(name, transport);
+        } catch (err) {
+          getRuntime(LOGGER_CONTEXT)?.error?.(
+            `Failed to load live transport "${name}": ${err?.message ?? err}`
+          );
+        }
       }
-    });
+
+      // Mount each transport's optional Connect-style middleware (currently
+      // only SSE) by wrapping the http server's existing 'request' listener.
+      // The wrapper lets the SSE middleware short-circuit on its prefix
+      // path, while `next()` falls through to the original react-server
+      // handler chain.
+      //
+      // Wrap (not chain) because the http chain compose handler is already
+      // baked into a single 'request' listener at this point — appending a
+      // second listener would race with the first.
+      const sseMiddlewares = [];
+      for (const transport of liveTransports.values()) {
+        if (typeof transport.middleware === "function") {
+          sseMiddlewares.push(transport.middleware);
+        }
+      }
+      if (sseMiddlewares.length > 0) {
+        const existingListeners = httpServer.listeners("request").slice();
+        for (const l of existingListeners) {
+          httpServer.removeListener("request", l);
+        }
+        const fallthrough = (req, res) => {
+          for (const l of existingListeners) l(req, res);
+        };
+        // Compose live-transport middlewares so each one calls next() to
+        // pass to the next in the chain, with `fallthrough` at the tail.
+        const chain = sseMiddlewares.reduceRight(
+          (next, mw) => (req, res) => mw(req, res, () => next(req, res)),
+          fallthrough
+        );
+        httpServer.on("request", chain);
+      }
+
+      runtime$(LIVE_TRANSPORT, {
+        default: liveDefaultTransport,
+        get(name) {
+          return liveTransports.get(name ?? liveDefaultTransport);
+        },
+        transports: liveTransports,
+      });
+
+      // Safety net: if anything tears the http server down without going
+      // through `server.shutdown()` (tests, embedders, future code), close
+      // every transport so they don't leak upgrade connections / streams.
+      httpServer.on("close", () => {
+        for (const t of liveTransports.values()) {
+          try {
+            t.close();
+          } catch {
+            // already closed
+          }
+        }
+      });
+    }
   }
 
   // ── Telemetry: flush on server close ──
@@ -498,11 +557,16 @@ export default async function createServer(root, options) {
     if (adaptiveLimiter) {
       adaptiveLimiter.destroy();
     }
-    // Close socket.io BEFORE closing the HTTP server — io holds upgrade
-    // connections that prevent httpServer.close() from completing.
-    const liveIO = getRuntime(LIVE_IO);
-    if (liveIO?.io) {
-      liveIO.io.close();
+    // Close every live transport BEFORE closing the HTTP server — each
+    // transport may hold upgrade connections (socket.io, ws) or long-lived
+    // SSE response streams that would otherwise prevent httpServer.close()
+    // from completing.
+    for (const t of liveTransports.values()) {
+      try {
+        t.close();
+      } catch {
+        // already closed
+      }
     }
     if (httpServer) {
       httpServer.keepAliveTimeout = 1;

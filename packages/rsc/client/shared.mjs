@@ -2799,10 +2799,29 @@ export function createFromReadableStream(stream, options = {}) {
   // data in the background until the stream ends.
   const consumePromise = (async () => {
     const reader = stream.getReader();
+    // Validate the first non-empty byte we read. Flight rows always
+    // begin with an ASCII digit (`0`, `1`, `2`, …) followed by a tag
+    // character and a colon. A `<` byte unambiguously means the producer
+    // sent HTML/XML — usually because something upstream returned an
+    // error page or routed through a non-RSC handler. Without this
+    // guard, the parser silently buffers HTML waiting for a row
+    // terminator that never arrives and the caller hangs forever.
+    // We only need to check the very first non-empty byte; once a
+    // legitimate Flight row has been observed, byte-level structural
+    // errors will surface as parse errors elsewhere in processData.
+    let firstByteChecked = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (!firstByteChecked && value && value.length > 0) {
+          firstByteChecked = true;
+          if (value[0] === 0x3c /* '<' */) {
+            throw new Error(
+              "Invalid RSC payload: response begins with '<' (HTML/XML). The producer is not returning a Flight stream — likely an error page, a non-RSC handler, or a misrouted dispatch."
+            );
+          }
+        }
         response.processData(value);
         // Wait for ALL pending module imports to complete before resolving
         // deferred chunks.  Unlike webpack (which has a synchronous module

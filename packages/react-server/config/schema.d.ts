@@ -1227,6 +1227,40 @@ export interface ReactServerConfig {
   cors?: boolean | Record<string, unknown> | null;
 
   /**
+   * Live Components configuration.
+   *
+   * Picks the real-time transport used to push generator yields from the
+   * server to the browser. When `live` is omitted (and no module declares
+   * a `"use live; transport=…"` override), the default is `"auto"` —
+   * SSE on edge / serverless builds, socket.io on Node.
+   *
+   * Per-component overrides take precedence over `live.transport`.
+   *
+   * @example `live: { transport: "sse" }`
+   */
+  live?: {
+    /**
+     * Transport for Live Components.
+     *
+     * - `"auto"` (default) — picks `"sse"` on edge/serverless builds,
+     *   `"socketio"` on Node. The choice is baked into the build manifest;
+     *   no runtime detection.
+     * - `"socketio"` — bidirectional WebSocket via socket.io. The historic
+     *   default. Requires a Node http server.
+     * - `"sse"` — Server-Sent Events. HTTP/1.1 native, edge-compatible,
+     *   no WebSocket upgrade needed. Server → client only.
+     * - `"ws"` — Native WebSocket (no socket.io). Lightweight; bidirectional.
+     */
+    transport?: "auto" | "socketio" | "sse" | "ws";
+
+    /**
+     * CORS configuration applied to the live transport. When omitted,
+     * falls back to the top-level `cors` / `server.cors` config.
+     */
+    cors?: boolean | Record<string, unknown>;
+  };
+
+  /**
    * Raw Vite config override (object or function).
    * @example `vite: { build: { target: "esnext" } }` or `vite: (config) => config`
    */

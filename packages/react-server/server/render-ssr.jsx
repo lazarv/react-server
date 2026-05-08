@@ -65,6 +65,24 @@ export async function render(Component, _props = {}, options = {}) {
   const renderContext = getContext(RENDER_CONTEXT);
   const importMap = getContext(IMPORT_MAP);
 
+  // Hard assertion: this entry should NEVER be reached for a remote
+  // request. Remote responses must be flight payloads (RSC tree + SSR'd
+  // HTML encoded via dom2flight); `renderClientRoot` below produces HTML
+  // only. If the dispatcher in `lib/start/ssr-handler.mjs` ever routes a
+  // remote request here, fail loudly so the regression is visible at the
+  // failing aux server's log instead of silently returning an HTML body
+  // the host can't parse as flight.
+  if (renderContext?.flags?.isRemote) {
+    throw new Error(
+      "render-ssr.jsx invoked for a `.remote.x-component` request. " +
+        "Remote responses must be produced by render-rsc.jsx. The " +
+        "dispatcher in lib/start/ssr-handler.mjs should have routed this " +
+        "request to `renderAction` instead — check that " +
+        "`<outDir>/server/render-action.mjs` was emitted by the build for " +
+        "this client-root entry."
+    );
+  }
+
   // Hard guard: this entry should only be reached for client references.
   // If something upstream went wrong (config drift, plugin pipeline issue),
   // fail loudly rather than silently producing broken HTML.

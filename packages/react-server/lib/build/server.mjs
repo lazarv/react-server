@@ -402,16 +402,24 @@ export default async function serverBuild(root, options, clientManifestBus) {
       : "@lazarv/react-server/server/render-rsc.jsx",
     { paths: [cwd] }
   );
-  // Client-root builds bundle render-rsc.jsx as a secondary entry so the
-  // runtime can dispatch server-action POSTs through the full RSC pipeline
-  // even though the primary `server/render` is the SSR shortcut. See the
-  // matching per-request switch in lib/start/ssr-handler.mjs. Non-client-root
-  // builds don't need this bundle — the primary entry already is RSC.
-  const renderActionModulePath = isClientRootBuild
-    ? __require.resolve("@lazarv/react-server/server/render-rsc.jsx", {
-        paths: [cwd],
-      })
-    : null;
+  // Always bundle render-rsc.jsx as `render-action.mjs`, regardless of
+  // whether the root is a client module. Remote-component requests
+  // (`.remote.x-component`) MUST go through the RSC pipeline so the
+  // response carries both the flight tree AND the SSR'd HTML encoded via
+  // dom2flight; the SSR-shortcut `render` produces HTML only and is not a
+  // valid substitute. The runtime dispatcher in lib/start/ssr-handler.mjs
+  // routes remote/action requests to `renderAction` first, so this entry
+  // is required by every build that may serve a remote-component request
+  // (i.e. every build, since the host topology is not known at build time).
+  //
+  // For non-client-root builds, `render.mjs` and `render-action.mjs` are
+  // both compiled from `render-rsc.jsx`; the bundler dedupes the shared
+  // module graph into common chunks, so the on-disk overhead is the two
+  // tiny entry stubs, not two full copies of the RSC pipeline.
+  const renderActionModulePath = __require.resolve(
+    "@lazarv/react-server/server/render-rsc.jsx",
+    { paths: [cwd] }
+  );
   const errorModulePath = __require.resolve(globalError, {
     paths: [cwd],
   });

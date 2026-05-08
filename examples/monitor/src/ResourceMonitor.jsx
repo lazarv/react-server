@@ -1,4 +1,4 @@
-"use live";
+"use live; transport=socketio";
 
 import os from "node:os";
 import { execSync } from "node:child_process";

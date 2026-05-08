@@ -509,7 +509,17 @@ export default function ReactServerComponent({
         isolate={isolate}
         request={request}
         remoteProps={remoteProps}
-        live={live ? (url ?? parent.url ?? true) : false}
+        live={
+          live
+            ? // Preserve transport overrides ({transport, url?}) emitted by
+              // server/live.jsx for components using "use live; transport=...".
+              // Plain truthy values collapse to a URL string (or `true`) for
+              // backwards compat with the original socket.io-only protocol.
+              typeof live === "object" && live !== null
+              ? { ...live, url: live.url ?? url ?? parent.url ?? null }
+              : (url ?? parent.url ?? true)
+            : false
+        }
         ttl={ttl}
       >
         {children}

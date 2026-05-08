@@ -38,6 +38,11 @@ export const DESCRIPTIONS = {
   prerender: "Enable prerendering. true or { timeout: number }.",
   cluster: "Number of cluster workers, or true for auto-detection.",
   cors: "Enable CORS. true or { origin, credentials, ... }.",
+  live: "Live Components configuration. Picks the real-time transport.",
+  "live.transport":
+    'Transport for Live Components. "auto" (default) picks SSE on edge runtimes and socket.io on Node. "socketio" — bidirectional WebSocket via socket.io. "sse" — Server-Sent Events, server→client only, edge-friendly. "ws" — native WebSocket. Per-component override available via the "use live; transport=…" directive.',
+  "live.cors":
+    "CORS configuration for the Live Components transport. Falls back to the top-level cors / server.cors when omitted.",
   vite: "Raw Vite config override (object or function).",
   customLogger: "Custom Vite logger instance.",
   logger: 'Logger configuration. String (e.g. "pino") or object.',
@@ -443,6 +448,21 @@ export function generateJsonSchema() {
         "cluster"
       ),
       cors: prop({ oneOf: [{ type: "boolean" }, { type: "object" }] }, "cors"),
+      live: prop(
+        {
+          type: "object",
+          properties: {
+            transport: {
+              enum: ["auto", "socketio", "sse", "ws"],
+            },
+            cors: {
+              oneOf: [{ type: "boolean" }, { type: "object" }],
+            },
+          },
+          additionalProperties: false,
+        },
+        "live"
+      ),
       vite: prop({ type: "object" }, "vite"),
       customLogger: prop({ type: "object" }, "customLogger"),
       logger: prop(

@@ -191,9 +191,22 @@ export default function PayloadCollector() {
       }
       if (event.data?.type === "devtools:cache-invalidate") {
         const { keys, provider } = event.data;
-        // Send to server via socket.io
-        for (const socket of liveSockets.values()) {
-          socket.emit("cache:invalidate", { keys, provider });
+        // Send to server via the dedicated devtools WebSocket — JSON-framed
+        // to match the wire format the devtools context server expects.
+        const frame = JSON.stringify({
+          type: "cache:invalidate",
+          keys,
+          provider,
+        });
+        for (const ws of liveSockets.values()) {
+          if (ws.readyState === 1 /* OPEN */) {
+            try {
+              ws.send(frame);
+            } catch {
+              // socket closed mid-flight; the server will replay state on
+              // reconnect, so dropping this message is safe.
+            }
+          }
         }
         // Invalidate client-side cache
         import("@lazarv/react-server/memory-cache/client")
@@ -535,78 +548,126 @@ export default function PayloadCollector() {
       });
     }
 
-    // ── 6. Live component server-side state via socket.io ──
+    // ── 6. Live component server-side state via dedicated devtools WebSocket ──
+    // Devtools used to ride on the user's socket.io live server. Now it has
+    // its own native WebSocket endpoint at DEVTOOLS_WS_PATH so it works
+    // regardless of `live.transport` (or whether live components are used
+    // at all). socket.io-client never enters the bundle this way.
+    const DEVTOOLS_WS_PATH = "/__react_server_devtools_ws__";
+    /** @type {Map<string, WebSocket>} */
     const liveSockets = new Map();
-    let ioClient = null;
     let lastServerWorkers = null;
 
-    function connectLiveOrigin(origin) {
-      if (liveSockets.has(origin) || !ioClient) return;
-      const url = origin
-        ? new URL("/__devtools__", origin).href
-        : "/__devtools__";
-      const socket = ioClient(url, { withCredentials: true });
-      socket.on("live:components", (data) => {
-        sendToDevTools({
-          type: "devtools:live-components",
-          components: data,
-        });
-      });
-      socket.on("cache:event", (event) => {
-        sendToDevTools({
-          type: "devtools:cache-event",
-          event,
-        });
-      });
-      socket.on("cache:events", (events) => {
-        sendToDevTools({
-          type: "devtools:cache-events",
-          events,
-        });
-      });
-      socket.on("cache:flush-request", () => {
-        sendToDevTools({ type: "devtools:cache-flush-request" });
-      });
-      socket.on("cache:invalidated", ({ keys, provider }) => {
-        sendToDevTools({
-          type: "devtools:cache-invalidated",
-          keys,
-          provider,
-        });
-      });
-      socket.on("worker:components", (data) => {
-        lastServerWorkers = data;
-        sendToDevTools({
-          type: "devtools:worker-components",
-          workers: data,
-        });
-      });
-      socket.on("log:entry", (entry) => {
-        sendToDevTools({
-          type: "devtools:log-entry",
-          entry,
-        });
-      });
-      socket.on("log:entries", (entries) => {
-        sendToDevTools({
-          type: "devtools:log-entries",
-          entries,
-        });
-      });
-      liveSockets.set(origin, socket);
+    function dispatchDevtoolsFrame(frame) {
+      if (!frame || typeof frame.type !== "string") return;
+      switch (frame.type) {
+        case "live:components":
+          sendToDevTools({
+            type: "devtools:live-components",
+            components: frame.data,
+          });
+          break;
+        case "cache:event":
+          sendToDevTools({ type: "devtools:cache-event", event: frame.event });
+          break;
+        case "cache:events":
+          sendToDevTools({
+            type: "devtools:cache-events",
+            events: frame.events,
+          });
+          break;
+        case "cache:flush-request":
+          sendToDevTools({ type: "devtools:cache-flush-request" });
+          break;
+        case "cache:invalidated":
+          sendToDevTools({
+            type: "devtools:cache-invalidated",
+            keys: frame.keys,
+            provider: frame.provider,
+          });
+          break;
+        case "worker:components":
+          lastServerWorkers = frame.data;
+          sendToDevTools({
+            type: "devtools:worker-components",
+            workers: frame.data,
+          });
+          break;
+        case "log:entry":
+          sendToDevTools({ type: "devtools:log-entry", entry: frame.entry });
+          break;
+        case "log:entries":
+          sendToDevTools({
+            type: "devtools:log-entries",
+            entries: frame.entries,
+          });
+          break;
+      }
     }
 
-    import("socket.io-client")
-      .then(({ io }) => {
-        ioClient = io;
-        // Connect to host server
-        connectLiveOrigin("");
-      })
-      .catch(() => {});
+    function connectLiveOrigin(origin) {
+      if (liveSockets.has(origin)) return;
+      const baseOrigin = origin || location.origin;
+      const wsBase = new URL(DEVTOOLS_WS_PATH, baseOrigin);
+      wsBase.protocol = wsBase.protocol === "https:" ? "wss:" : "ws:";
+      let ws;
+      try {
+        ws = new WebSocket(wsBase.toString());
+      } catch {
+        return;
+      }
+      // Track "cancelled before open" so the cleanup path can close the
+      // socket without the browser console warning "WebSocket is closed
+      // before the connection is established." Calling .close() on a
+      // CONNECTING WebSocket is legal but always logs that warning. We
+      // defer the close until the open handshake completes — at that
+      // point .close() is silent.
+      let cancelled = false;
+      ws.__rsDevtoolsCancel = () => {
+        cancelled = true;
+        if (ws.readyState === WebSocket.OPEN) {
+          try {
+            ws.close();
+          } catch {
+            // ignore
+          }
+        }
+        // For CONNECTING sockets, the open handler below will close on
+        // its own once the handshake completes.
+      };
+      ws.addEventListener("open", () => {
+        if (cancelled) {
+          try {
+            ws.close();
+          } catch {
+            // ignore
+          }
+        }
+      });
+      ws.addEventListener("message", (event) => {
+        if (cancelled) return;
+        let frame;
+        try {
+          frame = JSON.parse(typeof event.data === "string" ? event.data : "");
+        } catch {
+          return;
+        }
+        dispatchDevtoolsFrame(frame);
+      });
+      // If the server isn't ready yet (e.g. early during dev startup),
+      // recover by removing the entry so the next interval tick can reopen.
+      ws.addEventListener("close", () => {
+        liveSockets.delete(origin);
+      });
+      liveSockets.set(origin, ws);
+    }
 
-    // Periodically check for new remote origins
+    // Connect to the host server right away — no library import needed.
+    connectLiveOrigin("");
+
+    // Periodically check for new remote origins (live outlets pointing at
+    // a different origin) and connect their devtools WS too.
     function connectRemoteLiveOrigins() {
-      if (!ioClient) return;
       const outlets =
         typeof window.__react_server_devtools_outlets__ === "function"
           ? window.__react_server_devtools_outlets__()
@@ -789,8 +850,19 @@ export default function PayloadCollector() {
       clearInterval(routeInterval);
       clearInterval(liveOriginInterval);
       clearInterval(streamInterval);
-      for (const socket of liveSockets.values()) {
-        socket.disconnect();
+      // Close every devtools WebSocket. Using `__rsDevtoolsCancel()`
+      // (set by connectLiveOrigin) instead of a raw `ws.close()` so that
+      // sockets still in the CONNECTING state defer the close until the
+      // handshake completes — that avoids the
+      // "WebSocket is closed before the connection is established"
+      // browser-console warning that React Strict Mode triggers on every
+      // double-invoked effect, and HMR triggers on every remount.
+      for (const ws of liveSockets.values()) {
+        try {
+          ws.__rsDevtoolsCancel?.();
+        } catch {
+          // ignore
+        }
       }
       liveSockets.clear();
       navObserver.disconnect();

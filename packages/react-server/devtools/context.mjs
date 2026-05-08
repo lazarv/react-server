@@ -1,7 +1,13 @@
 import { getRuntime } from "../server/runtime.mjs";
-import { LIVE_IO } from "../server/symbols.mjs";
 
 export { DEVTOOLS_CONTEXT } from "@lazarv/react-server/server/symbols.mjs";
+
+/**
+ * URL path the dev-tools WebSocket server attaches to. The client (the
+ * PayloadCollector that runs on the host page in dev) opens a WS to this
+ * path on every origin that exposes live outlets.
+ */
+export const DEVTOOLS_WS_PATH = "/__react_server_devtools_ws__";
 
 /**
  * Parse the keys array from useCache into structured display info.
@@ -80,7 +86,19 @@ export function createDevToolsContext() {
   const workers = new Map();
   const logEntries = [];
 
-  let devtoolsNsp = null;
+  // ── Native WebSocket transport for devtools ──
+  // Devtools used to ride on the user's socket.io server (`io.of("/__devtools__")`).
+  // That coupled devtools to the user's chosen live transport. Now devtools
+  // owns its own dedicated WebSocketServer at DEVTOOLS_WS_PATH — independent
+  // of `live.transport`. Production builds never include this code (the
+  // import chain is dev-only via createDevToolsContext()).
+
+  /** @type {Set<import("ws").WebSocket>} */
+  const wsClients = new Set();
+  /** @type {import("ws").WebSocketServer | null} */
+  let wss = null;
+  /** @type {(() => void) | null} */
+  let detachUpgrade = null;
   let invalidateHandler = null;
 
   function getLiveData() {
@@ -90,79 +108,148 @@ export function createDevToolsContext() {
     }));
   }
 
-  function getDevtoolsNamespace() {
-    if (devtoolsNsp) return devtoolsNsp;
-    try {
-      const { io } = getRuntime(LIVE_IO) ?? {};
-      if (io) {
-        devtoolsNsp = io.of("/__devtools__");
-        devtoolsNsp.on("connection", (socket) => {
-          socket.emit("live:components", getLiveData());
-          if (cacheEvents.length > 0) {
-            socket.emit("cache:events", cacheEvents);
-          }
-          if (workers.size > 0) {
-            socket.emit("worker:components", getWorkersData());
-          }
-          if (logEntries.length > 0) {
-            socket.emit("log:entries", logEntries);
-          }
-          socket.on("cache:invalidate", async ({ keys, provider }) => {
-            if (invalidateHandler) {
-              await invalidateHandler(keys, provider);
-              // Remove the event from the list and notify clients
-              let i = cacheEvents.length;
-              const keyStr = JSON.stringify(keys);
-              while (i--) {
-                if (JSON.stringify(cacheEvents[i]._keys) === keyStr) {
-                  cacheEvents.splice(i, 1);
-                }
-              }
-              devtoolsNsp.emit("cache:invalidated", { keys, provider });
-            }
-          });
-        });
-        return devtoolsNsp;
+  function broadcast(type, payload) {
+    if (wsClients.size === 0) return;
+    const frame = JSON.stringify({ type, ...payload });
+    for (const client of wsClients) {
+      // ws.OPEN === 1; we don't import the constant just to compare numbers.
+      if (client.readyState === 1) {
+        try {
+          client.send(frame);
+        } catch {
+          // socket already closed; cleanup will happen via the 'close' event.
+        }
       }
-    } catch {
-      // io not ready yet
     }
-    return null;
   }
 
   function emitLiveUpdate() {
-    const nsp = getDevtoolsNamespace();
-    if (nsp) {
-      nsp.emit("live:components", getLiveData());
-    }
+    broadcast("live:components", { data: getLiveData() });
   }
-
   function emitCacheEvent(event) {
-    const nsp = getDevtoolsNamespace();
-    if (nsp) {
-      nsp.emit("cache:event", event);
-    }
+    broadcast("cache:event", { event });
   }
-
+  function emitWorkerUpdate() {
+    broadcast("worker:components", { data: getWorkersData() });
+  }
+  function emitLogEntry(entry) {
+    broadcast("log:entry", { entry });
+  }
   function getWorkersData() {
     return [...workers.values()];
   }
 
-  function emitWorkerUpdate() {
-    const nsp = getDevtoolsNamespace();
-    if (nsp) {
-      nsp.emit("worker:components", getWorkersData());
-    }
+  /**
+   * Attach a native WebSocketServer to the given http server. Idempotent —
+   * a second call is a no-op so the dev server can call this safely from
+   * the middlewares.listen monkey-patch.
+   *
+   * The WS server uses `noServer: true` so it co-exists with the host's
+   * existing upgrade handlers (e.g. socket.io). The runtime registers an
+   * 'upgrade' listener that routes by URL path: requests under
+   * DEVTOOLS_WS_PATH are handed to the WS server; everything else falls
+   * through (next listener gets a chance).
+   */
+  async function attachWebSocketServer(httpServer) {
+    if (wss || !httpServer) return;
+    const { WebSocketServer } = await import("ws");
+    wss = new WebSocketServer({ noServer: true });
+
+    const onUpgrade = (req, socket, head) => {
+      const url = req.url || "";
+      if (!url.startsWith(DEVTOOLS_WS_PATH)) return;
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wsClients.add(ws);
+        // On connect, ship the current snapshot — same payload set the
+        // socket.io implementation used to send on connection.
+        try {
+          ws.send(
+            JSON.stringify({ type: "live:components", data: getLiveData() })
+          );
+          if (cacheEvents.length > 0) {
+            ws.send(
+              JSON.stringify({ type: "cache:events", events: cacheEvents })
+            );
+          }
+          if (workers.size > 0) {
+            ws.send(
+              JSON.stringify({
+                type: "worker:components",
+                data: getWorkersData(),
+              })
+            );
+          }
+          if (logEntries.length > 0) {
+            ws.send(
+              JSON.stringify({ type: "log:entries", entries: logEntries })
+            );
+          }
+        } catch {
+          // best-effort; client may have already disconnected
+        }
+
+        ws.on("message", async (raw) => {
+          let frame;
+          try {
+            frame = JSON.parse(typeof raw === "string" ? raw : raw.toString());
+          } catch {
+            return;
+          }
+          if (!frame || typeof frame.type !== "string") return;
+
+          if (frame.type === "cache:invalidate" && invalidateHandler) {
+            const { keys, provider } = frame;
+            await invalidateHandler(keys, provider);
+            // Drop the matching event from the in-memory log so reconnecting
+            // clients don't see stale invalidated entries.
+            let i = cacheEvents.length;
+            const keyStr = JSON.stringify(keys);
+            while (i--) {
+              if (JSON.stringify(cacheEvents[i]._keys) === keyStr) {
+                cacheEvents.splice(i, 1);
+              }
+            }
+            broadcast("cache:invalidated", { keys, provider });
+          }
+        });
+
+        ws.on("close", () => wsClients.delete(ws));
+        ws.on("error", () => wsClients.delete(ws));
+      });
+    };
+
+    httpServer.on("upgrade", onUpgrade);
+    detachUpgrade = () => httpServer.off("upgrade", onUpgrade);
   }
 
-  function emitLogEntry(entry) {
-    const nsp = getDevtoolsNamespace();
-    if (nsp) {
-      nsp.emit("log:entry", entry);
+  function closeWebSocketServer() {
+    if (detachUpgrade) {
+      detachUpgrade();
+      detachUpgrade = null;
+    }
+    for (const ws of wsClients) {
+      try {
+        ws.close();
+      } catch {
+        // ignore
+      }
+    }
+    wsClients.clear();
+    if (wss) {
+      try {
+        wss.close();
+      } catch {
+        // ignore
+      }
+      wss = null;
     }
   }
 
   return {
+    DEVTOOLS_WS_PATH,
+    attachWebSocketServer,
+    closeWebSocketServer,
+
     // ── Render tracking (called from render-rsc.jsx in dev mode) ──
     recordRender(info) {
       renders.push({ ...info, timestamp: Date.now() });
@@ -211,9 +298,6 @@ export function createDevToolsContext() {
 
     // ── Cache events (called from cache/index.mjs) ──
     recordCacheEvent(event) {
-      // Parse the keys array into structured display info.
-      // Keys format: [cacheName, ...tags?, [arg1, arg2, ...], hash?]
-      // cacheName: "__react_server_cache__id{fileHash}_line{L}_col{C}_impl{implHash}__"
       const parsed = parseCacheKeys(event.keys);
       const { keys: rawKeys, ...rest } = event;
       const base = {
@@ -247,19 +331,13 @@ export function createDevToolsContext() {
     getCacheEvents() {
       return cacheEvents;
     },
-    // Register handler for cache invalidation from devtools
     onCacheInvalidate(handler) {
       invalidateHandler = handler;
     },
 
-    // Called from dispose$("request") — bumps the generation and tells
-    // the client to drop stale request-scoped entries.
     disposeRequestCache() {
       requestCacheGeneration++;
-      const nsp = getDevtoolsNamespace();
-      if (nsp) {
-        nsp.emit("cache:flush-request");
-      }
+      broadcast("cache:flush-request", {});
     },
 
     // ── Worker tracking (called from server/worker-proxy.mjs) ──
@@ -314,3 +392,7 @@ export function createDevToolsContext() {
     },
   };
 }
+
+// Quiet "unused" warnings — getRuntime is kept available for future
+// devtools instrumentation that needs to read other runtime contexts.
+void getRuntime;

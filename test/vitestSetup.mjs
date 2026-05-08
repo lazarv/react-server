@@ -17,6 +17,15 @@ export let serverLogs;
 let currentWorker;
 let currentCwd;
 let terminating;
+/**
+ * Aux dev-server processes spawned via `auxServer()`. Tracked separately
+ * from `currentWorker` because they coexist with the primary server (each
+ * `server()` call kills only the previous primary, not the aux ring).
+ * Cleaned up in `afterAll`.
+ *
+ * @type {Set<import("node:child_process").ChildProcess>}
+ */
+const auxWorkers = new Set();
 
 // Ensure child server processes are killed when the fork exits.
 // Worker threads die with their parent process; child processes don't.
@@ -441,9 +450,259 @@ test.beforeAll(async (_context, suite) => {
     });
 });
 
+/**
+ * Spawn an additional dev react-server process that coexists with the
+ * primary `server()`. Returns the actual port it bound to.
+ *
+ * Designed for multi-origin scenarios (the remote example: one host plus
+ * N remote origins) where the host's `with { type: "remote" }` imports
+ * need stable URLs to other dev servers running in the same test. Each
+ * aux process is forked through `server.aux.mjs`, isolated from
+ * `currentWorker` so subsequent `server()` calls don't kill them.
+ *
+ * The returned port is the OS-assigned one when `port` is omitted/0;
+ * pass an explicit port if a specific value is required (the call still
+ * waits for the bind to succeed before resolving).
+ *
+ * @param {string} root  Entry passed through to `reactServer(root, ...)`.
+ * @param {{
+ *   cwd: string,
+ *   port?: number,
+ *   env?: Record<string, string>,
+ *   timeout?: number,
+ * }} opts
+ * @returns {Promise<{ port: number, kill: () => Promise<void> }>}
+ */
+export async function auxServer(
+  root,
+  {
+    cwd,
+    port = 0,
+    host,
+    env = {},
+    timeout = process.env.CI ? 120000 : 60000,
+  } = {}
+) {
+  const serverScript = fileURLToPath(
+    new URL("./server.aux.mjs", import.meta.url)
+  );
+  // Per-aux outDir/cacheDir keyed off the (cwd, root) pair so siblings
+  // running concurrently in the same example directory don't fight over
+  // a shared dev cache or build directory.
+  const auxHash = createHash("sha256")
+    .update(`${cwd}-${root}`)
+    .digest("hex")
+    .slice(0, 12);
+  const isProd = process.env.NODE_ENV === "production";
+  const auxOutDir = isProd
+    ? `.react-server-build-aux-${auxHash}`
+    : `.react-server-dev-aux-${auxHash}`;
+  const workerData = {
+    root: root?.[0] === "." || !root ? root : join(cwd, root),
+    options: isProd
+      ? {
+          // Match the build flags used by the primary `server()` in prod
+          // mode so the aux's start phase reads the same shape of build
+          // output. `compression: false` avoids brotli/gzip surprises
+          // when the host's outbound fetch reads the aux's RSC payload.
+          outDir: auxOutDir,
+          server: true,
+          client: true,
+          compression: false,
+          adapter: ["false"],
+          minify: false,
+          port,
+          ...(host !== undefined ? { host } : {}),
+        }
+      : {
+          force: true,
+          port,
+          outDir: auxOutDir,
+          cacheDir: `${auxOutDir}-vite-cache`,
+          ...(host !== undefined ? { host } : {}),
+        },
+    initialConfig: {
+      server: {
+        // Disable HMR in aux servers — the test only consumes their RSC
+        // output. Avoids the per-aux HMR-port allocation logic.
+        hmr: false,
+      },
+    },
+    port,
+    host,
+  };
+
+  // ── Build phase (production only) ───────────────────────────────────
+  // Aux production servers need the build to run before they can start
+  // — `lib/start/node.mjs` reads a prebuilt config from `outDir`. Mirror
+  // the build logic in `server()` but scope it to the aux's own outDir.
+  if (isProd) {
+    const buildScript = fileURLToPath(
+      new URL("./build-worker.mjs", import.meta.url)
+    );
+    const buildRoot = workerData.root;
+    const buildOptions = {
+      outDir: auxOutDir,
+      server: true,
+      client: true,
+      // Aux entries are remote/page roots; static export is never relevant
+      // for the aux's role in the test (it only serves RSC payloads).
+      export: false,
+      compression: false,
+      adapter: ["false"],
+      minify: false,
+    };
+    await new Promise((resolveBuild, rejectBuild) => {
+      const buildTimer = setTimeout(() => {
+        try {
+          buildProcess.kill();
+        } catch {}
+        rejectBuild(
+          new Error(
+            `Aux build timed out after ${timeout / 1000}s for ${root} @ ${cwd}`
+          )
+        );
+      }, timeout);
+      const buildProcess = fork(buildScript, {
+        cwd,
+        stdio: ["inherit", "inherit", "inherit", "ipc"],
+        env: {
+          ...process.env,
+          ...env,
+          CI: "true",
+          NODE_ENV: "production",
+          BUILD_ROOT: buildRoot ?? "",
+          BUILD_OPTIONS: JSON.stringify(buildOptions),
+        },
+      });
+      buildProcess.on("message", (msg) => {
+        if (msg.type === "done") {
+          clearTimeout(buildTimer);
+          resolveBuild();
+        } else if (msg.type === "error") {
+          clearTimeout(buildTimer);
+          rejectBuild(new Error(msg.error));
+        }
+      });
+      buildProcess.on("error", (e) => {
+        clearTimeout(buildTimer);
+        rejectBuild(e);
+      });
+      buildProcess.on("exit", (code) => {
+        clearTimeout(buildTimer);
+        if (code !== 0) {
+          rejectBuild(
+            new Error(`Aux build process exited with code ${code} for ${root}`)
+          );
+        }
+      });
+    });
+  }
+
+  const workerEnv = {
+    ...process.env,
+    ...env,
+    WORKER_DATA: JSON.stringify(workerData),
+  };
+
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (fn) => {
+      if (!settled) {
+        settled = true;
+        fn();
+      }
+    };
+    const timer = setTimeout(() => {
+      settle(() => {
+        try {
+          worker.kill();
+        } catch {}
+        reject(
+          new Error(
+            `Aux server startup timed out after ${timeout / 1000}s for ${root} @ ${cwd}`
+          )
+        );
+      });
+    }, timeout);
+    timer.unref();
+
+    const worker = fork(serverScript, {
+      cwd,
+      stdio: ["inherit", "inherit", "inherit", "ipc"],
+      env: workerEnv,
+    });
+    worker.unref();
+    auxWorkers.add(worker);
+
+    /** @type {number | null} */
+    let actualPort = null;
+    worker.on("message", (msg) => {
+      if (msg.port) {
+        actualPort = msg.port;
+        clearTimeout(timer);
+        settle(() =>
+          resolve({
+            port: actualPort,
+            kill: () => killAuxWorker(worker),
+          })
+        );
+      } else if (msg.console) {
+        console.log(...msg.console);
+      } else if (msg.error) {
+        clearTimeout(timer);
+        settle(() => {
+          try {
+            worker.kill();
+          } catch {}
+          reject(new Error(msg.error));
+        });
+      }
+    });
+    worker.on("error", (e) => {
+      clearTimeout(timer);
+      settle(() => {
+        auxWorkers.delete(worker);
+        reject(e);
+      });
+    });
+    worker.on("exit", () => {
+      auxWorkers.delete(worker);
+    });
+  });
+}
+
+async function killAuxWorker(worker) {
+  if (!auxWorkers.has(worker)) return;
+  return await new Promise((resolve) => {
+    const t = setTimeout(() => {
+      try {
+        worker.kill("SIGKILL");
+      } catch {}
+      resolve();
+    }, 5000);
+    worker.once("exit", () => {
+      clearTimeout(t);
+      resolve();
+    });
+    if (worker.connected) {
+      worker.send({ type: "shutdown" });
+    } else {
+      worker.kill();
+    }
+  });
+}
+
 afterAll(async () => {
   await page?.close();
   await browser?.close();
+  // Tear down aux servers BEFORE the primary — they may have open
+  // connections (e.g. live-component sockets) back to the host that
+  // would otherwise log errors during the host's own shutdown.
+  if (auxWorkers.size > 0) {
+    await Promise.all([...auxWorkers].map((w) => killAuxWorker(w)));
+    auxWorkers.clear();
+  }
   if (currentWorker) {
     terminating = true;
     await new Promise((resolve) => {

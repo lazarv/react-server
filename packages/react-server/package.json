@@ -47,6 +47,7 @@
       "types": "./server/live.d.ts",
       "default": "./server/live.jsx"
     },
+    "./lib/live/transports/client-registry.mjs": "./lib/live/transports/client-registry.mjs",
     "./mcp": {
       "types": "./server/mcp.d.ts",
       "default": "./server/mcp.mjs"
@@ -252,6 +253,7 @@
     "vite": "8.0.11",
     "vite-plugin-inspect": "^11.3.3",
     "web-streams-polyfill": "^4.2.0",
+    "ws": "^8.17.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

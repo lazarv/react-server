@@ -41,7 +41,11 @@ const outletAbortControllers = new Map();
 const prefetching = new Map();
 const flightCache = new Map();
 const liveOutlets = new Set();
-const liveIO = new Map();
+// One-shot loader for the live transport registry shim. The registry
+// itself dynamically imports the per-transport client adapter on demand,
+// so this single cache entry is enough to keep mixed-transport pages
+// from refetching the registry module.
+let liveRegistryLoader = null;
 const outletTemporaryReferences = new Map();
 
 if (import.meta.env.DEV) {
@@ -62,31 +66,69 @@ if (import.meta.env.DEV) {
   window.__react_server_devtools_refresh__ = (...args) => refresh(...args);
 }
 
-const connectLiveIO = async (origin) => {
-  if (!liveIO.has(origin)) {
-    liveIO.set(
-      origin,
-      new Promise(async (resolve, reject) => {
-        try {
-          const href = document
-            .querySelector("link[rel='preconnect'][id='live-io']")
-            ?.getAttribute("href");
+/**
+ * Resolve the live origin/transport for an outlet.
+ *
+ * Inputs:
+ *   - `live === true | <url-string>` → fall back to the page-level default
+ *     transport from `<link rel="preconnect" id="live-io" data-transport="…">`.
+ *   - `live === { transport, url? }` → explicit per-component override
+ *     (emitted by server/live.jsx for `"use live; transport=…"` modules).
+ *
+ * Returns `{ origin: URL, transport: string }`. Throws when the origin
+ * can't be determined.
+ */
+const resolveLiveTarget = (live, fallbackUrl) => {
+  const link =
+    typeof document !== "undefined"
+      ? document.querySelector("link[rel='preconnect'][id='live-io']")
+      : null;
+  const linkHref = link?.getAttribute("href");
+  const linkTransport = link?.getAttribute("data-transport");
 
-          if (!href && !origin) {
-            throw new Error(
-              "Live IO URL not found. Ensure <link rel='preconnect' id='live-io'> is set."
-            );
-          }
-
-          const { io } = await import("socket.io-client");
-          resolve({ io, url: new URL(origin ?? href, location) });
-        } catch (error) {
-          reject(error);
-        }
-      })
+  let urlSpec;
+  let transport;
+  if (typeof live === "object" && live !== null) {
+    transport = live.transport;
+    urlSpec = live.url ?? fallbackUrl?.origin ?? linkHref;
+  } else if (typeof live === "string") {
+    urlSpec = live;
+  } else {
+    urlSpec = fallbackUrl?.origin ?? linkHref;
+  }
+  if (!urlSpec) {
+    throw new Error(
+      "Live URL not found. Ensure <link rel='preconnect' id='live-io'> is rendered, or pass an explicit URL via the live prop."
     );
   }
-  return liveIO.get(origin);
+  if (!transport) {
+    // Default transport: page-level `data-transport` attribute set by
+    // render-rsc.jsx, falling back to "socketio" so HTML emitted by
+    // pre-pluggable builds keeps working without any opt-in.
+    transport = linkTransport || "socketio";
+  }
+  const origin = new URL(urlSpec, location);
+  return { origin, transport };
+};
+
+/**
+ * Lazy-load a client-side transport adapter via the registry shim. The
+ * dynamic import is intentional: pages that don't use a given transport
+ * never fetch its module — and pages that don't use any live components
+ * at all never reach this code path.
+ */
+const connectLiveTransport = async (transport, opts) => {
+  if (!liveRegistryLoader) {
+    // The build aliases `@lazarv/react-server/lib/...` to dist paths in
+    // production. In dev / source mode, the same specifier resolves to
+    // the workspace path. One import call site, one cached promise.
+    liveRegistryLoader =
+      import("@lazarv/react-server/lib/live/transports/client-registry.mjs").then(
+        (m) => m.connectLiveClient
+      );
+  }
+  const connectLiveClient = await liveRegistryLoader;
+  return connectLiveClient(transport, opts);
 };
 
 const registerOutlet = (
@@ -109,12 +151,25 @@ const registerOutlet = (
   });
   if (live) {
     liveOutlets.add(outlet);
-    connectLiveIO(typeof live === "string" ? live : url.origin).then(
-      async ({ io, url }) => {
-        const socket = io(new URL(`/${outlet}`, url).href, {
-          withCredentials: true,
-        });
+    let target;
+    try {
+      target = resolveLiveTarget(live, url);
+    } catch (error) {
+      console.error(error);
+      return () => {
+        outlets.delete(outlet);
+        outletMeta.delete(outlet);
+        liveOutlets.delete(outlet);
+        outletTemporaryReferences.delete(outlet);
+      };
+    }
 
+    connectLiveTransport(target.transport, {
+      origin: target.origin,
+      outlet,
+      withCredentials: true,
+    })
+      .then((connection) => {
         const updateOutlet = (component) => {
           cache.set(outlet || url, component);
           emit(outlet, location.href, { fromCache: true }, (err) => {
@@ -124,11 +179,15 @@ const registerOutlet = (
           });
         };
 
-        socket.on("live:end", () => {
-          socket.disconnect();
+        connection.on("live:end", () => {
+          connection.close();
         });
 
-        socket.on("live:buffer", (data) => {
+        // `live:buffer` carries a single complete RSC payload as raw
+        // bytes (Uint8Array). socket.io delivers a Node Buffer or
+        // ArrayBuffer; SSE/WS deliver Uint8Array. The `new Uint8Array(data)`
+        // conversion handles all three.
+        connection.on("live:buffer", (data) => {
           const component = createFromReadableStream(
             new ReadableStream({
               type: "bytes",
@@ -149,7 +208,7 @@ const registerOutlet = (
         });
 
         let controller;
-        socket.on("live:stream", ({ done, value }) => {
+        connection.on("live:stream", ({ done, value }) => {
           if (!controller) {
             const component = createFromReadableStream(
               new ReadableStream({
@@ -177,8 +236,13 @@ const registerOutlet = (
             controller = null;
           }
         });
-      }
-    );
+      })
+      .catch((error) => {
+        console.error(
+          `Failed to connect live transport "${target.transport}" for outlet ${outlet}:`,
+          error
+        );
+      });
   }
   return () => {
     outlets.delete(outlet);

@@ -56,6 +56,7 @@ export const SERVER_FUNCTION_NOT_FOUND = Symbol.for(
 );
 export const SOURCEMAP_SUPPORT = Symbol.for("SOURCEMAP_SUPPORT");
 export const LIVE_IO = Symbol.for("LIVE_IO");
+export const LIVE_TRANSPORT = Symbol.for("LIVE_TRANSPORT");
 export const CONSOLE_PROXY = Symbol.for("CONSOLE_PROXY");
 export const EXEC_OPTIONS = Symbol.for("EXEC_OPTIONS");
 export const ABORT_SIGNAL = Symbol.for("ABORT_SIGNAL");

@@ -68,8 +68,43 @@ Each Live Component instance is runs in it's own context, so you can have multip
 ## Live I/O
 </Link>
 
-Live Components are using [socket.io](https://socket.io/) under the hood to establish a WebSocket connection between the server and the client. This allows the server to push updates to the client in real-time, enabling the Live Components to update without requiring a full page reload.
+Live Components support three transports out of the box. Pick one in `react-server.config.{mjs,json}`:
 
-When you use the `"use live"` directive, the runtime automatically sets up the necessary WebSocket connection and manages the communication between the server and the client. This means you can focus on building your Live Components without worrying about the underlying implementation details.
+```mjs
+export default {
+  live: {
+    transport: "auto", // "auto" | "socketio" | "sse" | "ws"
+  },
+};
+```
 
-> **Note:** Live Components are built on top of WebSockets, but in the future, the runtime may support other protocols for real-time communication, such as Server-Sent Events (SSE) or HTTP/2 push. This will allow you to choose the best protocol for your application's needs and ensure optimal performance and compatibility across different browsers and devices.
+| Transport | Description | Best for |
+|---|---|---|
+| `"auto"` (default) | Resolves to `"sse"` on edge / serverless builds, `"socketio"` on Node | Most projects — adapts to your deployment target |
+| `"socketio"` | Bidirectional WebSocket via [socket.io](https://socket.io/), namespace-per-outlet | Node deployments, backwards compatibility |
+| `"sse"` | Server-Sent Events — HTTP/1.1 native, server → client only | Cloudflare Workers, Vercel Edge, corporate proxies that block WebSocket upgrades |
+| `"ws"` | Native WebSocket (no socket.io), tiny client | Low-overhead Node deployments, when you don't need socket.io's reconnection / fallback features |
+
+> **Per-component override:** any module can pin its own transport with the directive form `"use live; transport=sse"`. The build collects every transport name actually referenced and only loads those at runtime.
+
+```jsx
+"use live; transport=sse";
+
+export default async function* StockTicker() {
+  for await (const tick of subscribeToTicks()) {
+    yield <Tick {...tick} />;
+  }
+}
+```
+
+<Link name="zero-cost-when-unused">
+## Zero-cost when unused
+</Link>
+
+If your application has no `"use live"` modules, the runtime ships with **zero** transport code:
+
+- The build doesn't emit a live manifest, so the production server never imports `socket.io` (or `ws`, or the SSE adapter).
+- The browser never imports `socket.io-client` — the per-transport client adapter is dynamically imported only when an outlet on the current page is live.
+- The HTML preconnect link (`<link rel="preconnect" id="live-io">`) is omitted entirely from pages that have no live outlets.
+
+When a page does use live components, only the transports that page actually needs are loaded — adding `"use live; transport=sse"` to a single component never pulls socket.io into the bundle.

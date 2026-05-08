@@ -18,6 +18,7 @@ import {
   ContextStorage,
   getContext,
 } from "@lazarv/react-server/server/context.mjs";
+import { getRuntime } from "@lazarv/react-server/server/runtime.mjs";
 import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs";
 import { useOutlet, rewrite } from "@lazarv/react-server/server/request.mjs";
 import {
@@ -38,6 +39,7 @@ import {
   HTTP_RESPONSE,
   HTTP_STATUS,
   IMPORT_MAP,
+  LIVE_TRANSPORT,
   LOGGER_CONTEXT,
   MAIN_MODULE,
   POSTPONE_STATE,
@@ -572,13 +574,24 @@ export async function render(Component, props = {}, options = {}) {
                 );
               }
             : () => null;
+        // Live preconnect link — only emit when this server has at least
+        // one live transport initialized. In dev that means the live plugin
+        // saw a `"use live"` module; in prod that means the build wrote the
+        // live-io manifest and the production server loaded a transport.
+        // When neither is true, no `<link>` is emitted, and the client
+        // never tries to dynamically import any live transport adapter.
+        // The `data-transport` attribute carries the page-level default so
+        // the client can pick the right adapter without an extra round-trip.
+        const liveRegistry = getRuntime(LIVE_TRANSPORT);
+        const liveTransportName = liveRegistry?.default;
         const additionalComponents = (
           <>
-            {remoteRSC ? null : (
+            {remoteRSC || !liveTransportName ? null : (
               <link
                 rel="preconnect"
                 href={origin ?? "/"}
                 id={remote ? `live-io-${outlet}` : "live-io"}
+                data-transport={liveTransportName}
               />
             )}
             {import.meta.env.DEV && !remote && !remoteRSC && (

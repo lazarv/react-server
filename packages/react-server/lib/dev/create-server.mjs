@@ -245,6 +245,14 @@ export default async function createServer(root, options) {
         "react-server-highlight.js/lib/languages/javascript",
         "react-server-highlight.js/lib/languages/json",
         "react-server-highlight.js/lib/languages/xml",
+        // socket.io-client must be pre-bundled in dev so the browser's
+        // `await import("socket.io-client")` (gated on a live outlet using
+        // the socketio transport) doesn't trigger Vite's on-the-fly
+        // optimizer mid-render — that can stall a remote-component fetch
+        // for several seconds while engine.io-client is bundled. The
+        // "no socket.io for non-live apps" guarantee applies to the
+        // PRODUCTION bundle (gated by the live manifest), not to dev's
+        // pre-bundle cache, which is ephemeral and never shipped.
         "socket.io-client",
         "web-streams-polyfill/polyfill",
         ...(config.optimizeDeps?.include ?? []),
@@ -1214,7 +1222,15 @@ export default async function createServer(root, options) {
   ]);
   return {
     listen: (...args) => {
-      return viteDevServer.middlewares.listen(...args).once("listening", () => {
+      const httpServer = viteDevServer.middlewares.listen(...args);
+      // Attach the devtools WebSocket server (dev-only, fully independent
+      // of the user's `live.transport`). Idempotent — calling on a server
+      // that already has one bound is a no-op.
+      if (config.devtools) {
+        const devtoolsCtx = getRuntime(DEVTOOLS_CONTEXT);
+        devtoolsCtx?.attachWebSocketServer?.(httpServer);
+      }
+      return httpServer.once("listening", () => {
         if (config?.server?.hmr !== false) {
           viteDevServer.environments.client.hot.listen();
         }
@@ -1222,6 +1238,10 @@ export default async function createServer(root, options) {
     },
     close: () => {
       shutdownTelemetry();
+      if (config.devtools) {
+        const devtoolsCtx = getRuntime(DEVTOOLS_CONTEXT);
+        devtoolsCtx?.closeWebSocketServer?.();
+      }
       viteDevServer.close();
     },
     ws: viteDevServer.environments.client.hot,

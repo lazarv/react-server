@@ -168,11 +168,20 @@ export default async function ssrHandler(root) {
             try {
               // Per-request entry selection. The client-root SSR shortcut
               // (render-ssr.jsx) handles HTML and `.rsc.x-component` GETs
-              // only — server-action POSTs need the full RSC dispatch
-              // pipeline so the action runs and a `serverFunctionResult`
-              // flight can be returned. Route those POSTs back through
-              // the default RSC entry. Detection mirrors render-rsc.jsx's
-              // own server-action gate (method + header/multipart).
+              // only:
+              //   - Server-action POSTs need the full RSC dispatch pipeline
+              //     so the action runs and a `serverFunctionResult` flight
+              //     can be returned. Route those back through the RSC entry.
+              //   - Remote-component fetches (`.remote.x-component`) expect
+              //     a flight payload that the host's `createFromFetch` can
+              //     parse. render-ssr.jsx's remote branch falls into HTML
+              //     SSR and emits HTML — the host then waits forever trying
+              //     to parse HTML as flight bytes (a hang). The RSC entry
+              //     produces the correct flight even when the root is a
+              //     bare client reference.
+              // Detection mirrors render-rsc.jsx's own server-action gate
+              // (method + header/multipart) plus the remote-URL marker that
+              // RemoteComponent.jsx puts in the path.
               const method = httpContext.request.method;
               const isMutating = "POST,PUT,PATCH,DELETE".includes(method);
               const hasActionHeader = !!httpContext.request.headers.get(
@@ -183,8 +192,11 @@ export default async function ssrHandler(root) {
                 ?.includes("multipart/form-data");
               const isActionRequest =
                 isMutating && (hasActionHeader || isMultipart);
+              const isRemoteRequest = httpContext.url.pathname.includes(
+                "@__react_server_remote__"
+              );
               const entryModule =
-                isClientRoot && !isActionRequest
+                isClientRoot && !isActionRequest && !isRemoteRequest
                   ? clientRootEntryModule
                   : defaultEntryModule;
 

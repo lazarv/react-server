@@ -276,10 +276,6 @@ describe.skipIf(isEdge)("remote example", () => {
         }));
       return { importmaps, moduleNodes };
     });
-    console.error(
-      "[remote.spec] page importmaps + script ordering:\n" +
-        JSON.stringify(pageDiagnostic, null, 2)
-    );
 
     // The host renders each remote section with `isolate={true}`, which
     // wraps the remote payload inside a `<template shadowrootmode="open">`
@@ -402,7 +398,21 @@ describe.skipIf(isEdge)("remote example", () => {
       "This component demonstrates live updates using a generator function"
     );
 
-    expect(consoleErrors).toEqual([]);
+    // Embed the page diagnostic directly into the assertion message —
+    // vitest captures `console.error` but doesn't display it inline
+    // with assertion failures, so the diagnostic is invisible in CI
+    // output. Putting it in the second `expect` argument guarantees it
+    // appears as the failure preface whenever this assertion trips,
+    // which is exactly when we need to see what shape the importmap +
+    // module-script ordering had at hydration time.
+    expect(
+      consoleErrors,
+      `Page importmap + module-script state captured right after waitForHydration:\n${JSON.stringify(
+        pageDiagnostic,
+        null,
+        2
+      )}`
+    ).toEqual([]);
   });
 });
 

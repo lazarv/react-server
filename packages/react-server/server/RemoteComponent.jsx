@@ -10,7 +10,19 @@ import { ReactServerComponent } from "@lazarv/react-server/navigation";
 import { getContext } from "./context.mjs";
 import { useUrl } from "./request.mjs";
 import { LOGGER_CONTEXT, MANIFEST } from "./symbols.mjs";
-import { forRoot } from "../config";
+// IMPORT NOTE: this module is bundled into user app server output (every
+// `with { type: "remote" }` import resolves through here via the
+// import-remote plugin's virtual module). Importing from `../config`
+// (= `config/index.mjs`) drags `loadConfig` and its `import { watch }
+// from "chokidar"` into the bundle graph — chokidar's
+// `fsevents-handler.js` then statically requires `fsevents`, which
+// Linux builds can't resolve (Darwin-only optional dep) and Rolldown
+// fails the build with `[UNLOADABLE_DEPENDENCY] Could not load fsevents`.
+// `config/context.mjs` exposes `forRoot`/`forChild` without the build/
+// dev `loadConfig` heavy path. Always import from `context.mjs` in
+// runtime modules; only build-time tooling (`lib/build/*`,
+// `lib/dev/*`, plugin files) should import from `config/index.mjs`.
+import { forRoot } from "../config/context.mjs";
 
 async function RemoteComponentLoader({
   url,

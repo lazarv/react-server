@@ -30,6 +30,7 @@ import {
   HTTP_STATUS,
   IMPORT_MAP,
   LINK_QUEUE,
+  LIVE_TRANSPORT,
   LOGGER_CONTEXT,
   MAIN_MODULE,
   MANIFEST,
@@ -328,6 +329,18 @@ export default async function ssrHandler(root, options = {}) {
           ContextStorage.run(
             {
               [SERVER_CONTEXT]: getRuntime(SERVER_CONTEXT),
+              // Copy the live transport registry into the per-request
+              // context. The render path (`server/render-rsc.jsx`) reads
+              // it via `getContext(LIVE_TRANSPORT)` to decide whether to
+              // emit a `<link rel="preconnect">` for the live channel.
+              // Reading from context (vs `getRuntime` directly in the
+              // render module) keeps the bundled render module's
+              // dependency surface narrow — pulling `getRuntime` into
+              // the render bundle previously dragged the file-router
+              // plugin's chokidar import into the bundle graph through
+              // Rolldown's symlink-based resolver. See the matching
+              // comment in `server/render-rsc.jsx`.
+              [LIVE_TRANSPORT]: getRuntime(LIVE_TRANSPORT),
               [CONFIG_CONTEXT]: config,
               [HTTP_CONTEXT]: httpContext,
               [ABORT_SIGNAL]: httpContext.signal,

@@ -220,7 +220,43 @@ describe.skipIf(isEdge)("remote example", () => {
       "This component demonstrates live updates using a generator function",
     ];
 
-    const visibleText = await pollUntilAllPresent(page, expectedAnchors, 30000);
+    // 60s polling window. Linux docker resolves all anchors in <1s; on
+    // macOS local the live socket.io connection + 6 cross-origin
+    // RemoteComponent fetches occasionally take longer to settle —
+    // particularly the streaming remote's deferred follow-up and the
+    // form remote's hydration. 30s was tight enough to flake on slower
+    // local runs; 60s gives margin without dragging out a real failure
+    // (genuine breakage shows up as a consistent missing anchor, not as
+    // late arrivals).
+    const visibleText = await pollUntilAllPresent(page, expectedAnchors, 60000);
+
+    // Failure-only diagnostic: when the polling timeout elapses with
+    // anchors still missing, print which ones plus the captured
+    // browser-side state so the next failure surfaces with actionable
+    // detail instead of just an opaque "expected … to contain …". The
+    // green path never reaches this branch.
+    const missing = expectedAnchors.filter((a) => !visibleText.includes(a));
+    if (missing.length > 0) {
+      console.error(
+        "[remote.spec] missing anchors after polling:",
+        JSON.stringify(missing)
+      );
+      if (consoleErrors.length > 0) {
+        console.error(
+          "[remote.spec] page console.errors:",
+          JSON.stringify(consoleErrors, null, 2)
+        );
+      }
+      const failedRequests = remoteRequests.filter(
+        (r) => r.failure || (r.status !== null && r.status >= 400)
+      );
+      if (failedRequests.length > 0) {
+        console.error(
+          "[remote.spec] failed remote requests:",
+          JSON.stringify(failedRequests, null, 2)
+        );
+      }
+    }
 
     // Host chrome — outside any shadow root.
     expect(visibleText).toContain("Host");
@@ -305,7 +341,25 @@ async function probeRemoteReady(name, host, port, timeout) {
         lastErr = `HTTP ${res.status}`;
       }
     } catch (e) {
-      lastErr = /** @type {Error} */ (e).message;
+      // Node's undici wraps the real network error in `cause`. Without
+      // unwrapping, `e.message` is just "fetch failed" — useless for
+      // diagnosing. Surface the cause's code + syscall + address so a
+      // failure here tells us *which* layer broke (DNS / connect /
+      // refused / reset).
+      const err = /** @type {Error & { cause?: any }} */ (e);
+      const cause = err.cause;
+      if (cause) {
+        lastErr =
+          `${err.message}: ${cause.code ?? cause.name ?? "?"}` +
+          (cause.syscall ? ` ${cause.syscall}` : "") +
+          (cause.address ? ` ${cause.address}` : "") +
+          (cause.port ? `:${cause.port}` : "") +
+          (cause.message && cause.message !== err.message
+            ? ` — ${cause.message}`
+            : "");
+      } else {
+        lastErr = err.message;
+      }
     }
     await new Promise((r) => setTimeout(r, 100));
   }

@@ -666,8 +666,19 @@ export async function auxServer(
         reject(e);
       });
     });
-    worker.on("exit", () => {
+    worker.on("exit", (code, signal) => {
       auxWorkers.delete(worker);
+      // Aux exits AFTER `{port}` was sent (i.e. listen succeeded) are
+      // currently silent — `settle` is already done so a `reject` here
+      // is a no-op. But that's the exact failure mode that surfaces
+      // later as a confusing readiness-probe timeout (`fetch failed`)
+      // because the listener died. Log it to stderr so the parent's
+      // test output shows *why* a probe is about to fail.
+      if (settled && code !== 0 && code !== null) {
+        console.error(
+          `[aux ${root}] worker exited unexpectedly post-listen: code=${code} signal=${signal}`
+        );
+      }
     });
   });
 }

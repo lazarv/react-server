@@ -18,7 +18,6 @@ import {
   ContextStorage,
   getContext,
 } from "@lazarv/react-server/server/context.mjs";
-import { getRuntime } from "@lazarv/react-server/server/runtime.mjs";
 import { init$ as revalidate$ } from "@lazarv/react-server/server/revalidate.mjs";
 import { useOutlet, rewrite } from "@lazarv/react-server/server/request.mjs";
 import {
@@ -582,7 +581,16 @@ export async function render(Component, props = {}, options = {}) {
         // never tries to dynamically import any live transport adapter.
         // The `data-transport` attribute carries the page-level default so
         // the client can pick the right adapter without an extra round-trip.
-        const liveRegistry = getRuntime(LIVE_TRANSPORT);
+        //
+        // Read from the per-request CONTEXT (set by the live plugin /
+        // production live bootstrap) rather than the runtime registry —
+        // pulling `getRuntime` into this render module previously
+        // dragged the `lib/plugins/file-router/plugin.mjs` chokidar
+        // import into the bundle graph through Rolldown's symlink-based
+        // package-resolver path. Keeping the dependency surface narrow
+        // (just `getContext` + the `LIVE_TRANSPORT` symbol) avoids that
+        // re-traversal entirely.
+        const liveRegistry = getContext(LIVE_TRANSPORT);
         const liveTransportName = liveRegistry?.default;
         const additionalComponents = (
           <>

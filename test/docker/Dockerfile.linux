@@ -1,0 +1,35 @@
+# Linux/Ubuntu image for reproducing CI's "Test prod apps" job locally.
+#
+# Base: official Playwright image, version-pinned to match
+# test/package.json's `playwright-chromium ^1.53.1`. Ships with
+# Chromium + every system library Playwright needs, plus Node.js — so
+# tests have the same browser/runtime surface as CI's
+# `ubuntu-latest` runner. Bumping `playwright-chromium` in
+# test/package.json should be paired with a bump here.
+#
+# Why not a vanilla `node:20` image: the Playwright image is the
+# right primitive — it pre-installs the dozens of `apt` packages
+# Chromium needs (libnss3, libatk1.0-0, libxkbcommon0, etc.). Reaching
+# for a smaller base means re-implementing that list and hitting CI/local
+# divergence the next time Playwright bumps a transitive system dep.
+FROM mcr.microsoft.com/playwright:v1.53.1-jammy
+
+# Enable corepack so the `packageManager` field in the workspace
+# package.json (currently `pnpm@10.33.2`) selects the exact pnpm
+# version automatically — no need to pin it again here.
+#
+# rsync is also installed: the runner script (test/docker/run-linux.sh)
+# rsyncs source from a read-only bind mount into a writable named volume
+# on every run, with --exclude rules that preserve `node_modules`/build
+# outputs across invocations. The Playwright base image doesn't ship
+# rsync by default.
+RUN corepack enable \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends rsync \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# No CMD/ENTRYPOINT — the runner script provides the command. Keeping
+# this image generic lets us reuse it for ad-hoc shells (`docker run
+# -it react-server-linux-test bash`) when bisecting a different test.

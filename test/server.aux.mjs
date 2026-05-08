@@ -52,6 +52,42 @@ function safeSend(msg) {
 console.log = (...args) => {
   safeSend({ console: args });
 };
+// Forward warnings and errors too — the aux's react-server runtime may
+// log a fatal error AFTER `listening` fires (e.g. middleware crashes
+// on the first request), and `auxServer()` only sees `{port}` and
+// resolves successfully. Without this bridge the failure is invisible
+// and surfaces several seconds later as a confusing readiness-probe
+// timeout. Forwarding lets the parent vitest output show the actual
+// runtime error inline.
+const origConsoleError = console.error.bind(console);
+console.error = (...args) => {
+  safeSend({ console: args });
+  origConsoleError(...args);
+};
+const origConsoleWarn = console.warn.bind(console);
+console.warn = (...args) => {
+  safeSend({ console: args });
+  origConsoleWarn(...args);
+};
+
+// Top-level crash handlers — same rationale: a `throw` after
+// `listening` fires would otherwise just kill the aux process with
+// no visible reason in the parent's test output. We send the stack
+// via BOTH channels because `auxServer()` `settle`s on the first
+// `{port}` message, so any subsequent `{error}` is silently dropped
+// after listening succeeds. The `{console}` bridge survives that
+// gate, so post-listen failures still show up in the parent's
+// test output.
+process.on("uncaughtException", (e) => {
+  const msg = `[aux uncaughtException] ${e?.message ?? e}\n${e?.stack ?? ""}`;
+  safeSend({ console: [msg] });
+  safeSend({ error: msg, stack: e?.stack });
+});
+process.on("unhandledRejection", (e) => {
+  const msg = `[aux unhandledRejection] ${e?.message ?? e}\n${e?.stack ?? ""}`;
+  safeSend({ console: [msg] });
+  safeSend({ error: msg, stack: e?.stack });
+});
 
 const workerData = JSON.parse(process.env.WORKER_DATA);
 
@@ -96,21 +132,20 @@ try {
       });
     }
   });
-  // Bind on the requested host (when the test specified one) or
-  // `localhost` otherwise — matching `react-server start`'s default in
-  // `getServerConfig` (`packages/react-server/lib/utils/server-config.mjs`).
-  //
-  // Why not `host: "::"` for dual-stack? The remote example's import
-  // graph mixes URL families on purpose: `[::1]:3001` for the IPv6
-  // entry, `localhost:300X` for the rest. Binding `::` *should* be
-  // dual-stack on macOS, but in practice the runtime fetch from the
-  // host page does not always reach `[::1]:3001` when aux is bound on
-  // `::`. Mirroring the documented `react-server start` default
-  // (which the example's `pnpm start:remote` uses successfully) is
-  // the conservative move; the test then opts the IPv6 entry into
-  // `host: "::1"` explicitly, just like the example's `dev:remote`
-  // script (`--host ::1`).
-  const listenHost = workerData.host ?? "localhost";
+  // Bind on the requested host (when the test specified one) or the
+  // explicit IPv4 loopback `127.0.0.1` otherwise. Note: this differs
+  // from `react-server start`'s CLI default of `"localhost"` — and
+  // intentionally so. In tests we control BOTH the bind and the probe,
+  // and `"localhost"` is ambiguous: Node resolves it via DNS, and on
+  // Linux containers (and some macOS configurations) /etc/hosts may
+  // return `::1` before `127.0.0.1`, so the server binds on IPv6 while
+  // the probe's `fetch("http://localhost:PORT")` connects on IPv4 —
+  // surfaces as `ECONNREFUSED 127.0.0.1:PORT` despite the server being
+  // happily listening on `::1:PORT`. Pinning the IPv4 loopback removes
+  // that DNS-resolution disagreement entirely. The IPv6 entry in the
+  // remote test (`remote.jsx` → port 3001) opts in explicitly via
+  // `host: "::1"`, which the test still threads through.
+  const listenHost = workerData.host ?? "127.0.0.1";
   _httpServer.listen({ port: workerData.port ?? 0, host: listenHost });
 } catch (e) {
   safeSend({ error: e.message, stack: e.stack });

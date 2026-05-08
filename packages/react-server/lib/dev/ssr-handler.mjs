@@ -20,6 +20,7 @@ import {
   ERROR_CONTEXT,
   HTTP_CONTEXT,
   IMPORT_MAP,
+  LIVE_TRANSPORT,
   LOGGER_CONTEXT,
   MAIN_MODULE,
   MEMORY_CACHE_CONTEXT,
@@ -126,6 +127,11 @@ export default async function ssrHandler(root) {
         ContextStorage.run(
           {
             [SERVER_CONTEXT]: viteDevServer,
+            // Live transport registry — see matching comment in
+            // `lib/start/ssr-handler.mjs` for why this is a per-request
+            // context entry rather than a `getRuntime` lookup in the
+            // bundled render module.
+            [LIVE_TRANSPORT]: getRuntime(LIVE_TRANSPORT),
             [HTTP_CONTEXT]: httpContext,
             [ABORT_SIGNAL]: httpContext.signal,
             [CONFIG_CONTEXT]: config,

@@ -4,8 +4,12 @@ import {
   decodeReply as _decodeReply,
   decodeAction,
   decodeFormState,
+  DecodeValidationError,
+  lookupServerFunctionMeta,
   renderToReadableStream,
 } from "@lazarv/rsc/server";
+import { safeValidate } from "../lib/safe-validate.mjs";
+import colors from "picocolors";
 import React from "react";
 
 import {
@@ -76,6 +80,95 @@ let DevToolsHost;
 
 const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
 
+// Dev-only guard rail: track which Server Functions we've already
+// warned about so a hot-loop call site doesn't drown the log. Reset is
+// implicit per dev process — the next dev restart reprints. We don't
+// expose this map; the dedup is a quality-of-life detail, not a
+// security boundary.
+const _strictWarnedActions = new Set();
+
+/**
+ * Pre-load the action's source module for a recovered actionId so the
+ * server-function meta registry is populated *before* `decodeReply`
+ * runs. The registry is filled by the module's top-level
+ * `registerServerReference(fn, id, name, meta)` calls — if decode runs
+ * before module load, every first invocation of an action would skip
+ * the slot-walk silently and the handler would receive unvalidated
+ * args. Loading the module synchronously here makes the validation
+ * contract reliable from the very first call.
+ *
+ * Failures (token didn't decrypt, action not in the manifest, module
+ * missing, init throws) are swallowed deliberately: the downstream
+ * dispatch already handles each case — invalid actionId → 404 via
+ * `ServerFunctionNotFoundError`, broken module → action invocation
+ * error. Throwing here would short-circuit those well-tested paths and
+ * obscure the real error.
+ */
+async function preloadActionModuleForMeta(actionId, serverReferenceMap) {
+  if (!actionId) return;
+  const ref = serverReferenceMap[actionId];
+  if (!ref) return;
+  try {
+    await requireModule(ref.id.replace(/^server-action:\/\//, "server://"));
+  } catch {
+    // Intentionally swallow — see JSDoc.
+  }
+}
+
+/**
+ * In dev mode, log a one-time warning when a Server Function is invoked
+ * without a `createFunction(...)` validation contract. The warning
+ * names the action in the same `<modulePath>#<exportName>` form the
+ * runtime uses internally (and that the registry keys on), so the
+ * developer can grep straight to the source.
+ *
+ * Suppressed when:
+ *   - Not running in dev (`import.meta.env.DEV` is false). The warning
+ *     is intentionally a dev-time guardrail; a built/started server
+ *     never logs it.
+ *   - `config.serverFunctions.strict === false` — escape hatch for
+ *     teams migrating an existing codebase incrementally.
+ *   - Meta is registered (the dev wrapped the action with
+ *     `createFunction`, even with empty args — declared intent, no
+ *     warning).
+ *   - The same action id was already warned about during this dev
+ *     process.
+ *
+ * Why this is worth warning: a `"use server"` export with no
+ * `createFunction` wrapper takes the unvalidated whole-tree walk in
+ * `decodeReply`. Anything the client puts on the wire reaches the
+ * handler unchanged — including types the handler's signature didn't
+ * anticipate. That's a per-action attack surface that's invisible from
+ * the call site, so we surface it on the server log where the developer
+ * actually looks.
+ */
+function warnIfNoMetaInDev(resolvedActionId, config, logger) {
+  if (!import.meta.env.DEV) return;
+  if (config?.serverFunctions?.strict === false) return;
+  if (!resolvedActionId) return;
+  if (_strictWarnedActions.has(resolvedActionId)) return;
+  if (lookupServerFunctionMeta(resolvedActionId)) return;
+  _strictWarnedActions.add(resolvedActionId);
+  // Use warn (not error) — the call still proceeds, we're just flagging
+  // a missing safety net. The message is structured so it's easy to
+  // grep/filter ("Server function called without validation:").
+  // Style guide (matches live-component logging):
+  //   - Source-path identifiers → gray italic (the action id, which
+  //     points at the file the developer would open).
+  //   - Import specifiers / paths-as-strings → cyan (they're string
+  //     literals that name a location).
+  //   - JavaScript code → magenta (function calls, config statements
+  //     — anything that's syntax rather than a path). Accented
+  //     differently from specifiers so the eye separates "where to
+  //     import from" from "what to write".
+  //   - Surrounding prose stays unstyled. The `[warning]` tag from the
+  //     dev logger carries severity on its own.
+  //   - Emoji terminates the line as a category marker.
+  (logger?.warn ?? console.warn)(
+    `Server function ${colors.gray(colors.italic(resolvedActionId))} called without validation — wrap the export with ${colors.magenta("createFunction({...})(handler)")} from ${colors.cyan("@lazarv/react-server/function")} (set ${colors.magenta("config.serverFunctions.strict = false")} to silence) 🛡️`
+  );
+}
+
 // Adapter: wraps the webpack-style client reference Proxy into an @lazarv/rsc
 // moduleResolver.  The Proxy is keyed by "moduleId#exportName" and returns
 // { id, chunks, name, async }.  We expose it as resolveClientReference(ref)
@@ -124,7 +217,8 @@ function decodeReply(body, _manifestOrOpts, opts) {
     typeof _manifestOrOpts === "object" &&
     !_manifestOrOpts.temporaryReferences &&
     !_manifestOrOpts.moduleLoader &&
-    !_manifestOrOpts.limits;
+    !_manifestOrOpts.limits &&
+    !_manifestOrOpts.actionId;
   const realOpts = isManifest ? opts : _manifestOrOpts;
   const config = getContext(CONFIG_CONTEXT)?.[CONFIG_ROOT];
   const configLimits = config?.serverFunctions?.limits;
@@ -134,6 +228,15 @@ function decodeReply(body, _manifestOrOpts, opts) {
   // encrypted id and prepends them at bind time.  The hook signature
   // matches the @lazarv/rsc decoder contract: returns null on decrypt
   // failure, or { actionId, bound } on success.
+  //
+  // When the caller supplies `actionId` (set by the dispatcher *after*
+  // decrypting the action token / FormData ID field), the meta-driven
+  // slot-walk kicks in: `lookupServerFunctionMeta` resolves the
+  // registered `createFunction` spec, and `validateArg` bridges Standard
+  // Schemas (Zod / Valibot / ArkType / …) via `safeValidate`. Wire-aware
+  // specs (`formData`, `file`, `blob`) bypass `validateArg` and are
+  // enforced directly by the decoder. Bare `"use server"` actions resolve
+  // to no meta and take the unvalidated walk — back-compat preserved.
   return _decodeReply(body, {
     ...realOpts,
     ...(configLimits
@@ -143,6 +246,20 @@ function decodeReply(body, _manifestOrOpts, opts) {
       const decrypted = decryptActionToken(id);
       if (!decrypted) return null;
       return { actionId: decrypted.actionId, bound: decrypted.bound };
+    },
+    resolveServerFunctionMeta(actionId) {
+      return lookupServerFunctionMeta(actionId);
+    },
+    validateArg(spec, value /*, ctx */) {
+      // safeValidate returns { success, data } | { success: false, fallback }.
+      // We don't expose the underlying error from safeValidate (it swallows
+      // it intentionally), but the structured `{ success: false }` from
+      // here is enough for the decoder to throw `DecodeValidationError`
+      // — the decoder fills in argIndex / actionId / reason itself. The
+      // host's logger sees the top-level error in the dispatch catch.
+      const result = safeValidate(spec, value, undefined);
+      if (result.success) return { success: true, data: result.data };
+      return { success: false, error: null };
     },
   });
 }
@@ -287,25 +404,108 @@ export async function render(Component, props = {}, options = {}) {
             if (options.middlewareError) {
               throw options.middlewareError;
             }
+            // Pre-resolve the actionId (and any token-recovered bound)
+            // BEFORE decodeReply. This is what unlocks the meta-driven
+            // slot-walk: the decoder can only validate per-arg if it
+            // knows which action it's decoding for, and the registry
+            // lookup is keyed on the recovered (decrypted) action id.
+            //
+            // For header-based action calls the id lives in the
+            // `react-server-action` header (encrypted). For progressive-
+            // enhancement form submissions it's encoded in a FormData
+            // field name (`$ACTION_ID_<token>`); we scan the multipart
+            // FormData once for that key. Failures to decrypt fall
+            // through to the unvalidated walk — that path is still
+            // protected by `serverReferenceMap` lookup downstream, so an
+            // attacker can't slip an unknown action through, only
+            // bypass per-arg validation when the token itself is
+            // tampered (which we'd reject at action-load time anyway).
+            //
+            // Once the actionId is recovered we MUST pre-load the
+            // action's module before calling decodeReply. Reason: the
+            // module's top-level `registerServerReference(fn, id, name,
+            // meta)` calls are what populate the server-function meta
+            // registry. If decodeReply runs first, `lookupServerFunctionMeta`
+            // returns undefined and the slot-walk silently falls through
+            // to the unvalidated path — every "first call" to an action
+            // skips validation. The fix is structural: load the module
+            // first, decode second.
+            let preResolvedActionId = null;
             if (isFormData) {
               const multipartFormData = await context.request.formData();
               const formData = new FormData();
               for (const [key, value] of multipartFormData.entries()) {
                 formData.append(key.replace(/^remote:\/\//, ""), value);
               }
+              if (serverActionHeader && serverActionHeader !== "null") {
+                const dec = decryptActionToken(serverActionHeader);
+                preResolvedActionId = dec ? dec.actionId : serverActionHeader;
+              } else {
+                for (const key of formData.keys()) {
+                  if (key.startsWith("$ACTION_ID_")) {
+                    const formActionId = key.slice(11);
+                    const dec = decryptActionToken(formActionId);
+                    preResolvedActionId = dec ? dec.actionId : formActionId;
+                    break;
+                  }
+                }
+              }
+              await preloadActionModuleForMeta(
+                preResolvedActionId,
+                serverReferenceMap
+              );
               try {
-                input = await decodeReply(formData, serverReferenceMap);
-              } catch {
+                input = await decodeReply(formData, serverReferenceMap, {
+                  actionId: preResolvedActionId,
+                });
+              } catch (err) {
+                // `DecodeValidationError` is the protocol-level rejection
+                // path — propagate so the outer catch maps it to a 400
+                // response. Other parse-level decode errors fall back to
+                // raw FormData (legacy behaviour for shape-mismatched but
+                // non-validated payloads).
+                if (err instanceof DecodeValidationError) throw err;
                 input = formData;
               }
             } else {
+              if (serverActionHeader && serverActionHeader !== "null") {
+                const dec = decryptActionToken(serverActionHeader);
+                preResolvedActionId = dec ? dec.actionId : serverActionHeader;
+              }
+              await preloadActionModuleForMeta(
+                preResolvedActionId,
+                serverReferenceMap
+              );
               input = await decodeReply(
                 await context.request.text(),
-                serverReferenceMap
+                serverReferenceMap,
+                { actionId: preResolvedActionId }
               );
             }
           } catch (error) {
-            logger?.error(error);
+            // Protocol-level validation failure (`createFunction` spec
+            // rejected an arg slot during decode): map to a 400. The
+            // handler never runs, the args list is never bound, and the
+            // client gets a structural rejection rather than the
+            // generic "rendered with error" path. We log the original
+            // error for the operator but keep the client-facing error
+            // payload terse — the underlying schema diagnostics can leak
+            // expected-shape details that aid attackers.
+            if (error instanceof DecodeValidationError) {
+              logger?.warn?.(
+                "Server function arg validation rejected: " +
+                  `action=${error.actionId ?? "?"} slot=${error.argIndex} ` +
+                  `reason=${error.reason}`,
+                error.original
+              );
+              const httpHeaders = getContext(HTTP_HEADERS);
+              if (httpHeaders) {
+                httpHeaders.set("x-react-server-action-error", error.reason);
+              }
+              context$(HTTP_STATUS, { status: 400 });
+            } else {
+              logger?.error(error);
+            }
             action = async () => {
               return {
                 data: null,
@@ -364,6 +564,8 @@ export async function render(Component, props = {}, options = {}) {
               if (!serverReference) {
                 throw new ServerFunctionNotFoundError();
               }
+
+              warnIfNoMetaInDev(resolvedActionId, config, logger);
 
               action = async () => {
                 try {
@@ -426,6 +628,7 @@ export async function render(Component, props = {}, options = {}) {
                   if (!serverReference) {
                     throw new ServerFunctionNotFoundError();
                   }
+                  warnIfNoMetaInDev(resolvedActionId, config, logger);
                   resolved = true;
                   action = async () => {
                     try {

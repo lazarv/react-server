@@ -202,6 +202,238 @@ export default function App() {
 }
 ```
 
+<Link name="validation">
+## バリデーション
+</Link>
+
+サーバ関数はクライアントから引数を受け取ります。ブラウザからサーバのハンドラに流れ込むペイロードは、定義上「信頼されない」ものです。ランタイムはオプトインの API として `createFunction` を提供し、ランタイムの各引数スロットに対して parse / validate のコントラクトを宣言できます。このコントラクトはプロトコル層で適用されます。デコーダは引数ウォークの間にスロットごとに `parse` と `validate` を実行し、最初に失敗したスロットでリクエストを HTTP 400 として拒否します。これはハンドラが走る *前*、ビジネスロジックが値に触れる *前*、ハンドラが境界を仮定するアロケーションが起きる *前* です。
+
+`createFunction` で包まれていないベアな `"use server"` 関数は、これまで通り変更なく動作します。バリデーションコントラクトはオプトインで追加的なものです。
+
+<Link name="createfunction">
+### `createFunction`
+</Link>
+
+アクションハンドラを `createFunction(spec)(handler)` で包みます。バリデートのスロットを配列で渡すのが一番よくある形です。
+
+```jsx
+import {
+  createFunction,
+  formData,
+  file,
+} from "@lazarv/react-server/function";
+import { z } from "zod";
+
+export const updateProfile = createFunction([
+  z.string().email(),
+  z.string().min(2).max(80),
+])(async function updateProfile(email, name) {
+  "use server";
+  await db.users.update({ email, name });
+});
+```
+
+配列の `i` 番目は **ランタイム引数スロット `i`** を記述します。これはクライアントがワイヤ上の位置 `i` に置く値であり、ハンドラのシグネチャの引数 `i` ではありません。`.bind(...)` やインラインクロージャによるバウンドキャプチャはこのコントラクトの一部ではありません。これらは隠された値であり、AEAD のアクショントークンによって完全性が保護され、ユーザ入力としてバリデートされることはありません。
+
+ランタイムは [Standard Schema](https://standardschema.dev/) — Zod、Valibot、ArkType — を `safeParse` / `assert` / `parse` の duck-type で受け付けます。特定のライブラリを `@lazarv/react-server` からインポートする必要はありません。プロジェクトで既に使っているスキーマライブラリを持ち込んでください。
+
+<Link name="parse-then-validate">
+### parse のあとに validate
+</Link>
+
+事前のパースも必要な場合は、オブジェクト形式 `createFunction({ validate, parse })` に切り替えます。両方とも同じスロットでインデックスされる配列です。`parse[i]` は値ツリーがマテリアライズされた後、`validate[i]` の前に実行されます。スキーマでは表現しにくい型変換を入れるのに適しています。
+
+```js
+export const setLimit = createFunction({
+  parse: [(v) => Number(v)],
+  validate: [z.number().int().min(1).max(1000)],
+})(async function setLimit(limit) {
+  "use server";
+  await db.config.set({ limit });
+});
+```
+
+`parse` が例外を投げると `DecodeValidationError(reason: "parse_failed")` として現れ、`validate` の失敗は `reason: "validate_failed"` になります。デコーダは最初の失敗で中断します。次のスロットには触れず、ハンドラも呼ばれません。
+
+<Link name="noop-slot-marker">
+### `noop` で特定のスロットだけスキップする
+</Link>
+
+一部のスロットだけバリデーション / パースをかけたい場合は、スパース配列の `[, , schema]` や明示的な `undefined` ではなく、`noop` エクスポートをプレースホルダとして使います。
+
+```js
+import { createFunction, noop } from "@lazarv/react-server/function";
+
+export const update = createFunction([noop, noop, z.number().int()])(
+  async function update(a, b, count) {
+    // a: unknown, b: unknown, count: number
+    // — スロット 0 / 1 は未検証で受け入れ、スロット 2 のみ制約あり。
+    "use server";
+  }
+);
+```
+
+オブジェクト形式で `parse` と `validate` のギャップが揃っていないときも同じです。
+
+```js
+createFunction({
+  parse:    [noop, noop, (v) => Number(v)],
+  validate: [z.string(), noop, z.number()],
+})(handler);
+// handler: (a: string, b: unknown, c: number)
+```
+
+`noop` は恒等変換です。ランタイム上はそのスロットの validation / parse を省くのと同じ挙動になります。`noop` が当たるスロットは、ハンドラのシグネチャ推論では `unknown` になります。
+
+<Link name="formdataarg">
+### `formData` — ファイルアップロードと構造化フォーム
+</Link>
+
+`FormData` 引数はファイルアップロードや progressive enhancement のフォーム送信でよく使われます。スキーマライブラリはオブジェクトの形を記述できますが、それは *マテリアライズ済みの* 値です。スキーマが走る時点で、ファイルはすでにバッファされています。`formData` はワイヤ・アウェアです。デコーダは FormData ウォークの *最中* に宣言済みのキーと各エントリの制約を強制するため、サイズと MIME の制限はエントリが結果に追加される前に `Blob.size` / `Blob.type` に対して同期的にチェックされます。
+
+```js
+import {
+  createFunction,
+  formData,
+  file,
+} from "@lazarv/react-server/function";
+
+export const upload = createFunction([
+  formData({
+    title: z.string().min(1).max(120),
+    photo: file({
+      maxBytes: 5 * 1024 * 1024,
+      mime: ["image/png", "image/jpeg"],
+    }),
+  }),
+])(async function upload(form) {
+  "use server";
+  const title = form.get("title");
+  const photo = form.get("photo");
+  // photo はサイズと MIME がすでにチェックされています。
+});
+```
+
+`formData(shape, options?)` は第 1 引数にエントリのシェイプ(必須)、第 2 引数にオプション(任意)を取ります。今のところオプションは `unknown` のみですが、将来のフォーム単位制約のために予約されたスロットです。
+
+デコーダは宣言済みのエントリを **完全一致のキー** で参照します。プレフィックススキャンは行われないので、`5_role=admin` のような攻撃者注入のエントリがハンドラの読む FormData に紛れ込むことはありません。
+
+`unknown` ポリシーは `formData(shape, { unknown: "drop" })` のように第 2 引数で渡し、シェイプで *宣言されていない* エントリの扱いを決めます。
+
+- `"reject"`(デフォルト、推奨): 未知のエントリは `DecodeValidationError(reason: "unknown_entry")` でデコードを失敗させます。攻撃者注入フィールドへの防御です。
+- `"drop"`: 宣言外のエントリを黙って捨てます。React 管理の隠しフィールドなど、スキーマで列挙したくない場合に有用です。
+- `"allow"`: 宣言外のエントリを未検証のまま素通りさせます。エスケープハッチであり、安全ではないものとしてドキュメント化しています。
+
+`file({...})` と `blob({...})` は `maxBytes`(エントリごとのサイズ上限)、`mime`(許容 MIME のホワイトリスト)、オプションの同期 `validate(value)` コールバック(マジックバイト検査などのカスタムチェック)、不在を許す `optional: true` を受け付けます。`File.type` はブラウザが供給する値で、簡単に偽装できます。MIME チェックを `validate` でのマジックバイト検査と組み合わせて、強い保証を得てください。
+
+<Link name="other-wire-types">
+### その他のワイヤ型
+</Link>
+
+Flight プロトコルはプリミティブやオブジェクト、`FormData` 以外にもさまざまな型を運びます。Standard Schema 単体では足りないワイヤ型 — リソース消費を制限したい、プラットフォームのコンストラクタで型チェックしたい、非同期ソースをラップしたい場合 — それぞれにワイヤ・アウェアなヘルパーを用意しています。
+
+```js
+import {
+  createFunction,
+  arrayBuffer,
+  typedArray,
+  map,
+  set,
+  stream,
+  asyncIterable,
+  iterable,
+  promise,
+} from "@lazarv/react-server/function";
+```
+
+| ヘルパー | ワイヤタグ | ハンドラ側の型 | ワイヤ・アウェアである理由 |
+|---|---|---|---|
+| `arrayBuffer({ maxBytes })` | `$AB` | `ArrayBuffer` | ハンドラがバッファを観測する前にバイト長を制限 |
+| `typedArray({ ctor, maxBytes })` | `$AT` | `InstanceType<C>`(例: `Float32Array`) | `instanceof` でコンストラクタを許可制に。型推論にも反映 |
+| `map({ maxSize, key, value })` | `$Q` | `Map<K, V>` | サイズ制限・内側のキー/値スキーマ |
+| `set({ maxSize, value })` | `$W` | `Set<T>` | サイズ制限・要素ごとのスキーマ |
+| `stream({ maxChunks, maxBytes })` | `$r` / `$b` | `ReadableStream` | ハンドラがストリームを消費する間に上限を強制 |
+| `asyncIterable({ maxYields, value })` | `$x` | `AsyncIterable<T>` | yield 数の上限・yield ごとのバリデーション |
+| `iterable({ maxYields, value })` | `$X` | `Iterable<T>` | 同期版で同じ仕組み |
+| `promise(value)` | `$@` | `Promise<T>` | 解決値をスキーマで検証 |
+
+具体例:
+
+```js
+// 型付き配列として届くバイナリアップロード
+export const upload = createFunction([
+  typedArray({ ctor: Uint8Array, maxBytes: 5 * 1024 * 1024 }),
+])(async function upload(bytes) {
+  "use server";
+  // bytes: Uint8Array、サイズ済みチェック済み
+});
+
+// 制限付き Map 引数
+export const lookup = createFunction([
+  map({ maxSize: 100, key: z.string(), value: z.number() }),
+])(async function lookup(table) {
+  "use server";
+  // table: Map<string, number>、エントリ数 100 でキャップ
+});
+
+// ストリームごとのバイト数キャップ
+export const ingest = createFunction([
+  stream({ maxBytes: 50 * 1024 * 1024, maxChunks: 8192 }),
+])(async function ingest(stream) {
+  "use server";
+  // stream: ReadableStream — どちらかの上限を超えるとエラーをスロー
+  for await (const chunk of stream) { … }
+});
+
+// yield ごとに検証する非同期イテラブル
+export const events = createFunction([
+  asyncIterable({
+    maxYields: 1000,
+    value: z.object({ type: z.string(), payload: z.unknown() }),
+  }),
+])(async function events(stream) {
+  "use server";
+  // stream: AsyncIterable<{type: string, payload: unknown}>
+});
+```
+
+各ヘルパーはデコード時に異なる `reason` で拒否します。
+
+- `wire_shape_mismatch` — スロットのワイヤタグが仕様と一致しない(例: `$AT` を期待したのにプリミティブ)
+- `max_bytes_exceeded` / `max_size_exceeded` / `max_chunks_exceeded` / `max_yields_exceeded` — リソース上限超過
+- `validate_failed` — 内側の Standard Schema がキー / 値 / yielded 要素を拒否
+
+ストリームとイテラブルでは、上限は **ハンドラが消費する時点** で強制されます。デコーダはマテリアライズしたストリーム / イテラブルをラップし、ハンドラが上限を超えて読みに行った瞬間にラッパーが値を流す代わりにエラーを発生させます。Flight プロトコルはチャンクをデコード時に先読みするため、このラッパーがあって初めてグローバルな `maxStreamChunks` 上限よりタイトなスロット単位の制限が効きます。
+
+`typedArray` は文字列名ではなく **コンストラクタの参照** を取ります。`typedArray({ ctor: Float32Array })` でハンドラの型が `(samples: Float32Array)` に推論され、ランタイムの判定は `value instanceof Float32Array` です。複数許可したい場合は配列で: `typedArray({ ctor: [Uint8Array, Uint8ClampedArray] })`。
+
+<Link name="dev-strict-mode">
+### 開発時の警告
+</Link>
+
+開発時には、`createFunction` のコントラクトを持たないサーバ関数の呼び出しごとに、サーバコンソールへ一度だけ警告が記録されます。
+
+> Server function `src/actions/upload.mjs#upload` called without validation — wrap the export with `createFunction({...})(handler)` from `@lazarv/react-server/function` (set `config.serverFunctions.strict = false` to silence) 🛡️
+
+アクション ID のフォーマットはランタイムが内部で使うもの(`<modulePath>#<exportName>`)と一致するので、grep でそのままソースに飛べます。警告はアクション単位・プロセス単位で 1 回だけです。同じアクションを何度呼び出しても、名前が出るのは最初の一回だけです。
+
+これは純粋に開発時のガードレールです。ビルド・起動後のサーバではログに出ません。既存コードベースを段階的に移行している最中でノイズを止めたい場合は、`config.serverFunctions.strict = false` を設定してください。
+
+```js
+// react-server.config.mjs
+export default {
+  serverFunctions: { strict: false },
+};
+```
+
+<Link name="error-handling">
+### エラーハンドリング
+</Link>
+
+バリデーションが失敗するとランタイムは HTTP 400 を返し、`x-react-server-action-error` ヘッダに失敗理由(`validate_failed`、`parse_failed`、`unknown_entry`、`max_bytes_exceeded`、`mime_not_allowed`、`missing_entry`、`wire_shape_mismatch`、`custom_validate_failed`、`duplicate_entry`)を入れます。クライアントには汎用的なエラーが届きます。期待されるシェイプの詳細を攻撃者に漏らさないため、スキーマの診断はクライアントに転送しません。診断はサーバログに `logger.warn` で書き出され、運用者が確認できます。
+
+特定のフィールドに紐づいたユーザ向けエラーメッセージが必要な場合は、ハンドラの *中* で同じペイロードに対してもう一度バリデーションし、構造化されたエラーオブジェクトを返してください。これは設計上あなたが扱う領域であり、`useActionState` がそのために用意されています。
+
 <Link name="security">
 ## セキュリティ
 </Link>

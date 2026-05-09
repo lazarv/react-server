@@ -75,6 +75,9 @@ export default function App() {
               <router.todos.Link style={{ color: "blue" }}>
                 Todos
               </router.todos.Link>
+              <router.guestbook.Link style={{ color: "blue" }}>
+                Guestbook
+              </router.guestbook.Link>
               <router.products.Link style={{ color: "blue" }}>
                 Products
               </router.products.Link>

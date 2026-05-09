@@ -499,6 +499,13 @@ const REACT_SERVER_SCHEMA = {
       secretFile: optional(is.string),
       previousSecrets: optional(arrayOf(is.string)),
       previousSecretFiles: optional(arrayOf(is.string)),
+      // Dev-only: warn on the server when a Server Function is invoked
+      // without a `createFunction` validation contract. Defaults to `true`.
+      // Set to `false` to silence the warning (e.g. while migrating an
+      // existing codebase incrementally). Has no effect in production —
+      // the warning is purely a dev-time guardrail and never logs in
+      // built/started servers.
+      strict: optional(is.boolean),
       limits: optional(
         objectShape({
           maxRows: optional(
@@ -752,6 +759,7 @@ const EXAMPLES = {
   "serverFunctions.secretFile": `serverFunctions: { secretFile: "./secret.pem" }`,
   "serverFunctions.previousSecrets": `serverFunctions: { previousSecrets: ["old-secret"] }`,
   "serverFunctions.previousSecretFiles": `serverFunctions: { previousSecretFiles: ["./old.pem"] }`,
+  "serverFunctions.strict": `serverFunctions: { strict: false }  // dev-only: silence the "no createFunction" warning`,
   "serverFunctions.limits": `serverFunctions: { limits: { maxBytes: 4 * 1024 * 1024 } }`,
   "serverFunctions.limits.maxRows": `serverFunctions: { limits: { maxRows: 10000 } }`,
   "serverFunctions.limits.maxDepth": `serverFunctions: { limits: { maxDepth: 64 } }`,

@@ -269,6 +269,21 @@ export default function useServer(type, manifest) {
           ];
         } else {
           for (const name of exports) {
+            // 4th arg: read `createFunction`-attached meta off the
+            // exported function via the registry symbol. When the export
+            // was wrapped by `createFunction(spec)(handler)`, the
+            // wrapper attached the normalized meta object at
+            // `Symbol.for("@lazarv/react-server/function/meta")` (see
+            // `packages/react-server/server/function.mjs`). Bare
+            // `"use server"` exports leave this slot `undefined`, and
+            // `registerServerReference` skips the meta-registry write —
+            // so back-compat is fully preserved without any AST walk-up.
+            //
+            // We use `Symbol.for(...)` inline rather than importing a
+            // module-level constant so the codegen stays a single,
+            // self-contained statement and doesn't introduce a new
+            // import edge into the dependency graph for every
+            // `"use server"` module.
             ast.body.push({
               type: "ExpressionStatement",
               expression: {
@@ -289,6 +304,35 @@ export default function useServer(type, manifest) {
                   {
                     type: "Literal",
                     value: name,
+                  },
+                  {
+                    type: "MemberExpression",
+                    object: {
+                      type: "Identifier",
+                      name: name,
+                    },
+                    computed: true,
+                    property: {
+                      type: "CallExpression",
+                      callee: {
+                        type: "MemberExpression",
+                        object: {
+                          type: "Identifier",
+                          name: "Symbol",
+                        },
+                        property: {
+                          type: "Identifier",
+                          name: "for",
+                        },
+                        computed: false,
+                      },
+                      arguments: [
+                        {
+                          type: "Literal",
+                          value: "@lazarv/react-server/function/meta",
+                        },
+                      ],
+                    },
                   },
                 ],
               },

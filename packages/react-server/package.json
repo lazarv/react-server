@@ -43,6 +43,10 @@
       "types": "./lib/http/index.d.ts",
       "default": "./lib/http/index.mjs"
     },
+    "./function": {
+      "types": "./server/function.d.ts",
+      "default": "./server/function.mjs"
+    },
     "./live": {
       "types": "./server/live.d.ts",
       "default": "./server/live.jsx"

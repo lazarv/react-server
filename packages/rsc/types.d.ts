@@ -178,6 +178,28 @@ export interface DecodeReplyLimits {
 }
 
 /**
+ * Result returned by `validateArg`. `success: true` means the value
+ * passed; `data` replaces the original (so coercive validators like
+ * Zod's `.transform()` flow back into the args list). `success: false`
+ * triggers a `DecodeValidationError` whose `original` field is `error`.
+ */
+export type ValidateArgResult =
+  | { success: true; data: unknown }
+  | { success: false; error: unknown };
+
+/**
+ * Host-supplied bridge from a Standard Schema (Zod / Valibot / ArkType / …)
+ * to the decoder's library-agnostic dispatch. The decoder does not import
+ * any schema library directly — the host is responsible for duck-typing
+ * the spec and invoking the right `safeParse` / `safeValidate` method.
+ */
+export type ValidateArgHook = (
+  spec: unknown,
+  value: unknown,
+  ctx: { argIndex: number; actionId: string | null; entry?: string }
+) => ValidateArgResult;
+
+/**
  * Options for decodeReply
  */
 export interface DecodeReplyOptions {
@@ -196,6 +218,46 @@ export interface DecodeReplyOptions {
    * Defaults match the decoder's built-in safe ceilings.
    */
   limits?: DecodeReplyLimits;
+
+  /**
+   * Hook invoked on the `id` field of a server-reference payload (the
+   * `parsed.id` in `{id, bound}`). When the host implements opaque
+   * AEAD-encrypted action tokens, this hook decrypts the token to
+   * recover the underlying action id and any server-emitted bound
+   * captures. The decoder treats `actionId` as authoritative for
+   * registry lookup, and prepends `bound` to any wire-supplied bound at
+   * bind time. Return `null` to fall through to the legacy behavior
+   * (parsed.id used as-is).
+   */
+  decryptServerReferenceId?: (
+    encryptedId: string
+  ) => { actionId: string; bound?: unknown[] } | null;
+
+  /**
+   * Recovered (decrypted) action id for the current request, set by the
+   * dispatcher *before* calling `decodeReply`. Together with
+   * `resolveServerFunctionMeta` this drives per-slot parse/validate
+   * during the args walk. Leave unset for non-server-function callers
+   * of `decodeReply`.
+   */
+  actionId?: string;
+
+  /**
+   * Look up the registered metadata for an action id (typically a thin
+   * wrapper around `lookupServerFunctionMeta`). When this resolves to a
+   * non-null value the decoder switches to the meta-driven slot-walk;
+   * when it resolves to null the decoder falls through to the legacy
+   * whole-tree walk (back-compat for bare `"use server"` actions).
+   */
+  resolveServerFunctionMeta?: (actionId: string) => unknown;
+
+  /**
+   * Library-agnostic Standard-Schema bridge. Required when meta declares
+   * `validate.args[i]` against a schema (Zod / Valibot / ArkType / …).
+   * Wire-aware constraints (`_kind: "file" | "blob" | "formdata"`) bypass
+   * this hook and are enforced directly by the decoder.
+   */
+  validateArg?: ValidateArgHook;
 }
 
 /**

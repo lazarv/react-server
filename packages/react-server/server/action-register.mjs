@@ -92,12 +92,18 @@ function createServerRefBind(fullId) {
  * current $$id — if they differ (e.g. due to a fresh random IV on each
  * read), useActionState cannot match the form state back to the component.
  */
-export function registerServerReference(fn, id, name) {
+export function registerServerReference(fn, id, name, meta) {
   const fullId = `${id}#${name}`;
 
   // Register in @lazarv/rsc's internal serverReferenceRegistry so that
-  // decodeAction / lookupServerReference can find it.
-  _registerServerReference(fn, id, name);
+  // decodeAction / lookupServerReference can find it. When `meta` is
+  // supplied (the bundler-driven `createFunction` path), it's also
+  // recorded in the server-function metadata registry so the
+  // protocol-level decoder can drive per-slot parse/validate during the
+  // args walk. Bare `"use server"` actions (no `createFunction`) pass
+  // `meta = undefined` and take the unvalidated legacy walk — back-compat
+  // is preserved.
+  _registerServerReference(fn, id, name, meta);
 
   // Set server reference metadata directly on the original fn, because
   // the generated code uses fn by reference (the return value is ignored).

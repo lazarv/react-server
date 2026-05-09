@@ -342,6 +342,238 @@ export default function TodoApp() {
 
 The file is treated as a client component because of the top-level `"use client"` directive, but the `addItem` function is extracted into a separate server module. This works the same way as defining the Server Function in a standalone `"use server"` file — the runtime handles the extraction automatically.
 
+<Link name="validation">
+## Validation
+</Link>
+
+Server Functions accept arguments from the client. Any payload that flows from a browser into a server handler is, by definition, untrusted. The runtime offers an opt-in API — `createFunction` — that lets you declare a parse/validate contract for each runtime argument slot. The contract is enforced at the protocol layer: the decoder runs your `parse` and `validate` slot-by-slot during the args walk, and rejects the request on the first failure with HTTP 400 — *before* the handler runs, before any business logic touches the value, before any allocation that the handler might assume is bounded.
+
+Bare `"use server"` functions without `createFunction` keep working unchanged. The validation contract is opt-in and additive.
+
+<Link name="createfunction">
+### `createFunction`
+</Link>
+
+Wrap an action handler with `createFunction(spec)(handler)`. Pass the per-slot validate specs as an array — the most common shape:
+
+```jsx
+import {
+  createFunction,
+  formData,
+  file,
+} from "@lazarv/react-server/function";
+import { z } from "zod";
+
+export const updateProfile = createFunction([
+  z.string().email(),
+  z.string().min(2).max(80),
+])(async function updateProfile(email, name) {
+  "use server";
+  await db.users.update({ email, name });
+});
+```
+
+Index `i` in the array describes the **runtime arg slot `i`** — what the client puts on the wire at position `i`. It is *not* the handler's signature parameter `i`. Bound captures from `.bind(...)` or inline closures are not part of this contract — they're hidden values, integrity-protected by the AEAD action token, and never validated as user input.
+
+The runtime accepts any [Standard Schema](https://standardschema.dev/) — Zod, Valibot, ArkType — duck-typed via `safeParse` / `assert` / `parse`. You don't import a particular library from `@lazarv/react-server`; bring whichever schema library your project already uses.
+
+<Link name="parse-then-validate">
+### Parse, then validate
+</Link>
+
+When you also need pre-validate parsing, switch to the object form: `createFunction({ validate, parse })`. Both fields are arrays indexed by the same slot. `parse[i]` runs after the value tree is materialized but before `validate[i]` — the right place for type coercion that schemas can't easily express:
+
+```js
+export const setLimit = createFunction({
+  parse: [(v) => Number(v)],
+  validate: [z.number().int().min(1).max(1000)],
+})(async function setLimit(limit) {
+  "use server";
+  await db.config.set({ limit });
+});
+```
+
+A throwing `parse` surfaces as `DecodeValidationError(reason: "parse_failed")`; a failing `validate` surfaces as `reason: "validate_failed"`. The decoder aborts on the first failure — the next slot is never touched, the handler is never called.
+
+<Link name="noop-slot-marker">
+### Skipping slots with `noop`
+</Link>
+
+When only some slots need validation or parsing, use the `noop` export as a placeholder rather than reaching for sparse-array syntax (`[, , schema]`) or explicit `undefined`:
+
+```js
+import { createFunction, noop } from "@lazarv/react-server/function";
+
+export const update = createFunction([noop, noop, z.number().int()])(
+  async function update(a, b, count) {
+    // a: unknown, b: unknown, count: number — slots 0/1 are accepted
+    // unvalidated; slot 2 is the only one constrained.
+    "use server";
+  }
+);
+```
+
+Same idea in the object form when `parse` and `validate` need different gap patterns:
+
+```js
+createFunction({
+  parse:    [noop, noop, (v) => Number(v)],
+  validate: [z.string(), noop, z.number()],
+})(handler);
+// handler: (a: string, b: unknown, c: number)
+```
+
+`noop` is the identity transform — at runtime it's the same as omitting validation/parsing for that slot. Slots typed `noop` resolve to `unknown` in the inferred handler signature.
+
+<Link name="formdataarg">
+### `formData` — file uploads and structured forms
+</Link>
+
+`FormData` arguments are common when uploading files or submitting progressive-enhancement forms. Schema libraries can describe object shapes, but they describe *materialized* values — by the time a schema runs, the file is already buffered. `formData` is wire-aware: the decoder enforces declared keys and per-entry constraints *during* the FormData walk, so size and MIME limits are checked synchronously against `Blob.size` / `Blob.type` before the entry is added to the result.
+
+```js
+import {
+  createFunction,
+  formData,
+  file,
+} from "@lazarv/react-server/function";
+
+export const upload = createFunction([
+  formData({
+    title: z.string().min(1).max(120),
+    photo: file({
+      maxBytes: 5 * 1024 * 1024,
+      mime: ["image/png", "image/jpeg"],
+    }),
+  }),
+])(async function upload(form) {
+  "use server";
+  const title = form.get("title");
+  const photo = form.get("photo");
+  // photo is already size- and MIME-checked.
+});
+```
+
+`formData(shape, options?)` takes the entry shape as its first argument and an optional config bag as its second. The shape is required; the only option today is `unknown`, but the slot is reserved for future per-form constraints.
+
+The decoder looks up declared entries by **exact key**. There is no prefix scan, so an attacker-injected entry like `5_role=admin` cannot land in the FormData your handler reads.
+
+The `unknown` policy — passed as `formData(shape, { unknown: "drop" })` — controls what happens to entries that are *not* declared:
+
+- `"reject"` (default, recommended): an unknown entry fails the decode with `DecodeValidationError(reason: "unknown_entry")`. Defends against attacker-injected fields.
+- `"drop"`: silently skip undeclared entries. Useful when the form includes React-managed hidden fields the schema doesn't enumerate.
+- `"allow"`: copy undeclared entries through unvalidated. Escape hatch — documented as unsafe.
+
+`file({...})` and `blob({...})` accept `maxBytes` (per-entry size cap), `mime` (allowlist of acceptable MIME types), an optional sync `validate(value)` callback for custom checks (e.g. magic-byte detection), and `optional: true` to allow a missing entry. `File.type` is browser-supplied and trivially spoofable — combine MIME with magic-byte detection in `validate` for hard guarantees.
+
+<Link name="other-wire-types">
+### Other wire types
+</Link>
+
+The Flight protocol carries more than just primitives, objects, and `FormData`. For each remaining wire type where a Standard Schema isn't enough on its own — usually because validation needs to bound resource consumption, type-check against a platform constructor, or wrap an async source — there's a dedicated wire-aware helper:
+
+```js
+import {
+  createFunction,
+  arrayBuffer,
+  typedArray,
+  map,
+  set,
+  stream,
+  asyncIterable,
+  iterable,
+  promise,
+} from "@lazarv/react-server/function";
+```
+
+| Helper | Wire tag | Handler-side type | Why it's wire-aware |
+|---|---|---|---|
+| `arrayBuffer({ maxBytes })` | `$AB` | `ArrayBuffer` | Byte-length cap before the handler observes the buffer |
+| `typedArray({ ctor, maxBytes })` | `$AT` | `InstanceType<C>` (e.g. `Float32Array`) | Constructor allowlist via `instanceof`; type narrowed in inference |
+| `map({ maxSize, key, value })` | `$Q` | `Map<K, V>` | Size cap; inner key/value schemas |
+| `set({ maxSize, value })` | `$W` | `Set<T>` | Size cap; per-item schema |
+| `stream({ maxChunks, maxBytes })` | `$r` / `$b` | `ReadableStream` | Bounds enforced as the handler consumes the stream |
+| `asyncIterable({ maxYields, value })` | `$x` | `AsyncIterable<T>` | Yield ceiling + per-yield validation |
+| `iterable({ maxYields, value })` | `$X` | `Iterable<T>` | Same, sync flavor |
+| `promise(value)` | `$@` | `Promise<T>` | Resolved-value validation through the schema |
+
+A few examples in context:
+
+```js
+// Binary upload arriving as a typed array
+export const upload = createFunction([
+  typedArray({ ctor: Uint8Array, maxBytes: 5 * 1024 * 1024 }),
+])(async function upload(bytes) {
+  "use server";
+  // bytes: Uint8Array, already size-checked
+});
+
+// Bounded Map argument
+export const lookup = createFunction([
+  map({ maxSize: 100, key: z.string(), value: z.number() }),
+])(async function lookup(table) {
+  "use server";
+  // table: Map<string, number>, capped at 100 entries
+});
+
+// Streaming upload with a per-stream byte cap
+export const ingest = createFunction([
+  stream({ maxBytes: 50 * 1024 * 1024, maxChunks: 8192 }),
+])(async function ingest(stream) {
+  "use server";
+  // stream: ReadableStream — wrapped to error if either ceiling is exceeded
+  for await (const chunk of stream) { … }
+});
+
+// Bounded async iterable with per-yield validation
+export const events = createFunction([
+  asyncIterable({
+    maxYields: 1000,
+    value: z.object({ type: z.string(), payload: z.unknown() }),
+  }),
+])(async function events(stream) {
+  "use server";
+  // stream: AsyncIterable<{type: string, payload: unknown}>
+});
+```
+
+Each helper rejects at decode with a distinct `reason` code:
+
+- `wire_shape_mismatch` — slot's wire tag doesn't match the spec (e.g. expected `$AT` got a primitive)
+- `max_bytes_exceeded` / `max_size_exceeded` / `max_chunks_exceeded` / `max_yields_exceeded` — resource ceiling tripped
+- `validate_failed` — inner Standard Schema rejected a key, value, or yielded item
+
+For streams and iterables, the bound is enforced **as the handler consumes them**, not at decode time. The decoder wraps the materialized stream / iterable; once the handler reads past the ceiling the wrapper errors instead of yielding more data. That matters because Flight materializes stream chunks up-front at decode — the wrap is what lets per-slot bounds tighten beyond the global `maxStreamChunks` ceiling.
+
+`typedArray` takes the actual constructor reference (not a string name): `typedArray({ ctor: Float32Array })` infers as `(samples: Float32Array)` in the handler, and the runtime check is `value instanceof Float32Array`. Pass an array of constructors for a union: `typedArray({ ctor: [Uint8Array, Uint8ClampedArray] })`.
+
+<Link name="dev-strict-mode">
+### Dev-time warnings
+</Link>
+
+In development, every Server Function call without a `createFunction` contract logs a one-time warning to the server console:
+
+> Server function `src/actions/upload.mjs#upload` called without validation — wrap the export with `createFunction({...})(handler)` from `@lazarv/react-server/function` (set `config.serverFunctions.strict = false` to silence) 🛡️
+
+The action id format matches what the runtime uses internally (`<modulePath>#<exportName>`), so you can grep straight to the source. The warning is per-action and per-process: each unwrapped action is named once, no matter how many times it's called.
+
+This is purely a dev guardrail — built/started servers never log it. If you're migrating an existing codebase incrementally and don't want the noise, set `config.serverFunctions.strict = false`:
+
+```js
+// react-server.config.mjs
+export default {
+  serverFunctions: { strict: false },
+};
+```
+
+<Link name="error-handling">
+### Error handling
+</Link>
+
+When validation fails, the runtime returns HTTP 400 and sets the `x-react-server-action-error` header to the failure reason (`validate_failed`, `parse_failed`, `unknown_entry`, `max_bytes_exceeded`, `mime_not_allowed`, `missing_entry`, `wire_shape_mismatch`, `custom_validate_failed`, `duplicate_entry`). The client receives a generic error — schema diagnostics are not forwarded to avoid leaking expected-shape details that aid attackers. Diagnostics are written to the server log via `logger.warn` for operator visibility.
+
+If you need user-facing error messages tied to specific fields, validate the same payload again *inside* the handler and return a structured error object: that path is yours to design and is what `useActionState` is built around.
+
 <Link name="security">
 ## Security
 </Link>

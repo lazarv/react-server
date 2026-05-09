@@ -101,6 +101,41 @@ export class DecodeLimitError extends DecodeError {
   }
 }
 
+/**
+ * Raised when a per-arg validator (or wire-aware helper like `formData`)
+ * rejects a slot during the protocol-level walk in `decodeReplyFromFormData`.
+ *
+ * The decoder aborts on the first failure: subsequent slots are not read,
+ * the args list is not bound to the action, and the handler never runs.
+ * This is the "validate as soon as we have id and meta" gate — anything
+ * later would already be letting the attack slip in.
+ *
+ * Carries:
+ *   - `argIndex` — which positional arg slot failed
+ *   - `actionId` — the recovered (decrypted) action id, for log correlation
+ *   - `reason`   — coarse failure category, useful for telemetry filtering
+ *   - `original` — the underlying error from the schema library (Zod's
+ *                  ZodError with `.issues`, ArkType's diagnostics, etc.)
+ *                  or a structured object from a wire-aware helper. Hosts
+ *                  use this for structured server logs but should NOT
+ *                  forward it to the client unmodified — it can leak
+ *                  details about expected input shape.
+ */
+export class DecodeValidationError extends DecodeError {
+  constructor({ argIndex, actionId, reason, original, message }) {
+    super(
+      message ??
+        `Server function arg ${argIndex} failed validation${actionId ? ` for ${actionId}` : ""}: ${reason}`
+    );
+    this.name = "DecodeValidationError";
+    this.code = "DECODE_VALIDATION";
+    this.argIndex = argIndex;
+    this.actionId = actionId;
+    this.reason = reason;
+    this.original = original;
+  }
+}
+
 // ─── Temporary reference proxy ─────────────────────────────────────────────
 
 const TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference");
@@ -168,6 +203,26 @@ function buildReplyResponse(prefix, formData, options) {
     // When the hook is absent or returns null the decoder falls back to
     // the legacy behaviour (parsed.id used as-is, parsed.bound used as-is).
     _decryptServerReferenceId: options.decryptServerReferenceId ?? null,
+
+    // Server-function call context. When the dispatcher knows which action
+    // is being invoked (action id recovered from the encrypted token in
+    // the request header / form field), it sets `_actionId` here and
+    // optionally provides a `_resolveServerFunctionMeta(id)` hook plus a
+    // `_validateArg(schema, value, ctx)` hook. Together these drive
+    // per-slot parse/validate during the args walk in
+    // `decodeReplyFromFormData` / `decodeReplyFromString`. A failure
+    // throws `DecodeValidationError` and aborts the decode before the
+    // next slot is touched — see the "validate as soon as we have id and
+    // meta" contract in the docs. When meta is null/undefined the decoder
+    // falls through to its pre-meta behaviour (back-compat for bare
+    // `"use server"` actions).
+    _actionId: options.actionId ?? null,
+    _resolveServerFunctionMeta:
+      typeof options.resolveServerFunctionMeta === "function"
+        ? options.resolveServerFunctionMeta
+        : null,
+    _validateArg:
+      typeof options.validateArg === "function" ? options.validateArg : null,
   };
 
   if (formData) {
@@ -818,16 +873,817 @@ function createSyncIterator(response, model) {
 // ─── Top-level decode entry points ─────────────────────────────────────────
 
 /**
+ * Walk the root args array slot-by-slot, applying the host-supplied
+ * parse → validate per slot. Throws `DecodeValidationError` on the first
+ * failure and never touches subsequent slots — the "validate as soon as
+ * we have id and meta" gate, applied at the protocol layer.
+ *
+ * Returns the validated args array. Caller (the dispatcher) is responsible
+ * for prepending any token-recovered bound prefix before invoking the
+ * action handler — bound captures are not subject to this validation,
+ * they're integrity-protected by the action token.
+ */
+function walkArgsWithMeta(response, parsedRoot, meta, basePath) {
+  if (!Array.isArray(parsedRoot)) {
+    throw new DecodeError(
+      "Server function args must be a positional array at the root"
+    );
+  }
+  const actionId = response._actionId;
+  const out = Array.from({ length: parsedRoot.length });
+
+  for (let i = 0; i < parsedRoot.length; i++) {
+    const slotPath = basePath ? basePath + ":" + i : String(i);
+    const validateSpec = meta?.validate?.[i];
+    const parseFn = meta?.parse?.[i];
+
+    let value;
+
+    // Wire-aware dispatch: when the slot's spec carries a `_kind` marker
+    // (see `formData` / `file` / `blob` in
+    // @lazarv/react-server/function), the slot's
+    // materialization itself is driven by the spec — `walkValue` is
+    // bypassed and the wire-aware decoder enforces shape, size, and
+    // declared-key constraints before any value-level walk happens.
+    if (
+      validateSpec &&
+      typeof validateSpec === "object" &&
+      typeof validateSpec._kind === "string"
+    ) {
+      try {
+        value = decodeWireAwareSlot(
+          response,
+          parsedRoot[i],
+          validateSpec,
+          slotPath,
+          i
+        );
+      } catch (err) {
+        if (err instanceof DecodeValidationError) throw err;
+        throw new DecodeValidationError({
+          argIndex: i,
+          actionId,
+          reason: err.code ?? "wire_aware_decode_failed",
+          original: err,
+        });
+      }
+    } else {
+      // Standard path: walk the slot's value tree, then apply parse and
+      // validate against a Standard Schema (host-supplied via the
+      // `validateArg` hook so @lazarv/rsc stays library-pure).
+      value = walkValue(response, parsedRoot[i], slotPath, new WeakSet());
+
+      if (typeof parseFn === "function") {
+        try {
+          value = parseFn(value);
+        } catch (err) {
+          throw new DecodeValidationError({
+            argIndex: i,
+            actionId,
+            reason: "parse_failed",
+            original: err,
+          });
+        }
+      }
+
+      if (validateSpec) {
+        const validateArg = response._validateArg;
+        if (typeof validateArg !== "function") {
+          throw new DecodeError(
+            "Server function meta declares validate[" +
+              i +
+              "] but no `validateArg` host hook was provided to decodeReply. " +
+              "Pass options.validateArg from the dispatcher."
+          );
+        }
+        const result = validateArg(validateSpec, value, {
+          argIndex: i,
+          actionId,
+        });
+        if (!result || result.success !== true) {
+          throw new DecodeValidationError({
+            argIndex: i,
+            actionId,
+            reason: "validate_failed",
+            original: result ? result.error : null,
+          });
+        }
+        value = result.data;
+      }
+    }
+
+    out[i] = value;
+  }
+
+  return out;
+}
+
+/**
+ * Resolve the meta for the current `_actionId` via the host hook, if any.
+ * Returns null when no actionId is set, no hook is registered, or the hook
+ * returns a falsy value — all of which mean "fall through to the
+ * unvalidated walk" (back-compat for bare `"use server"` actions).
+ */
+function resolveMeta(response) {
+  if (!response._actionId || !response._resolveServerFunctionMeta) return null;
+  const meta = response._resolveServerFunctionMeta(response._actionId);
+  return meta || null;
+}
+
+/**
+ * Wire-aware slot dispatch. Currently handles `formdata`; `file` and `blob`
+ * surface as entry-level constraints inside `formdata` rather than as
+ * top-level slots (a top-level `file` arg would imply an entire request
+ * body that's just one File, which doesn't match the FormData wire format
+ * the runtime emits). Each branch below pairs a `_kind` marker with a
+ * Flight wire tag and enforces resource bounds the slot's schema
+ * declares — catching protocol-level overshoot before the handler ever
+ * reads the value.
+ */
+function decodeWireAwareSlot(response, rawSlot, spec, slotPath, argIndex) {
+  switch (spec._kind) {
+    case "formdata":
+      return decodeFormDataSlot(response, rawSlot, spec, slotPath, argIndex);
+    case "arrayBuffer":
+      return decodeArrayBufferSlot(response, rawSlot, spec, slotPath, argIndex);
+    case "typedArray":
+      return decodeTypedArraySlot(response, rawSlot, spec, slotPath, argIndex);
+    case "map":
+      return decodeMapSlot(response, rawSlot, spec, slotPath, argIndex);
+    case "set":
+      return decodeSetSlot(response, rawSlot, spec, slotPath, argIndex);
+    case "stream":
+      return decodeStreamSlot(response, rawSlot, spec, slotPath, argIndex);
+    case "asyncIterable":
+      return decodeAsyncIterableSlot(
+        response,
+        rawSlot,
+        spec,
+        slotPath,
+        argIndex
+      );
+    case "iterable":
+      return decodeIterableSlot(response, rawSlot, spec, slotPath, argIndex);
+    case "promise":
+      return decodePromiseSlot(response, rawSlot, spec, slotPath, argIndex);
+    default:
+      throw new DecodeError(
+        "Unknown wire-aware spec kind: " + JSON.stringify(spec._kind)
+      );
+  }
+}
+
+/**
+ * Wire-aware decode of a `formData(shape, { unknown })` slot.
+ *
+ * The slot's raw value must be a `$K<partIdOrPath>` tag pointing at a
+ * sub-FormData. Instead of the legacy prefix-scan in `decodeFormDataRef`,
+ * which copies every wire entry whose key starts with the slot's prefix
+ * into the result, this function looks up *only* the entries declared in
+ * `spec.entries` by exact key. Anything else on the wire is either:
+ *
+ *   - rejected (`unknown: "reject"`, the default), so attacker-injected
+ *     extras like `5_role=admin` cause the request to fail before the
+ *     handler runs;
+ *   - silently dropped (`unknown: "drop"`), useful for forms that include
+ *     React-managed hidden fields the schema doesn't enumerate;
+ *   - kept (`unknown: "allow"`) — escape hatch, documented as unsafe.
+ *
+ * Per-entry constraints (`file({...})`, `blob({...})`, or a Standard
+ * Schema) are applied at materialization time. File size and MIME are
+ * checked synchronously against `Blob.size` / `Blob.type` before the
+ * entry is added to the result FormData. Schema validation routes
+ * through the host's `validateArg` hook for library-agnostic dispatch.
+ *
+ * On any failure the function throws `DecodeValidationError` and aborts
+ * the slot walk — the next slot's bytes are never read.
+ */
+function decodeFormDataSlot(response, rawSlot, spec, slotPath, argIndex) {
+  const actionId = response._actionId;
+
+  // Slot must be a `$K<partIdOrPath>` reference. Anything else (a $D Date,
+  // a primitive, a $T temp-ref) is a wire-shape mismatch the schema is
+  // declaring shouldn't be accepted.
+  if (typeof rawSlot !== "string" || !rawSlot.startsWith("$K")) {
+    throw new DecodeValidationError({
+      argIndex,
+      actionId,
+      reason: "wire_shape_mismatch",
+      original: {
+        expected: "FormData ($K reference)",
+        receivedTag:
+          typeof rawSlot === "string" ? rawSlot.slice(0, 2) : typeof rawSlot,
+      },
+    });
+  }
+  if (!response._formData) {
+    throw new DecodeValidationError({
+      argIndex,
+      actionId,
+      reason: "wire_shape_mismatch",
+      original: { detail: "FormData reference outside of FormData body" },
+    });
+  }
+
+  const partIdOrPath = rawSlot.slice(2);
+  const bareKey = response._prefix + partIdOrPath;
+  const entryPrefix = bareKey + "_";
+
+  // Reject the legacy "bare File at the same key" form — `formData`
+  // declares an object-like sub-FormData; if the wire shape is a single
+  // Blob/File at the bare key, that's not what the schema asked for.
+  const bareEntries = response._formData.getAll(bareKey);
+  for (const v of bareEntries) {
+    if (typeof v !== "string") {
+      throw new DecodeValidationError({
+        argIndex,
+        actionId,
+        reason: "wire_shape_mismatch",
+        original: {
+          detail:
+            "formData expects a sub-FormData reference but the wire " +
+            "carried a bare Blob/File at the same key",
+        },
+      });
+    }
+  }
+
+  const entries = spec.entries || {};
+  const declaredNames = new Set(Object.keys(entries));
+  const unknownPolicy = spec.unknown ?? "reject";
+
+  const result = new FormData();
+
+  // First pass: walk declared entries in declaration order. Each per-entry
+  // constraint runs as soon as the entry is read, before the next entry
+  // is touched. A failure aborts immediately.
+  for (const name of declaredNames) {
+    const constraint = entries[name];
+    const wireKey = entryPrefix + name;
+    const wireValues = response._formData.getAll(wireKey);
+
+    if (wireValues.length === 0) {
+      // Entry not present on the wire. Whether this is a failure depends
+      // on the constraint — defer to it via the host's validateArg hook
+      // (Zod's `.optional()` would accept undefined; `.string()` would
+      // reject it). Wire-aware constraints (_kind: "file" / "blob") are
+      // strict by default — declared = required.
+      if (
+        constraint &&
+        typeof constraint === "object" &&
+        typeof constraint._kind === "string"
+      ) {
+        if (constraint.optional !== true) {
+          throw new DecodeValidationError({
+            argIndex,
+            actionId,
+            reason: "missing_entry",
+            original: { entry: name },
+          });
+        }
+        continue;
+      }
+      // Standard schema: pass `undefined` to the validator and let it decide.
+      const validateArg = response._validateArg;
+      if (typeof validateArg === "function" && constraint) {
+        const r = validateArg(constraint, undefined, {
+          argIndex,
+          actionId,
+          entry: name,
+        });
+        if (!r || r.success !== true) {
+          throw new DecodeValidationError({
+            argIndex,
+            actionId,
+            reason: "validate_failed",
+            original: r ? r.error : null,
+          });
+        }
+        if (r.data !== undefined) {
+          result.append(name, r.data);
+        }
+      }
+      continue;
+    }
+
+    // Multi-value semantics aren't part of this contract — a declared
+    // entry is one value. If the wire has multiple, that's a wire-shape
+    // mismatch worth rejecting.
+    if (wireValues.length > 1) {
+      throw new DecodeValidationError({
+        argIndex,
+        actionId,
+        reason: "duplicate_entry",
+        original: { entry: name, count: wireValues.length },
+      });
+    }
+
+    const wireValue = wireValues[0];
+    const validatedValue = applyEntryConstraint(
+      response,
+      constraint,
+      wireValue,
+      argIndex,
+      name,
+      slotPath
+    );
+    if (validatedValue !== undefined) {
+      result.append(name, validatedValue);
+    }
+  }
+
+  // Second pass: enforce the unknown-key policy. We walk the backing
+  // FormData once; any key starting with `entryPrefix` whose suffix isn't
+  // in the declared set is "unknown".
+  if (unknownPolicy === "reject" || unknownPolicy === "allow") {
+    for (const k of response._formData.keys()) {
+      if (!k.startsWith(entryPrefix)) continue;
+      const suffix = k.slice(entryPrefix.length);
+      if (declaredNames.has(suffix)) continue;
+      if (unknownPolicy === "reject") {
+        throw new DecodeValidationError({
+          argIndex,
+          actionId,
+          reason: "unknown_entry",
+          original: { entry: suffix },
+        });
+      }
+      // "allow": copy through unvalidated.
+      const vs = response._formData.getAll(k);
+      for (const v of vs) result.append(suffix, v);
+    }
+  }
+  // "drop": silently skip — the result already only contains declared entries.
+
+  return result;
+}
+
+/**
+ * Apply a single per-entry constraint to a wire value (string, File, or
+ * Blob from FormData). Returns the validated value to put in the result,
+ * or undefined to skip. Throws `DecodeValidationError` on failure.
+ */
+function applyEntryConstraint(
+  response,
+  constraint,
+  wireValue,
+  argIndex,
+  entryName
+) {
+  const actionId = response._actionId;
+
+  // Wire-aware: file / blob constraints check Blob.size and Blob.type
+  // synchronously, before the entry is added to the result FormData.
+  // The bytes themselves are already buffered by the multipart parser,
+  // bounded by the request-level `maxBytes` limit; this gates the
+  // per-entry cap and MIME allowlist.
+  if (
+    constraint &&
+    typeof constraint === "object" &&
+    (constraint._kind === "file" || constraint._kind === "blob")
+  ) {
+    if (typeof wireValue === "string") {
+      throw new DecodeValidationError({
+        argIndex,
+        actionId,
+        reason: "wire_shape_mismatch",
+        original: {
+          entry: entryName,
+          detail: "expected " + constraint._kind + ", got string",
+        },
+      });
+    }
+    if (typeof wireValue.size !== "number") {
+      throw new DecodeValidationError({
+        argIndex,
+        actionId,
+        reason: "wire_shape_mismatch",
+        original: { entry: entryName, detail: "value is not a Blob/File" },
+      });
+    }
+    if (
+      typeof constraint.maxBytes === "number" &&
+      wireValue.size > constraint.maxBytes
+    ) {
+      throw new DecodeValidationError({
+        argIndex,
+        actionId,
+        reason: "max_bytes_exceeded",
+        original: {
+          entry: entryName,
+          size: wireValue.size,
+          limit: constraint.maxBytes,
+        },
+      });
+    }
+    if (Array.isArray(constraint.mime) && constraint.mime.length > 0) {
+      const mime = wireValue.type || "";
+      if (!constraint.mime.includes(mime)) {
+        throw new DecodeValidationError({
+          argIndex,
+          actionId,
+          reason: "mime_not_allowed",
+          original: {
+            entry: entryName,
+            mime,
+            allowed: constraint.mime,
+          },
+        });
+      }
+    }
+    // `validate` callback (custom check, e.g. magic-byte detection). We
+    // call it synchronously here; if it returns a Promise the caller
+    // awaits in their own dispatch — but since `decodeFormDataSlot`
+    // itself is sync, async `validate` callbacks run via the optional
+    // `validateArg` host hook only in the non-wire-aware branch. For
+    // wire-aware constraints we keep `validate` strictly sync.
+    if (typeof constraint.validate === "function") {
+      let ok;
+      try {
+        ok = constraint.validate(wireValue);
+      } catch (err) {
+        throw new DecodeValidationError({
+          argIndex,
+          actionId,
+          reason: "custom_validate_failed",
+          original: { entry: entryName, error: err },
+        });
+      }
+      if (ok !== true) {
+        throw new DecodeValidationError({
+          argIndex,
+          actionId,
+          reason: "custom_validate_failed",
+          original: { entry: entryName, returned: ok },
+        });
+      }
+    }
+    return wireValue;
+  }
+
+  // Standard Schema entry constraint. Route through the host's
+  // validateArg hook — same library-agnostic dispatch as the top-level
+  // arg path, just scoped to a single FormData entry.
+  if (constraint) {
+    const validateArg = response._validateArg;
+    if (typeof validateArg !== "function") {
+      throw new DecodeError(
+        "formData entry `" +
+          entryName +
+          "` declares a schema but no `validateArg` host hook was provided " +
+          "to decodeReply. Pass options.validateArg from the dispatcher."
+      );
+    }
+    const r = validateArg(constraint, wireValue, {
+      argIndex,
+      actionId,
+      entry: entryName,
+    });
+    if (!r || r.success !== true) {
+      throw new DecodeValidationError({
+        argIndex,
+        actionId,
+        reason: "validate_failed",
+        original: r ? r.error : null,
+      });
+    }
+    return r.data;
+  }
+
+  // No constraint declared for this entry — pass through (legitimate when
+  // the user wants to declare an entry as "present, but no validation").
+  return wireValue;
+}
+
+// ─── Wire-aware decoders for the rest of the Flight protocol ─────────────
+
+/**
+ * Materialize a slot via `walkValue` and assert the result is one of
+ * the expected platform types. Used by all the post-walk wire-aware
+ * decoders below to share their wire-shape mismatch reporting.
+ */
+function materializeSlot(response, rawSlot, slotPath) {
+  return walkValue(response, rawSlot, slotPath, new WeakSet());
+}
+
+function wireMismatch(argIndex, actionId, expected, detail) {
+  throw new DecodeValidationError({
+    argIndex,
+    actionId,
+    reason: "wire_shape_mismatch",
+    original: detail ? { expected, ...detail } : { expected },
+  });
+}
+
+function decodeArrayBufferSlot(response, rawSlot, spec, slotPath, argIndex) {
+  const value = materializeSlot(response, rawSlot, slotPath);
+  if (!(value instanceof ArrayBuffer)) {
+    wireMismatch(argIndex, response._actionId, "ArrayBuffer", {
+      received: typeof value,
+    });
+  }
+  if (typeof spec.maxBytes === "number" && value.byteLength > spec.maxBytes) {
+    throw new DecodeValidationError({
+      argIndex,
+      actionId: response._actionId,
+      reason: "max_bytes_exceeded",
+      original: { size: value.byteLength, limit: spec.maxBytes },
+    });
+  }
+  return value;
+}
+
+function decodeTypedArraySlot(response, rawSlot, spec, slotPath, argIndex) {
+  const value = materializeSlot(response, rawSlot, slotPath);
+  // ArrayBuffer.isView covers TypedArrays and DataView. We accept both
+  // here — the constructor allowlist is what narrows further.
+  if (!ArrayBuffer.isView(value)) {
+    wireMismatch(argIndex, response._actionId, "TypedArray", {
+      received: typeof value,
+    });
+  }
+  if (Array.isArray(spec.ctor) && spec.ctor.length > 0) {
+    // Compare by constructor reference (`value instanceof Ctor`) rather
+    // than by name — references are tamper-evident across realm
+    // boundaries and TS-inferable, and they're what the user actually
+    // wrote in the spec.
+    const matched = spec.ctor.some((C) => value instanceof C);
+    if (!matched) {
+      const expected = spec.ctor.map((C) => C?.name ?? "(unknown)").join(" | ");
+      const received = value.constructor?.name ?? "(unknown)";
+      wireMismatch(argIndex, response._actionId, expected, { received });
+    }
+  }
+  if (typeof spec.maxBytes === "number" && value.byteLength > spec.maxBytes) {
+    throw new DecodeValidationError({
+      argIndex,
+      actionId: response._actionId,
+      reason: "max_bytes_exceeded",
+      original: { size: value.byteLength, limit: spec.maxBytes },
+    });
+  }
+  return value;
+}
+
+/**
+ * Apply an inner schema (Standard Schema via the host's `validateArg`
+ * hook) to a single value, returning the validated data or throwing
+ * `DecodeValidationError`. Shared between map / set / iterable / async
+ * iterable / promise inner-value validation.
+ */
+function applyInner(response, schema, value, argIndex, where) {
+  const validateArg = response._validateArg;
+  if (typeof validateArg !== "function") {
+    throw new DecodeError(
+      "Slot " +
+        argIndex +
+        " declares an inner `" +
+        where +
+        "` schema but no `validateArg` host hook was provided to decodeReply."
+    );
+  }
+  const result = validateArg(schema, value, {
+    argIndex,
+    actionId: response._actionId,
+  });
+  if (!result || result.success !== true) {
+    throw new DecodeValidationError({
+      argIndex,
+      actionId: response._actionId,
+      reason: "validate_failed",
+      original: result ? result.error : null,
+    });
+  }
+  return result.data;
+}
+
+function decodeMapSlot(response, rawSlot, spec, slotPath, argIndex) {
+  const value = materializeSlot(response, rawSlot, slotPath);
+  if (!(value instanceof Map)) {
+    wireMismatch(argIndex, response._actionId, "Map", {
+      received: typeof value,
+    });
+  }
+  if (typeof spec.maxSize === "number" && value.size > spec.maxSize) {
+    throw new DecodeValidationError({
+      argIndex,
+      actionId: response._actionId,
+      reason: "max_size_exceeded",
+      original: { size: value.size, limit: spec.maxSize },
+    });
+  }
+  if (spec.key == null && spec.value == null) return value;
+  const out = new Map();
+  for (const [k, v] of value) {
+    const validatedKey = spec.key
+      ? applyInner(response, spec.key, k, argIndex, "key")
+      : k;
+    const validatedValue = spec.value
+      ? applyInner(response, spec.value, v, argIndex, "value")
+      : v;
+    out.set(validatedKey, validatedValue);
+  }
+  return out;
+}
+
+function decodeSetSlot(response, rawSlot, spec, slotPath, argIndex) {
+  const value = materializeSlot(response, rawSlot, slotPath);
+  if (!(value instanceof Set)) {
+    wireMismatch(argIndex, response._actionId, "Set", {
+      received: typeof value,
+    });
+  }
+  if (typeof spec.maxSize === "number" && value.size > spec.maxSize) {
+    throw new DecodeValidationError({
+      argIndex,
+      actionId: response._actionId,
+      reason: "max_size_exceeded",
+      original: { size: value.size, limit: spec.maxSize },
+    });
+  }
+  if (spec.value == null) return value;
+  const out = new Set();
+  for (const item of value) {
+    out.add(applyInner(response, spec.value, item, argIndex, "value"));
+  }
+  return out;
+}
+
+function decodeStreamSlot(response, rawSlot, spec, slotPath, argIndex) {
+  const value = materializeSlot(response, rawSlot, slotPath);
+  if (
+    !value ||
+    typeof value !== "object" ||
+    typeof value.pipeThrough !== "function"
+  ) {
+    wireMismatch(argIndex, response._actionId, "ReadableStream", {
+      received: typeof value,
+    });
+  }
+  // Fast path: no bounds declared — no need to wrap.
+  if (typeof spec.maxChunks !== "number" && typeof spec.maxBytes !== "number") {
+    return value;
+  }
+  let chunkCount = 0;
+  let byteCount = 0;
+  const actionId = response._actionId;
+  return value.pipeThrough(
+    new TransformStream({
+      transform(chunk, controller) {
+        chunkCount++;
+        if (typeof spec.maxChunks === "number" && chunkCount > spec.maxChunks) {
+          controller.error(
+            new DecodeValidationError({
+              argIndex,
+              actionId,
+              reason: "max_chunks_exceeded",
+              original: { count: chunkCount, limit: spec.maxChunks },
+            })
+          );
+          return;
+        }
+        if (typeof spec.maxBytes === "number") {
+          // Bytes for binary streams (Uint8Array / ArrayBufferView), char
+          // count for text streams. Mixed-mode streams use whichever is
+          // available on the chunk.
+          const chunkSize =
+            chunk?.byteLength ?? (typeof chunk === "string" ? chunk.length : 0);
+          byteCount += chunkSize;
+          if (byteCount > spec.maxBytes) {
+            controller.error(
+              new DecodeValidationError({
+                argIndex,
+                actionId,
+                reason: "max_bytes_exceeded",
+                original: { size: byteCount, limit: spec.maxBytes },
+              })
+            );
+            return;
+          }
+        }
+        controller.enqueue(chunk);
+      },
+    })
+  );
+}
+
+function isAsyncIterable(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    typeof value[Symbol.asyncIterator] === "function"
+  );
+}
+
+function isSyncIterable(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    typeof value[Symbol.iterator] === "function"
+  );
+}
+
+function decodeAsyncIterableSlot(response, rawSlot, spec, slotPath, argIndex) {
+  const value = materializeSlot(response, rawSlot, slotPath);
+  if (!isAsyncIterable(value)) {
+    wireMismatch(argIndex, response._actionId, "AsyncIterable", {
+      received: typeof value,
+    });
+  }
+  const actionId = response._actionId;
+  const inner = spec.value;
+  // Wrap as a fresh async iterable that enforces bounds and inner schema.
+  return {
+    async *[Symbol.asyncIterator]() {
+      let yielded = 0;
+      for await (const item of value) {
+        yielded++;
+        if (typeof spec.maxYields === "number" && yielded > spec.maxYields) {
+          throw new DecodeValidationError({
+            argIndex,
+            actionId,
+            reason: "max_yields_exceeded",
+            original: { count: yielded, limit: spec.maxYields },
+          });
+        }
+        yield inner
+          ? applyInner(response, inner, item, argIndex, "value")
+          : item;
+      }
+    },
+  };
+}
+
+function decodeIterableSlot(response, rawSlot, spec, slotPath, argIndex) {
+  const value = materializeSlot(response, rawSlot, slotPath);
+  if (!isSyncIterable(value)) {
+    wireMismatch(argIndex, response._actionId, "Iterable", {
+      received: typeof value,
+    });
+  }
+  const actionId = response._actionId;
+  const inner = spec.value;
+  return {
+    *[Symbol.iterator]() {
+      let yielded = 0;
+      for (const item of value) {
+        yielded++;
+        if (typeof spec.maxYields === "number" && yielded > spec.maxYields) {
+          throw new DecodeValidationError({
+            argIndex,
+            actionId,
+            reason: "max_yields_exceeded",
+            original: { count: yielded, limit: spec.maxYields },
+          });
+        }
+        yield inner
+          ? applyInner(response, inner, item, argIndex, "value")
+          : item;
+      }
+    },
+  };
+}
+
+function decodePromiseSlot(response, rawSlot, spec, slotPath, argIndex) {
+  const value = materializeSlot(response, rawSlot, slotPath);
+  if (!value || typeof value.then !== "function") {
+    wireMismatch(argIndex, response._actionId, "Promise", {
+      received: typeof value,
+    });
+  }
+  if (spec.value == null) return value;
+  // Wrap with a downstream `.then` so the resolved value is validated
+  // before the handler observes it. Rejection paths pass through
+  // unchanged — they're already error states.
+  return value.then((resolved) =>
+    applyInner(response, spec.value, resolved, argIndex, "value")
+  );
+}
+
+/**
  * Decode a JSON-string body (no outlined rows).
+ *
+ * When the host provides `actionId` + `resolveServerFunctionMeta` and the
+ * resolved meta declares per-arg parse/validate, the root array is walked
+ * slot-by-slot under those rules. Otherwise the legacy whole-tree walk
+ * runs (back-compat for bare actions and non-server-function callers of
+ * `decodeReply`).
  */
 export function decodeReplyFromString(body, options = {}) {
   const response = buildReplyResponse("", null, options);
   const parsed = JSON.parse(body, forbiddenReviver);
+  const meta = resolveMeta(response);
+  if (meta) {
+    return walkArgsWithMeta(response, parsed, meta, "0");
+  }
   return walkValue(response, parsed, "0", new WeakSet());
 }
 
 /**
  * Decode a FormData body. Root row lives at `<prefix>0`.
+ *
+ * Same meta-driven slot-walk as `decodeReplyFromString` when the host
+ * supplies `actionId` + `resolveServerFunctionMeta`.
  */
 export function decodeReplyFromFormData(formData, options = {}) {
   const prefix = options.formFieldPrefix ?? "";
@@ -837,6 +1693,24 @@ export function decodeReplyFromFormData(formData, options = {}) {
   if (typeof rootRaw !== "string") {
     return formData;
   }
+
+  const meta = resolveMeta(response);
+  if (meta) {
+    // Slot-by-slot walk under the registered meta. The root JSON.parse
+    // still runs once — the per-slot recursion happens via walkValue
+    // inside the loop, with parse/validate gated on each slot.
+    let parsed;
+    try {
+      parsed = JSON.parse(rootRaw, forbiddenReviver);
+    } catch (err) {
+      throw new DecodeError(
+        "Failed to parse server function args JSON: " + err.message
+      );
+    }
+    return walkArgsWithMeta(response, parsed, meta, "0");
+  }
+
+  // No meta → legacy whole-tree walk (bare `"use server"` action).
   // Prime the root chunk with path "0" so $T tokens inside it get
   // structural identity matching the client-side encoder's path.
   response._chunks.set(0, {

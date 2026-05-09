@@ -13,6 +13,11 @@ export const home = createRoute("/", { exact: true });
 
 export const about = createRoute("/about", { exact: true });
 
+// Server-function demo. No params / search; the page reads the entries
+// list directly from a server-side store and a client island form
+// drives `createFunction`-wrapped mutations.
+export const guestbook = createRoute("/guestbook", { exact: true });
+
 // Zod `validate` — full schema-based validation with defaults and coercion.
 export const user = createRoute("/user/[id]", {
   exact: true,

@@ -6,6 +6,7 @@ import {
   counter,
   clock,
   todos,
+  guestbook,
   product,
   productSkuUppercase,
   docs,
@@ -37,6 +38,7 @@ export default index.createLayout(({ children }) => {
           <counter.Link>Counter</counter.Link>
           <clock.Link>Clock</clock.Link>
           <todos.Link>Todos</todos.Link>
+          <guestbook.Link>Guestbook</guestbook.Link>
           <productSkuUppercase.Link params={{ sku: "ABC-123" }}>
             Product ABC-123 (matcher)
           </productSkuUppercase.Link>

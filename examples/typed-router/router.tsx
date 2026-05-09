@@ -22,6 +22,7 @@ import PostPage from "./PostPage";
 import ProductList from "./ProductList";
 import TodosPage from "./TodosPage";
 import TodosLoading from "./TodosLoading";
+import Guestbook from "./Guestbook";
 import NotFound from "./NotFound";
 import UserNotFound from "./UserNotFound";
 
@@ -41,6 +42,8 @@ const router = createRouter({
     loading: TodosLoading,
     resources: [todosServerMapping, todosClientMapping],
   }),
+  // Server-function demo: `createFunction` actions with Zod-typed args.
+  guestbook: createRoute(routes.guestbook, <Guestbook />),
   userNotFound: createRoute(routes.userNotFound, <UserNotFound />),
   notFound: createRoute(routes.notFound, <NotFound />),
 });

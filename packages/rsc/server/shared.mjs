@@ -15,6 +15,7 @@
 import {
   decodeReplyFromString as _decodeReplyFromString,
   decodeReplyFromFormData as _decodeReplyFromFormData,
+  DecodeValidationError as _DecodeValidationError,
 } from "./reply-decoder.mjs";
 
 // React Flight Protocol constants
@@ -2654,10 +2655,55 @@ export function deserializeValue(value, options = {}, path = "") {
       }
 
       const action = loader(id);
-      const wireBound =
-        parsed.bound && Array.isArray(parsed.bound) && parsed.bound.length > 0
-          ? parsed.bound.map((arg) => deserializeValue(arg, options, path))
-          : null;
+      const wireBoundIsArray =
+        parsed.bound && Array.isArray(parsed.bound) && parsed.bound.length > 0;
+
+      // Defense-in-depth: when the action has registered meta (i.e., it was
+      // declared with `createFunction`) AND the encrypted token already
+      // delivered bound captures, any non-empty `parsed.bound` on the wire
+      // is a wire-shape mismatch — the trusted channel for closure
+      // captures is the AEAD-protected token, not the wire's `bound`
+      // field. Reject before the action is bound. This is a structural
+      // gate, not a value-level validation: bound captures themselves are
+      // hidden values and are not subject to per-arg parse/validate (see
+      // walkArgsWithMeta in reply-decoder.mjs for the user-input path).
+      const meta = serverFunctionMetaRegistry.get(id);
+      if (meta && tokenBound !== null && wireBoundIsArray) {
+        throw new _DecodeValidationError({
+          argIndex: -1,
+          actionId: id,
+          reason: "wire_shape_mismatch",
+          original: {
+            detail:
+              "bound captures must travel via the encrypted action token; " +
+              "wire-supplied `bound` is rejected for actions registered with createFunction",
+          },
+        });
+      }
+
+      // Bound-arg combined limit (parity with reply-decoder.mjs's
+      // `maxBoundArgs`). Pulled from `options.limits.maxBoundArgs` when
+      // the host supplies it; defaults to a permissive value otherwise so
+      // pre-meta callers keep working unchanged.
+      const maxBoundArgs =
+        typeof options.limits?.maxBoundArgs === "number"
+          ? options.limits.maxBoundArgs
+          : 1024;
+      const totalBoundLength =
+        (tokenBound ? tokenBound.length : 0) +
+        (wireBoundIsArray ? parsed.bound.length : 0);
+      if (totalBoundLength > maxBoundArgs) {
+        throw new _DecodeValidationError({
+          argIndex: -1,
+          actionId: id,
+          reason: "max_bound_args_exceeded",
+          original: { length: totalBoundLength, limit: maxBoundArgs },
+        });
+      }
+
+      const wireBound = wireBoundIsArray
+        ? parsed.bound.map((arg) => deserializeValue(arg, options, path))
+        : null;
 
       // No bound from any source.
       if (tokenBound === null && wireBound === null) {
@@ -2915,14 +2961,39 @@ export function decodeFormState(actionResult, body) {
 const serverReferenceRegistry = new Map();
 
 /**
+ * Registry of server-function metadata (parse + validate per-arg specs).
+ *
+ * Keyed by the same `${id}#${exportName}` full id used by
+ * `serverReferenceRegistry`, but populated only for actions that opted into
+ * validation via `registerServerReference(fn, id, name, meta)` (typically
+ * through `@lazarv/react-server`'s `createFunction` helper).
+ *
+ * Decoder hooks consult this map via `lookupServerFunctionMeta(id)` after
+ * recovering the actionId from an incoming request, and use the meta to
+ * drive per-slot parse/validate during the args walk — rejecting malformed
+ * payloads at the protocol layer, before any handler code runs.
+ *
+ * Bare server-action registrations leave this map untouched; their decode
+ * path is identical to the pre-meta behavior (back-compat).
+ */
+const serverFunctionMetaRegistry = new Map();
+
+/**
  * Register a server reference (action)
  *
  * @param {Function} action - The server action function
  * @param {string} id - The module ID
  * @param {string} exportName - The export name
+ * @param {object} [meta] - Optional metadata describing the action's call
+ *                          shape: `{ args?, parse?, validate? }`. When
+ *                          provided, the decoder applies parse → validate
+ *                          per slot during the args walk and aborts the
+ *                          decode on the first failure (see
+ *                          `decodeReplyFromFormData`). Omit for bare
+ *                          `"use server"` actions — back-compat is preserved.
  * @returns {Function} The registered action with metadata
  */
-export function registerServerReference(action, id, exportName) {
+export function registerServerReference(action, id, exportName, meta) {
   const fullId = `${id}#${exportName}`;
 
   // Create a wrapper that preserves bind behavior
@@ -2982,8 +3053,29 @@ export function registerServerReference(action, id, exportName) {
   }
 
   serverReferenceRegistry.set(fullId, serverAction);
+  if (meta != null) {
+    serverFunctionMetaRegistry.set(fullId, meta);
+  }
 
   return serverAction;
+}
+
+/**
+ * Look up the registered metadata for a server function by full id.
+ *
+ * Returns the `{ args?, parse?, validate? }` object passed to
+ * `registerServerReference(fn, id, name, meta)`, or `undefined` if no meta
+ * was registered (the bare back-compat path).
+ *
+ * Used by the reply decoder's slot-walk gate to drive per-arg parse and
+ * validate. Returning `undefined` makes the decoder skip those steps and
+ * fall through to the unvalidated walk.
+ *
+ * @param {string} id - The full id (`${moduleId}#${exportName}`).
+ * @returns {object | undefined}
+ */
+export function lookupServerFunctionMeta(id) {
+  return serverFunctionMetaRegistry.get(id);
 }
 
 /**

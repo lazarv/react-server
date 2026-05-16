@@ -296,6 +296,50 @@ const REACT_SERVER_SCHEMA = {
       headersTimeout: optional(is.number),
       requestTimeout: optional(is.number),
       maxConcurrentRequests: optional(is.number),
+      maxBodyBytes: optional(
+        custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+      ),
+      csrf: optional(
+        falseOrShape({
+          mode: optional(
+            custom(
+              (v) =>
+                v === "lax" || v === "strict" || v === false || v === "off",
+              'one of "lax" | "strict" | "off" | false'
+            )
+          ),
+          allowedOrigins: optional(
+            arrayOf(
+              custom(
+                (v) => typeof v === "string" || v instanceof RegExp,
+                "string or RegExp"
+              )
+            )
+          ),
+        })
+      ),
+      multipart: optional(
+        objectShape({
+          maxFileSize: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxFieldSize: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxFiles: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxFields: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxParts: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+          maxFieldNameSize: optional(
+            custom((v) => Number.isInteger(v) && v >= 0, "non-negative integer")
+          ),
+        })
+      ),
       shutdownTimeout: optional(is.number),
       connectionsCheckingInterval: optional(is.number),
       clusterRespawnLimit: optional(is.number),
@@ -675,6 +719,17 @@ const EXAMPLES = {
   "server.headersTimeout": `server: { headersTimeout: 66000 }`,
   "server.requestTimeout": `server: { requestTimeout: 30000 }`,
   "server.maxConcurrentRequests": `server: { maxConcurrentRequests: 100 }`,
+  "server.maxBodyBytes": `server: { maxBodyBytes: 32 * 1024 * 1024 }`,
+  "server.csrf": `server: { csrf: { mode: "lax", allowedOrigins: ["https://host.example.com"] } }  // or { csrf: false } to disable`,
+  "server.csrf.mode": `server: { csrf: { mode: "lax" } }  // "lax" | "strict" | false`,
+  "server.csrf.allowedOrigins": `server: { csrf: { allowedOrigins: ["https://host.example.com", /\\.partner\\.com$/] } }`,
+  "server.multipart": `server: { multipart: { maxFileSize: 10 * 1024 * 1024, maxFiles: 5, maxFields: 100 } }`,
+  "server.multipart.maxFileSize": `server: { multipart: { maxFileSize: 10 * 1024 * 1024 } }`,
+  "server.multipart.maxFieldSize": `server: { multipart: { maxFieldSize: 1 * 1024 * 1024 } }`,
+  "server.multipart.maxFiles": `server: { multipart: { maxFiles: 10 } }`,
+  "server.multipart.maxFields": `server: { multipart: { maxFields: 100 } }`,
+  "server.multipart.maxParts": `server: { multipart: { maxParts: 100 } }`,
+  "server.multipart.maxFieldNameSize": `server: { multipart: { maxFieldNameSize: 200 } }`,
   "server.shutdownTimeout": `server: { shutdownTimeout: 25000 }`,
   "server.connectionsCheckingInterval": `server: { connectionsCheckingInterval: 5000 }`,
   "server.clusterRespawnLimit": `server: { clusterRespawnLimit: 20 }`,

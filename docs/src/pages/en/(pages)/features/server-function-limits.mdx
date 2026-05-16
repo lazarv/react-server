@@ -39,6 +39,8 @@ Because the limits are enforced inside the decoder, they cover both:
 | `maxStringLength`  | `16 MiB`     | Length of a single string row before decoding                             |
 | `maxStreamChunks`  | `10000`      | Chunks materialised for a decoded `ReadableStream`, `AsyncIterable`, or `Iterator` |
 
+These ceilings run *during* decoding. The wire-level ceiling on the raw request body is enforced separately by the HTTP server config — see [`server.maxBodyBytes`](/features/http-layer#body-size-cap) for the pre-parse cap that protects against memory DoS before any of these decoder-level checks even run.
+
 Each limit is independent — overriding one does not reset the others to their defaults.
 
 <Link name="configuration">

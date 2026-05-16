@@ -73,6 +73,7 @@ import {
   decryptActionToken,
   wrapServerReferenceMap,
 } from "./action-crypto.mjs";
+import { checkCsrf } from "./csrf.mjs";
 import { requireModule } from "./module-loader.mjs";
 import { ScrollRestoration } from "../client/ScrollRestoration.jsx";
 
@@ -86,6 +87,24 @@ const serverReferenceMap = wrapServerReferenceMap(_serverReferenceMap);
 // expose this map; the dedup is a quality-of-life detail, not a
 // security boundary.
 const _strictWarnedActions = new Set();
+
+/**
+ * Thrown when a form-submit action POST fails CSRF origin
+ * validation.  Caught by the action-dispatch block's catch and
+ * mapped to HTTP 403 with `x-react-server-action-error` set to
+ * the specific failure reason.
+ */
+class CsrfRejectedError extends Error {
+  constructor(reason, origin) {
+    super(
+      `Server function rejected: ${reason}` +
+        (origin ? ` (origin: ${origin})` : "")
+    );
+    this.name = "CsrfRejectedError";
+    this.reason = reason;
+    this.origin = origin;
+  }
+}
 
 /**
  * Pre-load the action's source module for a recovered actionId so the
@@ -404,6 +423,35 @@ export async function render(Component, props = {}, options = {}) {
             if (options.middlewareError) {
               throw options.middlewareError;
             }
+            // ── CSRF / Origin validation ──
+            //
+            // Only applies to the form-submit shape: multipart/form-data
+            // with a `$ACTION_ID_<token>` field, no `react-server-action`
+            // header.  Header-based action calls are already CSRF-safe
+            // because the custom header forces a CORS preflight that we
+            // never permit cross-origin unless the operator explicitly
+            // configures CORS for the path.  Multipart without the
+            // header is a CORS-simple request (forms), so a malicious
+            // site can submit it cross-origin and bypass CORS — Origin
+            // validation is the defence.
+            //
+            // The trusted-origin set is implicit { request's own origin
+            // (proxy-aware), server.origin, CORS allow-list, csrf
+            // allowedOrigins }.  Same-origin posts pass without config;
+            // cross-origin posts require explicit allow.  See
+            // server/csrf.mjs for the full resolution.
+            if (
+              isFormData &&
+              (!serverActionHeader || serverActionHeader === "null")
+            ) {
+              const csrfResult = checkCsrf(context.request, config);
+              if (!csrfResult.ok) {
+                throw new CsrfRejectedError(
+                  csrfResult.reason,
+                  csrfResult.origin
+                );
+              }
+            }
             // Pre-resolve the actionId (and any token-recovered bound)
             // BEFORE decodeReply. This is what unlocks the meta-driven
             // slot-walk: the decoder can only validate per-arg if it
@@ -498,11 +546,28 @@ export async function render(Component, props = {}, options = {}) {
                   `reason=${error.reason}`,
                 error.original
               );
-              const httpHeaders = getContext(HTTP_HEADERS);
-              if (httpHeaders) {
-                httpHeaders.set("x-react-server-action-error", error.reason);
-              }
+              // Mirror the canonical setter pattern from
+              // server/http-headers.mjs — create the Headers object
+              // on demand AND write it back to the context. The
+              // prior `if (getContext) set` shape silently dropped
+              // the header when the context hadn't been initialised
+              // yet (which can happen when the catch fires before
+              // any other code path has touched HTTP_HEADERS).
+              const httpHeaders = getContext(HTTP_HEADERS) ?? new Headers();
+              httpHeaders.set("x-react-server-action-error", error.reason);
+              context$(HTTP_HEADERS, httpHeaders);
               context$(HTTP_STATUS, { status: 400 });
+            } else if (error instanceof CsrfRejectedError) {
+              // CSRF rejection: log at warn level, mask details in
+              // the response (don't echo the offending origin in
+              // the body — clients only need the reason header).
+              logger?.warn?.(
+                `Server function CSRF rejected: reason=${error.reason} origin=${error.origin ?? "(missing)"}`
+              );
+              const httpHeaders = getContext(HTTP_HEADERS) ?? new Headers();
+              httpHeaders.set("x-react-server-action-error", error.reason);
+              context$(HTTP_HEADERS, httpHeaders);
+              context$(HTTP_STATUS, { status: 403 });
             } else {
               logger?.error(error);
             }

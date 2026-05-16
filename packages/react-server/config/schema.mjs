@@ -105,6 +105,28 @@ export const DESCRIPTIONS = {
     "Request timeout in milliseconds. Maximum time allowed for the client to send the complete request. Set to 0 to disable. Default: 30000.",
   "server.maxConcurrentRequests":
     "Maximum concurrent requests before the server responds with 503. Set to 0 to disable. Default: 0 (disabled).",
+  "server.maxBodyBytes":
+    "Pre-parse cap on the raw request body in bytes. When set to a positive value, oversized payloads are rejected before the WHATWG Request is constructed: declared `Content-Length` over the cap → 413 with no body read; chunked / mis-declared bodies surface as a socket-level error mid-stream (the cap does not read the rest of an attacker-controlled payload to deliver a courtesy status). Applies to every body-bearing POST/PUT/PATCH/DELETE. Per-decode limits in `serverFunctions.limits.*` still gate post-parse shape. Default: 0 (disabled) — pick a value (e.g. `32 * 1024 * 1024`) when you want the runtime to apply the cap directly, typically without a reverse proxy in front.",
+  "server.csrf":
+    'CSRF / Origin validation for form-submit action POSTs (`<form method="POST">` with multipart/form-data). JS-driven action calls are not affected — the `react-server-action` custom header already forces a CORS preflight that the runtime refuses unless CORS is explicitly enabled. Set to `false` to disable validation entirely. Object form configures `mode` and `allowedOrigins`.',
+  "server.csrf.mode":
+    'CSRF validation mode. `"lax"` (default): allow when no `Origin`/`Referer` header is present (server-to-server, curl, native apps), require trust when Origin is present. `"strict"`: require Origin to be present and trusted. `false` / `"off"`: disable.',
+  "server.csrf.allowedOrigins":
+    "Additional origins (string or RegExp) trusted for cross-origin form-submit action POSTs. The trusted set always implicitly includes the request's own resolved origin and `server.origin`, plus any explicit entries in `server.cors.origin/origins`. Use this field to declare host origins that may embed remote components or otherwise submit forms to this app.",
+  "server.multipart":
+    "Per-part caps applied during streaming multipart parsing. When any sub-limit is set to a positive value, multipart/form-data requests are parsed with busboy (instead of the platform `Request.formData()`) so per-part overflow rejects with 413 BEFORE the offending part is fully buffered. Defends against high-cardinality (1M small fields), long-field-name, and file-as-field smuggling attacks that `maxBodyBytes` cannot bound. All sub-limits default to 0 (disabled).",
+  "server.multipart.maxFileSize":
+    "Maximum bytes per file part. Bytes past the limit are not buffered. Default: 0 (disabled).",
+  "server.multipart.maxFieldSize":
+    "Maximum bytes per non-file (text) field value. Default: 0 (disabled).",
+  "server.multipart.maxFiles":
+    "Maximum number of file parts in a single request. Default: 0 (disabled).",
+  "server.multipart.maxFields":
+    "Maximum number of non-file (text) fields in a single request. Default: 0 (disabled).",
+  "server.multipart.maxParts":
+    "Maximum total parts (files + fields). Default: 0 (disabled).",
+  "server.multipart.maxFieldNameSize":
+    "Maximum length of a field name in bytes. Default: 0 (disabled).",
   "server.shutdownTimeout":
     "Graceful shutdown timeout in milliseconds. Time to wait for in-flight requests to drain after SIGTERM/SIGINT. Default: 25000.",
   "server.connectionsCheckingInterval":
@@ -615,6 +637,73 @@ export function generateJsonSchema() {
             maxConcurrentRequests: prop(
               { type: "integer", minimum: 0 },
               "server.maxConcurrentRequests"
+            ),
+            maxBodyBytes: prop(
+              { type: "integer", minimum: 0 },
+              "server.maxBodyBytes"
+            ),
+            csrf: prop(
+              {
+                oneOf: [
+                  { type: "boolean", enum: [false] },
+                  {
+                    type: "object",
+                    properties: {
+                      mode: prop(
+                        {
+                          oneOf: [
+                            { type: "string", enum: ["lax", "strict", "off"] },
+                            { type: "boolean", enum: [false] },
+                          ],
+                        },
+                        "server.csrf.mode"
+                      ),
+                      allowedOrigins: prop(
+                        {
+                          type: "array",
+                          items: { type: "string" },
+                        },
+                        "server.csrf.allowedOrigins"
+                      ),
+                    },
+                    additionalProperties: false,
+                  },
+                ],
+              },
+              "server.csrf"
+            ),
+            multipart: prop(
+              {
+                type: "object",
+                properties: {
+                  maxFileSize: prop(
+                    { type: "integer", minimum: 0 },
+                    "server.multipart.maxFileSize"
+                  ),
+                  maxFieldSize: prop(
+                    { type: "integer", minimum: 0 },
+                    "server.multipart.maxFieldSize"
+                  ),
+                  maxFiles: prop(
+                    { type: "integer", minimum: 0 },
+                    "server.multipart.maxFiles"
+                  ),
+                  maxFields: prop(
+                    { type: "integer", minimum: 0 },
+                    "server.multipart.maxFields"
+                  ),
+                  maxParts: prop(
+                    { type: "integer", minimum: 0 },
+                    "server.multipart.maxParts"
+                  ),
+                  maxFieldNameSize: prop(
+                    { type: "integer", minimum: 0 },
+                    "server.multipart.maxFieldNameSize"
+                  ),
+                },
+                additionalProperties: false,
+              },
+              "server.multipart"
             ),
             shutdownTimeout: prop(
               { type: "integer", minimum: 0 },

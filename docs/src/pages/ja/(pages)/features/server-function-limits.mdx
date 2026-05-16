@@ -39,6 +39,8 @@ import Link from "../../../../components/Link.jsx";
 | `maxStringLength` | `16 MiB`   | デコード前の単一文字列行の長さ                                          |
 | `maxStreamChunks` | `10000`    | デコードされた`ReadableStream`、`AsyncIterable`、`Iterator`のチャンク数 |
 
+これらの上限はデコード *中* に実行されます。生のリクエストボディに対するワイヤレベルの上限は HTTP サーバ設定側で別途強制されます。デコーダレベルのチェックが実行される前にメモリ DoS を防ぐパース前の上限については、[`server.maxBodyBytes`](/features/http-layer#body-size-cap) を参照してください。
+
 各上限は独立しています。1つを上書きしても、他の上限がデフォルトにリセットされることはありません。
 
 <Link name="configuration">

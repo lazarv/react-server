@@ -1,5 +1,5 @@
 import { hostname, page, server, waitForHydration } from "playground/utils";
-import { expect, test } from "vitest";
+import { beforeAll, beforeEach, expect, test } from "vitest";
 
 /**
  * Runtime-level E2E for `createFunction` slot-walk validation.
@@ -28,6 +28,18 @@ import { expect, test } from "vitest";
  * so the assertions read a consistent shape regardless of path.
  */
 
+// Boot the fixture server once for the whole file. Each test still
+// starts with a fresh hydrated page via the beforeEach below; this
+// removes ~30 dev-server cold starts (one per test) from the suite.
+beforeAll(async () => {
+  await server("fixtures/server-function-validation.jsx");
+});
+
+beforeEach(async () => {
+  await page.goto(hostname);
+  await waitForHydration();
+});
+
 const result = () =>
   page.evaluate(() => window.__react_server_result__ ?? null);
 
@@ -47,10 +59,6 @@ async function clickAndAwaitResult(testid) {
 }
 
 test("createFunction slot-walk validation — happy path", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-greet-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -61,46 +69,26 @@ test("createFunction slot-walk validation — happy path", async () => {
 });
 
 test("createFunction rejects bad slot-0 type before handler runs", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-greet-bad-arg-0");
   expect(r?.kind).toBe("clientError");
 });
 
 test("createFunction rejects bad slot-1 type", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-greet-bad-arg-1");
   expect(r?.kind).toBe("clientError");
 });
 
 test("parse.args runs before validate.args (string → number coercion)", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-parsed-number-ok");
   expect(r).toMatchObject({ kind: "ok", n: 42, handlerRan: true });
 });
 
 test("parse.args producing NaN fails validate.args", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-parsed-number-bad");
   expect(r?.kind).toBe("clientError");
 });
 
 test("validation failure: handler must not run (no server-side side effect)", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   // Reset shared marker.
   await clickAndAwaitResult("v-reset-side-effect");
 
@@ -114,10 +102,6 @@ test("validation failure: handler must not run (no server-side side effect)", as
 });
 
 test("formData upload — happy path", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-upload-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -129,37 +113,21 @@ test("formData upload — happy path", async () => {
 });
 
 test("formData upload — oversize file rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-upload-oversize");
   expect(r?.kind).toBe("clientError");
 });
 
 test("formData upload — wrong MIME rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-upload-bad-mime");
   expect(r?.kind).toBe("clientError");
 });
 
 test("formData upload — injected unknown key rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-upload-injected");
   expect(r?.kind).toBe("clientError");
 });
 
 test("bare 'use server' export without createFunction works unchanged", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
-
   const r = await clickAndAwaitResult("v-bare-echo");
   expect(r).toMatchObject({
     kind: "ok",
@@ -177,9 +145,6 @@ test("bare 'use server' export without createFunction works unchanged", async ()
 // handler observes a `drainError` set by the wrapped consumer).
 
 test("arrayBuffer — happy path", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-ab-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -191,17 +156,11 @@ test("arrayBuffer — happy path", async () => {
 });
 
 test("arrayBuffer — oversize rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-ab-oversize");
   expect(r?.kind).toBe("clientError");
 });
 
 test("typedArray — happy path with declared ctor", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-ta-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -213,25 +172,16 @@ test("typedArray — happy path with declared ctor", async () => {
 });
 
 test("typedArray — wrong ctor rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-ta-bad-ctor");
   expect(r?.kind).toBe("clientError");
 });
 
 test("typedArray — oversize rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-ta-oversize");
   expect(r?.kind).toBe("clientError");
 });
 
 test("map — happy path with inner key/value schemas", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-map-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -242,25 +192,16 @@ test("map — happy path with inner key/value schemas", async () => {
 });
 
 test("map — oversize rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-map-oversize");
   expect(r?.kind).toBe("clientError");
 });
 
 test("map — bad inner value rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-map-bad-value");
   expect(r?.kind).toBe("clientError");
 });
 
 test("set — happy path", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-set-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -271,17 +212,11 @@ test("set — happy path", async () => {
 });
 
 test("set — oversize rejected", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-set-oversize");
   expect(r?.kind).toBe("clientError");
 });
 
 test("stream — drains within cap", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-stream-under-cap");
   expect(r).toMatchObject({
     kind: "ok",
@@ -292,9 +227,6 @@ test("stream — drains within cap", async () => {
 });
 
 test("stream — wrapped consumer errors past maxChunks", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-stream-over-cap");
   // The handler runs (validation gates only the slot's wire shape, not
   // chunk contents), but its `drainError` must be set when the wrapper
@@ -306,9 +238,6 @@ test("stream — wrapped consumer errors past maxChunks", async () => {
 });
 
 test("asyncIterable — yields within cap and inner schema", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-aiter-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -318,27 +247,18 @@ test("asyncIterable — yields within cap and inner schema", async () => {
 });
 
 test("asyncIterable — over-yield surfaces as drainError", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-aiter-overyield");
   expect(r?.kind).toBe("ok");
   expect(r?.drainError).toMatch(/max_yields_exceeded/);
 });
 
 test("asyncIterable — bad-value yield surfaces as drainError", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-aiter-bad-value");
   expect(r?.kind).toBe("ok");
   expect(r?.drainError).toMatch(/validate_failed/);
 });
 
 test("iterable — sync iteration with caps", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-iter-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -348,18 +268,12 @@ test("iterable — sync iteration with caps", async () => {
 });
 
 test("iterable — over-yield surfaces as drainError", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-iter-overyield");
   expect(r?.kind).toBe("ok");
   expect(r?.drainError).toMatch(/max_yields_exceeded/);
 });
 
 test("promise — resolves through inner schema", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-promise-ok");
   expect(r).toMatchObject({
     kind: "ok",
@@ -369,9 +283,6 @@ test("promise — resolves through inner schema", async () => {
 });
 
 test("promise — bad resolved value surfaces as awaitError", async () => {
-  await server("fixtures/server-function-validation.jsx");
-  await page.goto(hostname);
-  await waitForHydration();
   const r = await clickAndAwaitResult("v-promise-bad-value");
   expect(r?.kind).toBe("ok");
   expect(r?.awaitError).toMatch(/validate_failed/);

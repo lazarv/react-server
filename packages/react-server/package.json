@@ -218,6 +218,7 @@
     "algoliasearch": "^5.10.2",
     "ansi-regex": "^6.0.1",
     "astring": "^1.9.0",
+    "busboy": "^1.6.0",
     "cac": "^6.7.14",
     "chokidar": "^3.5.3",
     "cookie": "^1.0.2",

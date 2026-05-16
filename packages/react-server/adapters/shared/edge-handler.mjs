@@ -1,6 +1,8 @@
 import { reactServer } from "@lazarv/react-server/edge";
 import { createContext } from "@lazarv/react-server/http";
 
+import { applyEdgeBodyCaps } from "./edge-body-caps.mjs";
+
 /**
  * Finalize a response by applying set-cookie headers from the HTTP context.
  * Returns a 404 response if the original response is null/undefined.
@@ -55,9 +57,21 @@ export function createEdgeHandler({
         serverPromise = reactServer({ origin, outDir });
       }
 
-      const { handler } = await serverPromise;
+      const { handler, config } = await serverPromise;
 
-      const httpContext = createContext(request, {
+      // Apply HTTP-layer body / multipart caps before user code
+      // observes the request. Mirrors the same pipeline from the
+      // Node createMiddleware path so the cap is symmetric across
+      // adapter targets. See edge-body-caps.mjs for the runtime
+      // support matrix. Config is passed explicitly rather than
+      // pulled from AsyncLocalStorage to avoid the init$ timing
+      // race (see comment at the `resolve({ handler, config })`
+      // call site in `lib/start/edge.mjs`).
+      const capResult = await applyEdgeBodyCaps(request, config);
+      if ("response" in capResult) return capResult.response;
+      const cappedRequest = capResult.request;
+
+      const httpContext = createContext(cappedRequest, {
         origin,
         runtime,
         ...(resolvePlatformExtras
@@ -81,8 +95,16 @@ export function createEdgeHandler({
  * Create a request handler from an already-initialized handler and createContext.
  * Used by Bun/Deno runtime entries where the server is eagerly initialized
  * via top-level await.
+ *
+ * The third positional `config` argument is the same object returned
+ * from `reactServer({...})`; it's forwarded to `applyEdgeBodyCaps`
+ * so the HTTP-layer caps (`server.maxBodyBytes`, `server.multipart.*`)
+ * apply on the Bun / Deno / Docker top-level-await entries too.
+ * Existing callers that pass only `(handler, createContext)` still
+ * work — caps just become a no-op for that adapter until the entry
+ * is updated to forward `config`.
  */
-export function createRequestHandler(handlerFn, createContextFn) {
+export function createRequestHandler(handlerFn, createContextFn, config) {
   let origin;
 
   return async (request, { runtime, platformExtras } = {}) => {
@@ -90,7 +112,14 @@ export function createRequestHandler(handlerFn, createContextFn) {
       const url = new URL(request.url);
       origin = origin || process.env.ORIGIN || `${url.protocol}//${url.host}`;
 
-      const httpContext = createContextFn(request, {
+      // See note in createEdgeHandler — applied here too so Bun /
+      // Deno top-level-await entries enforce the same caps as the
+      // lazy-init adapters.
+      const capResult = await applyEdgeBodyCaps(request, config);
+      if ("response" in capResult) return capResult.response;
+      const cappedRequest = capResult.request;
+
+      const httpContext = createContextFn(cappedRequest, {
         origin,
         runtime,
         ...(platformExtras ? { platformExtras } : {}),

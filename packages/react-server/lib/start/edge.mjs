@@ -82,7 +82,17 @@ export function reactServer(root, options = {}, initialConfig = {}) {
             : [...initialHandlers, ...(configRoot.handlers ?? [])]
         );
 
-        resolve({ handler });
+        // Expose `config` alongside `handler` so adapter layers
+        // (notably `createEdgeHandler` in
+        // `adapters/shared/edge-handler.mjs`) can read runtime
+        // settings without depending on AsyncLocalStorage timing.
+        // The `getRuntime(CONFIG_CONTEXT)` lookup races with init$:
+        // `resolve()` fires from inside the init$ callback, so the
+        // global default-store assignment that init$ does after the
+        // callback returns hasn't happened yet by the time consumers
+        // resume — they'd see `null`. Returning the config explicitly
+        // sidesteps the race.
+        resolve({ handler, config });
       });
     } catch (e) {
       reject(e);

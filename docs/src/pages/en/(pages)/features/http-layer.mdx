@@ -23,6 +23,7 @@ export default {
     headersTimeout: 66000,
     requestTimeout: 30000,
     maxConcurrentRequests: 100,
+    maxBodyBytes: 32 * 1024 * 1024,
     shutdownTimeout: 25000,
   },
 };
@@ -34,7 +35,120 @@ export default {
 | `headersTimeout` | `66000` | Maximum time (ms) to wait for the client to send the full request headers. Must exceed `keepAliveTimeout`. |
 | `requestTimeout` | `30000` | Maximum time (ms) for the client to send the complete request (headers + body). Set to `0` to disable. |
 | `maxConcurrentRequests` | `0` | Maximum number of concurrent requests before the server responds with `503 Service Busy`. Set to `0` to disable admission control. |
+| `maxBodyBytes` | `0` (disabled) | Pre-parse cap on the raw request body in bytes. Enforced before the WHATWG `Request` is constructed. Set to a positive value (e.g. `32 * 1024 * 1024`) to apply the cap directly in the runtime. |
 | `shutdownTimeout` | `25000` | After receiving `SIGTERM`/`SIGINT`, the server stops accepting new connections and waits up to this duration (ms) for in-flight requests to complete before force-exiting. Should be less than your k8s `terminationGracePeriodSeconds` (default 30s). |
+
+<Link name="body-size-cap">
+## Body size cap
+</Link>
+
+The body cap defaults to `0` (disabled) — most production deployments terminate body limits at a reverse proxy, CDN, or platform edge, and a second runtime-level cap doesn't add defence in depth in that topology. Set `maxBodyBytes` to a positive value when you want the runtime itself to apply the cap, typically when running without a proxy in front (single-host deployments, local-only services, or as a belt-and-braces setting alongside an upstream limit).
+
+When the cap is active, oversized request bodies are rejected at the HTTP layer before any handler sees the request. Two paths handle the cap:
+
+1. **Declared `Content-Length` check.** If the client sent a `Content-Length` greater than the cap, the server responds `413 Payload Too Large` immediately and reads zero body bytes. This is the cheap path — honest clients with a declared length bail here, with a clean response status.
+2. **Streaming counter during read.** Handles missing or lying `Content-Length` (chunked transfer, attacker-controlled headers). Bytes are counted as they arrive through a wrapping `Transform`; on overflow the underlying socket is destroyed immediately to bound resource usage. The connection close surfaces on the client side as a socket-level error rather than a 413 status — this is the trade-off for not reading the rest of the attacker-controlled payload just to deliver a courtesy status code.
+
+The cap applies to every body-bearing `POST` / `PUT` / `PATCH` / `DELETE` regardless of route or content-type. It is independent of, and runs before, the per-decode limits in `serverFunctions.limits.*` — those still apply afterwards inside the Server Function decoder.
+
+Memory peak is bounded by the wrapping stream's `highWaterMark` (~16 KiB) regardless of the rejected payload's size — the wrapper observes bytes as they flow but never buffers them. Time is bounded by the HTTP server's `requestTimeout` (default 30s, configurable via `server.requestTimeout`).
+
+<Link name="multipart-cap">
+## Multipart per-part caps
+</Link>
+
+`server.maxBodyBytes` bounds total wire bytes but cannot defend against attacks that fit inside any reasonable body cap:
+
+- **High-cardinality**: 1M small fields × 32 bytes each is only ~32 MiB on the wire, but the platform's multipart parser still allocates 1M `FormData` entries plus per-entry strings.
+- **Long field names**: a single field with a 1 MiB name has small wire bytes but allocates a 1 MiB string in the parser.
+- **File-as-field smuggling**: a large blob without `filename=` is treated as a string field by the parser, bypassing any downstream `file()` size policy.
+
+`server.multipart.*` lets you cap per-part shape during streaming parse. When *any* sub-limit is set to a positive value, multipart requests are parsed via `busboy` (instead of the platform `Request.formData()`), enforcing the configured limits as bytes flow. Overflow on any limit rejects with HTTP 413 *before* the offending part is fully buffered.
+
+```mjs filename="react-server.config.mjs"
+export default {
+  server: {
+    multipart: {
+      maxFileSize: 10 * 1024 * 1024, // 10 MiB per file
+      maxFieldSize: 1 * 1024 * 1024, // 1 MiB per text field
+      maxFiles: 10,                  // up to 10 files per request
+      maxFields: 100,                // up to 100 text fields per request
+      maxParts: 200,                 // 200 total parts (files + fields)
+      maxFieldNameSize: 200,         // 200 bytes per field name
+    },
+  },
+};
+```
+
+| Limit | Defends against |
+|---|---|
+| `maxFileSize` | Oversized file uploads, even within a generous body cap |
+| `maxFieldSize` | File-as-field smuggling; oversized text values |
+| `maxFiles` | Many-file submissions allocating many `File` wrappers |
+| `maxFields` | High-cardinality field attacks |
+| `maxParts` | Total entries cap (files + fields combined) |
+| `maxFieldNameSize` | Long-field-name string allocation attacks |
+
+All sub-limits default to `0` (disabled). When *every* sub-limit is disabled, busboy is never invoked and multipart bodies pass through to the platform parser unchanged — zero overhead.
+
+The parsed `FormData` is functionally equivalent to what the platform parser would have produced (filename, MIME type, size, and bytes are preserved). Only `Content-Transfer-Encoding` per part diverges — the HTML5 spec dropped it for `multipart/form-data` and modern browsers never emit it, so this affects nothing in practice. An A/B equivalence test in the integration suite asserts the property.
+
+The cap applies on every adapter target the runtime ships. The Node path consumes the raw incoming request directly with busboy; the edge / serverless path adapts the Web `Request` body to the same parser via Node's Web Streams interop. Per-part cap semantics are identical on both paths because they share the same parser core. The body cap (`server.maxBodyBytes`) is similarly portable — declared `Content-Length` is checked from the headers, then the body is read up to `maxBodyBytes + 1` and rejected with 413 immediately if it overflows. On native-edge runtimes without Node-compatibility APIs, the per-part multipart cap silently downgrades to the platform parser; the body cap continues to apply.
+
+<Link name="csrf">
+## CSRF / Origin validation
+</Link>
+
+`server.csrf` defends server-function action POSTs against Cross-Site Request Forgery by validating the request's `Origin` (or `Referer`) header against a trusted-origin set.
+
+The threat is narrower than it first looks. JS-driven action calls — `fetch()` with the custom `react-server-action` header — are already safe: any custom header makes the request not CORS-simple, so the browser preflights it, and the runtime refuses unsolicited cross-origin preflights. What needs explicit defence is **form-submit action POSTs**: `<form method="POST">` with a `multipart/form-data` body and a `$ACTION_ID_<token>` field. That shape is CORS-simple — browsers send it without preflight — so a malicious site can submit such a form cross-origin unless the receiving app validates the source.
+
+```mjs filename="react-server.config.mjs"
+export default {
+  server: {
+    csrf: {
+      mode: "lax",                                // default
+      allowedOrigins: [
+        "https://host.example.com",
+        /^https:\/\/[^.]+\.partner\.com$/,
+      ],
+    },
+  },
+};
+```
+
+| Mode | Origin / Referer missing | Origin present & trusted | Origin present & untrusted |
+|---|---|---|---|
+| `"lax"` (default) | allow | allow | **403** |
+| `"strict"` | **403** | allow | **403** |
+| `false` / `"off"` | allow | allow | allow |
+
+The **trusted-origin set** is built implicitly from your existing config:
+
+1. The request's own resolved origin (proxy-aware), so same-origin form posts always work without configuration
+2. `server.origin` — the canonical configured identity
+3. `server.cors.origin` / `origins` when configured with explicit values (not `*`/`true`) — CORS-trusted partners are usually CSRF-trusted too
+4. `server.csrf.allowedOrigins` — explicit additions for cases where CSRF trust differs from CORS trust
+
+**Remote components: the case that needs explicit configuration.** When a host app embeds remote components from this app, the user's browser sees forms whose action targets the remote (this app). On submit, the browser POSTs cross-origin to the remote with `Origin: <host origin>`. Without an entry in `server.csrf.allowedOrigins`, the remote rejects the legitimate form submit with 403. This is by design — the remote operator must explicitly declare which host origins may invoke their action endpoints.
+
+```mjs filename="remote-app/react-server.runtime.config.mjs"
+export default {
+  server: {
+    cors: true,
+    csrf: {
+      allowedOrigins: [
+        "https://host.example.com",
+        "https://staging-host.example.com",
+      ],
+    },
+  },
+};
+```
+
+**Rejection response:** HTTP `403 Forbidden` with header `x-react-server-action-error: csrf_origin_mismatch` (or `csrf_origin_missing` in strict mode without an Origin). The handler never runs and the body is never parsed.
+
+**Out of scope for this feature:** token-based CSRF (double-submit cookie / per-session nonce). That's a stricter defence appropriate for high-value actions, but it requires session awareness that the runtime can't synthesize on your behalf. Apps that need it can implement it as a middleware in front of the action-dispatch.
 
 <Link name="keep-alive">
 ## Keep-alive and timeouts

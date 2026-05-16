@@ -233,6 +233,185 @@ export interface ServerConfig {
   maxConcurrentRequests?: number;
 
   /**
+   * Pre-parse cap on the raw request body in bytes.  When set to a
+   * positive value, oversized payloads are rejected *before* the
+   * WHATWG `Request` is constructed:
+   *
+   *   1. If the client honestly declared `Content-Length` over the
+   *      cap, the server responds 413 immediately and reads zero
+   *      body bytes.
+   *   2. Otherwise the underlying Node stream is observed with a
+   *      running counter; on overflow the source socket is destroyed
+   *      to bound resource usage. Honest-Content-Length traffic gets
+   *      a clean 413; chunked / mis-declared traffic surfaces as a
+   *      socket-level error on the client side — the trade-off for
+   *      not reading the rest of an attacker-controlled payload to
+   *      deliver a courtesy status code.
+   *
+   * Per-decode limits in `serverFunctions.limits.*` still gate
+   * post-parse shape inside the Server Function decoder regardless
+   * of this setting.
+   *
+   * **Default: `0` (disabled).**  No cap is applied unless you set
+   * one explicitly.  This keeps the dev / start fast path identical
+   * to the unwrapped `req` stream behaviour and avoids surprising
+   * users whose deployment already enforces a body limit at an
+   * upstream proxy / platform edge.  Pick a value (e.g.
+   * `32 * 1024 * 1024` for 32 MiB) when you want the runtime itself
+   * to apply the cap — typically when running without a reverse
+   * proxy in front, or when defence-in-depth against direct hits
+   * matters.
+   *
+   * @default 0 (disabled)
+   * @example `maxBodyBytes: 32 * 1024 * 1024`
+   */
+  maxBodyBytes?: number;
+
+  /**
+   * CSRF / Origin validation for form-submit action POSTs.
+   *
+   * **What's protected:** `<form method="POST">` submissions with
+   * `multipart/form-data` bodies that carry a `$ACTION_ID_<token>`
+   * field. These requests are CORS-simple — the browser does not
+   * preflight them — so a malicious site can submit them cross-
+   * origin unless we verify the `Origin` / `Referer` header against
+   * a trusted set.
+   *
+   * **What's NOT protected (because it's already safe):** JS-driven
+   * action calls via `fetch()` with the custom `react-server-action`
+   * header. Adding any custom header makes a request not CORS-
+   * simple, forcing the browser to preflight; the runtime refuses
+   * cross-origin preflights unless CORS is explicitly enabled for
+   * the path.
+   *
+   * **Trusted-origin set, in implicit priority:**
+   *
+   *   1. The request's own resolved origin (trustProxy-aware), so
+   *      same-origin form posts work without any config.
+   *   2. `server.origin` — the canonical configured identity, useful
+   *      when the app is reachable at multiple URLs.
+   *   3. `server.cors.origin` / `origins` when configured with
+   *      explicit values (not `*` / `true`) — apps that have CORS
+   *      allow-lists usually want the same set to be CSRF-trusted.
+   *   4. `server.csrf.allowedOrigins` — explicit additions for
+   *      cases where CSRF trust differs from CORS trust (typically
+   *      remote-component hosts that embed forms targeting this
+   *      app's actions).
+   *
+   * **Remote components:** when a host app embeds remote components
+   * from this app, the user's browser submits embedded form POSTs
+   * cross-origin to this remote. The host's origin must be in this
+   * app's `csrf.allowedOrigins` (or in CORS) — otherwise legitimate
+   * embedded form submits get rejected with HTTP 403.
+   *
+   * Set to `false` to disable validation entirely (e.g., when an
+   * upstream policy already handles CSRF).
+   *
+   * @example
+   * ```ts
+   * csrf: {
+   *   mode: "lax",                                       // default
+   *   allowedOrigins: ["https://host.example.com", /\.partner\.com$/],
+   * }
+   * ```
+   */
+  csrf?:
+    | false
+    | {
+        /**
+         * Validation mode.
+         *
+         * - `"lax"` (default): allow when no `Origin`/`Referer` is
+         *   present (server-to-server, curl, native apps); require
+         *   trust when Origin is present.
+         * - `"strict"`: require Origin to be present and trusted.
+         *   Reject requests with missing Origin.
+         * - `false` / `"off"`: disable validation.
+         *
+         * @default "lax"
+         */
+        mode?: "lax" | "strict" | "off" | false;
+        /**
+         * Additional trusted origins. May be string literals
+         * (`"https://example.com"`) or `RegExp` patterns
+         * (`/^https:\/\/[^.]+\.example\.com$/`). The request's own
+         * origin, `server.origin`, and explicit CORS origins are
+         * always implicitly trusted; this field adds to that set.
+         */
+        allowedOrigins?: (string | RegExp)[];
+      };
+
+  /**
+   * Per-part caps applied during streaming multipart/form-data
+   * parsing.  When any sub-limit is set to a positive value,
+   * multipart requests are parsed via busboy with the configured
+   * limits enforced as bytes flow — overflow on any limit rejects
+   * with HTTP 413 *before* the offending part is fully buffered.
+   *
+   * Defends against attacks `maxBodyBytes` cannot bound:
+   *
+   *   - High-cardinality: 1M small fields fit inside any reasonable
+   *     `maxBodyBytes`, but the parser still allocates 1M FormData
+   *     entries.  `maxFields` / `maxParts` cap the entry count.
+   *   - Long field names: a single field with a 1 MiB name has
+   *     small wire bytes but allocates a 1 MiB string.
+   *     `maxFieldNameSize` caps it.
+   *   - File-as-field smuggling: a large blob without `filename=`
+   *     bypasses any downstream `file()` size policy.
+   *     `maxFieldSize` catches this regardless of the part's
+   *     declared role.
+   *
+   * All sub-limits default to `0` (disabled).  When *every*
+   * sub-limit is disabled, busboy is never invoked and the request
+   * body passes through to `Request.formData()` unchanged — zero
+   * overhead.
+   *
+   * @example
+   * ```js
+   * multipart: {
+   *   maxFileSize: 10 * 1024 * 1024,  // 10 MiB per file
+   *   maxFiles: 5,
+   *   maxFields: 100,
+   *   maxFieldNameSize: 200,
+   * }
+   * ```
+   */
+  multipart?: {
+    /**
+     * Maximum bytes per file part.  Bytes past the limit are not
+     * buffered — busboy emits the limit signal as soon as the
+     * counter exceeds the cap.
+     * @default 0 (disabled)
+     */
+    maxFileSize?: number;
+    /**
+     * Maximum bytes per non-file (text) field value.
+     * @default 0 (disabled)
+     */
+    maxFieldSize?: number;
+    /**
+     * Maximum number of file parts in a single request.
+     * @default 0 (disabled)
+     */
+    maxFiles?: number;
+    /**
+     * Maximum number of non-file (text) fields in a single request.
+     * @default 0 (disabled)
+     */
+    maxFields?: number;
+    /**
+     * Maximum total parts (files + fields).
+     * @default 0 (disabled)
+     */
+    maxParts?: number;
+    /**
+     * Maximum length of a field name in bytes.
+     * @default 0 (disabled)
+     */
+    maxFieldNameSize?: number;
+  };
+
+  /**
    * Graceful shutdown timeout in milliseconds. After receiving SIGTERM/SIGINT,
    * the server stops accepting new connections and waits up to this duration
    * for in-flight requests to complete before force-exiting.

@@ -6,7 +6,16 @@ import { ACTION_CONTEXT, SERVER_FUNCTION_NOT_FOUND } from "./symbols.mjs";
 export class ServerFunctionNotFoundError extends Error {
   constructor(message) {
     super(message);
-    this.name = SERVER_FUNCTION_NOT_FOUND;
+    // `name` is intentionally a plain string: Node 20's `util.inspect`
+    // assumes `err.name` is a string and crashes the whole process with
+    // `TypeError: Cannot convert a Symbol value to a string` when any
+    // `console.warn(err)` / `console.error(err)` formats an error whose
+    // `name` is a `Symbol`. The discriminator that callers actually use
+    // for cross-realm identity moved to `code` below; this constructor
+    // preserves the runtime-wide invariant that an error's `name` is a
+    // human-readable class string.
+    this.name = "ServerFunctionNotFoundError";
+    this.code = SERVER_FUNCTION_NOT_FOUND;
     this.message = message ?? "Server Function Not Found";
     this.stack = new Error().stack;
   }
@@ -29,7 +38,7 @@ export function useActionState(action) {
   const isMatch =
     actionId === action.$$id ||
     (action.$$originalId != null && actionId === action.$$originalId);
-  if (!isMatch && error?.name !== SERVER_FUNCTION_NOT_FOUND) {
+  if (!isMatch && error?.code !== SERVER_FUNCTION_NOT_FOUND) {
     return {
       formData: null,
       data: null,

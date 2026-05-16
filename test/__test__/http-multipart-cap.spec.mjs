@@ -3,7 +3,12 @@ import { describe, expect, test } from "vitest";
 
 /**
  * Integration tests for the streaming multipart cap
- * (`server.multipart.*`).
+ * (`server.multipart.*`). The cap lives in `lib/http/multipart-cap.mjs`
+ * and is wired into both adapter targets: the Node `createMiddleware`
+ * path consumes it directly with the raw `IncomingMessage`, and the
+ * edge / serverless path adapts the Web Request body via
+ * `Readable.fromWeb` in `adapters/shared/edge-body-caps.mjs`. Both
+ * paths share the same busboy core so cap semantics stay symmetric.
  *
  * The cap defends against attacks that `server.maxBodyBytes`
  * cannot bound:

@@ -230,6 +230,64 @@ export function parseMultipartWithCap(req, limits) {
 }
 
 /**
+ * Edge / serverless variant: parse the body of a WHATWG `Request`
+ * with the same per-part caps as the Node `IncomingMessage` path.
+ *
+ * Bridges the Web Streams body to Node Readable via `Readable.fromWeb`
+ * (works on every runtime that exposes `node:stream` — Node 18+,
+ * workerd with `nodejs_compat`, Bun, Deno's Node-compat layer) and
+ * synthesises a minimal `req`-shaped object so `parseMultipartWithCap`
+ * can reuse its busboy pipeline verbatim. This keeps the Node and
+ * edge adapters honouring the exact same cap semantics rather than
+ * maintaining two parsers that can drift.
+ *
+ * On native-edge runtimes without Node compat the underlying
+ * `node:stream` / `Buffer` symbols are missing; busboy throws at
+ * the first use and the caller (edge-body-caps.mjs) falls through
+ * to the platform `Request.formData()` parser.
+ *
+ * IMPORTANT: the synthesised stream is destroyed in `finally` so
+ * the underlying Web stream is cancelled even on rejection. Without
+ * this, a 413 path would leak the still-locked request body.
+ *
+ * @param {Request} request
+ * @param {{
+ *   maxFileSize?: number,
+ *   maxFieldSize?: number,
+ *   maxFiles?: number,
+ *   maxFields?: number,
+ *   maxParts?: number,
+ *   maxFieldNameSize?: number,
+ * }} limits
+ * @returns {Promise<FormData>}
+ */
+export async function parseMultipartWithCapFromWebRequest(request, limits) {
+  if (!request.body) return new FormData();
+  const { Readable } = await import("node:stream");
+  const stream = Readable.fromWeb(request.body);
+  // busboy reads `req.headers` for the boundary parameter; expose
+  // the WHATWG headers as a plain lowercase-keyed object.
+  stream.headers = webHeadersToObject(request.headers);
+  try {
+    return await parseMultipartWithCap(stream, limits);
+  } finally {
+    try {
+      stream.destroy();
+    } catch {
+      // ignore — already destroyed
+    }
+  }
+}
+
+function webHeadersToObject(headers) {
+  const obj = {};
+  for (const [k, v] of headers) {
+    obj[k.toLowerCase()] = v;
+  }
+  return obj;
+}
+
+/**
  * Drain whatever bytes remain on the source request, discarding
  * them — used by the middleware after a `MultipartCapError` so
  * Node's HTTP server can flush the 413 response cleanly (Node

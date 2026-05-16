@@ -18,6 +18,11 @@ import { describe, expect, test } from "vitest";
  * `received:<n>` text Response. That puts a real body-reading
  * consumer in front of the wrapper without going through the
  * framework's POST → remote-props decode path.
+ *
+ * Runs on every adapter target — both the Node createMiddleware
+ * path and the edge / serverless path apply the same cap, the
+ * latter via the Web-Streams TransformStream wrap in
+ * `adapters/shared/edge-body-caps.mjs`.
  */
 
 const FIXTURE = "fixtures/body-cap.jsx";

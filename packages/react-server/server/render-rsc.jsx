@@ -778,7 +778,7 @@ export async function render(Component, props = {}, options = {}) {
             }
           })();
 
-          if (error?.name === SERVER_FUNCTION_NOT_FOUND) {
+          if (error?.code === SERVER_FUNCTION_NOT_FOUND) {
             const e = new ServerFunctionNotFoundError();
             e.digest = e.message;
             throw e;

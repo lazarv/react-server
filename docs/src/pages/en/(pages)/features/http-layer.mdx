@@ -93,7 +93,7 @@ All sub-limits default to `0` (disabled). When *every* sub-limit is disabled, bu
 
 The parsed `FormData` is functionally equivalent to what the platform parser would have produced (filename, MIME type, size, and bytes are preserved). Only `Content-Transfer-Encoding` per part diverges — the HTML5 spec dropped it for `multipart/form-data` and modern browsers never emit it, so this affects nothing in practice. An A/B equivalence test in the integration suite asserts the property.
 
-The cap only applies on the Node `createMiddleware` path. Edge / serverless adapters (Cloudflare Workers, Vercel Functions, etc.) have their own platform-level multipart limits and are not affected by this config.
+The cap applies on every adapter target the runtime ships. The Node path consumes the raw incoming request directly with busboy; the edge / serverless path adapts the Web `Request` body to the same parser via Node's Web Streams interop. Per-part cap semantics are identical on both paths because they share the same parser core. The body cap (`server.maxBodyBytes`) is similarly portable — declared `Content-Length` is checked from the headers, then the body is read up to `maxBodyBytes + 1` and rejected with 413 immediately if it overflows. On native-edge runtimes without Node-compatibility APIs, the per-part multipart cap silently downgrades to the platform parser; the body cap continues to apply.
 
 <Link name="csrf">
 ## CSRF / Origin validation

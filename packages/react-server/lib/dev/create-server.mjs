@@ -1205,6 +1205,8 @@ export default async function createServer(root, options) {
           options.port ?? sys.getEnv("PORT") ?? config.server?.port ?? 3000
         }`,
       trustProxy: config.server?.trustProxy ?? options.trustProxy,
+      maxBodyBytes: config.server?.maxBodyBytes ?? 0,
+      multipart: config.server?.multipart,
     })
   );
 

@@ -268,19 +268,38 @@ export function encryptActionId(actionId) {
 }
 
 /**
- * Try to decrypt a token with a specific key.
+ * Cheap pre-filters that reject obviously-malformed tokens before they
+ * reach the AEAD primitive.  Bounds match the AES-GCM wire format's
+ * absolute structural minimum so we never reject a token the cipher
+ * itself would accept:
  *
- * @param {string} token - base64url-encoded encrypted token
- * @param {Buffer} key - 32-byte AES key
+ *   - 12-byte IV + 16-byte auth tag + ≥0-byte ciphertext = 28 bytes min
+ *     (AES-GCM permits empty plaintext, so ciphertext can be 0 bytes)
+ *   - base64url (no padding) of 28 bytes = ⌈28·4/3⌉ = 38 chars min
+ *   - base64url alphabet is `[A-Za-z0-9_-]`
+ *
+ * This matters under sustained attacker traffic: every action-shaped
+ * `POST` runs `decryptActionToken`, and AES-GCM auth-tag verification
+ * (even when failing) is several orders of magnitude more expensive
+ * than a charset / length check.  Rejecting garbage *before* the
+ * decode + cipher setup keeps the dispatcher's per-request cost flat
+ * even when the wire is full of nonsense.
+ */
+const TOKEN_MIN_LENGTH = 38;
+const TOKEN_MIN_DECODED_LENGTH = 28;
+const BASE64URL_RE = /^[A-Za-z0-9_-]+$/;
+
+/**
+ * Try to decrypt with a specific key, given a pre-decoded ciphertext
+ * buffer.  Decode is hoisted out of this function so it runs once per
+ * token rather than once per (token, key) pair.
+ *
+ * @param {Buffer} data - decoded `iv ‖ tag ‖ ciphertext` bytes
+ * @param {Buffer} key  - 32-byte AES key
  * @returns {string | null} The decrypted plaintext, or null on failure
  */
-function tryDecryptWithKey(token, key) {
+function tryDecryptWithKey(data, key) {
   try {
-    const data = Buffer.from(token, "base64url");
-
-    // Minimum size: iv(12) + authTag(16) + at least 1 byte ciphertext
-    if (data.length < 29) return null;
-
     const iv = data.subarray(0, 12);
     const authTag = data.subarray(12, 28);
     const ciphertext = data.subarray(28);
@@ -373,10 +392,26 @@ function parseTokenPlaintext(plaintext) {
 export function decryptActionToken(token) {
   if (!token || typeof token !== "string") return null;
 
+  // Cheap pre-filters — see comment above the constants. Garbage tokens
+  // bail in microseconds without any base64 decode or AES setup.
+  if (token.length < TOKEN_MIN_LENGTH) return null;
+  if (!BASE64URL_RE.test(token)) return null;
+
+  // Decode once, share the buffer across every key attempt. Without
+  // this hoist the decode runs N times for N rotation keys on every
+  // request — wasted work that grows linearly with the rotation depth.
+  let data;
+  try {
+    data = Buffer.from(token, "base64url");
+  } catch {
+    return null;
+  }
+  if (data.length < TOKEN_MIN_DECODED_LENGTH) return null;
+
   // Try primary key, then previous keys for rotation.
   const keysToTry = [getKey(), ...getPreviousKeys()];
   for (const k of keysToTry) {
-    const plaintext = tryDecryptWithKey(token, k);
+    const plaintext = tryDecryptWithKey(data, k);
     if (plaintext !== null) {
       return parseTokenPlaintext(plaintext);
     }

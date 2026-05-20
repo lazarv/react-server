@@ -215,6 +215,9 @@ function bytesHasLine0Colon(bytes) {
 const SERVER_ACTION_MARKER = toBytes(':{"id":"');
 const SUSPENSE_END_BYTES = toBytes("<!--/$-->");
 const HTML_TAG_BYTES = toBytes("<html");
+const HYDRATION_ISLAND_MARKER_BYTES = toBytes(
+  "data-react-server-hydration-island"
+);
 
 // Pre-encoded static script suffix (module-level constant)
 const HYDRATED_SCRIPT_SUFFIX = toBytes('"));</script>');
@@ -685,6 +688,8 @@ export const createRenderer = ({
     headScripts,
     nonce,
     defer,
+    hydrationIsland = false,
+    hydrationIslandState,
     body,
     requestCacheBuffer,
     httpContext,
@@ -870,6 +875,7 @@ export const createRenderer = ({
 
                         let hydrated = false;
                         let hmr = false;
+                        let hydrationIslandBootstrap = false;
                         let hasClientComponent = false;
                         let hasServerAction = false;
                         let bootstrapped = false;
@@ -1138,6 +1144,8 @@ export const createRenderer = ({
                         let firstChunk = true;
                         let hydrationContainer = "document";
                         let contentLength = 0;
+                        let hasHydrationIslandMarkup = false;
+                        let hydrationIslandMarkerTail = new Uint8Array(0);
                         const htmlWorker = async function* () {
                           await forwardReady;
 
@@ -1176,6 +1184,35 @@ export const createRenderer = ({
                               contentLength += value.length;
                               force = value[value.length - 1] !== 0x3e;
 
+                              if (!hasHydrationIslandMarkup) {
+                                const scan =
+                                  hydrationIslandMarkerTail.length > 0
+                                    ? (() => {
+                                        const bytes = new Uint8Array(
+                                          hydrationIslandMarkerTail.length +
+                                            value.length
+                                        );
+                                        bytes.set(hydrationIslandMarkerTail, 0);
+                                        bytes.set(
+                                          value,
+                                          hydrationIslandMarkerTail.length
+                                        );
+                                        return bytes;
+                                      })()
+                                    : value;
+                                hasHydrationIslandMarkup = bytesContain(
+                                  scan,
+                                  HYDRATION_ISLAND_MARKER_BYTES
+                                );
+                                const tailLength = Math.min(
+                                  HYDRATION_ISLAND_MARKER_BYTES.length - 1,
+                                  scan.length
+                                );
+                                hydrationIslandMarkerTail = scan.slice(
+                                  scan.length - tailLength
+                                );
+                              }
+
                               // Byte-level checks — no decode needed
                               if (firstChunk) {
                                 firstChunk = false;
@@ -1192,14 +1229,15 @@ export const createRenderer = ({
                             }
                           }
 
-                          if (
-                            !isPrerender &&
-                            !hydrated &&
-                            bootstrapped &&
-                            (hasClientComponent || isDevelopment) &&
-                            !remote
-                          ) {
-                            if (hasClientComponent) {
+                          if (!isPrerender && !hydrated && !remote) {
+                            const hasHydrationIslands =
+                              hasHydrationIslandMarkup ||
+                              hydrationIslandState?.has;
+                            if (
+                              bootstrapped &&
+                              (hasClientComponent || isDevelopment) &&
+                              hasClientComponent
+                            ) {
                               if (contentLength === 0) {
                                 hydrationContainer = "document.body";
                               }
@@ -1208,22 +1246,50 @@ export const createRenderer = ({
                               // to prevent race with <script type="module" async>.
                               yield* flushCacheEntries();
 
+                              const hydrationBootstrap = hydrationIsland
+                                ? `document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
+                                    ""
+                                  )}`
+                                : `${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=()=>${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
+                                    ""
+                                  )}`;
+                              const moduleBootstrap = hydrationIsland
+                                ? ""
+                                : hmr
+                                  ? "<script>self.__react_server_hydrate_init__?.();</script>"
+                                  : bootstrapModules
+                                      .map(
+                                        (mod) =>
+                                          `<script type="module" src="${mod}" async></script>`
+                                      )
+                                      .join("");
                               const script = encoder.encode(
-                                `<script>${isDevelopment ? "self.__react_server_hydrate__=true;" : ""}self.__react_server_hydration_container__=()=>${hydrationContainer};document.currentScript.parentNode.removeChild(document.currentScript);${bootstrapScripts.join(
-                                  ""
-                                )}</script>${
-                                  hmr
-                                    ? "<script>self.__react_server_hydrate_init__?.();</script>"
-                                    : bootstrapModules
-                                        .map(
-                                          (mod) =>
-                                            `<script type="module" src="${mod}" async></script>`
-                                        )
-                                        .join("")
-                                }`
+                                `<script>${hydrationBootstrap}</script>${moduleBootstrap}`
                               );
                               yield script;
                               hydrated = true;
+                            } else if (
+                              !hydrationIslandBootstrap &&
+                              hasHydrationIslands &&
+                              contentLength > 0 &&
+                              bootstrapModules.length > 0
+                            ) {
+                              // Rootless hydration islands load entry.client.jsx
+                              // without PAGE_ROOT hydration. Emit request-cache
+                              // payloads before the module script so the island
+                              // hydrator can synchronously seed outlet streams.
+                              yield* flushCacheEntries();
+                              const moduleBootstrap = hmr
+                                ? "<script>self.__react_server_hydrate__=true;self.__react_server_hydrate_init__?.();document.currentScript.parentNode.removeChild(document.currentScript);</script>"
+                                : `<script>self.__react_server_hydrate__=true;document.currentScript.parentNode.removeChild(document.currentScript);</script>${bootstrapModules
+                                    .map(
+                                      (mod) =>
+                                        `<script type="module" src="${mod}" async></script>`
+                                    )
+                                    .join("")}`;
+                              yield encoder.encode(moduleBootstrap);
+                              hmr = true;
+                              hydrationIslandBootstrap = true;
                             } else if (
                               !hmr &&
                               isDevelopment &&
@@ -1231,7 +1297,7 @@ export const createRenderer = ({
                               bootstrapModules.length > 0
                             ) {
                               const script = encoder.encode(
-                                `${bootstrapModules
+                                `<script>self.__react_server_hydrate__=true;document.currentScript.parentNode.removeChild(document.currentScript);</script>${bootstrapModules
                                   .map(
                                     (mod) =>
                                       `<script type="module" src="${mod}" async></script>`

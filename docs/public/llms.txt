@@ -32,6 +32,7 @@ No config files, no boilerplate, no separate React installation needed. Or use t
 
 - **React Server Components**: The default rendering model. Components render on the server, support async/await, and their source code never reaches the client.
 - **Client Components**: Add `"use client"` directive to enable interactivity. Components are server-rendered then hydrated on the client.
+- **Hydration Islands**: Add `"use hydrate"` inside a server component function to render that subtree as HTML immediately and hydrate it later as a local non-root outlet. Strategies are `load`, `idle`, `visible`, `interaction`, `media`, and `never`. If rendered in a later RSC update payload, it returns normal React content instead of creating a new island.
 - **Server Functions**: Add `"use server"` to turn async functions into server-side RPC endpoints. Works as form actions with progressive enhancement.
 - **Typed Router**: Fully typed routing with `createRoute` and `createRouter`. Compile-time type safety for route paths, params, and search params. Schema validation with Zod, ArkType, Valibot, or lightweight parse functions. Typed `Link` components, typed hooks, typed programmatic navigation.
 - **File-System Router**: Activates automatically when no entrypoint is specified. Supports pages, layouts, outlets, API routes, middlewares, error boundaries, loading states, client-only routes, route validation, and auto-generated typed route descriptors via `@lazarv/react-server/routes`.
@@ -66,6 +67,7 @@ No config files, no boilerplate, no separate React installation needed. Or use t
 - [Middleware Mode](https://react-server.dev/features/middleware-mode): Running @lazarv/react-server as middleware inside existing servers like Express or NestJS in both dev and production
 - [Cluster Mode](https://react-server.dev/features/cluster): Running the production server in multi-process cluster mode to utilize all CPU cores
 - [Partial Pre-Rendering](https://react-server.dev/features/ppr): Pre-rendering static shells at build time while deferring dynamic content to runtime using "use dynamic" and "use static" directives
+- [Hydration Islands](https://react-server.dev/features/hydration-islands): Server-rendered subtrees marked with "use hydrate" that hydrate later as local non-root outlets without requiring PAGE_ROOT hydration; supports load, idle, visible, interaction, media, and never strategies; later RSC update payloads render them as normal React content
 - [Live Components](https://react-server.dev/features/live-components): Real-time streaming components using the "use live" directive with async generator functions pushing updates over WebSocket
 - [Workers](https://react-server.dev/features/worker): Offloading heavy computations to separate threads using "use worker" with RSC-based serialization — Node.js Worker Threads on server, Web Workers on client
 - [Micro-Frontends](https://react-server.dev/features/micro-frontends): Implementing micro-frontend architecture with RemoteComponent for loading and rendering remote React applications with SSR

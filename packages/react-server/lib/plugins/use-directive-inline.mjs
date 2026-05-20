@@ -139,8 +139,14 @@ export function findCapturedVars(ast, targetFn) {
   return result;
 }
 
-// Find all functions that contain the given directive string
-function findDirectiveFunctions(ast, directive) {
+function matchesDirective(cfg, directive) {
+  return typeof cfg.matchDirective === "function"
+    ? cfg.matchDirective(directive)
+    : directive === cfg.directive;
+}
+
+// Find all functions that contain a matching directive string
+function findDirectiveFunctions(ast, cfg) {
   const results = [];
   walk(ast, {
     enter(node) {
@@ -151,11 +157,15 @@ function findDirectiveFunctions(ast, directive) {
           ? node.body?.body
           : null;
       if (!Array.isArray(body)) return;
-      const hasDirective = body.some(
-        (n) => n.type === "ExpressionStatement" && n.directive === directive
-      );
-      if (hasDirective) {
-        results.push(node);
+      for (const n of body) {
+        if (
+          n.type === "ExpressionStatement" &&
+          n.directive &&
+          matchesDirective(cfg, n.directive)
+        ) {
+          results.push({ fn: node, directive: n.directive });
+          return;
+        }
       }
     },
   });
@@ -165,13 +175,11 @@ function findDirectiveFunctions(ast, directive) {
 // Find only OUTERMOST directive functions across ALL directives.
 // A function with "use server" nested inside a function with "use client"
 // is NOT outermost — the "use client" wrapper is.
-function findOutermostDirectiveFunctions(ast, directives) {
+function findOutermostDirectiveFunctions(ast, configs) {
   // Collect all directive functions with their directive info
   const allFns = [];
-  for (const directive of directives) {
-    for (const fn of findDirectiveFunctions(ast, directive)) {
-      allFns.push({ fn, directive });
-    }
+  for (const cfg of configs) {
+    allFns.push(...findDirectiveFunctions(ast, cfg));
   }
 
   if (allFns.length === 0) return [];
@@ -338,6 +346,12 @@ export default function useDirectiveInline(configs) {
     configByQueryKey.set(cfg.queryKey, cfg);
   }
 
+  function getDirectiveConfig(directive) {
+    const exact = configByDirective.get(directive);
+    if (exact) return exact;
+    return configs.find((cfg) => matchesDirective(cfg, directive));
+  }
+
   const allDirectives = configs.map((c) => c.directive);
 
   // Test whether an id contains any of our query keys
@@ -418,29 +432,35 @@ export default function useDirectiveInline(configs) {
       const ast = await parse(sourceCode, filePath);
       if (!ast) return;
 
-      const directiveFunctions = findDirectiveFunctions(ast, cfg.directive);
+      const directiveFunctions = findDirectiveFunctions(ast, cfg);
 
       let targetFn;
       if (fnName.startsWith("anonymous_")) {
         const index = parseInt(fnName.replace("anonymous_", ""), 10);
-        const anonymousFunctions = directiveFunctions.filter(
-          (fn) => !(fn.type === "FunctionDeclaration" && fn.id?.name)
-        );
+        const anonymousFunctions = directiveFunctions
+          .map(({ fn }) => fn)
+          .filter((fn) => !(fn.type === "FunctionDeclaration" && fn.id?.name));
         targetFn = anonymousFunctions[index];
       } else {
-        targetFn = directiveFunctions.find(
-          (fn) => fn.type === "FunctionDeclaration" && fn.id?.name === fnName
-        );
+        targetFn = directiveFunctions
+          .map(({ fn }) => fn)
+          .find(
+            (fn) => fn.type === "FunctionDeclaration" && fn.id?.name === fnName
+          );
       }
 
-      if (!targetFn) return;
+      const targetDirective = directiveFunctions.find(
+        ({ fn }) => fn === targetFn
+      )?.directive;
+
+      if (!targetFn || !targetDirective) return;
 
       const capturedVars = findCapturedVars(ast, targetFn);
       const extractedCode = buildExtractedModule(
         sourceCode,
         ast,
         targetFn,
-        cfg.directive,
+        targetDirective,
         capturedVars,
         cfg.injectCapturedParams,
         rawPath
@@ -472,14 +492,14 @@ export default function useDirectiveInline(configs) {
         const ownDirective = ownMatch ? ownMatch.cfg.directive : null;
 
         // Find only outermost directive functions across ALL directives
-        let outermost = findOutermostDirectiveFunctions(ast, allDirectives);
+        let outermost = findOutermostDirectiveFunctions(ast, configs);
 
         // Skip functions whose directive matches the one this module was
         // extracted for (e.g. don't re-extract "use client" from a
         // ?use-client-inline= or &use-client-inline= module, but DO extract "use server" from it)
         if (ownDirective) {
           outermost = outermost.filter(
-            ({ directive }) => directive !== ownDirective
+            ({ directive }) => !matchesDirective(ownMatch.cfg, directive)
           );
         }
 
@@ -494,7 +514,7 @@ export default function useDirectiveInline(configs) {
         // can normalise on the way in instead of enumerating every
         // whitespace variant.
         const toProcess = outermost.filter(({ directive }) => {
-          const cfg = configByDirective.get(directive);
+          const cfg = getDirectiveConfig(directive);
           if (cfg.skipIfModuleDirective) {
             if (typeof cfg.skipIfModuleDirective === "function") {
               if (cfg.skipIfModuleDirective(moduleDirectives)) return false;
@@ -554,7 +574,8 @@ export default function useDirectiveInline(configs) {
           const captured = findCapturedVars(ast, fnNode);
           if (captured.length > 0) {
             capturedVarsMap.set(fnNode, captured);
-            hasCapturedByDirective.set(directive, true);
+            const cfg = getDirectiveConfig(directive);
+            hasCapturedByDirective.set(cfg.directive, true);
             for (const name of captured) {
               usedByRemainingCode.add(name);
             }
@@ -564,9 +585,14 @@ export default function useDirectiveInline(configs) {
         // Build source edits
         const edits = [];
         const anonymousIndexByDirective = new Map();
+        const clearedConfigs = new Set();
 
         for (const { fn: fnNode, directive } of toProcess) {
-          const cfg = configByDirective.get(directive);
+          const cfg = getDirectiveConfig(directive);
+          if (cfg.clearExtractions && !clearedConfigs.has(cfg)) {
+            cfg.clearExtractions({ code, id, ast });
+            clearedConfigs.add(cfg);
+          }
 
           let fnName;
           if (fnNode.type === "FunctionDeclaration" && fnNode.id?.name) {
@@ -580,6 +606,29 @@ export default function useDirectiveInline(configs) {
           const sep = id.includes("?") ? "&" : "?";
           const inlineId = `${id}${sep}${cfg.queryKey}=${fnName}`;
           const captured = capturedVarsMap.get(fnNode) || [];
+          if (cfg.recordExtraction) {
+            const usedIds = collectIdentifiers(fnNode);
+            const importSources = ast.body
+              .filter((node) => node.type === "ImportDeclaration")
+              .filter((node) =>
+                node.specifiers.some((specifier) =>
+                  usedIds.has(specifier.local?.name)
+                )
+              )
+              .map((node) => ({
+                source: node.source.value,
+                removed: importsToRemove.has(node),
+              }));
+            await cfg.recordExtraction.call(this, {
+              code,
+              id,
+              inlineId,
+              directive,
+              fnNode,
+              ast,
+              importSources,
+            });
+          }
 
           // Build and cache extracted module
           const extractedCode = buildExtractedModule(
@@ -601,7 +650,8 @@ export default function useDirectiveInline(configs) {
               customResult = cfg.buildCallSiteReplacement(
                 importName,
                 inlineId,
-                captured
+                captured,
+                { directive, fnName, id, fnNode }
               );
             }
 
@@ -634,7 +684,8 @@ export default function useDirectiveInline(configs) {
               customResult = cfg.buildCallSiteReplacement(
                 importName,
                 inlineId,
-                captured
+                captured,
+                { directive, fnName, id, fnNode }
               );
             }
 

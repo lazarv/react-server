@@ -54,6 +54,7 @@ Built on Vite for instant HMR. Ships with its own React, so your project stays l
 | **Server Functions** | `"use server"` with progressive enhancement and form actions |
 | **File-System Router** | Pages, layouts, outlets, API routes, middlewares, error boundaries, loading states |
 | **Client Navigation** | SPA-like navigation with prefetching, rollback, and outlet-scoped updates |
+| **Hydration Islands** | `"use hydrate"` for server-rendered subtrees that hydrate later as local outlets |
 | **Caching** | Response cache, in-memory cache, `"use cache"` directive, Unstorage providers |
 | **Static Export** | Full static generation with dynamic route params and compression |
 | **Partial Pre-Rendering** | `"use dynamic"` / `"use static"` for mixed static + runtime rendering |
@@ -93,6 +94,20 @@ export default function Counter() {
   return <button onClick={() => setCount(count + 1)}>Count: {count}</button>;
 }
 ```
+
+## Hydration Islands
+
+Use `"use hydrate"` inside a server component function to render that subtree as HTML immediately and hydrate it later as a local non-root outlet. The page root can remain server-only with no `PAGE_ROOT` RSC payload. During later RSC update payloads, the same component renders as normal React content instead of creating a new island.
+
+```jsx
+function CounterIsland() {
+  "use hydrate: visible; rootMargin=0px; threshold=0.2; id=counter";
+
+  return <Counter />;
+}
+```
+
+Strategies include `load`, `idle`, `visible`, `interaction`, `media`, and `never`. Inside a hydrated island, `Link local` and `Refresh local` update the island outlet without hydrating or navigating the page root.
 
 ## Server Functions
 
@@ -337,6 +352,7 @@ cd react-server && pnpm install
 | Bun | `pnpm --filter ./examples/bun dev` |
 | Deno | `pnpm --filter ./examples/deno dev` |
 | Partial Pre-Rendering | `pnpm --filter ./examples/ppr dev --open` |
+| Hydration Islands | `pnpm --filter ./examples/hydration-islands dev --open` |
 | Micro-Frontends | `pnpm --filter ./examples/remote dev` |
 | MCP Server | `pnpm --filter ./examples/mcp dev` |
 | Workers | `pnpm --filter ./examples/use-worker dev --open` |

@@ -2,6 +2,13 @@ import { isCustomAttribute, possibleStandardNames } from "react-property";
 
 import styleToJs from "style-to-js";
 
+function textContent(node) {
+  if (node.nodeName === "#text") {
+    return node.value;
+  }
+  return node.childNodes?.map((child) => textContent(child)).join("") ?? "";
+}
+
 export default function visit(node, context) {
   switch (node.nodeName) {
     case "#document-fragment":
@@ -22,7 +29,12 @@ export default function visit(node, context) {
             }, {})
           ),
         },
+        {
+          name: "data-script-content",
+          value: textContent(node),
+        },
       ];
+      node.childNodes = [];
     default: {
       if (
         node.nodeName === "template" &&

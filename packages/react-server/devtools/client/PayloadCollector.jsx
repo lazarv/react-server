@@ -34,6 +34,17 @@ function findIframe() {
   return document.querySelector('iframe[src*="__react_server_devtools__"]');
 }
 
+function getHydrationIslandState(outlet) {
+  const islands = self.__react_server_hydration_islands__ || {};
+  const states = self.__react_server_hydration_island_states__ || {};
+  for (const [id, data] of Object.entries(islands)) {
+    if ((data?.outlet || id) === outlet) {
+      return states[id] || "pending";
+    }
+  }
+  return undefined;
+}
+
 /**
  * Send a message to the devtools iframe. If the iframe isn't ready yet,
  * buffer the message — it will be flushed when the iframe sends "devtools:ready".
@@ -519,13 +530,20 @@ export default function PayloadCollector() {
       for (const el of markerEls) {
         const name = el.getAttribute("data-devtools-outlet");
         if (name && !runtimeNames.has(name)) {
+          const island = el.hasAttribute("data-devtools-island");
+          const hydrationState = island
+            ? getHydrationIslandState(name)
+            : undefined;
           outletData.push({
             name,
             url: null,
             remote: false,
             live: false,
             defer: false,
-            _fileRouter: true,
+            island,
+            hydrationState,
+            hydrated: hydrationState === "hydrated",
+            _fileRouter: !island,
           });
           runtimeNames.add(name);
         }

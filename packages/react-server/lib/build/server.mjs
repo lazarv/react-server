@@ -16,6 +16,7 @@ import optionalDeps from "../plugins/optional-deps.mjs";
 import fixEsbuildOptionsPlugin from "../plugins/fix-esbuildoptions.mjs";
 import importRemotePlugin from "../plugins/import-remote.mjs";
 import inlineCjsJson from "../plugins/inline-cjs-json.mjs";
+import stripBrokenDependencySourcemaps from "../plugins/strip-broken-dependency-sourcemaps.mjs";
 
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
@@ -25,6 +26,7 @@ import rootModule from "../plugins/root-module.mjs";
 import rolldownUseClient from "../plugins/use-client.mjs";
 import { useClientInlineConfig } from "../plugins/use-client-inline.mjs";
 import { useServerInlineConfig } from "../plugins/use-server-inline.mjs";
+import { useHydrateInlineConfig } from "../plugins/use-hydrate-inline.mjs";
 import rolldownUseDirectiveInline from "../plugins/use-directive-inline.mjs";
 import rolldownUseServer from "../plugins/use-server.mjs";
 import rolldownUseCacheInline from "../plugins/use-cache-inline.mjs";
@@ -800,6 +802,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
           );
         },
         plugins: [
+          stripBrokenDependencySourcemaps(),
           ...(options.edge
             ? [
                 optionalDeps([/^@opentelemetry\//], {
@@ -829,6 +832,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
           rolldownUseDirectiveInline([
             useServerInlineConfig,
             useClientInlineConfig,
+            useHydrateInlineConfig,
           ]),
           rolldownUseClient("rsc", clientManifest, "pre", clientManifestBus),
           rolldownUseClient("rsc", clientManifest, undefined),
@@ -860,6 +864,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     },
     plugins: [
       fileListingReporterPlugin("RSC"),
+      stripBrokenDependencySourcemaps(),
       manifestRegistry(),
       manifestGenerator(clientManifest, serverManifest),
       inlineCjsJson(),
@@ -1121,6 +1126,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
             ? ssrExternal
             : external,
         plugins: [
+          stripBrokenDependencySourcemaps(),
           ...(options.edge
             ? [
                 optionalDeps([/^@opentelemetry\//], {
@@ -1148,6 +1154,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
           rolldownUseDirectiveInline([
             useServerInlineConfig,
             useClientInlineConfig,
+            useHydrateInlineConfig,
           ]),
           rolldownUseClient("ssr", clientManifest, "pre", clientManifestBus),
           rolldownUseClient("ssr"),
@@ -1166,6 +1173,7 @@ export default async function serverBuild(root, options, clientManifestBus) {
     },
     plugins: [
       fileListingReporterPlugin("SSR"),
+      stripBrokenDependencySourcemaps(),
       resourcesPlugin({ useStore: true }),
       // Transform .resource.* files: append createResource/bind/from wiring.
       // The file-router prePlugin does this for the RSC build, but the

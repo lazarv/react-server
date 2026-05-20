@@ -1,5 +1,5 @@
-import { startTransition, StrictMode, Component } from "react";
-import { hydrateRoot } from "react-dom/client";
+import { startTransition, StrictMode, Component, useEffect } from "react";
+import { createRoot, hydrateRoot } from "react-dom/client";
 
 import ClientProvider, {
   PAGE_ROOT,
@@ -8,6 +8,12 @@ import ClientProvider, {
 } from "./ClientProvider.jsx";
 import ReactServerComponent from "./ReactServerComponent.jsx";
 import { RedirectError } from "./client-navigation.mjs";
+import {
+  flightStreamFromPayload,
+  runHydrationStrategy,
+} from "./hydration-island-runtime.mjs";
+import { getHydrationIslandContent } from "./hydration-island-data.mjs";
+import { activateScriptTemplates } from "./script-templates.mjs";
 
 self.__react_server_callServer__ = streamOptions({
   outlet: PAGE_ROOT,
@@ -225,6 +231,238 @@ function ReactServer() {
   );
 }
 
+function HydrationIslandCommitEffect({ id }) {
+  useEffect(() => {
+    const markHydrated = () => {
+      const states = (self.__react_server_hydration_island_states__ ??= {});
+      states[id] = "hydrated";
+    };
+    if (typeof requestAnimationFrame === "function") {
+      const frame = requestAnimationFrame(markHydrated);
+      return () => cancelAnimationFrame(frame);
+    }
+    const timeout = setTimeout(markHydrated, 0);
+    return () => clearTimeout(timeout);
+  }, [id]);
+
+  return null;
+}
+
+function readHydrationIslandData(cacheKey) {
+  if (!cacheKey) return null;
+  const data = getHydrationIslandContent(cacheKey);
+  if (data && typeof data.then === "function") {
+    return data.status === "fulfilled" ? data.value : null;
+  }
+  return data;
+}
+
+function getHydrationIslandData(element, islands, id) {
+  let data = islands[id];
+  if (!data) {
+    const strategyText = element.getAttribute("data-react-server-strategy");
+    let strategy = { type: "load" };
+    if (strategyText) {
+      try {
+        strategy = JSON.parse(strategyText);
+      } catch {
+        // Keep the default strategy if the marker was malformed.
+      }
+    }
+    data = {
+      id,
+      outlet: element.getAttribute("data-react-server-outlet") || id,
+      url: element.getAttribute("data-react-server-url") || location.href,
+      strategy,
+      cacheKey: element.getAttribute("data-react-server-cache-key") || null,
+    };
+    islands[id] = data;
+  }
+
+  const devtoolsConfig = element.getAttribute(
+    "data-react-server-devtools-config"
+  );
+  if (devtoolsConfig && !self.__react_server_devtools_config__) {
+    try {
+      self.__react_server_devtools_config__ = JSON.parse(devtoolsConfig);
+    } catch {
+      // Ignore malformed devtools metadata.
+    }
+  }
+
+  return data;
+}
+
+function hydrateHydrationIslands() {
+  if (hasPageRootHydration()) {
+    return;
+  }
+
+  const states = (self.__react_server_hydration_island_states__ ??= {});
+
+  const islands = (self.__react_server_hydration_islands__ ??= {});
+  for (const element of document.querySelectorAll(
+    "[data-react-server-hydration-island]"
+  )) {
+    const id = element.getAttribute("data-react-server-hydration-island");
+    const data = getHydrationIslandData(element, islands, id);
+    if (!data) continue;
+    if (states[id]) continue;
+
+    const outlet = data.outlet || id;
+    const hydrationData = readHydrationIslandData(data.cacheKey);
+    if (
+      hydrationData?.payload &&
+      !data.payload &&
+      !self[`__flightStream__${outlet}__`]
+    ) {
+      data.payload = hydrationData.payload;
+    }
+    if (!data.payload && !self[`__flightStream__${outlet}__`]) continue;
+    states[id] = "scheduled";
+
+    runHydrationStrategy(element, data.strategy, () => {
+      if (states[id] === "hydrated" || states[id] === "hydrating") return;
+      states[id] = "hydrating";
+      if (data.payload) {
+        self[`__flightStream__${outlet}__`] = flightStreamFromPayload(
+          data.payload
+        );
+      } else if (!self[`__flightStream__${outlet}__`]) {
+        return;
+      }
+      self[`__flightHydration__${outlet}__`] = false;
+      hydrateRoot(
+        element,
+        <StrictMode>
+          <ClientProvider>
+            <ErrorBoundary>
+              <ReactServerComponent
+                outlet={outlet}
+                island={true}
+                url={data.url || location.href}
+              />
+              <HydrationIslandCommitEffect id={id} />
+            </ErrorBoundary>
+          </ClientProvider>
+        </StrictMode>
+      );
+    });
+  }
+}
+
+function hasPageRootHydration() {
+  return (
+    typeof self !== "undefined" &&
+    (self[`__flightStream__${PAGE_ROOT}__`] ||
+      typeof self.__react_server_root__ === "string" ||
+      typeof self.__react_server_hydration_container__ === "function")
+  );
+}
+
+function hasHydrationIslandHints() {
+  return (
+    typeof self !== "undefined" &&
+    (self.__react_server_hydration_islands__ ||
+      document.querySelector("[data-react-server-hydration-island]"))
+  );
+}
+
+let hydrationIslandDomReadyListener = false;
+
+function scheduleHydrationIslands() {
+  hydrateHydrationIslands();
+  if (typeof queueMicrotask === "function") {
+    queueMicrotask(hydrateHydrationIslands);
+  } else {
+    Promise.resolve().then(hydrateHydrationIslands);
+  }
+  setTimeout(hydrateHydrationIslands, 0);
+}
+
+function bootstrapHydrationIslands() {
+  scheduleHydrationIslands();
+  if (document.readyState === "loading") {
+    if (!hydrationIslandDomReadyListener) {
+      hydrationIslandDomReadyListener = true;
+      document.addEventListener(
+        "DOMContentLoaded",
+        () => {
+          hydrationIslandDomReadyListener = false;
+          scheduleHydrationIslands();
+        },
+        {
+          once: true,
+        }
+      );
+    }
+  }
+}
+
+function bootstrapStandaloneDevTools() {
+  if (
+    !import.meta.env.DEV ||
+    !self.__react_server_devtools_config__ ||
+    self.__react_server_devtools_root__
+  ) {
+    return;
+  }
+
+  self.__react_server_devtools_root__ = true;
+
+  const mount = async () => {
+    if (!document.body) {
+      setTimeout(mount, 0);
+      return;
+    }
+
+    const [
+      { default: DevToolsButton },
+      { default: HighlightOverlay },
+      { default: PayloadCollector },
+    ] = await Promise.all([
+      import("../devtools/client/DevToolsButton.jsx"),
+      import("../devtools/client/HighlightOverlay.jsx"),
+      import("../devtools/client/PayloadCollector.jsx"),
+    ]);
+
+    let container = document.getElementById("react-server-devtools-root");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "react-server-devtools-root";
+      document.body.appendChild(container);
+    }
+
+    const config = self.__react_server_devtools_config__ ?? {};
+    self.__react_server_devtools_root__ = createRoot(container);
+    self.__react_server_devtools_root__.render(
+      <StrictMode>
+        <DevToolsButton
+          position={config.position ?? "bottom-right"}
+          version={config.version ?? ""}
+        />
+        <HighlightOverlay />
+        <PayloadCollector />
+      </StrictMode>
+    );
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mount, { once: true });
+  } else {
+    mount();
+  }
+}
+
+if (typeof self !== "undefined") {
+  self.__react_server_hydrate_islands__ = () => {
+    activateScriptTemplates(document);
+    if (hasHydrationIslandHints()) {
+      bootstrapHydrationIslands();
+    }
+  };
+}
+
 if (import.meta.env.DEV) {
   if (
     document
@@ -246,6 +484,7 @@ if (import.meta.env.DEV) {
 // responses) still flow through the flight path via setComponent, keeping
 // the PAGE_ROOT wrapper the authoritative owner of its children.
 if (
+  hasPageRootHydration() &&
   typeof self !== "undefined" &&
   typeof self.__react_server_root__ === "string" &&
   typeof self.__react_server_root_component__ !== "function"
@@ -278,6 +517,14 @@ if (
 }
 
 startTransition(() => {
+  if (!hasPageRootHydration()) {
+    if (hasHydrationIslandHints() || import.meta.env.DEV) {
+      self.__react_server_hydrate_islands__?.();
+      bootstrapStandaloneDevTools();
+    }
+    return;
+  }
+
   hydrateRoot(
     self.__react_server_hydration_container__?.() ?? document,
     <StrictMode>

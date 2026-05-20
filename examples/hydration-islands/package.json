@@ -1,0 +1,13 @@
+{
+  "name": "@lazarv/react-server-example-hydration-islands",
+  "private": true,
+  "description": "@lazarv/react-server hydration islands example",
+  "scripts": {
+    "dev": "react-server ./App.jsx",
+    "build": "react-server build ./App.jsx",
+    "start": "react-server start"
+  },
+  "dependencies": {
+    "@lazarv/react-server": "workspace:^"
+  }
+}

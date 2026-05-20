@@ -10,6 +10,7 @@ import { resolveTelemetryConfig } from "../../server/telemetry.mjs";
 
 import inlineCjsJson from "../plugins/inline-cjs-json.mjs";
 import optionalDeps from "../plugins/optional-deps.mjs";
+import stripBrokenDependencySourcemaps from "../plugins/strip-broken-dependency-sourcemaps.mjs";
 import * as sys from "../sys.mjs";
 import customLogger from "./custom-logger.mjs";
 import { fileListingReporterPlugin } from "./output-filter.mjs";
@@ -190,6 +191,7 @@ export default async function edgeBuild(root, options) {
           return false;
         },
         plugins: [
+          stripBrokenDependencySourcemaps(),
           inlineCjsJson(),
           optionalDeps([/^@opentelemetry\//], { forceEmpty: otelForceEmpty }),
           replace({
@@ -332,6 +334,7 @@ export default async function edgeBuild(root, options) {
       },
     },
     plugins: [
+      stripBrokenDependencySourcemaps(),
       optionalDeps([/^@opentelemetry\//], { forceEmpty: otelForceEmpty }),
       {
         name: "react-server:edge",

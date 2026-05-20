@@ -253,7 +253,7 @@ The Outlets tab lists every named outlet currently rendered on the page. Outlets
 |-------|---------|
 | Name | The outlet identifier |
 | URL | The URL the outlet content was loaded from (if applicable) |
-| Badge | How the outlet is managed: `router` (file-router), `remote` (fetched from another server), `live` (streaming), `defer` (lazily loaded), or `static` |
+| Badge | How the outlet is managed: `router` (file-router), `remote` (fetched from another server), `island` (hydration island), `live` (streaming), `defer` (lazily loaded), or `static`. Hydration islands also show `hydrated` or `not hydrated` so you can see whether the island has already become interactive. |
 
 <Link name="highlighting-outlets-on-the-page">
 ### Highlighting outlets on the page

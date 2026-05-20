@@ -1,4 +1,5 @@
 import * as sys from "../sys.mjs";
+import { shouldSkipHydrationIslandClientModule } from "../plugins/use-hydrate-inline.mjs";
 
 export function collectStylesheets(rootModule, manifestEnv) {
   if (!rootModule) return [];
@@ -45,7 +46,13 @@ export function collectClientModules(rootModule, manifest) {
     const clientModule = Object.values(manifest.browser).find(
       (entry) => entry.name === `client/${mod.name}`
     );
-    if (clientModule) {
+    if (
+      clientModule &&
+      !shouldSkipHydrationIslandClientModule(
+        rootModule,
+        clientModule.src ?? clientModule.name ?? clientModule.file
+      )
+    ) {
       modules.push(`/${clientModule.file}`);
     }
   }

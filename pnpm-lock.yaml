@@ -301,6 +301,12 @@ importers:
         specifier: ^1.28.0
         version: 1.40.0
 
+  examples/hydration-islands:
+    dependencies:
+      '@lazarv/react-server':
+        specifier: workspace:^
+        version: link:../../packages/react-server
+
   examples/mantine:
     dependencies:
       '@lazarv/react-server':

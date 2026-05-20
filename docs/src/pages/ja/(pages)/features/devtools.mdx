@@ -253,7 +253,7 @@ Outletsタブはページ上に現在レンダリングされているすべて�
 |-----------|---------|
 | Name | アウトレット識別子 |
 | URL | アウトレットコンテンツのロード元URL（該当する場合） |
-| Badge | アウトレットの管理方法：`router`（ファイルルーター）、`remote`（別のサーバーから取得）、`live`（ストリーミング）、`defer`（遅延ロード）、`static` |
+| Badge | アウトレットの管理方法：`router`（ファイルルーター）、`remote`（別のサーバーから取得）、`island`（Hydration Island）、`live`（ストリーミング）、`defer`（遅延ロード）、`static`。Hydration Island には `hydrated` または `not hydrated` も表示され、すでにインタラクティブになっているかどうかを確認できます。 |
 
 <Link name="highlighting-outlets-on-the-page">
 ### ページ上のアウトレットをハイライトする

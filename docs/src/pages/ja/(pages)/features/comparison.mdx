@@ -27,13 +27,14 @@ import Link from "../../../../components/Link.jsx";
 
 |  | @lazarv/react-server | Next.js | TanStack Start | React Router | Waku |
 |--|:---:|:---:|:---:|:---:|:---:|
-| React Server Components | ✅ | ✅ | 🛑 | 🟡 | ✅ |
+| React Server Components | ✅ | ✅ | 🟡 | 🟡 | ✅ |
 | サーバー関数（アクション） | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| サーバー関数防御レイヤー | ✅ <br/> *暗号化ref + hardened decoder* | 🟡 <br/> *ID/origin/body上限* | 🟡 <br/> *CSRF + validator* | 🔶 <br/> *route actionモデル* | 🔶 <br/> *auth/userland* |
 | SSR | ✅ | ✅ | ✅ | ✅ | ✅ |
 | ストリーミングSSR | ✅ | ✅ | ✅ | ✅ | ✅ |
 | APIルート | ✅ | ✅ | ✅ | ✅ | ✅ |
 | API / ルートミドルウェア | ✅ | ✅ | ✅ | ✅ | 🟡 |
-| サーバー関数ミドルウェア | 🟡 | 🛑 | ✅ | 🛑 | 🛑 |
+| サーバー関数ミドルウェア | 🔶 <br/> *not first-class* | 🛑 | ✅ <br/> *client/server chain* | 🔶 <br/> *not first-class* | 🛑 |
 | 静的サイト生成 | ✅ | ✅ | 🟡 | 🟡 | ✅ |
 | 部分的プリレンダリング（PPR） | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
 | レスポンスキャッシュ（TTL） | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
@@ -49,6 +50,9 @@ import Link from "../../../../components/Link.jsx";
 |--|:---:|:---:|:---:|:---:|:---:|
 | オープンランタイム（ベンダーロックインなし） | ✅ | 🟡 <br/> *Vercel向けに最適化* | ✅ | ✅ | ✅ |
 | Viteベース | ✅ | 🛑 | ✅ | ✅ | ✅ |
+| 本番HTTPレイヤー | ✅ <br/> *バックプレッシャー + セキュリティ* | 🟡 <br/> *プラットフォーム管理* | 🔶 <br/> *ホスト/アダプター* | 🔶 <br/> *ホスト/アダプター* | 🔶 <br/> *ホスト/アダプター* |
+| オブザーバビリティ | ✅ <br/> *OTelトレース + メトリクス* | ✅ <br/> *OTelスパン* | 🟡 <br/> *手動/実験的* | 🟡 <br/> *計測API* | 🔶 <br/> *ユーザーランド* |
+| Hydration Islands | ✅ | 🛑 | 🟡 <br/> *遅延Reactツリーのみ* | 🛑 | 🛑 |
 | 複数のデプロイターゲット | ✅ | 🟡 | ✅ | ✅ | ✅ |
 | マイクロフロントエンド / リモートコンポーネント | ✅ | 🔶 | 🛑 | 🛑 | 🛑 |
 | MCPサーバー統合 | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
@@ -158,9 +162,9 @@ import Link from "../../../../components/Link.jsx";
 | 仮想ルートモジュール | ✅ | 🛑 | 🟡 | 🟡 | 🛑 |
 | ルートスコープのローディング / エラー / フォールバックファイル | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
 | ルートDevtools | 🛑 | 🛑 | ✅ | 🟡 | 🛑 |
-| ルートマスキング | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
+| ルートマスキング | 🔶 <br/> *URL IDモデル* | 🛑 | ✅ | 🛑 | 🛑 |
 | ルートレベルの型付き依存関係 | ✅ <br/> *型安全なリソース* | 🛑 | ✅ <br/> *型安全なルートコンテキスト + ローダー* | 🛑 | 🛑 |
-| ルートのマウント / アンマウントイベント | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
+| ルートライフサイクルフック | 🔶 <br/> *ガード + Reactライフサイクル* | 🛑 | ✅ | 🛑 | 🛑 |
 
 <Link name="notes">
 ## 注記
@@ -168,13 +172,96 @@ import Link from "../../../../components/Link.jsx";
 
 `@lazarv/react-server`は完全なReact Server Componentsランタイムであり、単なるルーターではありません。ルーティングシステムはRSCストリーミング、サーバー関数、Viteビルドパイプラインと深く統合されています。これにより、型付きルート、クライアント専用ルート、サーバーサイドバリデーションなどの機能が、グルーコードなしでエンドツーエンドで動作します。
 
+<Link name="key-architectural-differences">
 ### 主なアーキテクチャの違い
+</Link>
 
-- **RSCネイティブ**: RSCサポートを後付けするルーターとは異なり、`@lazarv/react-server`はReact Server Componentsのために一から構築されています。すべてのルートでサーバーコンポーネントとクライアントコンポーネントを自由に混在させることができます。
-- **クライアント専用ルート**: ファイルシステムルーターで`"use client"`を持つページは自動的にクライアント専用ルートになります — ナビゲーションはサーバーを完全にスキップします。設定は不要で、Reactの`<Activity>`コンポーネントによりコンポーネントの状態はナビゲーション間で保持されます。
-- **スキーマ非依存のバリデーション**: ルートパラメータと検索パラメータは、任意のスキーマライブラリ（Zod、ArkType、Valibot）または軽量パース関数でバリデーションできます — ランタイムがバリデーション戦略を自動的に検出します。
-- **RSC + 型付きリソース**: `@lazarv/react-server`は2つの補完的なデータ取得アプローチを提供します：`async/await`によるReact Server Components（RSCをローダーとして）と、**型付きリソース** — `.use()`（Suspense）、`.query()`（命令型）、`.prefetch()`、`.invalidate()`を備えたスキーマバリデーション済みの参照識別データディスクリプタです。リソースはキャッシュランタイムとして`"use cache"`を使用します — カスタムキャッシュレイヤーやSWRのボイラープレートは不要です。ルート-リソースバインディングにより、ナビゲーション時の並列プリフェッチが可能になります。
-- **ルートレベルの依存関係**: TanStack Routerはルートコンテキストを、依存関係（認証、DBクライアントなど）をルートツリーに渡すためのファーストクラスの型付きプリミティブとして公開しています。`@lazarv/react-server`は同じ問題領域を型安全なリソース、リクエストコンテキスト、ネイティブモジュールでモデル化しています — リソースがすでにスキーマバリデーション済みのルートスコープデータを完全な型安全性で提供するため、別のルートコンテキストバッグは不要です。
-- **Devtoolsはまだありません**: ルートDevtoolsは計画中です。現在のトレードオフは、型付きルートシステムがコンパイル時の安全性を提供し、ほとんどのルーティングエラーをブラウザに到達する前にキャッチすることです。
-- **アウトレットとパラレルルート**: `@lazarv/react-server`は名前付きアウトレット（`@sidebar`、`@content`）を使用し、レイアウトに型付きプロップとしてレンダリングします。これはNext.jsのパラレルルートと機能的に類似していますが、より強い型付けを備えています — 各アウトレットはブランド付きReact要素であり、誤ってアウトレットを入れ替えることを防ぎます。
-- **Waku**: WakuはVite上に構築されたもう一つのRSCネイティブフレームワークですが、意図的にミニマルなアプローチを取っています。基本的なファイルベースのルーティングとレイアウト、RSCサポートを提供しますが、型付きルーティングシステム、検索パラメータ処理、スクロール復元、ミドルウェア、その他の高度なルーティング機能は備えていません。Wakuの`Link`コンポーネントは基本的な`scroll`と`prefetchOnEnter`/`prefetchOnView`プロップをサポートしていますが、ルーターAPIのほとんどはまだ`unstable_`マークが付いています。Wakuは高度なルーティングを必要としないシンプルなRSCアプリケーションに適しています。
+<Link name="rsc-native-runtime">
+#### RSCネイティブランタイム
+</Link>
+
+RSCサポートを後付けするルーターとは異なり、`@lazarv/react-server`はReact Server Componentsのために一から構築されています。すべてのルートでサーバーコンポーネントとクライアントコンポーネントを自由に混在させることができます。
+
+<Link name="production-http-runtime">
+#### 本番HTTPランタイム
+</Link>
+
+`@lazarv/react-server`は、keep-alive/timeout調整、アドミッション制御、ELUベースのアダプティブバックプレッシャー、request/bodyとmultipartの上限、action POST向けCSRF origin検証、health/readinessエンドポイント、graceful shutdownを備えた本番ランタイムを持ちます。他のReactスタックでは多くの場合、これらはファーストクラスのランタイム層ではなく、ホスティングプラットフォーム、カスタムサーバー、リバースプロキシ、アダプター側に委ねられます。
+
+<Link name="server-function-defense-layer">
+#### サーバー関数防御レイヤー
+</Link>
+
+`@lazarv/react-server`は、アプリケーションコードを実行する前にサーバー関数呼び出しを敵対的入力として扱います。サーバー関数参照はAES-256-GCMのcapability tokenで暗号化され、key rotationをサポートし、`maxRows`、`maxDepth`、`maxBytes`、string/BigInt/streamの上限などの設定可能なリソース制限と、prototype pollution、禁止されたpath walk、悪意あるthenable、偽造callableを防ぐ構造的防御を通してデコードされます。Next.jsにもsecure ID、origin check、closure encryption、body size capなどの意味のあるServer Action防御があります。TanStack StartにはCSRF middlewareとvalidatorがあります。`react-server`で特徴的なのは、capability-tokenモデルとhardened RSC reply decoderを組み合わせたレイヤーが、ファーストクラスのランタイム境界になっている点です。
+
+<Link name="server-function-middleware-model">
+#### サーバー関数ミドルウェアモデル
+</Link>
+
+この比較では、TanStack Start が最も直接的なサーバー関数ミドルウェアモデルを持ちます。function middleware は、client側ロジック、server側ロジック、input validation、composition、global registration でサーバー関数を包めます。`@lazarv/react-server`は現時点では TanStack 形式のファーストクラスな関数単位 middleware chain を公開していません。request middleware はサーバー関数ディスパッチの前に実行され、リクエストを短絡したり注釈付けしたりできます。一方で `createFunction` は、ハンドラ実行前にプロトコル層で引数ごとの parse/validate contract を提供します。関数横断のポリシーはユーザーランドの wrapper でも構成できますが、ファーストクラスのランタイムプリミティブは client/server function middleware pipeline ではなく、request middleware と contract/decoder 境界です。React Router の middleware は route `action`/`loader` リクエストを包むもので有用ですが、任意のRPCサーバー関数ではなく route action モデルに紐づくため、この行では同じくファーストクラスサポートではありません。
+
+<Link name="observability-runtime">
+#### オブザーバビリティランタイム
+</Link>
+
+`@lazarv/react-server`は組み込みOpenTelemetry統合を持ち、HTTPリクエスト、ミドルウェア、RSC/SSRレンダリング、サーバー関数、キャッシュ検索、サーバー起動、Vite開発フックを自動計測できます。request、render、server function、cacheの組み込みメトリクスも提供します。テレメトリ依存関係はオプションかつ遅延読み込みのため、無効時はno-op計測に解決されます。Next.jsにも公式のOpenTelemetry計測とフレームワークスパンがあります。React Routerはログやトレースに接続できるファーストクラスの計測ラッパーを提供します。TanStack Startはobservabilityパターンと手動/実験的なOpenTelemetryセットアップを文書化しており、Wakuは主にユーザーランドまたはホストプラットフォーム側に委ねるモデルです。
+
+<Link name="client-only-routes">
+#### クライアント専用ルート
+</Link>
+
+ファイルシステムルーターで`"use client"`を持つページは自動的にクライアント専用ルートになります — ナビゲーションはサーバーを完全にスキップします。設定は不要で、Reactの`<Activity>`コンポーネントによりコンポーネントの状態はナビゲーション間で保持されます。
+
+<Link name="schema-agnostic-validation">
+#### スキーマ非依存のバリデーション
+</Link>
+
+ルートパラメータと検索パラメータは、任意のスキーマライブラリ（Zod、ArkType、Valibot）または軽量パース関数でバリデーションできます — ランタイムがバリデーション戦略を自動的に検出します。
+
+<Link name="rsc-typed-resources">
+#### RSC + 型付きリソース
+</Link>
+
+`@lazarv/react-server`は2つの補完的なデータ取得アプローチを提供します：`async/await`によるReact Server Components（RSCをローダーとして）と、**型付きリソース** — `.use()`（Suspense）、`.query()`（命令型）、`.prefetch()`、`.invalidate()`を備えたスキーマバリデーション済みの参照識別データディスクリプタです。リソースはキャッシュランタイムとして`"use cache"`を使用します — カスタムキャッシュレイヤーやSWRのボイラープレートは不要です。ルート-リソースバインディングにより、ナビゲーション時の並列プリフェッチが可能になります。
+
+<Link name="route-level-dependencies">
+#### ルートレベルの依存関係
+</Link>
+
+TanStack Routerはルートコンテキストを、依存関係（認証、DBクライアントなど）をルートツリーに渡すためのファーストクラスの型付きプリミティブとして公開しています。`@lazarv/react-server`は同じ問題領域を型安全なリソース、リクエストコンテキスト、ネイティブモジュールでモデル化しています — リソースがすでにスキーマバリデーション済みのルートスコープデータを完全な型安全性で提供するため、別のルートコンテキストバッグは不要です。
+
+<Link name="built-in-devtools">
+#### 組み込みDevtools
+</Link>
+
+`@lazarv/react-server`は統合Devtools（`--devtools`）を提供します。ルート検査だけでなく、RSCペイロード、キャッシュエントリ、ルート、アウトレット、リモートコンポーネント、live components、workers、server logsを単一パネルで扱います。TanStack RouterのDevtoolsはルーターに特化した優れたものですが、`@lazarv/react-server`のDevtoolsはサーバーコンポーネントランタイム全体を対象にします。
+
+<Link name="outlets-vs-parallel-routes">
+#### アウトレットとパラレルルート
+</Link>
+
+`@lazarv/react-server`は名前付きアウトレット（`@sidebar`、`@content`）を使用し、レイアウトに型付きプロップとしてレンダリングします。これはNext.jsのパラレルルートと機能的に類似していますが、より強い型付けを備えています — 各アウトレットはブランド付きReact要素であり、誤ってアウトレットを入れ替えることを防ぎます。
+
+<Link name="route-identity-over-masking">
+#### ルートマスキングよりもルートIDの一貫性
+</Link>
+
+`@lazarv/react-server`は TanStack 形式のルートマスキングを意図的にサポートしていません。ブラウザに表示されるURL、サーバーリクエストURL、マッチしたルートツリー、RSCペイロード、ルートバリデーション、リソース、キャッシュキー、アウトレット、Devtoolsの状態は、同じナビゲーション状態を表すことを前提にしています。URLに別の見せ方が必要な場合は、隠れたクライアント専用のルートIDを作るのではなく、rewrite、redirect、ルートグループ、アウトレット、検索パラメータを使います。
+
+<Link name="route-lifecycle-model">
+#### ルートライフサイクルモデル
+</Link>
+
+`@lazarv/react-server`は、クライアント側のページルートナビゲーション判断のために `useNavigationGuard` と `registerNavigationGuard` を提供します。back/forward と任意の `beforeUnload` 処理も含みます。内部では、ルートガード/登録コンポーネントがルート登録、アクティブ表示、ルートリソース、ローディングスケルトン、`Activity` による状態保持を管理します。ユーザー側の副作用は、ルーターオブジェクトの mount/unmount コールバックではなく、React effects、resources、middleware、server functions、cache invalidation に置くモデルです。
+
+<Link name="hydration-islands-vs-deferred-hydration">
+#### Hydration Islands と deferred hydration の違い
+</Link>
+
+`@lazarv/react-server`の Hydration Islands は初回レンダリングの境界です。サーバーHTMLをすぐに描画し、リクエストスコープの島専用ハイドレーションデータを保持し、後から独立したローカルアウトレットとしてハイドレートします。これは `PAGE_ROOT` をハイドレートしないページでも動作します。TanStack Start には Suspense されたReactサブツリーの deferred hydration 的な動作がありますが、そのサブツリーはページのReactツリー内に残り、独自のRSCペイロードを持つ別の島アウトレットにはなりません。Astro はこの React/RSC 比較の外では最も近いアーキテクチャです。コンポーネント単位のハイドレーションに対する本物の Islands アーキテクチャを持ちますが、RSC のローカルアウトレットモデルではありません。他のReactフレームワークでもユーザーランドでクライアントコンポーネントの遅延読み込みやJavaScriptの遅延は可能ですが、このローカルアウトレット型の島モデルをファーストクラス機能としては提供していません。
+
+<Link name="waku-minimal-rsc">
+#### Waku
+</Link>
+
+WakuはVite上に構築されたもう一つのRSCネイティブフレームワークですが、意図的にミニマルなアプローチを取っています。基本的なファイルベースのルーティングとレイアウト、RSCサポートを提供しますが、型付きルーティングシステム、検索パラメータ処理、スクロール復元、ミドルウェア、その他の高度なルーティング機能は備えていません。Wakuの`Link`コンポーネントは基本的な`scroll`と`prefetchOnEnter`/`prefetchOnView`プロップをサポートしていますが、ルーターAPIのほとんどはまだ`unstable_`マークが付いています。Wakuは高度なルーティングを必要としないシンプルなRSCアプリケーションに適しています。

@@ -74,3 +74,4 @@ export const REQUEST_CACHE_CONTEXT = Symbol.for("REQUEST_CACHE_CONTEXT");
 export const REQUEST_CACHE_SHARED = Symbol.for("REQUEST_CACHE_SHARED");
 export const RESPONSE_BUFFER = Symbol.for("RESPONSE_BUFFER");
 export const DEVTOOLS_CONTEXT = Symbol.for("DEVTOOLS_CONTEXT");
+export const HYDRATION_ISLAND_CONTEXT = Symbol.for("HYDRATION_ISLAND_CONTEXT");

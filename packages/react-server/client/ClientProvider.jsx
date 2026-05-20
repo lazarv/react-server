@@ -48,10 +48,25 @@ const liveOutlets = new Set();
 let liveRegistryLoader = null;
 const outletTemporaryReferences = new Map();
 
+function getHydrationIslandState(outlet) {
+  if (typeof self === "undefined") return undefined;
+  const islands = self.__react_server_hydration_islands__ || {};
+  const states = self.__react_server_hydration_island_states__ || {};
+  for (const [id, data] of Object.entries(islands)) {
+    if ((data?.outlet || id) === outlet) {
+      return states[id] || "pending";
+    }
+  }
+  return undefined;
+}
+
 if (import.meta.env.DEV) {
   window.__react_server_devtools_outlets__ = () =>
     Array.from(outlets.entries()).map(([name, url]) => {
       const meta = outletMeta.get(name) || {};
+      const hydrationState = meta.island
+        ? getHydrationIslandState(name)
+        : undefined;
       return {
         name,
         url: typeof url === "string" ? url : (url?.toString?.() ?? ""),
@@ -60,6 +75,9 @@ if (import.meta.env.DEV) {
         defer: meta.defer || false,
         isolate: meta.isolate || false,
         ttl: meta.ttl ?? null,
+        island: meta.island || false,
+        hydrationState,
+        hydrated: hydrationState === "hydrated",
       };
     });
   window.__react_server_devtools_routes__ = getAllRoutes;
@@ -139,7 +157,8 @@ const registerOutlet = (
   defer,
   live = false,
   isolate = false,
-  ttl
+  ttl,
+  island = false
 ) => {
   outlets.set(outlet, url);
   outletMeta.set(outlet, {
@@ -148,6 +167,7 @@ const registerOutlet = (
     live: !!live,
     isolate: !!isolate,
     ttl: ttl ?? null,
+    island: !!island,
   });
   if (live) {
     liveOutlets.add(outlet);

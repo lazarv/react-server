@@ -51,10 +51,15 @@ import fixCjsExternalFacade from "../plugins/fix-cjs-external-facade.mjs";
 import reactServerEval from "../plugins/react-server-eval.mjs";
 import reactServerRuntime from "../plugins/react-server-runtime.mjs";
 import resolveWorkspace from "../plugins/resolve-workspace.mjs";
+import stripBrokenDependencySourcemaps from "../plugins/strip-broken-dependency-sourcemaps.mjs";
 import useCacheInline from "../plugins/use-cache-inline.mjs";
 import useClient from "../plugins/use-client.mjs";
 import { useClientInlineConfig } from "../plugins/use-client-inline.mjs";
 import { useServerInlineConfig } from "../plugins/use-server-inline.mjs";
+import {
+  getHydrationIslandInlineModule,
+  useHydrateInlineConfig,
+} from "../plugins/use-hydrate-inline.mjs";
 import useDirectiveInline from "../plugins/use-directive-inline.mjs";
 import useDynamic from "../plugins/use-dynamic.mjs";
 import useServer from "../plugins/use-server.mjs";
@@ -263,6 +268,7 @@ export default async function createServer(root, options) {
       postcss: cwd,
     },
     plugins: [
+      stripBrokenDependencySourcemaps(),
       jsonNamedExports(),
       resourcesPlugin(),
       ...(options.inspect
@@ -280,7 +286,11 @@ export default async function createServer(root, options) {
       reactServerEval(options),
       reactServerRuntime(),
       ...userOrBuiltInVitePluginReact(config.plugins),
-      useDirectiveInline([useServerInlineConfig, useClientInlineConfig]),
+      useDirectiveInline([
+        useServerInlineConfig,
+        useClientInlineConfig,
+        useHydrateInlineConfig,
+      ]),
       useClient(null, null, "pre"),
       useClient(),
       useServer(),
@@ -1068,6 +1078,8 @@ export default async function createServer(root, options) {
             sys.normalizePath(moduleId)
           );
           if (!mod) return;
+          const hydrationIsland = getHydrationIslandInlineModule(moduleId);
+          if (hydrationIsland?.deferred) return;
 
           if (mod.__react_server_client_component__) {
             const normalizedId = sys.normalizePath(moduleId);

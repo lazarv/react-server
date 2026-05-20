@@ -45,6 +45,35 @@ These directives go at the top of a file or inside a function body (lexically sc
 - `"use cache"` — Cached function with options: `"use cache; ttl=200; tags=todos"` or `"use cache; profile=todos"` or `"use cache: file; tags=todos"` or `"use cache: request"` (per-request dedup) or `"use cache: request; no-hydrate"` (no browser hydration)
 - `"use dynamic"` — Force dynamic rendering (opt out of static/prerender)
 - `"use static"` — Force static rendering at build time
+- `"use hydrate"` — Hydration island: render a server subtree as HTML immediately, write a separate island RSC payload, and hydrate it later as a local non-root outlet. Syntax: `"use hydrate: visible; rootMargin=0px; threshold=0.2; id=counter"`.
+
+## Hydration Islands
+
+Use hydration islands when the page root should stay server-only but a selected subtree needs deferred interactivity. Put the directive inside a server component function body:
+
+```jsx
+function CounterIsland() {
+  "use hydrate: visible; rootMargin=0px; threshold=0.2; id=counter";
+
+  return <Counter />;
+}
+```
+
+Key behavior:
+- The island is SSR-rendered immediately.
+- The runtime emits request-scoped hydration data for the island and can omit the main `PAGE_ROOT` RSC payload when no page-root hydration is needed.
+- The client hydrates the island as a local outlet, not as a remote component.
+- Hydration islands are created during initial HTML rendering; if a `"use hydrate"` component appears in a later RSC update payload, it renders as normal React content because the parent tree already owns it.
+- Components inside the island can use `Link local` and `Refresh local` to navigate or refresh only the island outlet.
+- DevTools shows islands in the Outlets panel with an `island` badge and hydrated/not hydrated state.
+
+Strategies:
+- `load` — hydrate as soon as the client entry runs and the island payload is available. This is the default for `"use hydrate"` and is best for above-the-fold controls that should become interactive immediately while still using a local outlet.
+- `idle` — hydrate through `requestIdleCallback`, falling back to `setTimeout`. Supports `timeout` in milliseconds; default is `2000`.
+- `visible` — hydrate when an `IntersectionObserver` sees the island marker. Supports `rootMargin` (default `600px`) and `threshold` (default `0`). If `IntersectionObserver` is unavailable, hydrate immediately.
+- `interaction` — hydrate on user interaction. Default events are `pointerenter`, `focusin`, `pointerdown`, and `click`; override with `events=pointerenter,focusin`. The triggering event starts hydration and should not be treated as replayed into the hydrated component.
+- `media` — hydrate when `matchMedia(query)` matches. If the query already matches, hydrate immediately; otherwise listen for changes. Missing `query` or unavailable `matchMedia` falls back to immediate hydration. Use this for motion preferences too, e.g. `query=(prefers-reduced-motion: no-preference)` or `query=(prefers-reduced-motion: reduce)`.
+- `never` — render static HTML without creating a hydration payload. Client component effects and handlers inside the island never run.
 
 ## File-System Router Conventions
 

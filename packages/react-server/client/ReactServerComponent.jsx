@@ -24,6 +24,7 @@ import {
   emitLocationChange,
   clearPendingNavigation,
 } from "./client-location.mjs";
+import { activateScriptTemplates } from "./script-templates.mjs";
 
 // Client-root SSR shortcut: when ssr-handler.mjs took the render-ssr.jsx
 // path, the HTML carries `self.__react_server_root__ = "id#name"` (string,
@@ -43,26 +44,6 @@ function initialClientRootComponent({ outlet, remote }) {
   const Component = self.__react_server_root_component__;
   if (typeof Component !== "function") return null;
   return React.createElement(Component);
-}
-
-// Execute scripts stored as <template data-script-attrs> by dom-flight.mjs
-// to avoid React's "Encountered a script tag" warning during SSR/RSC rendering.
-// We leave the template in the DOM so React can still reconcile its fiber tree.
-function activateScriptTemplates(root) {
-  if (typeof document === "undefined") return;
-  root.querySelectorAll("template[data-script-attrs]").forEach((template) => {
-    if (template.dataset.activated) return;
-    template.dataset.activated = "";
-    const attrs = JSON.parse(template.dataset.scriptAttrs);
-    const script = document.createElement("script");
-    for (const [key, value] of Object.entries(attrs)) {
-      script.setAttribute(key, value);
-    }
-    script.textContent = template.content.textContent;
-    // Append to execute, then remove the script (not the template).
-    document.head.appendChild(script);
-    script.remove();
-  });
 }
 
 // Error boundary that catches rendering errors from aborted RSC streams.
@@ -107,6 +88,7 @@ class FlightErrorBoundary extends ReactComponent {
 
 function FlightComponent({
   remote = false,
+  island = false,
   defer = false,
   isolate = false,
   live = false,
@@ -129,7 +111,7 @@ function FlightComponent({
   const [{ resourceKey, error, Component }, setComponent] = useState(() => {
     // Activate script templates before first getFlightResponse so the
     // __flightStream__ globals are available for hydration.
-    if (typeof document !== "undefined") {
+    if (typeof document !== "undefined" && outlet !== PAGE_ROOT) {
       if (isolate) {
         const host = document.getElementById(`shadowroot_${outlet}`);
         if (host?.shadowRoot) {
@@ -144,7 +126,7 @@ function FlightComponent({
       Component:
         children ||
         initialClientRootComponent({ outlet, remote }) ||
-        (outlet === PAGE_ROOT || remote
+        (outlet === PAGE_ROOT || remote || island
           ? getFlightResponse?.(url, {
               outlet,
               remote,
@@ -173,7 +155,8 @@ function FlightComponent({
       defer,
       live,
       isolate,
-      ttl
+      ttl,
+      island
     );
     const unsubscribe = subscribe(
       outlet || url,
@@ -269,10 +252,10 @@ function FlightComponent({
     // createTemporaryReferenceSet, encodeReply - these are stable module-level
     // functions or props that should not trigger re-subscription
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, outlet, remote, request, subscribe, getFlightResponse]);
+  }, [url, outlet, remote, island, request, subscribe, getFlightResponse]);
 
   useEffect(() => {
-    if (children || (outlet !== PAGE_ROOT && Component)) {
+    if (children || (outlet !== PAGE_ROOT && Component && !island)) {
       setComponent((prev) => ({
         ...prev,
         resourceKey: prev.resourceKey + 1,
@@ -283,7 +266,7 @@ function FlightComponent({
     // Intentionally omitting outlet and Component - this effect should only
     // run when children changes, not when Component state updates
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [children]);
+  }, [children, island]);
 
   useEffect(() => {
     if (remote || defer) {
@@ -359,6 +342,16 @@ function FlightComponent({
   // resourceKey); otherwise a sync re-render from useSyncExternalStore would
   // immediately clear the pending state and hide the loading skeleton.
   useLayoutEffect(() => {
+    if (typeof document !== "undefined") {
+      if (isolate) {
+        const host = document.getElementById(`shadowroot_${outlet}`);
+        if (host?.shadowRoot) {
+          activateScriptTemplates(host.shadowRoot);
+        }
+      }
+      activateScriptTemplates(document);
+      self.__react_server_hydrate_islands__?.();
+    }
     if (resourceKey !== committedResourceKey.current) {
       committedResourceKey.current = resourceKey;
       clearPendingNavigation();
@@ -435,6 +428,7 @@ export default function ReactServerComponent({
   url,
   outlet = null,
   remote,
+  island,
   defer,
   isolate,
   request,
@@ -478,6 +472,7 @@ export default function ReactServerComponent({
       url: contextUrl,
       outlet,
       remote: remote || false,
+      island: island || false,
       live,
       refresh: refreshFn,
       prefetch: prefetchFn,
@@ -489,6 +484,7 @@ export default function ReactServerComponent({
       contextUrl,
       outlet,
       remote,
+      island,
       live,
       refreshFn,
       prefetchFn,
@@ -500,11 +496,12 @@ export default function ReactServerComponent({
 
   return (
     <FlightContext.Provider value={contextValue}>
-      {import.meta.env?.DEV && outlet && outlet !== PAGE_ROOT ? (
+      {import.meta.env?.DEV && outlet && outlet !== PAGE_ROOT && !island ? (
         <data data-devtools-outlet={outlet} hidden />
       ) : null}
       <FlightComponent
         remote={remote}
+        island={island}
         defer={defer}
         isolate={isolate}
         request={request}
@@ -524,7 +521,7 @@ export default function ReactServerComponent({
       >
         {children}
       </FlightComponent>
-      {import.meta.env?.DEV && outlet && outlet !== PAGE_ROOT ? (
+      {import.meta.env?.DEV && outlet && outlet !== PAGE_ROOT && !island ? (
         <data data-devtools-outlet-end={outlet} hidden />
       ) : null}
     </FlightContext.Provider>

@@ -1,0 +1,262 @@
+---
+title: Hydration Islands
+category: Features
+order: 6
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Hydration Islands
+
+Hydration Islands は、ほとんどが静的なサーバーレンダリングページの中で、指定したサブツリーだけを後からハイドレートするための機能です。コンポーネントに `"use hydrate"` ディレクティブを付けると、そのサブツリーは通常のサーバーHTMLとして描画され、島専用のRSCペイロードが書き出され、ローカルの非ルートアウトレットとして後からハイドレートされます。
+
+これは通常の `"use client"` コンポーネントとは異なります。クライアントコンポーネントはページのメインReactツリーに参加しますが、Hydration Island は独自のローカルアウトレットを作成します。そのため、ページルートにクライアントコンポーネントや `PAGE_ROOT` のRSCペイロードがない場合でも、島だけをハイドレートできます。
+
+Hydration Island は初回HTMLレンダリングのための戦略です。`"use hydrate"` が付いたコンポーネントが後からRSC更新ペイロードの一部として描画される場合は、新しい島を作らず通常のコンポーネント出力を返します。そのサブツリーはすでに既存のReactツリーに所有されているためです。
+
+<Link name="islands-vs-ppr">
+## Islands と PPR の違い
+</Link>
+
+Hydration Islands と [Partial Pre-Rendering](/features/ppr) は、レンダリングパイプラインの異なる部分を扱います。
+
+| 機能 | 制御するもの | 出力 |
+|------|--------------|------|
+| Partial Pre-Rendering | ルートセグメントをビルド時に描画するか、リクエスト時に描画するか | 静的HTMLと、ストリーミングされる動的なサーバーコンテンツ |
+| Hydration Islands | サーバーレンダリングされたサブツリーに、独立した遅延ハイドレーション境界を持たせるか | 静的HTMLと、島専用のRSCペイロードおよびローカルアウトレット |
+
+PPR は、ほとんどが静的なページシェルの中にリクエスト時のサーバーコンテンツを入れたい場合に使います。Hydration Islands は、サーバーレンダリング済みHTMLをページルートをハイドレートせずに後からインタラクティブにしたい場合に使います。この2つは組み合わせることもできます。PPRページの中に島を置いても、その島は独自のハイドレーション戦略とローカルアウトレットナビゲーションを持ちます。
+
+<Link name="creating-an-island">
+## Islandを作成する
+</Link>
+
+コンポーネント本体の中で `"use hydrate: <strategy>"` を使います。このディレクティブは、インラインの `"use client"` や `"use server"` と同じく字句スコープです。
+
+```jsx
+import { useState } from "react";
+
+function Counter() {
+  "use client";
+
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>Count {count}</button>;
+}
+
+function CounterIsland() {
+  "use hydrate: idle; timeout=1200; id=counter";
+
+  return <Counter />;
+}
+
+export default function App() {
+  return (
+    <main>
+      <h1>Server-rendered page</h1>
+      <CounterIsland />
+    </main>
+  );
+}
+```
+
+上の例ではページルートはサーバー専用のままです。島はすぐにサーバーレンダリング済みHTMLを受け取り、指定した戦略に従ってハイドレートされます。
+
+<Link name="strategies">
+## 戦略
+</Link>
+
+ディレクティブではコロンで戦略を指定し、セミコロン区切りでパラメータを渡します。
+
+```jsx
+"use hydrate: idle; timeout=1200; id=counter";
+```
+
+サポートされている戦略:
+
+| Strategy | 動作 |
+|----------|------|
+| `load` | クライアントエントリが実行されるとすぐにハイドレート |
+| `idle` | `requestIdleCallback` でハイドレートし、利用できない場合は `setTimeout` にフォールバック |
+| `visible` | 島のマーカーがビューポートに入るとハイドレート |
+| `interaction` | ユーザー操作イベントでハイドレート |
+| `media` | メディアクエリが一致したときにハイドレート |
+| `never` | HTMLだけを描画し、ハイドレートしない |
+
+<Link name="strategy-load">
+### `load`
+</Link>
+
+`load` は、クライアントエントリが開始され、島のペイロードが利用可能になるとすぐにハイドレートします。戦略を省略した場合のデフォルトでもあるため、`"use hydrate"` と `"use hydrate: load"` はどちらも eager な島を表します。
+
+ページルートは静的に保ちつつ、ファーストビュー内のUIをできるだけ早くインタラクティブにしたい場合に使います。
+
+```jsx
+function SearchIsland() {
+  "use hydrate: load; id=search";
+
+  return <SearchBox />;
+}
+```
+
+`load` でも島は独立したRSCペイロードとローカルアウトレットを使います。違いは、idle、viewport、ユーザー操作、メディアクエリを待たずに、ブラウザ起動時にハイドレーションを始める点です。
+
+<Link name="strategy-idle">
+### `idle`
+</Link>
+
+`idle` は `requestIdleCallback` によってブラウザのアイドル時間を待ってからハイドレートします。`requestIdleCallback` が利用できない環境では `setTimeout` にフォールバックします。任意の `timeout` パラメータで最大待機時間をミリ秒で指定でき、デフォルトは `2000` です。
+
+初回表示に必須ではないものの、読み込み後しばらくして使えるとよいUIに向いています。たとえば二次的なカウンター、下部にあるフィルター、設定パネル、優先度の低いウィジェットなどです。
+
+```jsx
+function FiltersIsland() {
+  "use hydrate: idle; timeout=1200; id=filters";
+
+  return <Filters />;
+}
+```
+
+idle の島もHTMLはすぐにサーバーレンダリングされます。ただし idle タスクが実行されハイドレーションが完了するまではインタラクティブではありません。ユーザーがすぐクリックしそうなコントロールには避けてください。
+
+<Link name="strategy-visible">
+### `visible`
+</Link>
+
+`visible` は `IntersectionObserver` を使い、島のラッパーがビューポートと交差したときにハイドレートします。`rootMargin` で実際に見える前からハイドレーションを開始でき、`threshold` で必要な可視割合を指定できます。デフォルトの `rootMargin` は `600px`、デフォルトの `threshold` は `0` です。
+
+長いページやファーストビュー外のコンテンツに向いています。deferred な島だけで使われるクライアントコンポーネントは初期の modulepreload から外れ、島がビューポートに近づいたときに読み込まれてハイドレートされます。
+
+```jsx
+function VisibleIsland() {
+  "use hydrate: visible; rootMargin=0px; threshold=0.2; id=visible_counter";
+
+  return <Counter />;
+}
+```
+
+`IntersectionObserver` が利用できない場合、UIを永遠に非インタラクティブなままにしないため、ランタイムは即座にハイドレートします。
+
+<Link name="strategy-interaction">
+### `interaction`
+</Link>
+
+`interaction` は、ユーザーが島のラッパーに対して操作したときにハイドレートします。デフォルトでは `pointerenter`、`focusin`、`pointerdown`、`click` を監視します。`events` パラメータを渡すと、カンマ区切りのDOMイベント一覧で置き換えられます。
+
+ユーザーの意図が見えるまで静的なままでよいUIに向いています。メニュー、ポップオーバー、展開パネル、評価コントロール、毎回使われるとは限らない重いコントロールなどです。
+
+```jsx
+function MenuIsland() {
+  "use hydrate: interaction; events=pointerenter,focusin; id=account_menu";
+
+  return <AccountMenu />;
+}
+```
+
+最初に一致したイベントはハイドレーションを開始します。その同じイベントが、ハイドレート後のコンポーネントに再送されることを前提にしないでください。最初のクリックでコンポーネント側の `onClick` を必ず実行したい場合は、`pointerenter` や `focusin` のような早い intent イベントを使うか、`load` を使ってください。
+
+<Link name="strategy-media">
+### `media`
+</Link>
+
+`media` は `matchMedia` のクエリが一致したときにハイドレートします。クエリは `query` パラメータで指定します。クライアントエントリ実行時にすでに一致していれば即座にハイドレートし、一致していなければメディアクエリの変更を待ちます。
+
+特定の環境でだけクライアント動作が必要なレスポンシブUIに向いています。デスクトップ専用ツールバー、ワイド画面向けインスペクター、reduced motion向けの代替UI、ポインター操作可能なレイアウトだけで必要なコントロールなどです。
+
+```jsx
+function DesktopIsland() {
+  "use hydrate: media; query=(min-width: 900px); id=desktop_tools";
+
+  return <Toolbar />;
+}
+```
+
+モーション設定も `media` で扱います。`prefers-reduced-motion` は標準のメディアクエリだからです。たとえば、ユーザーが reduced motion を要求していない場合だけ、アニメーションの重いウィジェットをハイドレートできます。
+
+```jsx
+function MotionIsland() {
+  "use hydrate: media; query=(prefers-reduced-motion: no-preference); id=motion";
+
+  return <AnimatedWidget />;
+}
+```
+
+逆に、reduced motion を要求しているユーザー向けのコントロールだけをハイドレートすることもできます。
+
+```jsx
+function ReducedMotionIsland() {
+  "use hydrate: media; query=(prefers-reduced-motion: reduce); id=reduced_motion";
+
+  return <ReducedMotionControls />;
+}
+```
+
+`matchMedia` が利用できない場合、または `query` が指定されていない場合、ランタイムは即座にハイドレートします。
+
+<Link name="strategy-never">
+### `never`
+</Link>
+
+`never` は島のHTMLを描画しますが、ハイドレーション用ペイロードを作成せず、島をハイドレートしません。結果は静的なサーバーレンダリング済みマークアップです。
+
+同じコンポーネント形状を戦略比較の中で使いたい場合や、絶対にインタラクティブにしない静的コンテンツとして明示したい場合に使います。リクエストスコープのハイドレーションデータなしで島マークアップを出力できることを確認するテスト fixture としても便利です。
+
+```jsx
+function StaticPromoIsland() {
+  "use hydrate: never; id=static_promo";
+
+  return <Promo />;
+}
+```
+
+ハイドレーション用ペイロードが存在しないため、`never` の中のクライアントコンポーネントはサーバーレンダリング済みHTMLとしてだけ表現されます。イベントハンドラや effect は実行されません。
+
+<Link name="local-outlet-navigation">
+## ローカルアウトレットナビゲーション
+</Link>
+
+Hydration Island はローカルの非ルートアウトレットとしてハイドレートされます。島の中では `Link local` と `Refresh local` を使い、ページルートをハイドレートまたはナビゲートせずに、その島だけを更新できます。
+
+```jsx
+import { useSearchParams, useUrl } from "@lazarv/react-server";
+import { Link, Refresh } from "@lazarv/react-server/navigation";
+
+function NavigationIsland() {
+  "use hydrate: load; id=rsc_navigation";
+
+  const url = useUrl();
+  const search = useSearchParams();
+  const view = search?.view === "details" ? "details" : "overview";
+
+  return (
+    <section>
+      <p>{url.pathname}{url.search}</p>
+      <p>{view}</p>
+      <Link local to="/?view=overview">Overview</Link>
+      <Link local to="/?view=details">Details</Link>
+      <Refresh local noCache>Refresh island</Refresh>
+    </section>
+  );
+}
+```
+
+`Link local` は島の `@<outlet>.rsc.x-component` ペイロードを取得し、そのアウトレットだけを差し替えます。明示的にルートを対象にしない限り、ブラウザURLと `PAGE_ROOT` のハイドレーション状態は変更されません。
+
+Hydration Islands は、ハイドレートされた後にだけクライアントナビゲーションへ参加します。まだハイドレートされていない島はクライアントアウトレットとして登録されていないため、`Link`、`Refresh`、`pushstate`、`replacestate`、`popstate` の更新を受け取りません。後から島がハイドレートされると、サーバーレンダリング済みの島ペイロードと現在のブラウザロケーションから開始します。
+
+島のナビゲーションで明示的に `push` や `replace` を使ってブラウザ履歴へ参加した場合でも、ブラウザの戻る/進む操作はグローバルなブラウザイベントです。ハイドレート済みのアウトレットは、それらのイベントに同時に反応できます。過去のブラウザ履歴イベントの後にハイドレートされた島は、その取り逃したイベントを再生しません。
+
+<Link name="devtools">
+## DevTools
+</Link>
+
+DevTools を有効にすると、Hydration Islands は Outlets パネルに `island` バッジ付きで表示されます。パネルには、島がすでにハイドレート済みかどうかも表示されます。島はローカルアウトレットでありリモートコンポーネントではないため、Remotes パネルには表示されません。
+
+<Link name="example">
+## Example
+</Link>
+
+リポジトリには完全なサンプルが含まれています。
+
+```sh
+pnpm --filter ./examples/hydration-islands dev --open
+```

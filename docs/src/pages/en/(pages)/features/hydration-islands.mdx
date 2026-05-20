@@ -1,0 +1,262 @@
+---
+title: Hydration Islands
+category: Features
+order: 6
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Hydration Islands
+
+Hydration islands let a mostly static server-rendered page hydrate only selected subtrees. Mark a component with the `"use hydrate"` directive and the runtime renders that subtree as normal server HTML, writes a separate RSC payload for the island, and hydrates it later as a local non-root outlet.
+
+This is different from a normal `"use client"` component. A client component still participates in the page's main React tree. A hydration island creates its own local outlet and can hydrate even when the page root has no client components and no `PAGE_ROOT` RSC payload.
+
+Hydration islands are an initial HTML rendering strategy. If a component marked with `"use hydrate"` is rendered later as part of an RSC update payload, it returns its normal component output instead of creating a new island, because that subtree is already owned by the existing React tree.
+
+<Link name="islands-vs-ppr">
+## Islands vs PPR
+</Link>
+
+Hydration islands and [partial pre-rendering](/features/ppr) solve different parts of the rendering pipeline.
+
+| Feature | Controls | Output |
+|---------|----------|--------|
+| Partial pre-rendering | Whether a route segment is rendered at build time or at request time | Static HTML plus streamed dynamic server content |
+| Hydration islands | Whether a server-rendered subtree gets its own deferred client hydration boundary | Static HTML plus an island-specific RSC payload and local outlet |
+
+Use PPR when you want a mostly static page shell with request-time server content inside it. Use hydration islands when the server-rendered HTML should become interactive later without hydrating the page root. The two features can be combined: a PPR page can contain an island, and the island still owns its own hydration strategy and local outlet navigation.
+
+<Link name="creating-an-island">
+## Creating an island
+</Link>
+
+Use `"use hydrate: <strategy>"` inside a component body. The directive is lexically scoped, like inline `"use client"` and `"use server"` functions.
+
+```jsx
+import { useState } from "react";
+
+function Counter() {
+  "use client";
+
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>Count {count}</button>;
+}
+
+function CounterIsland() {
+  "use hydrate: idle; timeout=1200; id=counter";
+
+  return <Counter />;
+}
+
+export default function App() {
+  return (
+    <main>
+      <h1>Server-rendered page</h1>
+      <CounterIsland />
+    </main>
+  );
+}
+```
+
+The page root above stays server-only. The island receives server-rendered HTML immediately, then hydrates according to its strategy.
+
+<Link name="strategies">
+## Strategies
+</Link>
+
+The directive uses a colon for the strategy and semicolon-separated parameters:
+
+```jsx
+"use hydrate: idle; timeout=1200; id=counter";
+```
+
+Supported strategies:
+
+| Strategy | Behavior |
+|----------|----------|
+| `load` | Hydrates as soon as the client entry runs |
+| `idle` | Hydrates through `requestIdleCallback`, falling back to `setTimeout` |
+| `visible` | Hydrates when the island marker intersects the viewport |
+| `interaction` | Hydrates on user interaction events |
+| `media` | Hydrates when a media query matches |
+| `never` | Renders HTML but does not hydrate |
+
+<Link name="strategy-load">
+### `load`
+</Link>
+
+`load` hydrates the island as soon as the client entry has started and the island payload is available. This is the default when no strategy is specified, so `"use hydrate"` and `"use hydrate: load"` both describe an eager island.
+
+Use `load` for above-the-fold UI that should become interactive immediately, while still keeping the page root static or keeping the island in a separate local outlet.
+
+```jsx
+function SearchIsland() {
+  "use hydrate: load; id=search";
+
+  return <SearchBox />;
+}
+```
+
+The island still uses a separate RSC payload and outlet. It is eager only in the sense that the browser starts hydrating it during startup instead of waiting for an idle callback, viewport event, user interaction, or media query.
+
+<Link name="strategy-idle">
+### `idle`
+</Link>
+
+`idle` waits until the browser reports idle time through `requestIdleCallback`. If `requestIdleCallback` is not available, the runtime falls back to `setTimeout`. The optional `timeout` parameter controls the maximum delay in milliseconds and defaults to `2000`.
+
+Use `idle` for interactive UI that is useful soon after load but not required for the first paint, such as secondary counters, filters below the first viewport, preference panels, or low-priority widgets.
+
+```jsx
+function FiltersIsland() {
+  "use hydrate: idle; timeout=1200; id=filters";
+
+  return <Filters />;
+}
+```
+
+An idle island is server-rendered immediately. It is not interactive until the idle task runs and hydration completes, so avoid this strategy for controls that users are likely to click immediately.
+
+<Link name="strategy-visible">
+### `visible`
+</Link>
+
+`visible` uses `IntersectionObserver` and hydrates when the island wrapper intersects the viewport. Use `rootMargin` to start hydration before the island is actually visible, and `threshold` to require a minimum visible ratio before hydration starts. The default `rootMargin` is `600px`; the default `threshold` is `0`.
+
+Use `visible` for content that is below the fold or hidden in long pages. It keeps the client modules for deferred-only island components out of the initial module preload set, then loads and hydrates them when the island approaches the viewport.
+
+```jsx
+function VisibleIsland() {
+  "use hydrate: visible; rootMargin=0px; threshold=0.2; id=visible_counter";
+
+  return <Counter />;
+}
+```
+
+If `IntersectionObserver` is unavailable, the runtime hydrates immediately instead of leaving the UI permanently inert.
+
+<Link name="strategy-interaction">
+### `interaction`
+</Link>
+
+`interaction` hydrates when the user interacts with the island wrapper. By default it listens for `pointerenter`, `focusin`, `pointerdown`, and `click`. Pass an `events` parameter to replace that list with a comma-separated set of DOM events.
+
+Use `interaction` for UI that should stay static until the user shows intent, such as menus, popovers, expandable panels, rating controls, or expensive controls that are unlikely to be used on every page view.
+
+```jsx
+function MenuIsland() {
+  "use hydrate: interaction; events=pointerenter,focusin; id=account_menu";
+
+  return <AccountMenu />;
+}
+```
+
+The first matching event starts hydration. Do not rely on that same event being replayed into the newly hydrated component. For controls where the first click must run the component's own `onClick` handler, prefer an earlier intent event such as `pointerenter` or `focusin`, or use `load` instead.
+
+<Link name="strategy-media">
+### `media`
+</Link>
+
+`media` hydrates when a `matchMedia` query matches. Pass the query with the `query` parameter. If the query already matches when the client entry runs, the island hydrates immediately. If it does not match yet, the runtime listens for media query changes.
+
+Use `media` for responsive UI that only needs client behavior in certain environments, such as desktop-only toolbars, wide-screen inspectors, reduced-motion alternatives, or controls that should hydrate only for pointer-capable layouts.
+
+```jsx
+function DesktopIsland() {
+  "use hydrate: media; query=(min-width: 900px); id=desktop_tools";
+
+  return <Toolbar />;
+}
+```
+
+Motion preferences should also use `media`, because `prefers-reduced-motion` is a standard media query. For example, hydrate an animation-heavy widget only when the user has not requested reduced motion:
+
+```jsx
+function MotionIsland() {
+  "use hydrate: media; query=(prefers-reduced-motion: no-preference); id=motion";
+
+  return <AnimatedWidget />;
+}
+```
+
+You can also invert the query and hydrate a reduced-motion-specific control only for users who requested it:
+
+```jsx
+function ReducedMotionIsland() {
+  "use hydrate: media; query=(prefers-reduced-motion: reduce); id=reduced_motion";
+
+  return <ReducedMotionControls />;
+}
+```
+
+If `matchMedia` is unavailable, or if the directive does not include a `query`, the runtime hydrates immediately.
+
+<Link name="strategy-never">
+### `never`
+</Link>
+
+`never` renders the island's HTML but does not create a hydration payload and does not hydrate the island. The result is static server-rendered markup.
+
+Use `never` when the same component shape is useful in a strategy matrix or when you want an explicit static island boundary for content that must never become interactive. It is also useful as a test fixture because it proves that the runtime can emit island markup without request-scoped hydration data.
+
+```jsx
+function StaticPromoIsland() {
+  "use hydrate: never; id=static_promo";
+
+  return <Promo />;
+}
+```
+
+Because there is no hydration payload, client components inside a `never` island are only represented by their server-rendered HTML. Event handlers and effects never run.
+
+<Link name="local-outlet-navigation">
+## Local outlet navigation
+</Link>
+
+An island is hydrated as a local non-root outlet. Components inside the island can use `Link local` and `Refresh local` to update that island without hydrating or navigating the page root.
+
+```jsx
+import { useSearchParams, useUrl } from "@lazarv/react-server";
+import { Link, Refresh } from "@lazarv/react-server/navigation";
+
+function NavigationIsland() {
+  "use hydrate: load; id=rsc_navigation";
+
+  const url = useUrl();
+  const search = useSearchParams();
+  const view = search?.view === "details" ? "details" : "overview";
+
+  return (
+    <section>
+      <p>{url.pathname}{url.search}</p>
+      <p>{view}</p>
+      <Link local to="/?view=overview">Overview</Link>
+      <Link local to="/?view=details">Details</Link>
+      <Refresh local noCache>Refresh island</Refresh>
+    </section>
+  );
+}
+```
+
+`Link local` fetches the island's `@<outlet>.rsc.x-component` payload and swaps only that outlet. The browser URL and `PAGE_ROOT` hydration state are left alone unless you explicitly target the root.
+
+Hydration islands participate in client navigation only after they hydrate. An island that has not hydrated yet is not registered as a client outlet, so it will not receive `Link`, `Refresh`, `pushstate`, `replacestate`, or `popstate` updates. When the island hydrates later, it starts from the server-rendered island payload and the current browser location.
+
+If an island navigation explicitly opts into browser history with `push` or `replace`, browser back and forward are still global browser events. Hydrated outlets can react to those events together. Islands that hydrate after earlier browser history events do not replay those missed events.
+
+<Link name="devtools">
+## DevTools
+</Link>
+
+When DevTools are enabled, hydration islands appear in the Outlets panel with an `island` badge. The panel also shows whether an island has already hydrated. Islands are local outlets, not remote components, so they do not appear in the Remotes panel.
+
+<Link name="example">
+## Example
+</Link>
+
+The repository includes a complete example:
+
+```sh
+pnpm --filter ./examples/hydration-islands dev --open
+```

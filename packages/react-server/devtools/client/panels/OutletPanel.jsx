@@ -63,6 +63,18 @@ export default function OutletPanel({
                 {outlet.remote && (
                   <span className="dt-tag dt-tag-violet">remote</span>
                 )}
+                {outlet.island && (
+                  <span className="dt-tag dt-tag-sky">island</span>
+                )}
+                {outlet.island && (
+                  <span
+                    className={`dt-tag dt-tag-${
+                      outlet.hydrated ? "green" : "amber"
+                    }`}
+                  >
+                    {outlet.hydrated ? "hydrated" : "not hydrated"}
+                  </span>
+                )}
                 {outlet.live && (
                   <span className="dt-tag dt-tag-green">live</span>
                 )}
@@ -71,6 +83,7 @@ export default function OutletPanel({
                 )}
                 {!outlet._fileRouter &&
                   !outlet.remote &&
+                  !outlet.island &&
                   !outlet.live &&
                   !outlet.defer && (
                     <span className="dt-tag dt-tag-gray">static</span>

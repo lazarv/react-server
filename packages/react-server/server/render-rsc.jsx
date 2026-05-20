@@ -37,6 +37,7 @@ import {
   ERROR_CONTEXT,
   FLIGHT_CACHE,
   HTML_CACHE,
+  HYDRATION_ISLAND_CONTEXT,
   HTTP_CONTEXT,
   HTTP_HEADERS,
   HTTP_RESPONSE,
@@ -207,6 +208,13 @@ function makeModuleResolver(map) {
     resolveClientReference(ref) {
       const $$id = ref.$$id ?? ref.$$typeof?.$$id;
       if (!$$id) return null;
+      const hydrationIslandContext = getContext(HYDRATION_ISLAND_CONTEXT);
+      const isRuntimeClientReference =
+        $$id.includes("/devtools/client/") ||
+        $$id.includes("/client/ScrollRestoration.jsx");
+      if (hydrationIslandContext?.state && !isRuntimeClientReference) {
+        hydrationIslandContext.state.hasClientComponent = true;
+      }
       return map[$$id];
     },
     resolveServerReference(ref) {
@@ -215,6 +223,48 @@ function makeModuleResolver(map) {
       return { id: $$id, bound: null };
     },
   };
+}
+
+async function drainStream(stream) {
+  const reader = stream.getReader();
+  while (true) {
+    const { done } = await reader.read();
+    if (done) break;
+  }
+}
+
+async function discoverHydrationIsland(
+  app,
+  outlet,
+  { signal, remote, origin }
+) {
+  if (!outlet || outlet === "PAGE_ROOT") return null;
+
+  const previous = getContext(HYDRATION_ISLAND_CONTEXT);
+  const registry = new Map();
+  context$(HYDRATION_ISLAND_CONTEXT, {
+    mode: "discover",
+    registry,
+  });
+
+  try {
+    const temporaryReferences = createTemporaryReferenceSet();
+    const flight = renderToReadableStream(app, {
+      react: React,
+      moduleResolver: makeModuleResolver(
+        clientReferenceMap({ remote, origin })
+      ),
+      signal,
+      temporaryReferences,
+      onError(e) {
+        return e?.digest ?? e?.message;
+      },
+    });
+    await drainStream(flight);
+    return registry.get(outlet) ?? null;
+  } finally {
+    context$(HYDRATION_ISLAND_CONTEXT, previous);
+  }
 }
 
 // Wrapper: adapts webpack-style decodeReply(body, manifest, opts?) to
@@ -1054,7 +1104,7 @@ export async function render(Component, props = {}, options = {}) {
               ) && <DevToolsHost position={config.devtools?.position} />}
           </>
         );
-        const ComponentWithStyles = (
+        let ComponentWithStyles = (
           <>
             {additionalComponents}
             <Component {...props} />
@@ -1081,6 +1131,33 @@ export async function render(Component, props = {}, options = {}) {
         }
 
         let app = ComponentWithStyles;
+
+        if (
+          renderContext.flags.isRSC &&
+          !renderContext.flags.isRemote &&
+          outlet &&
+          outlet !== "PAGE_ROOT"
+        ) {
+          const island = await discoverHydrationIsland(
+            ComponentWithStyles,
+            outlet,
+            {
+              signal,
+              remote: remote || remoteRSC,
+              origin,
+            }
+          );
+          if (island?.Component) {
+            ComponentWithStyles = (
+              <>
+                {additionalComponents}
+                <island.Component {...(island.props ?? {})} />
+              </>
+            );
+            app = ComponentWithStyles;
+          }
+        }
+
         if (
           callServer &&
           renderContext.flags.isRSC &&
@@ -1351,6 +1428,15 @@ export async function render(Component, props = {}, options = {}) {
             renderParentCtx ?? undefined
           );
 
+          const previousHydrationIslandContext = getContext(
+            HYDRATION_ISLAND_CONTEXT
+          );
+          const hydrationIslandState = { has: false };
+          context$(HYDRATION_ISLAND_CONTEXT, {
+            ...previousHydrationIslandContext,
+            state: hydrationIslandState,
+          });
+
           const flight = renderToReadableStream(app, {
             react: React,
             moduleResolver: makeModuleResolver(
@@ -1418,6 +1504,7 @@ export async function render(Component, props = {}, options = {}) {
             bootstrapScripts: [],
             outlet,
             defer: context.request.headers.get("react-server-defer") === "true",
+            hydrationIslandState,
             start: async () => {
               isStarted = true;
               // Read the stream via streamReady (resolved below after

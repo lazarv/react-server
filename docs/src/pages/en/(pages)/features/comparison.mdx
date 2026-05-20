@@ -27,13 +27,14 @@ This comparison summarizes the feature set described in the documentation. It fo
 
 |  | @lazarv/react-server | Next.js | TanStack Start | React Router | Waku |
 |--|:---:|:---:|:---:|:---:|:---:|
-| React Server Components | ✅ | ✅ | 🛑 | 🟡 | ✅ |
+| React Server Components | ✅ | ✅ | 🟡 | 🟡 | ✅ |
 | Server Functions (actions) | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Server Function Defense Layer | ✅ <br/> *encrypted refs + hardened decoder* | 🟡 <br/> *IDs/origin/body cap* | 🟡 <br/> *CSRF + validators* | 🔶 <br/> *route action model* | 🔶 <br/> *auth/userland* |
 | SSR | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Streaming SSR | ✅ | ✅ | ✅ | ✅ | ✅ |
 | API Routes | ✅ | ✅ | ✅ | ✅ | ✅ |
 | API / Route Middleware | ✅ | ✅ | ✅ | ✅ | 🟡 |
-| Server Function Middleware | 🟡 | 🛑 | ✅ | 🛑 | 🛑 |
+| Server Function Middleware | 🔶 <br/> *not first-class* | 🛑 | ✅ <br/> *client/server chain* | 🔶 <br/> *not first-class* | 🛑 |
 | Static Site Generation | ✅ | ✅ | 🟡 | 🟡 | ✅ |
 | Partial Pre-rendering (PPR) | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
 | Response Caching (TTL) | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
@@ -49,6 +50,9 @@ This comparison summarizes the feature set described in the documentation. It fo
 |--|:---:|:---:|:---:|:---:|:---:|
 | Open Runtime (no vendor lock-in) | ✅ | 🟡 <br/> *optimized for Vercel* | ✅ | ✅ | ✅ |
 | Vite-based | ✅ | 🛑 | ✅ | ✅ | ✅ |
+| Production HTTP Layer | ✅ <br/> *backpressure + security* | 🟡 <br/> *platform-managed* | 🔶 <br/> *host/adapter* | 🔶 <br/> *host/adapter* | 🔶 <br/> *host/adapter* |
+| Observability | ✅ <br/> *OTel traces + metrics* | ✅ <br/> *OTel spans* | 🟡 <br/> *manual/experimental* | 🟡 <br/> *instrumentation API* | 🔶 <br/> *userland* |
+| Hydration Islands | ✅ | 🛑 | 🟡 <br/> *deferred tree only* | 🛑 | 🛑 |
 | Multiple Deploy Targets | ✅ | 🟡 | ✅ | ✅ | ✅ |
 | Micro-frontend / Remote Components | ✅ | 🔶 | 🛑 | 🛑 | 🛑 |
 | MCP Server Integration | ✅ | 🛑 | 🛑 | 🛑 | 🛑 |
@@ -158,9 +162,9 @@ This comparison summarizes the feature set described in the documentation. It fo
 | Virtual Routes Module | ✅ | 🛑 | 🟡 | 🟡 | 🛑 |
 | Route-scoped Loading / Error / Fallback Files | ✅ | ✅ | 🛑 | 🛑 | 🛑 |
 | Devtools | ✅ | 🛑 | ✅ <br/> *router only* | 🟡 | 🛑 |
-| Route Masking | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
+| Route Masking | 🔶 <br/> *URL identity model* | 🛑 | ✅ | 🛑 | 🛑 |
 | Route-level Typed Dependencies | ✅ <br/> *Typesafe resources* | 🛑 | ✅ <br/> *Typesafe route context + loaders* | 🛑 | 🛑 |
-| Route Mount / Unmount Events | 🛑 | 🛑 | ✅ | 🛑 | 🛑 |
+| Route Lifecycle Hooks | 🔶 <br/> *guards + React lifecycle* | 🛑 | ✅ | 🛑 | 🛑 |
 
 <Link name="notes">
 ## Notes
@@ -168,13 +172,96 @@ This comparison summarizes the feature set described in the documentation. It fo
 
 `@lazarv/react-server` is a full React Server Components runtime — not just a router. The routing system is deeply integrated with RSC streaming, server functions, and the Vite build pipeline. This means features like typed routes, client-only routes, and server-side validation work end-to-end without glue code.
 
+<Link name="key-architectural-differences">
 ### Key architectural differences
+</Link>
 
-- **RSC-native**: Unlike routers that bolt RSC support on top, `@lazarv/react-server` was built from the ground up for React Server Components. Every route can mix server and client components freely.
-- **Client-only routes**: Pages with `"use client"` in the file-system router are automatically client-only — navigation skips the server entirely. No configuration needed, and component state is preserved across navigations via React's `<Activity>` component.
-- **Schema-agnostic validation**: Route params and search params can be validated with any schema library (Zod, ArkType, Valibot) or lightweight parse functions — the runtime detects the validation strategy automatically.
-- **RSC + typed resources**: `@lazarv/react-server` offers two complementary data-fetching approaches: React Server Components with `async/await` (RSC as loaders), and **typed resources** — schema-validated, reference-identified data descriptors with `.use()` (suspense), `.query()` (imperative), `.prefetch()`, and `.invalidate()`. Resources use `"use cache"` as the caching runtime — no custom cache layer, no SWR boilerplate. Route-resource bindings enable parallel prefetching on navigation.
-- **Route-level dependencies**: TanStack Router exposes route context as a first-class typed primitive for passing dependencies (auth, DB clients, etc.) down the route tree. `@lazarv/react-server` models the same problem space through typed resources, request context, and native modules — there is no separate route-context bag because resources already carry schema-validated, route-scoped data with full type safety.
-- **Built-in devtools**: `@lazarv/react-server` ships with integrated devtools (`--devtools`) that go beyond route inspection — they cover RSC payload, cache entries, routes, outlets, remote components, live components, workers, and server logs in a single panel. TanStack Router provides excellent router-focused devtools, but `@lazarv/react-server`'s devtools cover the full server component runtime.
-- **Outlets vs. parallel routes**: `@lazarv/react-server` uses named outlets (`@sidebar`, `@content`) rendered as typed props to layouts. This is functionally similar to Next.js parallel routes but with stronger typing — each outlet is a branded React element that prevents accidentally swapping outlets.
-- **Waku**: Waku is another RSC-native framework built on Vite, but takes a deliberately minimal approach. It provides basic file-based routing with layouts and RSC support, but lacks the typed routing system, search param handling, scroll restoration, middleware, and most advanced routing features. Waku's `Link` component supports basic `scroll` and `prefetchOnEnter`/`prefetchOnView` props, but most of its router API is still marked as `unstable_`. Waku is a good choice for simple RSC applications that don't need advanced routing.
+<Link name="rsc-native-runtime">
+#### RSC-native runtime
+</Link>
+
+Unlike routers that bolt RSC support on top, `@lazarv/react-server` was built from the ground up for React Server Components. Every route can mix server and client components freely.
+
+<Link name="production-http-runtime">
+#### Production HTTP runtime
+</Link>
+
+`@lazarv/react-server` ships a production runtime with keep-alive and timeout tuning, admission control, adaptive ELU-based backpressure, request/body and multipart limits, CSRF origin validation for action POSTs, health/readiness endpoints, and graceful shutdown. In many other React stacks, these concerns are delegated to the hosting platform, custom server, reverse proxy, or adapter rather than exposed as a first-class runtime layer.
+
+<Link name="server-function-defense-layer">
+#### Server function defense layer
+</Link>
+
+`@lazarv/react-server` treats server function invocation as hostile input before application code runs. Server function references are encrypted with AES-256-GCM capability tokens, support key rotation, and are decoded through configurable resource ceilings (`maxRows`, `maxDepth`, `maxBytes`, string/BigInt/stream limits) plus structural defenses against prototype pollution, forbidden path walks, hostile thenables, and forged callables. Next.js has meaningful Server Action defenses such as secure IDs, origin checks, closure encryption, and a body-size cap; TanStack Start has CSRF middleware and validators. The distinctive `react-server` behavior is the combined capability-token and hardened RSC reply-decoder layer as a first-class runtime boundary.
+
+<Link name="server-function-middleware-model">
+#### Server function middleware model
+</Link>
+
+TanStack Start has the most direct server-function middleware model in this comparison: function middleware can wrap server functions with client-side logic, server-side logic, input validation, composition, and global registration. `@lazarv/react-server` does not currently expose a first-class TanStack-style per-function middleware chain. Its request middleware runs before server function dispatch and can short-circuit or annotate the request, while `createFunction` provides protocol-level per-argument parse/validate contracts before the handler runs. Cross-cutting per-function policy can still be composed with userland wrappers, but the first-class runtime primitive is the request middleware plus contract/decoder boundary, not a client/server function middleware pipeline. React Router middleware wraps route `action`/`loader` requests, which is useful but tied to the route action model rather than arbitrary RPC server functions, so it is also not first-class support for this specific row.
+
+<Link name="observability-runtime">
+#### Observability runtime
+</Link>
+
+`@lazarv/react-server` has built-in OpenTelemetry integration that can automatically instrument HTTP requests, middleware, RSC/SSR rendering, server functions, cache lookups, server startup, and Vite dev hooks, plus built-in request, render, server function, and cache metrics. Telemetry dependencies are optional and lazy-loaded, so disabled telemetry resolves to no-op instrumentation. Next.js also has official OpenTelemetry instrumentation and framework spans. React Router exposes first-class instrumentation wrappers that apps wire into logging or tracing. TanStack Start documents observability patterns and manual/experimental OpenTelemetry setup, while Waku leaves this mostly to userland or the host platform.
+
+<Link name="client-only-routes">
+#### Client-only routes
+</Link>
+
+Pages with `"use client"` in the file-system router are automatically client-only — navigation skips the server entirely. No configuration needed, and component state is preserved across navigations via React's `<Activity>` component.
+
+<Link name="schema-agnostic-validation">
+#### Schema-agnostic validation
+</Link>
+
+Route params and search params can be validated with any schema library (Zod, ArkType, Valibot) or lightweight parse functions — the runtime detects the validation strategy automatically.
+
+<Link name="rsc-typed-resources">
+#### RSC + typed resources
+</Link>
+
+`@lazarv/react-server` offers two complementary data-fetching approaches: React Server Components with `async/await` (RSC as loaders), and **typed resources** — schema-validated, reference-identified data descriptors with `.use()` (suspense), `.query()` (imperative), `.prefetch()`, and `.invalidate()`. Resources use `"use cache"` as the caching runtime — no custom cache layer, no SWR boilerplate. Route-resource bindings enable parallel prefetching on navigation.
+
+<Link name="route-level-dependencies">
+#### Route-level dependencies
+</Link>
+
+TanStack Router exposes route context as a first-class typed primitive for passing dependencies (auth, DB clients, etc.) down the route tree. `@lazarv/react-server` models the same problem space through typed resources, request context, and native modules — there is no separate route-context bag because resources already carry schema-validated, route-scoped data with full type safety.
+
+<Link name="built-in-devtools">
+#### Built-in devtools
+</Link>
+
+`@lazarv/react-server` ships with integrated devtools (`--devtools`) that go beyond route inspection — they cover RSC payload, cache entries, routes, outlets, remote components, live components, workers, and server logs in a single panel. TanStack Router provides excellent router-focused devtools, but `@lazarv/react-server`'s devtools cover the full server component runtime.
+
+<Link name="outlets-vs-parallel-routes">
+#### Outlets vs. parallel routes
+</Link>
+
+`@lazarv/react-server` uses named outlets (`@sidebar`, `@content`) rendered as typed props to layouts. This is functionally similar to Next.js parallel routes but with stronger typing — each outlet is a branded React element that prevents accidentally swapping outlets.
+
+<Link name="route-identity-over-masking">
+#### Route identity over route masking
+</Link>
+
+`@lazarv/react-server` intentionally does not support TanStack-style route masking. The visible browser URL, server request URL, matched route tree, RSC payload, route validation, resources, cache keys, outlets, and devtools state are expected to describe the same navigation state. Use rewrites, redirects, route groups, outlets, or search params when a URL needs a different presentation, without creating hidden client-only route identity.
+
+<Link name="route-lifecycle-model">
+#### Route lifecycle model
+</Link>
+
+`@lazarv/react-server` exposes navigation guards (`useNavigationGuard`, `registerNavigationGuard`) for client-side page-root navigation decisions, including back/forward and optional `beforeUnload` handling. Internally, route guard/registration components manage route registration, active visibility, route resources, loading skeletons, and `Activity`-based preservation. User effects should live in React effects, resources, middleware, server functions, or cache invalidation rather than router-object mount/unmount callbacks.
+
+<Link name="hydration-islands-vs-deferred-hydration">
+#### Hydration islands vs. deferred hydration
+</Link>
+
+`@lazarv/react-server` hydration islands are initial-rendering boundaries that render server HTML immediately, store request-scoped island hydration data, and later hydrate as independent local outlets. This can work without a hydrated `PAGE_ROOT`. TanStack Start has deferred hydration-style behavior for suspended React subtrees, but that subtree still lives inside the page's React tree rather than becoming a separate island outlet with its own RSC payload. Astro is the closest architectural match outside this React/RSC comparison: it has a real island architecture for component-level hydration, but it is not an RSC local-outlet model. Other React frameworks can lazy-load client components or defer JavaScript in userland, but they do not provide this local-outlet island model as a first-class feature.
+
+<Link name="waku-minimal-rsc">
+#### Waku
+</Link>
+
+Waku is another RSC-native framework built on Vite, but takes a deliberately minimal approach. It provides basic file-based routing with layouts and RSC support, but lacks the typed routing system, search param handling, scroll restoration, middleware, and most advanced routing features. Waku's `Link` component supports basic `scroll` and `prefetchOnEnter`/`prefetchOnView` props, but most of its router API is still marked as `unstable_`. Waku is a good choice for simple RSC applications that don't need advanced routing.

@@ -12,7 +12,7 @@ Integration tests that verify `create-react-server` works correctly across all r
 
 ### Runtimes
 - **Node.js** (`node`) — runs on `node:20`
-- **Bun** (`bun`) — runs on `oven/bun:latest` with Node.js 20 (Node.js is used for `npm install` and tooling; Bun is used at runtime)
+- **Bun** (`bun`) — runs on a pinned `oven/bun` image with Node.js 20 copied from the official Node image (Node.js is used for `npm install` and tooling; Bun is used at runtime)
 - **Deno** (`deno`) — runs on `node:20` with Deno installed
 
 ### Presets
@@ -84,7 +84,7 @@ pnpm clean
 3. **Run container** — for each (runtime × package manager × preset) combination, a Docker container runs with `--network=host`:
    - Creates a new app via `create-react-server` CLI (non-interactive, using `script -qec` for PTY allocation)
    - Patches `package.json` to use the local tarball as the `@lazarv/react-server` dependency
-   - Installs dependencies via `npm install`
+   - Installs dependencies via the selected package manager (`npm`, `pnpm`, or `bun`)
    - Tests **dev**: starts the dev server with `script -qec` for PTY (required by react-server's `isTTY` check), waits for HTTP 2xx/3xx
    - Tests **build**: runs `npm run build`, checks exit code
    - Tests **start**: runs `npm start`, waits for HTTP 2xx/3xx
@@ -107,7 +107,7 @@ test/
 │   ├── utils.mjs             # Test helpers (pack, build image, run container)
 │   └── __snapshots__/        # Vitest snapshots of generated files
 ├── docker/
-│   ├── Dockerfile.bun        # oven/bun:latest + Node.js 20
+│   ├── Dockerfile.bun        # pinned oven/bun + Node.js 20
 │   ├── Dockerfile.deno       # node:20 + Deno
 │   ├── Dockerfile.node       # node:20
 │   └── entrypoint.sh         # Shared test script run inside containers

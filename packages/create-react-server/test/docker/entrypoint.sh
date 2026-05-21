@@ -109,6 +109,7 @@ INSTALL_TMP=$(mktemp -d)
 cp package.json "$INSTALL_TMP/"
 [ -f package-lock.json ] && cp package-lock.json "$INSTALL_TMP/"
 [ -f pnpm-lock.yaml ] && cp pnpm-lock.yaml "$INSTALL_TMP/"
+[ -f bun.lock ] && cp bun.lock "$INSTALL_TMP/"
 [ -f bun.lockb ] && cp bun.lockb "$INSTALL_TMP/"
 cd "$INSTALL_TMP"
 case "$PKG_MGR" in

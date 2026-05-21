@@ -3,22 +3,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   buildImage,
   cleanupImages,
+  getPresetCases,
+  getTemplateFilter,
   isDockerAvailable,
   packPackages,
   runTest,
 } from "./utils.mjs";
 
-const PRESETS = [
-  "blank",
-  "blank-ts",
-  "get-started",
-  "get-started-ts",
-  "router",
-  "nextjs",
-];
-
 // Package manager to use inside the container (npm, pnpm, bun). Default: npm.
 const PKG_MGR = process.env.PKG_MGR || "npm";
+const TEMPLATE = getTemplateFilter();
 
 describe.skipIf(!isDockerAvailable())(
   `create-react-server: bun runtime (${PKG_MGR})`,
@@ -35,9 +29,11 @@ describe.skipIf(!isDockerAvailable())(
     // Run each preset sequentially — each gets its own Docker container.
     // The container runs once in beforeAll; individual test cases assert
     // each phase (creation, dev, build, start) independently.
-    describe.each(PRESETS.map((p, i) => [p, i]))(
-      "preset: %s",
-      (preset, portOffset) => {
+    for (const [preset, portOffset] of getPresetCases()) {
+      const describePreset =
+        !TEMPLATE || TEMPLATE === preset ? describe : describe.skip;
+
+      describePreset(`preset: ${preset}`, () => {
         let result;
 
         beforeAll(async () => {
@@ -70,7 +66,7 @@ describe.skipIf(!isDockerAvailable())(
         it("starts in production mode", () => {
           expect(result.startOk, "production start should work").toBe(true);
         });
-      }
-    );
+      });
+    }
   }
 );

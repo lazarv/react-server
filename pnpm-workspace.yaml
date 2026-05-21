@@ -6,7 +6,6 @@ packages:
   - "test"
 gitChecks: false
 onlyBuiltDependencies:
-  - "@nestjs/core"
   - "@parcel/watcher"
   - "@swc/core"
   - "@vercel/speed-insights"

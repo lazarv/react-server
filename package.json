@@ -83,7 +83,6 @@
       "caniuse-lite": "1.0.30001761"
     },
     "onlyBuiltDependencies": [
-      "@nestjs/core",
       "@parcel/watcher",
       "@swc/core",
       "@vercel/speed-insights",

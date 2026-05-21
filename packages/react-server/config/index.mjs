@@ -4,7 +4,6 @@ import { createRequire } from "node:module";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { watch } from "chokidar";
 import glob from "fast-glob";
 
 import { CONFIG_PARENT, CONFIG_ROOT } from "../server/symbols.mjs";
@@ -12,6 +11,7 @@ export * from "./context.mjs";
 
 import * as sys from "../lib/sys.mjs";
 import merge from "../lib/utils/merge.mjs";
+import { watch } from "../lib/utils/watch.mjs";
 
 const cwd = sys.cwd();
 const defaultConfig = {};

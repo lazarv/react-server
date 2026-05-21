@@ -66,8 +66,8 @@ pnpm test:debug
 # Force re-pack of workspace packages
 REPACK=1 pnpm test
 
-# Run a single preset (e.g. blank only)
-REPACK=1 npx vitest run --testNamePattern "blank" __test__/bun.spec.mjs
+# Run a single preset/template (e.g. blank only)
+TEMPLATE=blank pnpm test:bun
 
 # Use a different package manager inside the container (npm, pnpm, or bun for bun runtime)
 PKG_MGR=pnpm pnpm test:node
@@ -81,7 +81,7 @@ pnpm clean
 
 1. **Pack** — `@lazarv/react-server` and `@lazarv/create-react-server` are packed via `pnpm pack` into `.build/` tarballs (skipped if tarballs already exist, unless `REPACK=1`)
 2. **Build image** — a Docker image is built per runtime (`Dockerfile.node`, `Dockerfile.bun`, `Dockerfile.deno`) with the tarballs pre-installed at `/tool/node_modules/`
-3. **Run container** — for each (runtime × preset) combination, a Docker container runs with `--network=host`:
+3. **Run container** — for each (runtime × package manager × preset) combination, a Docker container runs with `--network=host`:
    - Creates a new app via `create-react-server` CLI (non-interactive, using `script -qec` for PTY allocation)
    - Patches `package.json` to use the local tarball as the `@lazarv/react-server` dependency
    - Installs dependencies via `npm install`

@@ -168,7 +168,7 @@ export default function App() {
   "vite.config.ts": "import { defineConfig } from "vite";
 
 export default defineConfig({
-  resolve: { alias: { "~/": `${process.cwd()}/src/` } },
+  resolve: { alias: { "~/": "/src/" } },
 });
 ",
 }
@@ -2681,7 +2681,7 @@ export default {
   "vite.config.ts": "import { defineConfig } from "vite";
 
 export default defineConfig({
-  resolve: { alias: { "~/": `${process.cwd()}/src/` } },
+  resolve: { alias: { "~/": "/src/" } },
 });
 ",
 }
@@ -3998,7 +3998,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  resolve: { alias: { "~/": `${process.cwd()}/src/` } },
+  resolve: { alias: { "~/": "/src/" } },
 });
 ",
 }
@@ -5476,7 +5476,7 @@ export default {
   "vite.config.ts": "import { defineConfig } from "vite";
 
 export default defineConfig({
-  resolve: { alias: { "~/": `${process.cwd()}/src/` } },
+  resolve: { alias: { "~/": "/src/" } },
 });
 ",
 }

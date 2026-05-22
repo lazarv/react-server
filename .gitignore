@@ -33,3 +33,4 @@ examples/*/dist
 .npm-cache
 junit.xml
 test-results
+.cli-eval-*

@@ -19,7 +19,7 @@ import {
 } from "@lazarv/react-server/server/symbols.mjs";
 import { getRuntime } from "@lazarv/react-server/server/runtime.mjs";
 import { initStoreEntry, setVirtualModuleContent } from "../resources.mjs";
-import { watch } from "chokidar";
+import { watch } from "../../utils/watch.mjs";
 import glob from "fast-glob";
 import micromatch from "micromatch";
 import colors from "picocolors";

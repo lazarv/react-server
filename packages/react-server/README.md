@@ -348,7 +348,6 @@ cd react-server && pnpm install
 | Chakra UI | `pnpm --filter ./examples/chakra-ui dev --open` |
 | shadcn/ui | `pnpm --filter ./examples/shadcn dev --open` |
 | Express | `pnpm --filter ./examples/express dev` |
-| NestJS | `pnpm --filter ./examples/nestjs start:dev` |
 | Bun | `pnpm --filter ./examples/bun dev` |
 | Deno | `pnpm --filter ./examples/deno dev` |
 | Partial Pre-Rendering | `pnpm --filter ./examples/ppr dev --open` |

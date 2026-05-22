@@ -44,24 +44,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
+        runtime: [node, bun, deno]
+        pkg_mgr: [npm, pnpm, bun]
+        template: [blank, blank-ts, get-started, get-started-ts, router, nextjs]
+        exclude:
           - runtime: node
-            pkg_mgr: npm
-          - runtime: node
-            pkg_mgr: pnpm
-          - runtime: bun
-            pkg_mgr: npm
-          - runtime: bun
-            pkg_mgr: pnpm
-          - runtime: bun
             pkg_mgr: bun
           - runtime: deno
-            pkg_mgr: npm
-          - runtime: deno
-            pkg_mgr: pnpm
+            pkg_mgr: bun
       fail-fast: false
 
-    name: "Test create ${{ matrix.runtime }}/${{ matrix.pkg_mgr }} 🧪"
+    name: "Test create ${{ matrix.runtime }}/${{ matrix.pkg_mgr }}/${{ matrix.template }} 🧪"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,15 +63,15 @@ jobs:
         with:
           node_version: 20
 
-      - name: Test create-react-server (${{ matrix.runtime }}/${{ matrix.pkg_mgr }})
+      - name: Test create-react-server (${{ matrix.runtime }}/${{ matrix.pkg_mgr }}/${{ matrix.template }})
         working-directory: ./packages/create-react-server/test
-        run: PKG_MGR=${{ matrix.pkg_mgr }} pnpm test:${{ matrix.runtime }}
+        run: PKG_MGR=${{ matrix.pkg_mgr }} TEMPLATE=${{ matrix.template }} pnpm test:${{ matrix.runtime }}
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-create-${{ matrix.runtime }}-${{ matrix.pkg_mgr }}
+          name: test-results-create-${{ matrix.runtime }}-${{ matrix.pkg_mgr }}-${{ matrix.template }}
           path: packages/create-react-server/test/test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
@@ -89,7 +82,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: packages/create-react-server/test/test-results/junit.xml
-          flags: create-${{ matrix.runtime }}-${{ matrix.pkg_mgr }}
+          flags: create-${{ matrix.runtime }}-${{ matrix.pkg_mgr }}-${{ matrix.template }}
           report_type: test_results
 
   test-results:

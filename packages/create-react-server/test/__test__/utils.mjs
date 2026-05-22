@@ -23,6 +23,31 @@ const PNPM_CACHE_DIR = resolve(__dirname, "../.pnpm-store");
 // Persistent bun cache shared across bun container runs
 const BUN_CACHE_DIR = resolve(__dirname, "../.bun-cache");
 
+export const PRESETS = [
+  "blank",
+  "blank-ts",
+  "get-started",
+  "get-started-ts",
+  "router",
+  "nextjs",
+];
+
+export function getPresetCases() {
+  return PRESETS.map((preset, index) => [preset, index]);
+}
+
+export function getTemplateFilter() {
+  const template = process.env.TEMPLATE || process.env.PRESET;
+
+  if (template && !PRESETS.includes(template)) {
+    throw new Error(
+      `Unknown create-react-server template "${template}". Expected one of: ${PRESETS.join(", ")}`
+    );
+  }
+
+  return template;
+}
+
 /**
  * Recursively collect files from a directory.
  * Returns a sorted object mapping relative paths to file contents.

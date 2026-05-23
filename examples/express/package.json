@@ -15,10 +15,10 @@
   },
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
-    "express": "^4.19.2",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
-    "systeminformation": "^5.27.1"
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "systeminformation": "^5.31.6"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",

@@ -28,14 +28,10 @@ import { beforeAll, describe, expect, test } from "vitest";
 
 // `host` matches the literal hostname used by the corresponding
 // `with { type: "remote" }` import in `examples/remote/index.jsx` so
-// the smoke test exercises the exact origin the host will fetch — not
-// just "anything bound on this port". The remote.jsx import is the
-// only one that uses IPv6 (`[::1]`); the example's dev:remote script
-// matches by passing `--host ::1`. In aux/build-start mode we bind
-// dual-stack (`::`), so `[::1]` should resolve too — this smoke test
-// is what proves it.
+// the smoke test exercises the exact origin the host will fetch, not
+// just "anything bound on this port".
 const REMOTE_ENTRIES = [
-  { name: "remote", entry: "./remote.jsx", port: 3001, host: "[::1]" },
+  { name: "remote", entry: "./remote.jsx", port: 3001, host: "localhost" },
   { name: "static", entry: "./static.jsx", port: 3002, host: "localhost" },
   {
     name: "streaming",
@@ -81,19 +77,8 @@ describe.skipIf(isEdge || isCI)("remote example", () => {
     // failures map directly to a single misbehaving entry, so a port clash
     // surfaces clearly in the test log.
     //
-    // For the IPv6 entry (`remote.jsx` on 3001), bind `::1` explicitly to
-    // mirror the example's `dev:remote` script (`--host ::1`). The host's
-    // import literal is `http://[::1]:3001` — that URL must hit the aux
-    // directly, not via the dual-stack default which has proven flaky for
-    // IPv6 traffic in this combo.
     await Promise.all(
-      REMOTE_ENTRIES.map(({ entry, port, host }) =>
-        auxServer(entry, {
-          cwd,
-          port,
-          ...(host === "[::1]" ? { host: "::1" } : {}),
-        })
-      )
+      REMOTE_ENTRIES.map(({ entry, port }) => auxServer(entry, { cwd, port }))
     );
 
     // Readiness probe: `auxServer()` resolves on the http server's

@@ -14,14 +14,41 @@ const algolia = {
 };
 
 let algoliaClient;
-let stdin;
+let initialized = false;
+
+export function getInitialSearchInput(input, key) {
+  if (typeof input !== "string" || input.length === 0) return "";
+  if (key?.ctrl || key?.meta) return "";
+  for (const char of input) {
+    const code = char.codePointAt(0);
+    if (code <= 0x1f || code === 0x7f) return "";
+  }
+  return input;
+}
+
+export function writeInitialSearchInput(input, value) {
+  if (!value) return;
+
+  setImmediate(() => {
+    if (!input.destroyed) {
+      input.write(value);
+    }
+  });
+}
+
+export function restoreCommandInput(input) {
+  if (input.destroyed) return;
+
+  if (input.isTTY && typeof input.setRawMode === "function") {
+    input.setRawMode(true);
+  }
+  input.resume();
+}
+
 export async function command({ logger, server, resolvedUrls, restartServer }) {
   if (!process.stdin.isTTY) return;
 
-  if (!stdin) {
-    stdin = new PassThrough();
-    process.stdin.pipe(stdin);
-
+  if (!initialized) {
     // catch SIGINT and exit
     process.stdin.on("data", (key) => {
       if (key == "\u0003") {
@@ -33,6 +60,7 @@ export async function command({ logger, server, resolvedUrls, restartServer }) {
     process.stdin.setRawMode(true);
 
     algoliaClient = algoliasearch(algolia.appId, algolia.apiKey);
+    initialized = true;
   }
 
   const controller = new AbortController();
@@ -87,12 +115,15 @@ export async function command({ logger, server, resolvedUrls, restartServer }) {
   });
   let activeCommand = false;
   let searchCommands = {};
-  const command = async () => {
+  const command = async (input, key) => {
     if (activeCommand) return;
+    const stdin = new PassThrough();
+    let restart = false;
     try {
       activeCommand = true;
+      process.stdin.pipe(stdin);
 
-      const answer = await search(
+      const answerPromise = search(
         {
           message: "",
           theme: {
@@ -182,6 +213,9 @@ export async function command({ logger, server, resolvedUrls, restartServer }) {
           signal: controller.signal,
         }
       );
+      writeInitialSearchInput(stdin, getInitialSearchInput(input, key));
+
+      const answer = await answerPromise;
 
       const selectedCommand =
         availableCommands[answer] ?? searchCommands[answer];
@@ -193,15 +227,21 @@ export async function command({ logger, server, resolvedUrls, restartServer }) {
         }
       }
       if (controller.signal.aborted) {
-        restartServer();
-      } else {
-        process.stdin.once("keypress", command);
+        restart = true;
       }
     } catch {
       // prompt was cancelled
     } finally {
+      process.stdin.unpipe(stdin);
+      stdin.destroy();
+      restoreCommandInput(process.stdin);
       process.stdout.removeAllListeners();
       activeCommand = false;
+      if (restart) {
+        restartServer();
+      } else {
+        process.stdin.once("keypress", command);
+      }
     }
   };
 

@@ -13,8 +13,8 @@
   "dependencies": {
     "@lazarv/react-server": "workspace:^",
     "localforage": "^1.10.0",
-    "match-sorter": "^6.3.4",
-    "react-router-dom": "^6.23.1",
+    "match-sorter": "^8.3.0",
+    "react-router-dom": "^6.30.2",
     "sort-by": "^1.2.0"
   }
 }

@@ -1,4 +1,4 @@
-import Remote from "http://[::1]:3001" with { type: "remote" };
+import Remote from "http://localhost:3001" with { type: "remote" };
 import Static from "http://localhost:3002" with { type: "remote" };
 import Streaming from "http://localhost:3003" with { type: "remote" };
 import Live from "http://localhost:3004" with { type: "remote" };

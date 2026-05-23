@@ -46,9 +46,9 @@
   "devDependencies": {
     "@vitest/coverage-istanbul": "^5.0.0-beta.2",
     "@vitest/coverage-v8": "^5.0.0-beta.2",
-    "react": "0.0.0-experimental-ab18f33d-20260220",
-    "react-dom": "0.0.0-experimental-ab18f33d-20260220",
-    "react-server-dom-webpack": "0.0.0-experimental-ab18f33d-20260220",
+    "react": "0.0.0-experimental-561ed529-20260423",
+    "react-dom": "0.0.0-experimental-561ed529-20260423",
+    "react-server-dom-webpack": "0.0.0-experimental-561ed529-20260423",
     "vitest": "^5.0.0-beta.2"
   },
   "peerDependencies": {

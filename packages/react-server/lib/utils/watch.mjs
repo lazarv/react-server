@@ -52,7 +52,9 @@ function globRoot(pattern) {
 }
 
 function compactRoots(roots) {
-  const sorted = Array.from(new Set(roots)).toSorted((a, b) => a.length - b.length);
+  const sorted = Array.from(new Set(roots)).toSorted(
+    (a, b) => a.length - b.length
+  );
   const compacted = [];
 
   for (const root of sorted) {

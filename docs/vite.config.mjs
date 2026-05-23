@@ -1,10 +1,10 @@
-import { paraglide } from "@inlang/paraglide-vite";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import svgr from "vite-plugin-svgr";
 
 export default {
   plugins: [
     svgr(),
-    paraglide({
+    paraglideVitePlugin({
       project: "./project.inlang",
       outdir: "./src/paraglide",
     }),

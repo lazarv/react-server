@@ -275,8 +275,9 @@ describe("mantine", { sequential: true }, () => {
       const confirmModal = await page.locator("section[role='dialog']");
       expect(await confirmModal.isVisible()).toBe(true);
 
-      const confirmModalClose = await page.getByRole("button", {
+      const confirmModalClose = await confirmModal.getByRole("button", {
         name: "Confirm",
+        exact: true,
       });
       await confirmModalClose.click();
 

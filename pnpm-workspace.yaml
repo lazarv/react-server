@@ -4,6 +4,12 @@ packages:
   - "examples/*"
   - "docs"
   - "test"
+allowBuilds:
+  "@parcel/watcher": true
+  better-sqlite3: true
+  playwright-chromium: true
+  protobufjs: true
+  simple-git-hooks: true
 gitChecks: false
 onlyBuiltDependencies:
   - "@parcel/watcher"
@@ -13,3 +19,11 @@ onlyBuiltDependencies:
   - esbuild
   - playwright-chromium
   - simple-git-hooks
+overrides:
+  "object-path": "0.11.8"
+  "ws": "8.20.1"
+peerDependencyRules:
+  allowedVersions:
+    "react": ">=19.0.0 <20.0.0"
+    "react-dom": ">=19.0.0 <20.0.0"
+    "vite": ">=8.0.0 <9.0.0"

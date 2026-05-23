@@ -1,6 +1,7 @@
 import {
   appDir,
   hostname,
+  logs,
   page,
   server,
   waitForHydration,
@@ -13,5 +14,8 @@ test("tanstack-router load", async () => {
   await page.waitForLoadState("networkidle");
   await waitForHydration();
 
-  expect(await page.textContent("body")).toContain("TanStack Router");
+  expect(await page.textContent("body")).toContain("Welcome Home!");
+  expect(logs.join("\n")).not.toContain("Hydration failed");
+  expect(logs.join("\n")).not.toContain("reading 'firstId'");
+  expect(logs.join("\n")).not.toContain("@tanstack/router-devtools");
 });

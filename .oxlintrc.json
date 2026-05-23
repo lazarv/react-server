@@ -26,7 +26,6 @@
     "no-useless-constructor": "error",
     "no-unassigned-vars": "error",
     "preserve-caught-error": "error",
-    "react/prop-types": "off",
     "react/react-in-jsx-scope": "off",
     "react-hooks/exhaustive-deps": "error",
     "unicorn/consistent-function-scoping": "off",
@@ -43,7 +42,16 @@
       }
     ],
     "typescript/no-explicit-any": "off",
-    "typescript/explicit-module-boundary-types": "off"
+    "typescript/explicit-module-boundary-types": "off",
+    "no-underscore-dangle": "off",
+    "no-shadow": "off",
+    "no-static-element-interactions": "off",
+    "control-has-associated-label": "off",
+    "no-unstable-nested-components": "off",
+    "no-unmodified-loop-condition": "off",
+    "no-did-update-set-state": "off",
+    "prefer-tag-over-role": "off",
+    "const-comparisons": "off"
   },
   "settings": {
     "react": {

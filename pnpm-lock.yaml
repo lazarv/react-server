@@ -946,8 +946,8 @@ importers:
   packages/create-react-server/test:
     devDependencies:
       vitest:
-        specifier: 5.0.0-beta.2
-        version: 5.0.0-beta.2(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
+        specifier: 5.0.0-beta.3
+        version: 5.0.0-beta.3(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
 
   packages/react-server:
     dependencies:
@@ -1145,11 +1145,11 @@ importers:
   packages/rsc:
     devDependencies:
       '@vitest/coverage-istanbul':
-        specifier: ^5.0.0-beta.2
-        version: 5.0.0-beta.3(vitest@5.0.0-beta.2)
+        specifier: ^5.0.0-beta.3
+        version: 5.0.0-beta.3(vitest@5.0.0-beta.3)
       '@vitest/coverage-v8':
-        specifier: ^5.0.0-beta.2
-        version: 5.0.0-beta.3(vitest@5.0.0-beta.2)
+        specifier: ^5.0.0-beta.3
+        version: 5.0.0-beta.3(vitest@5.0.0-beta.3)
       react:
         specifier: 0.0.0-experimental-561ed529-20260423
         version: 0.0.0-experimental-561ed529-20260423
@@ -1160,8 +1160,8 @@ importers:
         specifier: 0.0.0-experimental-561ed529-20260423
         version: 0.0.0-experimental-561ed529-20260423(react-dom@0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423))(react@0.0.0-experimental-561ed529-20260423)(webpack@5.107.1(postcss@8.5.15))
       vitest:
-        specifier: ^5.0.0-beta.2
-        version: 5.0.0-beta.2(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
+        specifier: ^5.0.0-beta.3
+        version: 5.0.0-beta.3(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
 
   test:
     dependencies:
@@ -1194,8 +1194,8 @@ importers:
         specifier: ^1.53.1
         version: 1.60.0
       '@vitest/ui':
-        specifier: ^5.0.0-beta.2
-        version: 5.0.0-beta.3(vitest@5.0.0-beta.2)
+        specifier: ^5.0.0-beta.3
+        version: 5.0.0-beta.3(vitest@5.0.0-beta.3)
       npm-run-all2:
         specifier: ^8.0.4
         version: 8.0.4
@@ -1203,8 +1203,8 @@ importers:
         specifier: ^1.53.1
         version: 1.60.0
       vitest:
-        specifier: ^5.0.0-beta.2
-        version: 5.0.0-beta.2(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
+        specifier: ^5.0.0-beta.3
+        version: 5.0.0-beta.3(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
 
 packages:
 
@@ -4031,18 +4031,6 @@ packages:
       csstype:
         optional: true
 
-  '@tanstack/router-devtools@1.167.0':
-    resolution: {integrity: sha512-NwHy3SNoEgGraWtOstykkBPCTv7QRWBuPH49ww3prsyzQWXSSb7/2Jp7HHndpDrAIn0XNCCaxho90+6RFLSpUA==}
-    engines: {node: '>=20.19'}
-    peerDependencies:
-      '@tanstack/react-router': ^1.170.0
-      csstype: ^3.0.10
-      react: '>=18.0.0 || >=19.0.0'
-      react-dom: '>=18.0.0 || >=19.0.0'
-    peerDependenciesMeta:
-      csstype:
-        optional: true
-
   '@tanstack/router-generator@1.167.9':
     resolution: {integrity: sha512-B2MiJVYyI/C+5O7Hzu9owZPHuXCxKKFweUdMLToAZLg2H7iYoXYzgqAFISUBBlL8jKWugEVwNMUE3ajBGZep4w==}
     engines: {node: '>=20.19'}
@@ -4463,8 +4451,8 @@ packages:
       '@vitest/browser':
         optional: true
 
-  '@vitest/mocker@5.0.0-beta.2':
-    resolution: {integrity: sha512-MraW8T92TOcCd0MG+1gz5YeGgIGNsfiIcxuP9Azy7qcIxUwQ3zmngU1NbfvG0HRWVY++/FLsJ/xdKFsb7vZS0w==}
+  '@vitest/mocker@5.0.0-beta.3':
+    resolution: {integrity: sha512-AA7sOlwd8FORhdH2i8E2+0c4k9ldlZzoKpMuj4eSTBcGUkifK3nQ+WQFBWvshDSNI/zFji/vTFPl9hKq4d1VlA==}
     peerDependencies:
       msw: ^2.4.9
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -4474,25 +4462,19 @@ packages:
       vite:
         optional: true
 
-  '@vitest/pretty-format@5.0.0-beta.2':
-    resolution: {integrity: sha512-mMl+7McYN0g7ORBsufBB5CwpsV8e/kK/0ytiFwSWSK8181C5n0WjsxDysm9wxsNsAZ8T/EnEv0unWNa8CyOUVw==}
-
   '@vitest/pretty-format@5.0.0-beta.3':
     resolution: {integrity: sha512-A73rrDsCMXFNmPb+XjheTe63XY/vcrrLJRP0F55Cn9RTW7VYEtyPDJQJdzfPiW6Bh1uJk23sMfQQmZ9YK8HK0w==}
 
-  '@vitest/runner@5.0.0-beta.2':
-    resolution: {integrity: sha512-9FjC3DzggveiRcXXh0zP2ko4+D9W6GfrmpAlLjuCp/vr2nJSb8rGLKkyz3g072ZHbpx8XxLoPg411eVRnrPmvg==}
+  '@vitest/runner@5.0.0-beta.3':
+    resolution: {integrity: sha512-gKkFCLfLzfcdrKDPt1PtDXmxgYTgJUviSZPN4G8StvzgAhHOqDHosgqvIlzHuqr05vFoPyRr8kW6vrmO99as/g==}
 
-  '@vitest/spy@5.0.0-beta.2':
-    resolution: {integrity: sha512-P5t/CesIZSAdZ5OA2AR34JEulKoLGgy4owaO5KorzzTmld8gLBgjdUAHc0oO+YTtLOgtxkc7J57xJCVZkC/6wA==}
+  '@vitest/spy@5.0.0-beta.3':
+    resolution: {integrity: sha512-CFTr5wADFZ7XG/7XKER2A+uNIEEj0TnYIYivZTsXNWM+2LroO+zevj9idWReDVHE3UOWrmqMEpku+QIZ+xaAvQ==}
 
   '@vitest/ui@5.0.0-beta.3':
     resolution: {integrity: sha512-Mpgw0BRo73OgldtzC654pdYwUIY1IRzxyncz2NKew+sjDcj7cRGIuilEJQqHWki4IBGmqd8F0Tw584vsXUFqJA==}
     peerDependencies:
       vitest: 5.0.0-beta.3
-
-  '@vitest/utils@5.0.0-beta.2':
-    resolution: {integrity: sha512-62fiZ9rgF8x8CpI10prslir65AvUIo3Fc9dI4hOVm05sjRV1Ss65U0N832kBWq4DhmuylAJFuoWqwyX+rylu5g==}
 
   '@vitest/utils@5.0.0-beta.3':
     resolution: {integrity: sha512-BkiYRbXjO8brsB91PYgdOkyqUtBfBGM+80Z4wtb/x4EAnEehi5vG1GEfBwNNW9vhSaw8bTGEWtg0Tan4urug3g==}
@@ -7225,6 +7207,7 @@ packages:
   recharts@2.13.0-alpha.5:
     resolution: {integrity: sha512-mm8ORfDusDhyWlrY/2NntUAsNeYukteplvRqKGkBEmqNPwqYq9GoEzaVsVDYj8bjGSKJynWGhjEO1NFcntl29g==}
     engines: {node: '>=14'}
+    deprecated: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest features and bugfixes. See https://github.com/recharts/recharts/wiki/3.0-migration-guide
     peerDependencies:
       react: ^16.0.0 || ^17.0.0 || ^18.0.0
       react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0
@@ -7232,6 +7215,7 @@ packages:
   recharts@2.15.4:
     resolution: {integrity: sha512-UT/q6fwS3c1dHbXv2uFgYJ9BMFHu3fwnd7AYZaEQhXuYQ4hgsxLvsUXzGdKeZrW5xopzDCvuA2N41WJ88I7zIw==}
     engines: {node: '>=14'}
+    deprecated: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest features and bugfixes. See https://github.com/recharts/recharts/wiki/3.0-migration-guide
     peerDependencies:
       react: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -8188,23 +8172,23 @@ packages:
       yaml:
         optional: true
 
-  vitest@5.0.0-beta.2:
-    resolution: {integrity: sha512-HnM/uQfbToilHYwWW2tdaPM0GYZCdDx5Moxzgfq4wjlpF3MTUP8T7XGgXIE/S90y4BX8pLoc4xD9jqDvHbY2qA==}
-    engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
+  vitest@5.0.0-beta.3:
+    resolution: {integrity: sha512-eO2vteQm3pEdqpPg4ZB1Vb4B5gqffk8WnV3JrybzACs/urE0wgaP3KOl2ZyxPtRH8moojblKoM8TVVmrc7SNlw==}
+    engines: {node: ^22.12.0 || ^24.0.0 || >=26.0.0}
     hasBin: true
     peerDependencies:
       '@edge-runtime/vm': '*'
       '@opentelemetry/api': ^1.9.0
-      '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
-      '@vitest/browser-playwright': 5.0.0-beta.2
-      '@vitest/browser-preview': 5.0.0-beta.2
-      '@vitest/browser-webdriverio': 5.0.0-beta.2
-      '@vitest/coverage-istanbul': 5.0.0-beta.2
-      '@vitest/coverage-v8': 5.0.0-beta.2
-      '@vitest/ui': 5.0.0-beta.2
+      '@types/node': ^22.0.0 || >=24.0.0
+      '@vitest/browser-playwright': 5.0.0-beta.3
+      '@vitest/browser-preview': 5.0.0-beta.3
+      '@vitest/browser-webdriverio': 5.0.0-beta.3
+      '@vitest/coverage-istanbul': 5.0.0-beta.3
+      '@vitest/coverage-v8': 5.0.0-beta.3
+      '@vitest/ui': 5.0.0-beta.3
       happy-dom: '*'
       jsdom: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+      vite: ^6.4.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -11206,19 +11190,6 @@ snapshots:
     optionalDependencies:
       csstype: 3.2.3
 
-  '@tanstack/router-devtools@1.167.0(@tanstack/react-router@1.170.7(react-dom@0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423))(react@0.0.0-experimental-561ed529-20260423))(@tanstack/router-core@1.171.5)(csstype@3.2.3)(react-dom@0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423))(react@0.0.0-experimental-561ed529-20260423)':
-    dependencies:
-      '@tanstack/react-router': 1.170.7(react-dom@0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423))(react@0.0.0-experimental-561ed529-20260423)
-      '@tanstack/react-router-devtools': 1.167.0(@tanstack/react-router@1.170.7(react-dom@0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423))(react@0.0.0-experimental-561ed529-20260423))(@tanstack/router-core@1.171.5)(csstype@3.2.3)(react-dom@0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423))(react@0.0.0-experimental-561ed529-20260423)
-      clsx: 2.1.1
-      goober: 2.1.19(csstype@3.2.3)
-      react: 0.0.0-experimental-561ed529-20260423
-      react-dom: 0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423)
-    optionalDependencies:
-      csstype: 3.2.3
-    transitivePeerDependencies:
-      - '@tanstack/router-core'
-
   '@tanstack/router-generator@1.167.9':
     dependencies:
       '@babel/types': 7.29.0
@@ -11694,7 +11665,7 @@ snapshots:
     optionalDependencies:
       babel-plugin-react-compiler: 1.0.0
 
-  '@vitest/coverage-istanbul@5.0.0-beta.3(vitest@5.0.0-beta.2)':
+  '@vitest/coverage-istanbul@5.0.0-beta.3(vitest@5.0.0-beta.3)':
     dependencies:
       '@babel/core': 7.29.0
       '@istanbuljs/schema': 0.1.6
@@ -11706,11 +11677,11 @@ snapshots:
       magicast: 0.5.3
       obug: 2.1.1
       tinyrainbow: 3.1.0
-      vitest: 5.0.0-beta.2(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
+      vitest: 5.0.0-beta.3(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/coverage-v8@5.0.0-beta.3(vitest@5.0.0-beta.2)':
+  '@vitest/coverage-v8@5.0.0-beta.3(vitest@5.0.0-beta.3)':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
       '@vitest/utils': 5.0.0-beta.3
@@ -11722,32 +11693,28 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 5.0.0-beta.2(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
+      vitest: 5.0.0-beta.3(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
 
-  '@vitest/mocker@5.0.0-beta.2(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))':
+  '@vitest/mocker@5.0.0-beta.3(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))':
     dependencies:
-      '@vitest/spy': 5.0.0-beta.2
+      '@vitest/spy': 5.0.0-beta.3
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
       vite: 8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0)
 
-  '@vitest/pretty-format@5.0.0-beta.2':
-    dependencies:
-      tinyrainbow: 3.1.0
-
   '@vitest/pretty-format@5.0.0-beta.3':
     dependencies:
       tinyrainbow: 3.1.0
 
-  '@vitest/runner@5.0.0-beta.2':
+  '@vitest/runner@5.0.0-beta.3':
     dependencies:
-      '@vitest/utils': 5.0.0-beta.2
+      '@vitest/utils': 5.0.0-beta.3
       pathe: 2.0.3
 
-  '@vitest/spy@5.0.0-beta.2': {}
+  '@vitest/spy@5.0.0-beta.3': {}
 
-  '@vitest/ui@5.0.0-beta.3(vitest@5.0.0-beta.2)':
+  '@vitest/ui@5.0.0-beta.3(vitest@5.0.0-beta.3)':
     dependencies:
       '@vitest/utils': 5.0.0-beta.3
       fflate: 0.8.3
@@ -11756,13 +11723,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vitest: 5.0.0-beta.2(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
-
-  '@vitest/utils@5.0.0-beta.2':
-    dependencies:
-      '@vitest/pretty-format': 5.0.0-beta.2
-      convert-source-map: 2.0.0
-      tinyrainbow: 3.1.0
+      vitest: 5.0.0-beta.3(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
 
   '@vitest/utils@5.0.0-beta.3':
     dependencies:
@@ -16156,14 +16117,14 @@ snapshots:
       terser: 5.48.0
       yaml: 2.9.0
 
-  vitest@5.0.0-beta.2(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0)):
+  vitest@5.0.0-beta.3(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/coverage-istanbul@5.0.0-beta.3)(@vitest/coverage-v8@5.0.0-beta.3)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.0-beta.2(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
-      '@vitest/pretty-format': 5.0.0-beta.2
-      '@vitest/runner': 5.0.0-beta.2
-      '@vitest/spy': 5.0.0-beta.2
-      '@vitest/utils': 5.0.0-beta.2
+      '@vitest/mocker': 5.0.0-beta.3(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
+      '@vitest/pretty-format': 5.0.0-beta.3
+      '@vitest/runner': 5.0.0-beta.3
+      '@vitest/spy': 5.0.0-beta.3
+      '@vitest/utils': 5.0.0-beta.3
       chai: 6.2.2
       es-module-lexer: 2.1.0
       expect-type: 1.3.0
@@ -16181,37 +16142,9 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/node': 24.12.4
-      '@vitest/coverage-istanbul': 5.0.0-beta.3(vitest@5.0.0-beta.2)
-      '@vitest/coverage-v8': 5.0.0-beta.3(vitest@5.0.0-beta.2)
-    transitivePeerDependencies:
-      - msw
-
-  vitest@5.0.0-beta.2(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(@vitest/ui@5.0.0-beta.3)(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0)):
-    dependencies:
-      '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.0-beta.2(vite@8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0))
-      '@vitest/pretty-format': 5.0.0-beta.2
-      '@vitest/runner': 5.0.0-beta.2
-      '@vitest/spy': 5.0.0-beta.2
-      '@vitest/utils': 5.0.0-beta.2
-      chai: 6.2.2
-      es-module-lexer: 2.1.0
-      expect-type: 1.3.0
-      magic-string: 0.30.21
-      obug: 2.1.1
-      pathe: 2.0.3
-      picomatch: 4.0.4
-      std-env: 4.1.0
-      tinybench: 2.9.0
-      tinyexec: 1.1.2
-      tinyglobby: 0.2.16
-      tinyrainbow: 3.1.0
-      vite: 8.0.14(@types/node@24.12.4)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(sugarss@5.0.1(postcss@8.5.15))(terser@5.48.0)(yaml@2.9.0)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.1
-      '@types/node': 24.12.4
-      '@vitest/ui': 5.0.0-beta.3(vitest@5.0.0-beta.2)
+      '@vitest/coverage-istanbul': 5.0.0-beta.3(vitest@5.0.0-beta.3)
+      '@vitest/coverage-v8': 5.0.0-beta.3(vitest@5.0.0-beta.3)
+      '@vitest/ui': 5.0.0-beta.3(vitest@5.0.0-beta.3)
     transitivePeerDependencies:
       - msw
 

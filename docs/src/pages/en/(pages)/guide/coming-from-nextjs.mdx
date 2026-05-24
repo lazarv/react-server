@@ -1,0 +1,519 @@
+---
+title: Coming from Next.js
+category: Guide
+order: 6
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Coming from Next.js
+
+This page is for developers who already know the Next.js App Router, or who maintain older Pages Router apps, and want the mental model for `@lazarv/react-server`. It is not a migration checklist and it does not try to translate every file one by one. The goal is to explain which ideas stay familiar, which ones are intentionally different, and where a Next.js-specific feature maps to a `@lazarv/react-server` primitive or to userland code.
+
+The Next.js side of this comparison targets the Next.js 16 App Router docs, especially the [project structure](https://nextjs.org/docs/app/getting-started/project-structure), [layouts and pages](https://nextjs.org/docs/app/getting-started/layouts-and-pages), [Server and Client Components](https://nextjs.org/docs/app/getting-started/server-and-client-components), [fetching data](https://nextjs.org/docs/app/getting-started/fetching-data), [caching](https://nextjs.org/docs/app/getting-started/caching), [revalidating](https://nextjs.org/docs/app/getting-started/revalidating), [Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers), [Proxy](https://nextjs.org/docs/app/getting-started/proxy), [metadata](https://nextjs.org/docs/app/getting-started/metadata-and-og-images), and [deploying](https://nextjs.org/docs/app/getting-started/deploying) pages. For Pages Router context, it also references [Pages Router](https://nextjs.org/docs/pages), [`getServerSideProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props), [Pages Router SSR](https://nextjs.org/docs/pages/building-your-application/rendering/server-side-rendering), and [large page data](https://nextjs.org/docs/messages/large-page-data).
+
+<Link name="short-version">
+## Short Version
+</Link>
+
+Next.js is a full React framework with its own routing APIs, compiler integration, optimized components, cache model, metadata conventions, platform integrations, and `next/*` modules. `@lazarv/react-server` is a React Server Components runtime built on Vite. It gives you RSC rendering, streaming SSR, server functions, routing, caching, HTTP helpers, deployment adapters, and production runtime features, but it does not implement the `next/*` API surface.
+
+If a dependency imports `next/navigation`, `next/cache`, `next/server`, `next/image`, `next/font`, `next/script`, or Next's Metadata API, treat that code as Next.js-specific. In `@lazarv/react-server`, you use React, Web Platform APIs, Vite plugins, and the runtime's own modules instead.
+
+The most important shift is ownership. In Next.js, many behaviors are framework conventions. In `@lazarv/react-server`, the same category is usually a runtime primitive:
+
+| Area | Next.js App Router | `@lazarv/react-server` |
+|---|---|---|
+| Framework shape | Full-stack React framework | RSC runtime and server |
+| Build system | Next compiler, Turbopack/Webpack integration | Vite Environment API and Vite plugins |
+| App structure | `app` directory by convention | Any router root; default `src/pages`, configurable to `src/app` |
+| Routing | File-system App Router | File router plus code-based typed router |
+| Type safety | Route path typing and helper types in specific places | Typed route descriptors, typed links, typed params, typed search params, runtime validation |
+| Data loading | Server Components, `fetch`, ORM/database calls, Cache Components | Server Components, typed resources, `fetch`, ORM/database calls, `"use cache"` |
+| Mutations | Server Functions / Server Actions | Server Functions with encrypted references and hardened decoding |
+| Middleware | Project-level `proxy.ts` in Next.js 16 | Segment-scoped `*.middleware.*` files and config handlers |
+| APIs | `route.ts` Route Handlers | `*.server.*` API routes and method-prefixed route files |
+| Deployment | Node, Docker, static export, adapters, Vercel-optimized hosting | Node, Bun, Deno, edge/serverless adapters, Docker, static export |
+
+<Link name="use-next-compatible-routing">
+## Next-Compatible Routing Shape
+</Link>
+
+The file-system router can be configured to look like a Next.js App Router project. This is useful when you like the `src/app/page.tsx` and `src/app/layout.tsx` shape, or when you want to move shared React components between projects.
+
+```json filename="react-server.config.json"
+{
+  "root": "src/app",
+  "layout": {
+    "include": ["**/layout.tsx"]
+  },
+  "page": {
+    "include": ["**/page.tsx"]
+  }
+}
+```
+
+That configuration makes the route files familiar, but it does not make the app a Next.js app. Next.js modules and Next.js-only exports still do not become portable. The compatible part is the filesystem shape: pages, layouts, nested routes, dynamic segments, route groups, parallel route-like outlets, loading states, and error boundaries.
+
+<Link name="topic-map">
+## Topic Map
+</Link>
+
+| In a Next.js app | In `@lazarv/react-server` | What is essentially different |
+|---|---|---|
+| `app/page.tsx` | `page.tsx`, `index.tsx`, or any included page file | Pages are server components by default. File names are configurable, and named route files are allowed unless you restrict the include patterns. |
+| `app/layout.tsx` | `layout.tsx` | Layouts wrap child routes. `@lazarv/react-server` also generates typed layout helpers through `@lazarv/react-server/routes`. |
+| Dynamic routes like `[id]` | Dynamic files/directories like `[id].page.tsx` or `[id]/page.tsx` | Params are passed as props and can be validated/coerced with schemas. |
+| Catch-all routes | `[...slug]` and `[[...slug]]` | Catch-all params are arrays, and matcher aliases can decide whether a route matches before page code loads. |
+| Route groups `(group)` | Transparent route segments `(group)` | Same URL idea, with typed route generation based on the final route shape. |
+| Parallel routes `@slot` | Named outlets such as `@sidebar` | Outlets are rendered as layout props and get branded types in generated route modules. |
+| Intercepting routes | No direct Next.js intercepting-route convention | Model this with route structure, outlets, search params, local outlet navigation, or rewrites. |
+| `loading.tsx` | `loading.page.tsx` / loading route files | Loading state is tied to the route/layout boundary in the file router. |
+| `error.tsx` / global errors | `error.jsx`, `fallback.jsx`, `react-server.error.jsx` | Error boundaries can be server or client components. Global server errors cannot be reset without a refresh. |
+| `not-found.tsx`, `forbidden.tsx`, `unauthorized.tsx` | Fallback routes, error routes, middleware, `status()` | There is no Next-specific special-file contract for these exact names in the documented model. |
+| `next/link` | `Link` or typed `route.Link` from `@lazarv/react-server/navigation` / routes | Typed links can merge search params as objects and support route/resource prefetching. |
+| `useRouter`, `usePathname`, `useSearchParams` | `useClient`, `useNavigate`, `usePathname`, `useSearchParams`, typed route hooks | Search params can be schema-validated, transformed, and updated functionally. |
+| Server Components by default | Server Components by default | Same React model, but `@lazarv/react-server` owns the RSC runtime and pins React for protocol compatibility. |
+| `"use client"` files | `"use client"` files, inline client functions, client-only route pages | A page file with `"use client"` becomes a client-only route with no server round trip on navigation. |
+| Server Actions / Server Functions | `"use server"` functions | Inline/module server functions work with forms, buttons, props, and client calls. References are encrypted by default. |
+| `fetch`, database calls, ORM calls | Server Components, typed resources, `fetch`, database calls, ORM calls | Resources add schema-validated keys, `.use()`, `.query()`, `.prefetch()`, `.invalidate()`, and route-resource bindings. |
+| Cache Components and `use cache` | `"use cache"` directive, `useCache`, `withCache`, `useResponseCache` | The cache system is provider-based, tag/profile/TTL aware, and can also run with client storage providers. |
+| `revalidateTag`, `revalidatePath`, `updateTag` | `invalidate`, `revalidate`, resource invalidation | Invalidation targets runtime cache keys, cached functions, tags, resources, or response cache behavior. |
+| ISR / static generation | `.static.*` route files and `export()` config | Static paths are separate from the page component and can stream as async generators for large path sets. |
+| Partial Prerendering | PPR with `"use dynamic"` and `"use static"` | Dynamic components opt out of build-time rendering, while static components can preserve build-time values. |
+| Pages Router `getServerSideProps` hydration data | `"use client"` root plus `"use cache: request"` | Both can SSR a client-owned tree with data available during hydration. Next serializes page props as JSON; `@lazarv/react-server` sends targeted RSC-serialized request-cache entries, not a full-page RSC payload. |
+| `route.ts` Route Handlers | `*.server.*` files, `GET.*.server.mjs`, method exports | Uses standard `Request`/`Response` and runtime HTTP helpers. |
+| `proxy.ts` (Middleware in older Next versions) | `*.middleware.*` files and config handlers | Middleware can be segment-scoped instead of one project-level file. |
+| `cookies()`, `headers()`, `redirect()` | `cookie`, `headers`, `redirect`, `rewrite`, `status`, request/response hooks | Available in server components, middleware, route handlers, and server functions through the runtime context. |
+| Metadata API | Normal React `<head>`, static files, route handlers, or app-level helpers | Next's `metadata` and `generateMetadata` exports are not the API surface. |
+| `next/image`, `next/font`, `next/script` | Browser/Vite/CSS/HTML primitives or third-party tooling | There are no Next optimized component equivalents built into the runtime. |
+| CSS Modules, global CSS, Tailwind, Sass, CSS-in-JS | Vite CSS pipeline, Tailwind integration, CSS Modules, library integrations | Follow Vite and library setup. The runtime does not need Next-specific CSS handling. |
+| `next.config.ts` | `react-server.config.*` plus `vite.config.*` | Runtime settings live in `react-server.config.*`; bundler/plugin settings can stay in Vite config. |
+| Environment variables | Runtime env plus Vite env conventions | There is no `NEXT_PUBLIC_` convention. Use Vite/public-env patterns or your own config boundary. |
+| Auth | Userland auth with route middleware/server functions/HTTP context | The runtime gives request, cookie, header, CSRF, and server-function defenses, not an auth framework. |
+| OpenTelemetry/instrumentation | Built-in OpenTelemetry integration | `@lazarv/react-server` instruments HTTP, middleware, RSC/SSR rendering, server functions, cache, startup, and Vite dev hooks when enabled. |
+| Devtools | Next dev overlay and framework tooling | `--devtools` in `@lazarv/react-server` inspects RSC payloads, cache, routes, outlets, live components, workers, remotes, and logs. |
+| Deploy to Vercel / Node / Docker / static / adapters | Built-in adapters for Vercel, Netlify, Cloudflare, AWS, Azure, Firebase, Bun, Deno, Docker, and single-file/static targets | Deployment is adapter-driven and not tied to one host. The production HTTP server is part of the runtime. |
+| Pages Router APIs | No direct equivalent | `getServerSideProps`, `getStaticProps`, `getStaticPaths`, `_app`, and `_document` are Next Pages Router concepts. Use RSC, layouts, static files, and HTTP helpers instead. |
+
+<Link name="architecture">
+## Architecture
+</Link>
+
+Next.js presents a framework-level contract: you write into the `app` directory and import from `next/*`; Next decides how the compiler, router, cache, server, and host integration fit together.
+
+`@lazarv/react-server` presents a runtime-level contract: you write React Server Components and run them with the `@lazarv/react-server` CLI. The runtime supplies the RSC encoder/decoder, HTML streaming, server function transport, HTTP context, file router, typed router, cache layer, and deployment adapters.
+
+This changes a few assumptions:
+
+- React is bundled and pinned by the runtime so the RSC wire format stays compatible across server render, client hydration, and Flight serialization.
+- Vite is the extension point. Vite config, Vite plugins, and Vite's CSS/tooling ecosystem are the normal integration path.
+- The production server is not just a thin wrapper. It includes keep-alive/timeouts, graceful shutdown, health/readiness endpoints, request/body limits, multipart limits, adaptive backpressure, CSRF origin checks for action POSTs, and optional OpenTelemetry.
+- The same application can target Node.js, Bun, Deno, serverless, edge-like adapters, and static export modes, subject to the capabilities of each target.
+
+<Link name="routing">
+## Routing
+</Link>
+
+If you are coming from the App Router, the basic route tree will feel familiar: folders define segments, `page` files create pages, `layout` files wrap children, dynamic params use brackets, route groups use parentheses, and `@name` directories describe parallel UI surfaces.
+
+The main differences are type safety and configurability.
+
+`@lazarv/react-server` can generate a virtual `@lazarv/react-server/routes` module for the file router. Each route descriptor can provide:
+
+- `.Link` for typed navigation
+- `.href()` for URL building outside JSX
+- `.useParams()` and `.useSearchParams()` hooks
+- `.createPage()`, `.createLayout()`, `.createLoading()`, `.createError()`, and `.createMiddleware()` helpers
+- branded outlet types for named outlets
+
+You can also skip the file router entirely and define a code-based router with `createRoute` and `createRouter`. That means a Next.js-style route tree is an option, not the only model.
+
+<Link name="routing-conventions">
+### Routing Conventions
+</Link>
+
+| Need | Next.js convention | `@lazarv/react-server` convention |
+|---|---|---|
+| Index page | `app/page.tsx` | `page.tsx`, `index.tsx`, or configured include |
+| Nested page | `app/blog/page.tsx` | `blog/page.tsx`, `blog.index.tsx`, or configured include |
+| Dynamic page | `app/blog/[slug]/page.tsx` | `blog/[slug].page.tsx` or `blog/[slug]/page.tsx` |
+| Catch-all | `app/docs/[...slug]/page.tsx` | `docs/[...slug].page.tsx` |
+| Optional catch-all | `app/docs/[[...slug]]/page.tsx` | `docs/[[...slug]].page.tsx` |
+| Route group | `app/(marketing)/page.tsx` | `(marketing)/page.tsx` |
+| Parallel UI | `app/@modal/page.tsx` | `@modal/page.tsx` outlet |
+| Loading UI | `loading.tsx` | `loading.page.tsx` / route loading file |
+| Error UI | `error.tsx` | `error.jsx` / `fallback.jsx` |
+| API route | `route.ts` | `.server.*` file or method-prefixed server file |
+| Middleware/proxy | project-level `proxy.ts` | segment-scoped `.middleware.*` files |
+
+<Link name="server-client-components">
+## Server and Client Components
+</Link>
+
+For the App Router, the shared React rule still applies: components are server components by default, and `"use client"` marks the client boundary. Server components can fetch data and keep secrets on the server. Client components are for state, event handlers, effects, browser APIs, and client-only libraries.
+
+`@lazarv/react-server` extends this model in two important ways:
+
+1. Inline directives can be lexically scoped. You can place `"use client"` or `"use server"` inside function bodies and let the compiler extract the correct module boundary.
+2. A file-router page that starts with `"use client"` becomes a client-only route. Navigation to that page happens in the browser without fetching a new RSC payload from the server, and state can be preserved between client-only route transitions.
+
+There is also a Pages Router-like shape for apps that are intentionally client-rooted. If the root entry passed to `@lazarv/react-server` is a `"use client"` module, the runtime uses React DOM SSR directly for that root and skips the full page-level RSC Flight pipeline. Request-scoped `"use cache: request"` values can still hydrate through targeted RSC-serialized cache payloads. See [Pages Router SSR and Hydration Data](#pages-router-ssr-and-hydration-data).
+
+There are also additional runtime directives that do not exist in Next.js:
+
+| Directive | Purpose |
+|---|---|
+| `"use hydrate"` | Render a server subtree as HTML now and hydrate it later as a local island. |
+| `"use live"` | Stream updates from an async generator component through live transports. |
+| `"use worker"` | Run exported async functions in server Worker Threads or browser Web Workers. |
+| `"use dynamic"` | Mark a component as request-time dynamic during partial pre-rendering. |
+| `"use static"` | Preserve build-time static values during partial pre-rendering. |
+| `"use cache"` | Cache functions/components through the runtime cache layer. |
+
+<Link name="pages-router-ssr-and-hydration-data">
+## Pages Router SSR and Hydration Data
+</Link>
+
+The closest Next.js Pages Router mental model is `getServerSideProps`: a page is rendered on the server for each request, data is returned as props, those props are serialized for the browser, and React hydrates the same page component with that data. Next's docs also warn that large Pages Router data can become costly because page data is serialized as `__NEXT_DATA__` JSON and must be parsed before hydration.
+
+`@lazarv/react-server` has a different version of this pattern for client-rooted apps. If your app entry is a `"use client"` module, the runtime detects that at startup and renders it with React DOM SSR directly:
+
+```jsx filename="src/index.jsx"
+"use client";
+
+import App from "./App.jsx";
+
+export default function Root() {
+  return <App />;
+}
+```
+
+That path is normal React DOM SSR and hydration for the client root. It is not a full-page RSC payload. The runtime skips the page-level RSC Flight encode/decode because the root is already a client tree.
+
+The important bridge is request-scoped cache hydration. A client component can read a request-cached function with `use()`:
+
+```jsx filename="App.jsx"
+"use client";
+
+import { use } from "react";
+import { getRequestData } from "./get-request-data.mjs";
+
+export default function App() {
+  const data = use(getRequestData());
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+```mjs filename="get-request-data.mjs"
+let calls = 0;
+
+export async function getRequestData() {
+  "use cache: request";
+
+  calls += 1;
+  return {
+    calls,
+    renderedAt: new Date(),
+  };
+}
+```
+
+During SSR, `getRequestData()` runs once for the current HTTP request. The resolved value is stored in the request cache. As the HTML stream flushes, the runtime serializes hydration-eligible request-cache entries with the RSC serializer and injects them into `self.__react_server_request_cache_entries__`. During browser hydration, the client cache wrapper reads those values synchronously, so `use(getRequestData())` resolves on the first render instead of suspending or recomputing a different value.
+
+So the comparison is:
+
+| Pages Router concept | `@lazarv/react-server` client-root SSR |
+|---|---|
+| `getServerSideProps` runs on each request | `"use cache: request"` work runs once per request when read during SSR |
+| Page props are serialized for hydration | Hydration-eligible request-cache entries are serialized for hydration |
+| Data is JSON page data | Data is serialized through the RSC serializer, so React/RSC-supported values can survive the boundary |
+| Hydration data is tied to the page props object | Hydration data is tied to cache keys used by the client tree |
+| Large `__NEXT_DATA__` can delay hydration parsing | Only request-cache entries that need to hydrate are injected; use `no-hydrate` or `hydrate=false` for values that must stay server/request-local |
+
+This is useful for dashboard-style or Pages Router-style apps where the whole root is already a client tree and you still want SSR HTML plus consistent request-time data during hydration. For mostly server-rendered apps, the normal RSC root is still the better default because it ships less JavaScript and can keep server-only subtrees out of the browser entirely.
+
+<Link name="data-fetching">
+## Data Fetching
+</Link>
+
+In the App Router, both systems encourage data fetching in Server Components. In Next.js, you commonly fetch with `fetch`, an ORM, a database client, or a server-only helper, then use Suspense and loading files to stream slow parts of the page.
+
+In `@lazarv/react-server`, you can do the same plain async work inside Server Components:
+
+```tsx filename="products.page.tsx"
+export default async function ProductsPage() {
+  const products = await db.products.findMany();
+  return <ProductList products={products} />;
+}
+```
+
+For larger apps, the runtime adds typed resources. A resource is a descriptor with a schema-validated key and a bound loader. It works on the server, on the client, or with a dual-loader pattern for SSR plus client-only navigation.
+
+```ts filename="resources/products.ts"
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+export const products = createResource({
+  key: z.object({
+    page: z.coerce.number().int().positive().default(1),
+  }),
+}).bind(async ({ page }) => {
+  "use cache; tags=products";
+  return db.products.page(page);
+});
+```
+
+Resources give you `.use()` for Suspense rendering, `.query()` for imperative code, `.prefetch()` for warming data before navigation, `.invalidate()` for updates, and route-resource bindings for parallel prefetching.
+
+<Link name="caching">
+## Caching and Rendering
+</Link>
+
+Next.js 16's current App Router cache model centers on Cache Components, the `cacheComponents` flag, `"use cache"`, `cacheLife`, `cacheTag`, `revalidateTag`, `updateTag`, and `revalidatePath`.
+
+`@lazarv/react-server` also uses `"use cache"`, but the runtime model is different. The directive accepts inline options such as `ttl`, `tags`, and `profile`, and can target a cache provider:
+
+```jsx filename="products.ts"
+export async function getProducts() {
+  "use cache; ttl=30000; tags=products";
+  return db.products.findMany();
+}
+```
+
+```jsx filename="settings.ts"
+export async function getSettings() {
+  "use cache: file; profile=settings";
+  return readSettings();
+}
+```
+
+The cache layer can use the default in-memory provider, Unstorage-backed providers, file storage, browser storage providers for client code, or a custom driver. You can also cache whole responses with `withCache` or `useResponseCache`, invalidate cached functions with `invalidate`, and revalidate compound keys with `revalidate`.
+
+For rendering modes:
+
+| Goal | Next.js concept | `@lazarv/react-server` concept |
+|---|---|---|
+| Fully dynamic request-time rendering | Dynamic rendering | Default server rendering or `"use dynamic"` inside PPR |
+| Static generation | Prerendering, static routes, static export | `.static.*` files and `export()` config |
+| Incremental/cache revalidation | Cache Components and revalidation APIs | Cache TTL, tags, profiles, `invalidate`, `revalidate` |
+| Partial prerendering | PPR / Cache Components model | PPR with Suspense, `"use dynamic"`, and `"use static"` |
+| Static shell plus interactive subtree | Client components, streaming, PPR | Hydration islands with `"use hydrate"` |
+| Pages Router-style SSR plus hydration data | `getServerSideProps` props and `__NEXT_DATA__` | `"use client"` root with React DOM SSR and targeted request-cache hydration payloads |
+
+<Link name="mutations">
+## Mutations and Server Functions
+</Link>
+
+Server Functions are the closest conceptual match to Next.js Server Actions. You mark an async function with `"use server"` and call it from a form, button, client component prop, or client-side event flow.
+
+```tsx filename="todo.page.tsx"
+import { invalidate, redirect } from "@lazarv/react-server";
+
+async function getTodos() {
+  "use cache; tags=todos";
+  return db.todos.findMany();
+}
+
+async function createTodo(formData: FormData) {
+  "use server";
+  await db.todos.create({ text: String(formData.get("text") ?? "") });
+  await invalidate(getTodos);
+  redirect("/todos");
+}
+
+export default function TodosPage() {
+  return (
+    <form action={createTodo}>
+      <input name="text" />
+      <button type="submit">Create</button>
+    </form>
+  );
+}
+```
+
+The important `@lazarv/react-server` difference is the defense layer. Server function identifiers are encrypted by default, action POSTs can be protected by CSRF origin validation, and inbound RSC replies are decoded through configurable limits for payload size, depth, rows, strings, BigInts, streams, and hostile object shapes before application code runs.
+
+<Link name="http-api">
+## HTTP, API Routes, and Middleware
+</Link>
+
+Next.js App Router Route Handlers use `route.ts` files and Web `Request` / `Response` APIs. Next.js 16 also renamed Middleware to Proxy and uses a root-level `proxy.ts` file.
+
+`@lazarv/react-server` uses standard `Request` / `Response` objects too, but the file conventions are different:
+
+```js filename="GET.posts.server.mjs"
+export default async function getPosts() {
+  const posts = await db.posts.findMany();
+  return Response.json({ posts });
+}
+```
+
+```js filename="index.middleware.mjs"
+import { redirect, usePathname } from "@lazarv/react-server";
+
+export default async function authMiddleware() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/admin") && !(await isSignedIn())) {
+    redirect("/login");
+  }
+}
+```
+
+Middleware files are segment-scoped and compose with the route tree. API route handlers can be method-prefixed files such as `GET.posts.server.mjs`, or a `.server.*` file exporting method functions. The same HTTP context helpers work in Server Components, middleware, route handlers, and server functions:
+
+- `useHttpContext`, `useRequest`, `useResponse`
+- `useUrl`, `usePathname`, `useSearchParams`
+- `headers`, `setHeader`, `appendHeader`, `deleteHeader`
+- `cookie`, `setCookie`, `deleteCookie`
+- `status`, `redirect`, `rewrite`
+- `after`
+
+<Link name="navigation">
+## Navigation and Search Params
+</Link>
+
+Next.js App Router navigation is server-rendered by default. A route transition may need the next Server Component payload from the server, and Next uses prefetching, streaming, and client-side transitions to keep that fast.
+
+`@lazarv/react-server` follows the same RSC navigation principle for server routes, but gives you more route-level typing:
+
+```tsx filename="products.page.tsx"
+import { products } from "@lazarv/react-server/routes";
+
+export default products.createPage(() => {
+  const search = products.useSearchParams();
+
+  return (
+    <products.Link search={(prev) => ({ ...prev, page: search.page + 1 })}>
+      Next page
+    </products.Link>
+  );
+});
+```
+
+Search params are not only strings passed through a router. They can be validated with Zod, ArkType, Valibot, or lightweight parse functions, and links can update them as objects or as functional updaters.
+
+Client-only routes are the major navigation difference. If a page itself is a `"use client"` module, `@lazarv/react-server` can navigate to it without a server request and preserve state between those transitions.
+
+<Link name="assets-and-head">
+## Assets, Head, and Styling
+</Link>
+
+Next.js has first-class optimized components and conventions for metadata, images, fonts, scripts, icons, Open Graph images, sitemap, robots, and other SEO files.
+
+`@lazarv/react-server` does not provide Next's Metadata API or optimized `next/image`, `next/font`, and `next/script` components. Use the primitives that fit the job:
+
+- Put static assets in the configured `public` directory.
+- Render normal `<html>`, `<head>`, `<body>`, `<meta>`, `<link>`, and `<script>` elements from layouts/components when appropriate.
+- Generate special files such as `sitemap.xml`, `robots.txt`, manifests, or OG responses with static assets, `.server.*` route handlers, escaped route segments such as `{sitemap.xml}.server.mjs`, or static export entries.
+- Use Vite's CSS pipeline, CSS Modules, PostCSS, Tailwind, Sass, or a UI library integration for styling.
+- Use an image CDN, build plugin, or application-level image component when you need image optimization.
+
+This is a deliberate boundary: the runtime focuses on React Server Components, HTTP, routing, caching, and deployment. Product-specific SEO and asset policy stay in application code or integrations.
+
+<Link name="configuration">
+## Configuration
+</Link>
+
+Next.js centralizes framework configuration in `next.config.*`.
+
+`@lazarv/react-server` splits concerns:
+
+- `react-server.config.*` configures the runtime, router, server, cache, telemetry, adapters, static export, and related behavior.
+- `vite.config.*` configures Vite as usual.
+- The `vite` option inside `react-server.config.*` can also extend or mutate Vite configuration.
+- Environment-specific files such as `.production.config.*`, `.development.config.*`, `.build.config.*`, `.runtime.config.*`, and `.server.config.*` let you scope configuration to lifecycle phases.
+- JSON config can use `https://react-server.dev/schema.json` for editor validation.
+
+There is no `NEXT_PUBLIC_` environment variable convention. Treat public environment variables as a bundler/application concern and use Vite-compatible patterns or explicit runtime config.
+
+<Link name="auth-security">
+## Auth and Security
+</Link>
+
+Neither runtime is an auth provider by itself. In Next.js, auth usually lives in middleware/proxy, Route Handlers, Server Actions, cookies, headers, and server-only data access helpers. In `@lazarv/react-server`, the equivalent places are middleware files, API routes, Server Functions, cookies, headers, and the HTTP context.
+
+What `@lazarv/react-server` adds at the runtime boundary:
+
+- encrypted server function references using AES-256-GCM capability tokens
+- configurable key rotation
+- CSRF origin validation for action form POSTs
+- request body and multipart limits
+- server function decode limits before user code runs
+- structural defenses against prototype pollution, hostile thenables, forbidden path walks, and forged callables
+
+Use these as baseline defenses, then implement your actual session, authorization, tenant isolation, and data access policy in application code.
+
+<Link name="deployment">
+## Deployment
+</Link>
+
+Next.js can deploy as a Node.js server, Docker container, static export, or through adapters, and it has especially deep integration with Vercel.
+
+`@lazarv/react-server` uses the same CLI shape everywhere:
+
+```sh
+pnpm react-server build
+pnpm react-server start
+```
+
+Deployment behavior is selected by configuration and adapters. The repo ships adapters and docs for Vercel, Netlify, Cloudflare, AWS, Azure Functions, Azure Static Web Apps, Firebase Functions, Bun, Deno, Docker, and single-file/static modes.
+
+Because the production HTTP layer is part of the runtime, self-hosted deployments can use built-in health checks, readiness checks, keep-alive/timeouts, graceful shutdown, adaptive backpressure, body limits, multipart limits, and OpenTelemetry instead of relying entirely on host-specific behavior.
+
+<Link name="observability-devtools-testing">
+## Observability, Devtools, and Testing
+</Link>
+
+Next.js has instrumentation files, OpenTelemetry support, framework spans, development overlay behavior, and official testing guides for tools such as Vitest, Jest, Playwright, and Cypress.
+
+`@lazarv/react-server` keeps testing tool choice in userland, but the runtime itself has first-class inspection:
+
+- OpenTelemetry can instrument HTTP requests, middleware, RSC render, SSR render, server functions, cache lookups, startup, and Vite dev hooks.
+- Built-in metrics cover request duration, active requests, server function duration, RSC/DOM render duration, and cache hits/misses.
+- `--devtools` injects a browser panel for process status, RSC payloads, cache entries, routes, outlets, remote components, live components, workers, and server logs.
+- The project is Vite-based, so Vitest and Playwright setups are usually straightforward.
+
+<Link name="integrations">
+## Integrations and Missing One-to-One Features
+</Link>
+
+Some Next.js app topics do not have a direct runtime feature because they are usually better handled by libraries, platform config, or Vite plugins:
+
+| Topic | `@lazarv/react-server` approach |
+|---|---|
+| Internationalization | Use route groups, params, middleware, typed routes, and your i18n library of choice. |
+| MDX | Use the file router's Markdown/MDX support with Remark/Rehype plugins and custom MDX components. |
+| CSS-in-JS | Use the library's SSR/Vite integration. For concrete setup examples, see the Mantine and MUI integration docs. |
+| Analytics | Use provider scripts/components or server-side event code. |
+| CSP/security headers | Set headers in middleware, route handlers, HTTP helpers, or host config. |
+| PWA | Add manifest/service worker tooling through Vite or application code. |
+| Multi-zone apps | Use host routing, reverse proxies, remotes, or `RemoteComponent` for RSC micro-frontends. |
+| Background jobs | Use your job runner, queue, cron host, workers, or server functions depending on the task. |
+| Real-time UI | Use `"use live"` components, regular WebSockets/SSE, or your realtime service. |
+| CPU-heavy work | Use `"use worker"` for Node Worker Threads or browser Web Workers. |
+
+<Link name="when-react-server-feels-different">
+## When It Feels Different
+</Link>
+
+The places that most often surprise Next.js developers are:
+
+1. There is no `next/*` compatibility layer. You use `@lazarv/react-server/*`, React, Web APIs, and Vite.
+2. Routing can be both file-based and code-based, and the typed router is a first-class part of the model.
+3. Search params and route params can be validated and typed at the route boundary.
+4. Middleware is route-tree-aware rather than one root project file.
+5. Caching is not only `fetch`-or-framework cache behavior; it is a directive and provider system.
+6. A `"use client"` page is a client-only route, not just a client component under a server route.
+7. Hydration islands, live components, workers, remote components, and MCP endpoints are runtime features, not Next.js concepts.
+8. The production server has explicit operational controls that many frameworks leave to the host platform.
+
+<Link name="when-to-choose-what">
+## When to Choose What
+</Link>
+
+Stay close to Next.js when your app depends heavily on Next-specific optimized components, the Metadata API, existing `next/*` packages, Pages Router APIs, Vercel platform conventions, or a team workflow built around those abstractions.
+
+Reach for `@lazarv/react-server` when you want a Vite-based RSC runtime, stronger typed routing/search params, an open deployment model, first-class HTTP runtime controls, route-scoped middleware, runtime-level server function defenses, hydration islands, live components, workers, or RSC-native micro-frontends.
+
+For a broader feature matrix, see the [comparison table](/features/comparison). For architecture constraints and tradeoffs, read [Architecture Tradeoffs](/guide/architecture-tradeoffs).

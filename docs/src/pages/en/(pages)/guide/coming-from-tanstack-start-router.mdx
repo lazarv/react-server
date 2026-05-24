@@ -1,0 +1,668 @@
+---
+title: Coming from TanStack Start/Router
+category: Guide
+order: 7
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Coming from TanStack Start/Router
+
+This page is for developers who already know TanStack Router, TanStack Start, or the broader TanStack client-first style and want the mental model for `@lazarv/react-server`. It is not a migration checklist. The goal is to explain which ideas stay familiar, which ones are essentially different, and when a TanStack Start or Router concept maps to a `@lazarv/react-server` primitive.
+
+The TanStack side of this comparison targets the current TanStack Start and Router docs, especially [TanStack Start](https://tanstack.com/start/latest), [Start routing](https://tanstack.com/start/latest/docs/framework/react/guide/routing), [Start execution model](https://tanstack.com/start/latest/docs/framework/react/guide/execution-model), [code execution patterns](https://tanstack.com/start/latest/docs/framework/react/guide/code-execution-patterns), [server functions](https://tanstack.com/start/latest/docs/framework/react/guide/server-functions), [server routes](https://tanstack.com/start/latest/docs/framework/react/guide/server-routes), [middleware](https://tanstack.com/start/latest/docs/framework/react/guide/middleware), [selective SSR](https://tanstack.com/start/latest/docs/framework/react/guide/selective-ssr), [static prerendering](https://tanstack.com/start/latest/docs/framework/react/guide/static-prerendering), [Router overview](https://tanstack.com/router/latest/docs/overview), [data loading](https://tanstack.com/router/latest/docs/guide/data-loading), [path params](https://tanstack.com/router/latest/docs/guide/path-params), [search params](https://tanstack.com/router/latest/docs/guide/search-params), [routing concepts](https://tanstack.com/router/latest/docs/routing/routing-concepts), and [document head management](https://tanstack.com/router/latest/docs/guide/document-head-management). TanStack Start's React docs currently identify Start as v0/RC in places, and its React Server Components support is documented as experimental and opt-in.
+
+<Link name="short-version">
+## Short Version
+</Link>
+
+TanStack Router is a deeply typed, client-capable router with file-based and code-based routes, route loaders, route cache, search param validation, navigation APIs, preloading, and devtools. TanStack Start adds the full-stack layer: SSR, streaming, server functions, server routes, middleware, hosting integration, static prerendering, and optional experimental RSC support.
+
+`@lazarv/react-server` starts from a different center. It is a React Server Components runtime and server built on Vite. Routing, server functions, HTTP helpers, caching, static export, middleware, workers, live components, and deployment adapters exist around that RSC core.
+
+The largest shift is the execution model:
+
+- In TanStack Start, normal route code and loaders are isomorphic by default. Loaders can run on the server during SSR and on the client during navigation. Server-only work is moved behind `createServerFn`, `createServerOnlyFn`, server routes, or protected files.
+- In `@lazarv/react-server`, route components are Server Components by default. Server code stays on the server unless you explicitly cross into a `"use client"` boundary, a client-only route, or a client resource.
+
+There is one important bridge for TanStack-style apps: if the app root itself is a `"use client"` module, `@lazarv/react-server` automatically uses a client-root SSR shortcut. The page is rendered with React DOM SSR, but request-scoped `"use cache: request"` results are still serialized with the RSC serializer and injected as targeted hydration payloads. In other words, this is normal SSR for the client root plus RSC-serialized hydration data for the cache entries that need to cross into hydration, not a full-page RSC payload.
+
+| Area | TanStack Start/Router | `@lazarv/react-server` |
+|---|---|---|
+| Framework shape | Router-first full-stack framework when using Start; standalone router when using Router | RSC runtime and server |
+| Build system | Vite plus TanStack Router/Start plugins | Vite Environment API plus `@lazarv/react-server` plugins |
+| Core UI model | Isomorphic React app with SSR/hydration; RSC is experimental opt-in | React Server Components are the core rendering model |
+| Routing | `createFileRoute`, `createRouter`, generated `routeTree.gen` | File router plus code-based typed router |
+| Data loading | Route loaders, `beforeLoad`, router cache, TanStack Query integration, server functions | Async Server Components, typed resources, `"use cache"`, response cache |
+| Search params | JSON-capable, typed, validated search params with search middlewares | Typed/validated search params, functional link updates, `SearchParams` transforms |
+| Mutations/RPC | `createServerFn` with validators and middleware | `"use server"` Server Functions with encrypted references and hardened decoding |
+| API routes | Route `server.handlers` / server routes | `*.server.*` files and method-prefixed route files |
+| Middleware | Request middleware and server function middleware | Segment-scoped `*.middleware.*` files and config handlers |
+| Rendering modes | SSR, SPA mode, selective SSR, prerendering, ISR | RSC SSR, client-only routes, PPR, static export |
+| Deployment | Start hosting/platform setup | Node, Bun, Deno, edge/serverless adapters, Docker, static export |
+
+<Link name="topic-map">
+## Topic Map
+</Link>
+
+| In a TanStack app | In `@lazarv/react-server` | What is essentially different |
+|---|---|---|
+| `src/router.tsx` with `createRouter({ routeTree })` | File router auto-entry or code router with `createRouter` | The runtime can use a file router without a generated `routeTree.gen`, or a code router without TanStack Router. |
+| `src/routes/__root.tsx` | Root `layout.jsx` / `layout.tsx` | Both define the app shell. `@lazarv/react-server` layouts are Server Components by default. |
+| `createFileRoute('/posts')({ component })` | A page file or `createRoute('/posts', <Page />)` | File routes do not require exporting a TanStack `Route` object. |
+| `$postId` path params | `[postId]` path params | TanStack uses `$`; `@lazarv/react-server` uses bracket segments in the file router. |
+| `Route.useParams()` | `route.useParams()` or props from `route.createPage()` | Both can be typed; `@lazarv/react-server` can validate/coerce at the route boundary. |
+| `validateSearch` | `validate.search`, typed route search, `SearchParams` transforms | TanStack has richer JSON search serialization. `@lazarv/react-server` focuses on validation, typing, and link/update ergonomics. |
+| `beforeLoad` | Middleware, layout/page logic, resources, route validation | `@lazarv/react-server` does not have a one-to-one `beforeLoad` lifecycle hook in route descriptors. |
+| `loader` | Async Server Component, typed resource, or server function | `@lazarv/react-server` does not make route loaders the primary data-loading mechanism. |
+| `Route.useLoaderData()` | Props, resource `.use()`, or local async data | Data often lives in the server component tree rather than a loader result object. |
+| Router cache | `"use cache"`, resources, response cache | TanStack's cache is route-loader oriented. `@lazarv/react-server` caching is directive/provider oriented. |
+| `router.invalidate()` | `invalidate`, `revalidate`, resource invalidation, refresh/navigation | Invalidation targets cached functions, tags, resources, route resources, or responses. |
+| `<Link to="/posts" search={...} />` | `Link` or typed `route.Link` | Both support typed navigation. `@lazarv/react-server` links can prefetch routes/resources and merge search objects. |
+| `RouterProvider` | `@lazarv/react-server` runtime client provider | Usually not application code. The runtime owns RSC navigation and hydration. |
+| TanStack client-root app shell | `"use client"` root with client-root SSR shortcut | The app can SSR as a client tree while request-scoped cached values hydrate through small RSC-serialized cache payloads. |
+| `@tanstack/react-router-devtools` | `--devtools` in `@lazarv/react-server` | Devtools inspect different layers: TanStack route state vs RSC payloads, cache, routes, outlets, workers, live components, and logs. |
+| `createServerFn` | `"use server"` async function | `@lazarv/react-server` uses React-style server directives instead of builder APIs. |
+| `createServerOnlyFn` / `createClientOnlyFn` | Server/client module boundaries and `"use client"` | The default is already server for Server Components. Client code is explicit. |
+| Start server routes | `*.server.*` API routes | TanStack co-locates handlers inside route definitions. `@lazarv/react-server` uses route files and method-prefixed server files. |
+| Start middleware | `*.middleware.*` segment middleware | TanStack middleware is builder/composition based. `@lazarv/react-server` middleware follows the route tree. |
+| `ClientOnly`, `useHydrated` | `ClientOnly`, `"use client"`, `"use hydrate"` | `@lazarv/react-server` also has hydration islands as a server-to-client boundary. |
+| Selective SSR / SPA mode | Client-only routes and `"use dynamic"` / PPR | In `@lazarv/react-server`, a `"use client"` page can be a client-only route. |
+| Static prerendering / ISR | `.static.*` files, `export()` config, cache TTL/tags | Static path generation and cache invalidation are separate runtime primitives. |
+| Head management with `head`, `HeadContent`, `Scripts` | Normal React `<head>` plus layouts/helpers | No TanStack head API is required. |
+| TanStack Query integration | TanStack Query integration or `@lazarv/react-server` resources | You can still use Query in client components, but server data often moves to resources/RSC. |
+| Experimental Start RSC helpers | RSC as the default component model | Start treats RSC as opt-in renderable/composite data. `@lazarv/react-server` treats RSC as the app runtime. |
+
+<Link name="architecture">
+## Architecture
+</Link>
+
+TanStack Router is an application router. It coordinates route matching, params, search params, loaders, route cache, route context, preloading, redirects, errors, and navigation. TanStack Start wraps that router with full-document SSR, streaming, server functions, server routes, middleware, environment handling, and deployment behavior.
+
+`@lazarv/react-server` is not a TanStack Router host and does not implement `@tanstack/react-router` or `@tanstack/react-start` APIs. Its contract is:
+
+- React Server Components and streaming SSR are handled by the runtime.
+- React is pinned by the runtime so the RSC wire protocol stays compatible.
+- Vite is the build/tooling extension point.
+- The file router can generate typed route descriptors, but route files are not TanStack `Route` objects.
+- The production server includes operational controls such as health/readiness endpoints, keep-alive/timeouts, graceful shutdown, body limits, multipart limits, adaptive backpressure, CSRF origin checks for action POSTs, and optional OpenTelemetry.
+
+If you are used to TanStack's "router as the center of the app" model, the `@lazarv/react-server` equivalent is "the server component tree is the center of the app." Routing still matters, but it is not the only place where data and server execution are coordinated.
+
+<Link name="execution-model">
+## Execution Model
+</Link>
+
+This is the most important difference.
+
+TanStack Start is isomorphic by default. A route loader is not inherently server-only. It can run on the server during SSR and in the browser during client navigation. That is why the Start docs emphasize `createServerFn`, `createServerOnlyFn`, `createClientOnlyFn`, `createIsomorphicFn`, `.server.*` / `.client.*` files, and import protection.
+
+`@lazarv/react-server` is server-first by default. A page like this runs as a Server Component:
+
+```tsx filename="posts.page.tsx"
+export default async function PostsPage() {
+  const posts = await db.posts.findMany();
+  return <PostList posts={posts} />;
+}
+```
+
+There is no need to wrap the database call in a server RPC just to keep it off the client. It is already in a Server Component. You add a client boundary only where browser state, effects, event handlers, or browser APIs are needed:
+
+```tsx filename="like-button.tsx"
+"use client";
+
+export default function LikeButton() {
+  const [liked, setLiked] = useState(false);
+  return <button onClick={() => setLiked((value) => !value)}>Like</button>;
+}
+```
+
+That makes the common security rule simpler: code in Server Components and `"use server"` functions is server-side. Code below `"use client"` is client-side. Shared modules must still be treated carefully, but the default route page is not an isomorphic loader.
+
+<Link name="client-root-ssr-and-hydration-data">
+## Client-Root SSR and Hydration Data
+</Link>
+
+TanStack Start and Router developers often think in terms of a client-owned route tree that still gets SSR for the initial document. `@lazarv/react-server` supports that shape too.
+
+When the app entry passed to `@lazarv/react-server` is a `"use client"` module, the runtime detects that at startup and switches to a client-root rendering shortcut:
+
+```jsx filename="src/index.jsx"
+"use client";
+
+import App from "./App.jsx";
+
+export default function Root() {
+  return <App />;
+}
+```
+
+That root renders with React DOM SSR directly. The runtime skips the full RSC flight pipeline because there is no server component tree to encode for the page root. The browser hydrates the same client tree that React DOM rendered on the server.
+
+The important part is that request-scoped cache hydration still works. A client component can read a request-cached function with `use()`:
+
+```jsx filename="App.jsx"
+"use client";
+
+import { use } from "react";
+import { getRequestData } from "./get-request-data.mjs";
+
+export default function App() {
+  const data = use(getRequestData());
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+```mjs filename="get-request-data.mjs"
+let calls = 0;
+
+export async function getRequestData() {
+  "use cache: request";
+
+  calls += 1;
+  return {
+    calls,
+    renderedAt: new Date(),
+  };
+}
+```
+
+During SSR, `getRequestData()` runs once for the current HTTP request and the result is stored in the request cache. As the HTML stream flushes, the runtime serializes resolved request-cache entries with the RSC serializer and injects them into `self.__react_server_request_cache_entries__`. On the browser side, the cache wrapper reads those entries synchronously during hydration, so `use(getRequestData())` resolves on the first render without suspending or recomputing a different value.
+
+This is best understood as SSR with targeted RSC-serialized hydration data:
+
+- the whole page is not delivered as a page-level RSC Flight payload
+- the page root is still normal React DOM SSR and React DOM hydration
+- only request-scoped cache entries that need to survive hydration are serialized as RSC payloads
+- values can be streamed into the HTML as Suspense boundaries resolve
+- values marked with `"use cache: request; no-hydrate"` or `hydrate=false` stay server/request-local and are not exposed to the browser
+
+This is the closest `@lazarv/react-server` shape to a TanStack client-root app: you can keep an SPA-like client shell, get SSR HTML, and avoid hydration mismatches for request-scoped data without making the entire page an RSC payload.
+
+Use this mode deliberately. Because the root is `"use client"`, its transitive imports are client-bundle candidates. Do not import secret-reading or database-only code into that client root. For mostly server-rendered pages, prefer the normal RSC root. For mostly static pages with isolated interactivity, prefer Server Components plus `"use hydrate"` islands.
+
+<Link name="routing">
+## Routing
+</Link>
+
+Both systems can use file-based and code-based routing, but the shape and ownership are different.
+
+TanStack Start uses TanStack Router's file-based routing. A typical app has:
+
+```txt filename="TanStack Start"
+src/
+|-- router.tsx
+|-- routeTree.gen.ts
+`-- routes/
+    |-- __root.tsx
+    |-- index.tsx
+    |-- about.tsx
+    `-- posts/
+        `-- $postId.tsx
+```
+
+`@lazarv/react-server` file routing is activated when you run the CLI without an explicit entrypoint. The default root is `src/pages`, and it can be configured:
+
+```txt filename="@lazarv/react-server"
+src/pages/
+|-- layout.tsx
+|-- page.tsx
+|-- about.tsx
+`-- posts/
+    `-- [postId].page.tsx
+```
+
+The typed file router generates a virtual `@lazarv/react-server/routes` module. That gives each route descriptor helpers such as `.Link`, `.href()`, `.useParams()`, `.useSearchParams()`, `.createPage()`, `.createLayout()`, `.createLoading()`, `.createError()`, and `.createMiddleware()`.
+
+For code-based routing, TanStack Router uses route definitions and a `RouterProvider`. `@lazarv/react-server` has its own typed router:
+
+```tsx filename="router.tsx"
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+export const post = createRoute("/posts/[postId]", {
+  exact: true,
+  validate: {
+    params: z.object({ postId: z.string().min(1) }),
+  },
+});
+
+export const router = createRouter({
+  post: createRoute(post, <PostPage />),
+});
+```
+
+The concepts are similar: typed path params, typed search params, typed links, route descriptors, and validation. The APIs are not interchangeable.
+
+<Link name="routing-conventions">
+### Routing Conventions
+</Link>
+
+| Need | TanStack Router/Start | `@lazarv/react-server` |
+|---|---|---|
+| Root shell | `routes/__root.tsx` | `layout.tsx` |
+| Index page | `routes/index.tsx` | `page.tsx` or `index.tsx` |
+| Nested route | `routes/posts/index.tsx` or `posts.tsx` | `posts/page.tsx`, `posts.index.tsx`, or configured include |
+| Dynamic segment | `$postId` | `[postId]` |
+| Splat/wildcard | `$` / splat route patterns | `[...slug]` |
+| Optional segment | optional parameter patterns | `[[...slug]]` for optional catch-all |
+| Pathless layout | `_pathlessLayout` | `(group)` for transparent grouping or normal layout files |
+| Non-nested route | trailing `_` segment conventions | route grouping/layout choices; no TanStack trailing `_` convention |
+| Route component | `component` in `createFileRoute` | default page export |
+| Loader | `loader` in route options | async Server Component or resource |
+| Pending UI | `pendingComponent` / Suspense | `loading.page.tsx` / Suspense |
+| Error UI | `errorComponent`, `onError`, `onCatch` | `error.jsx`, `fallback.jsx`, `react-server.error.jsx` |
+| API route | route `server.handlers` | `*.server.*` or `GET.*.server.*` |
+| Middleware | Start middleware builders | `*.middleware.*` route files |
+
+<Link name="params-and-search">
+## Params and Search
+</Link>
+
+TanStack Router is especially strong at URL state. It parses and serializes search params as structured JSON-compatible state, validates them with `validateSearch`, passes them through route APIs, and can apply search middlewares such as retaining or stripping defaults when links are built.
+
+`@lazarv/react-server` has a different but overlapping model:
+
+```tsx filename="products.page.tsx"
+import { products } from "@lazarv/react-server/routes";
+import { z } from "zod";
+
+export const validate = {
+  search: z.object({
+    page: z.coerce.number().int().positive().catch(1),
+    sort: z.enum(["name", "price"]).catch("name"),
+  }),
+};
+
+export default products.createPage(() => {
+  const search = products.useSearchParams();
+
+  return (
+    <products.Link search={(prev) => ({ ...prev, page: search.page + 1 })}>
+      Next page
+    </products.Link>
+  );
+});
+```
+
+If your TanStack Router app uses complex nested search objects as a primary app-state store, expect to redesign the URL layer. `@lazarv/react-server` gives you typed validation, route-scoped hooks, functional updates, and `SearchParams` transforms, but it does not try to be a drop-in replacement for TanStack Router's JSON search model.
+
+<Link name="data-loading">
+## Data Loading
+</Link>
+
+TanStack Router treats the router as the coordinator for page data. It runs `beforeLoad`, then route loaders, then route components. Loader results are consumed through `Route.useLoaderData()` or route APIs, and the built-in router cache handles preloading, stale-while-revalidate, background refetching, garbage collection, and coarse invalidation. For more complex server state, TanStack Query is the normal next layer.
+
+`@lazarv/react-server` treats the Server Component tree as the default place to load data:
+
+```tsx filename="posts.page.tsx"
+export default async function PostsPage() {
+  const posts = await db.posts.findMany();
+  return <PostList posts={posts} />;
+}
+```
+
+For reusable data boundaries, use resources:
+
+```ts filename="resources/posts.ts"
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+export const posts = createResource({
+  key: z.object({
+    page: z.coerce.number().int().positive().default(1),
+  }),
+}).bind(async ({ page }) => {
+  "use cache; tags=posts";
+  return db.posts.page(page);
+});
+```
+
+Resources give you `.use()` for Suspense rendering, `.query()` for imperative code, `.prefetch()` for navigation/data warming, `.invalidate()` for updates, and route-resource bindings in the file router.
+
+The practical difference:
+
+- TanStack loaders are route lifecycle functions.
+- `@lazarv/react-server` data is usually component data or resource data.
+- TanStack Query remains useful in `@lazarv/react-server` client components, but it is no longer the only obvious answer for server-originated data.
+
+<Link name="caching">
+## Caching
+</Link>
+
+TanStack Router's cache is route-loader oriented. It caches loader results by route match and dependencies, supports stale-while-revalidate behavior, has preloading freshness controls, and can be bypassed or paired with TanStack Query when you need finer-grained server-state behavior.
+
+`@lazarv/react-server` caching is directive and provider oriented:
+
+```ts filename="posts.ts"
+export async function getPosts() {
+  "use cache; ttl=30000; tags=posts";
+  return db.posts.findMany();
+}
+```
+
+```ts filename="settings.ts"
+export async function getSettings() {
+  "use cache: file; profile=settings";
+  return readSettings();
+}
+```
+
+You can cache functions/components, use in-memory or storage-backed providers, tag cached work, group behavior through profiles, invalidate cached functions, revalidate compound keys, and cache whole responses with `withCache` or `useResponseCache`.
+
+So the mental shift is from "loader cache" to "runtime cache." A cached function can be used by a page, layout, resource, server function, API route, or other server code. It does not have to be tied to one route match.
+
+<Link name="server-functions">
+## Server Functions and Mutations
+</Link>
+
+TanStack Start server functions are created with `createServerFn()` and can be called from loaders, components, hooks, other server functions, or client code. They can specify HTTP methods, input validators, middleware, and access request/response helpers.
+
+`@lazarv/react-server` uses React-style directives:
+
+```tsx filename="todos.page.tsx"
+import { invalidate, redirect } from "@lazarv/react-server";
+
+async function getTodos() {
+  "use cache; tags=todos";
+  return db.todos.findMany();
+}
+
+async function createTodo(formData: FormData) {
+  "use server";
+  await db.todos.create({ text: String(formData.get("text") ?? "") });
+  await invalidate(getTodos);
+  redirect("/todos");
+}
+
+export default async function TodosPage() {
+  const todos = await getTodos();
+
+  return (
+    <form action={createTodo}>
+      <ul>{todos.map((todo) => <li key={todo.id}>{todo.text}</li>)}</ul>
+      <input name="text" />
+      <button type="submit">Create</button>
+    </form>
+  );
+}
+```
+
+You do not build a server function with a fluent API. You mark the async function with `"use server"`. Inline and module-level server functions can be passed to forms, buttons, props, and client components.
+
+The runtime also adds a hardening layer around server functions: encrypted references by default, optional key rotation, CSRF origin validation for action POSTs, payload/decode limits, and structural defenses before application code runs.
+
+<Link name="server-components">
+## Server Components
+</Link>
+
+This is where the two systems differ most.
+
+TanStack Start's current React docs describe RSC as experimental and opt-in. The documented model renders server components through helpers such as `renderServerComponent` or `createCompositeComponent`, commonly from a server function, then returns those renderable values through a route loader for the client route component to compose.
+
+In `@lazarv/react-server`, RSC is not an optional feature layered onto the router. It is the default app model:
+
+```tsx filename="dashboard.page.tsx"
+import ChartShell from "./chart-shell.tsx";
+
+export default async function DashboardPage() {
+  const stats = await db.stats.summary();
+
+  return (
+    <>
+      <h1>Dashboard</h1>
+      <ChartShell stats={stats} />
+    </>
+  );
+}
+```
+
+```tsx filename="chart-shell.tsx"
+"use client";
+
+export default function ChartShell({ stats }) {
+  return <InteractiveChart data={stats} />;
+}
+```
+
+You compose server and client code using React's server/client boundary rather than fetching server-rendered component data through a route loader. `@lazarv/react-server` also supports additional server-centric directives that do not exist in TanStack Router:
+
+| Directive | Purpose |
+|---|---|
+| `"use client"` | Mark a client boundary or client-only page. |
+| `"use server"` | Mark callable server functions. |
+| `"use hydrate"` | Render a server subtree as HTML and hydrate it later as an island. |
+| `"use live"` | Stream updates from async generator components. |
+| `"use worker"` | Run exported async functions in Worker Threads or Web Workers. |
+| `"use dynamic"` | Opt a component into request-time rendering during PPR. |
+| `"use static"` | Preserve build-time values during PPR. |
+| `"use cache"` | Cache functions/components through runtime cache providers. |
+
+<Link name="client-navigation">
+## Client Navigation
+</Link>
+
+TanStack Router has excellent client navigation primitives: typed `<Link>`, `navigate`, `useRouter`, `router.invalidate()`, route preloading by intent or viewport, scroll restoration, blockers, masks, and devtools.
+
+`@lazarv/react-server` also supports client-side navigation, but it is RSC-aware. Server route navigation fetches the next RSC payload. Client-only routes can avoid the server round trip entirely:
+
+```tsx filename="settings.page.tsx"
+"use client";
+
+export default function SettingsPage() {
+  const [draft, setDraft] = useState("");
+  return <input value={draft} onChange={(event) => setDraft(event.target.value)} />;
+}
+```
+
+A page file that starts with `"use client"` becomes a client-only route. Navigation to that page can happen entirely in the browser, and local state can survive client-only route transitions.
+
+You can also use typed route links from the generated routes module:
+
+```tsx filename="posts-nav.tsx"
+import { posts } from "@lazarv/react-server/routes";
+
+export function PostsNav() {
+  return <posts.Link search={{ page: 1 }}>Posts</posts.Link>;
+}
+```
+
+<Link name="http-api">
+## HTTP, API Routes, and Middleware
+</Link>
+
+TanStack Start server routes are route-level HTTP handlers:
+
+```ts filename="routes/hello.ts"
+export const Route = createFileRoute("/hello")({
+  server: {
+    handlers: {
+      GET: async ({ request }) => new Response("Hello"),
+    },
+  },
+});
+```
+
+`@lazarv/react-server` uses server route files:
+
+```js filename="GET.hello.server.mjs"
+export default async function hello() {
+  return new Response("Hello");
+}
+```
+
+Middleware also has a different shape. TanStack Start middleware is builder-based and can be request middleware or server function middleware. It can be global through `src/start.ts`, attached to server routes, or attached to individual server functions.
+
+`@lazarv/react-server` middleware follows the route tree:
+
+```js filename="index.middleware.mjs"
+import { redirect, usePathname } from "@lazarv/react-server";
+
+export default async function adminMiddleware() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/admin") && !(await isSignedIn())) {
+    redirect("/login");
+  }
+}
+```
+
+The same HTTP helpers can be used in Server Components, middleware, API routes, and server functions:
+
+- `useHttpContext`, `useRequest`, `useResponse`
+- `useUrl`, `usePathname`, `useSearchParams`
+- `headers`, `setHeader`, `appendHeader`, `deleteHeader`
+- `cookie`, `setCookie`, `deleteCookie`
+- `status`, `redirect`, `rewrite`
+- `after`
+
+<Link name="rendering-modes">
+## Rendering Modes
+</Link>
+
+TanStack Start exposes several routing/rendering modes:
+
+- normal SSR with hydration
+- SPA mode, where route loaders/components do not execute on the server
+- selective SSR, where server-side handling can be configured per route
+- static prerendering
+- ISR-like behavior through prerendering plus HTTP cache headers
+- experimental RSC composition
+
+`@lazarv/react-server` uses a different set of primitives:
+
+| Goal | TanStack Start/Router | `@lazarv/react-server` |
+|---|---|---|
+| Initial HTML from server | SSR | Streaming SSR from the RSC tree |
+| Client-owned route tree with SSR | Start/Router app shell SSR | `"use client"` root with React DOM SSR and request-cache hydration payloads |
+| No server for a route | SPA mode / route-level SSR control | `"use client"` client-only page |
+| Static output | Static prerendering | `.static.*` files and `export()` config |
+| Revalidation | HTTP cache headers / router cache / Query cache | `"use cache"` TTL/tags/profiles, `invalidate`, `revalidate` |
+| Partial server/client split | ClientOnly, selective SSR, experimental RSC | Server Components, Client Components, `"use hydrate"` islands |
+| Dynamic holes in static output | selective SSR / ISR strategies | PPR with `"use dynamic"` and `"use static"` |
+
+If your TanStack app uses route-level SSR flags heavily, the `@lazarv/react-server` equivalent is usually not a single flag. You decide whether the route is a Server Component route, a client-only route, a static route, a partially prerendered route, or an island-hydrated subtree.
+
+<Link name="head-assets-styling">
+## Head, Assets, and Styling
+</Link>
+
+TanStack Router manages document head state through route `head` options and the `HeadContent` / `Scripts` components. Start uses the root route for the document shell and has docs for SEO, CSS styling, CDN asset URLs, client/server entry points, Tailwind, and markdown.
+
+`@lazarv/react-server` does not use TanStack's document head API. Use normal React markup in layouts/components:
+
+```tsx filename="layout.tsx"
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <head>
+        <title>My App</title>
+        <meta name="description" content="My app" />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+Static assets live in the configured public directory. Special files such as `robots.txt`, `sitemap.xml`, manifests, or OG responses can be static assets, `.server.*` routes, escaped route segments such as `{sitemap.xml}.server.mjs`, or static export entries.
+
+Styling follows Vite and library conventions: CSS Modules, PostCSS, Tailwind, Sass, CSS-in-JS libraries with SSR support, and UI library integrations.
+
+<Link name="config-and-environment">
+## Config and Environment
+</Link>
+
+TanStack Start configuration generally lives in `vite.config.ts` through `tanstackStart(...)`, plus app files such as `src/router.tsx`, `src/start.ts`, optional server/client entry points, and route files. The Router plugin generates `routeTree.gen`.
+
+`@lazarv/react-server` splits runtime and bundler concerns:
+
+- `react-server.config.*` configures the runtime, router, server, cache, telemetry, adapters, static export, and related behavior.
+- `vite.config.*` configures Vite as usual.
+- The `vite` option inside `react-server.config.*` can extend or mutate Vite configuration.
+- Environment-specific config files can target development, production, build, runtime, and server phases.
+- JSON config can use `https://react-server.dev/schema.json` for editor validation.
+
+For environment variables, TanStack Start emphasizes the difference between server/client contexts and warns that route loaders are isomorphic. In `@lazarv/react-server`, secrets can be read directly in Server Components and server functions, but the usual bundler rule still applies: do not import secret-reading code into client modules.
+
+<Link name="auth-security">
+## Auth and Security
+</Link>
+
+TanStack Start auth is usually enforced with route guards, `beforeLoad`, server functions, server routes, cookies, request middleware, and server function middleware. A route guard protects the page experience; server functions and server routes still need handler-level authorization because they can be called directly.
+
+That principle is the same in `@lazarv/react-server`. Protect UI routes with middleware or server-side route logic, and protect data access inside server functions/API routes as well.
+
+What `@lazarv/react-server` adds at the runtime boundary:
+
+- encrypted server function references using AES-256-GCM capability tokens
+- configurable key rotation
+- CSRF origin validation for action form POSTs
+- request body and multipart limits
+- server function decode limits before user code runs
+- structural defenses against prototype pollution, hostile thenables, forbidden path walks, and forged callables
+
+These are baseline runtime defenses. Sessions, tenant access, roles, permissions, and data authorization still live in your app.
+
+<Link name="deployment-observability">
+## Deployment, Observability, and Devtools
+</Link>
+
+TanStack Start is Vite-based and documents hosting/platform setup for full-stack apps. TanStack Router has its own devtools focused on route state, matches, params, search, loader state, and navigation behavior. Start also documents observability patterns.
+
+`@lazarv/react-server` ships production server and adapter behavior as part of the runtime. It supports Node.js, Bun, Deno, Vercel, Netlify, Cloudflare, AWS, Azure Functions, Azure Static Web Apps, Firebase Functions, Docker, static export, and single-file output where applicable.
+
+For observability:
+
+- OpenTelemetry can instrument HTTP requests, middleware, RSC render, SSR render, server functions, cache lookups, startup, and Vite dev hooks.
+- Built-in metrics cover request duration, active requests, server function duration, RSC/DOM render duration, and cache hits/misses.
+- `--devtools` can inspect process status, RSC payloads, cache entries, routes, outlets, remote components, live components, workers, and server logs.
+
+<Link name="using-tanstack-inside-react-server">
+## Using TanStack Inside @lazarv/react-server
+</Link>
+
+You do not have to stop using the TanStack ecosystem.
+
+Good fits inside `@lazarv/react-server` include:
+
+- TanStack Query in client components for client-side server state
+- TanStack Table, Virtual, Form, Store, and other UI/client libraries inside client components
+- TanStack Router as an embedded client-side router for an SPA-like subsection, if you intentionally want that model
+
+When embedding TanStack Router, place it under a `"use client"` boundary. The repo includes a TanStack Router example that renders the TanStack `RouterProvider` inside a client component and uses `@lazarv/react-server` client navigation/context around it.
+
+What does not carry over directly:
+
+- `@tanstack/react-start` server functions
+- Start server routes
+- Start middleware configuration
+- Start route `head` conventions
+- `routeTree.gen` as the app's primary router contract
+- TanStack Router loaders as the primary server data layer
+
+<Link name="when-react-server-feels-different">
+## When It Feels Different
+</Link>
+
+The places that most often surprise TanStack Start/Router developers are:
+
+1. Route loaders are not the center of data loading. Async Server Components and resources are.
+2. Pages are not isomorphic by default. They are Server Components unless marked client-side.
+3. RSC is not experimental glue around a client router. It is the runtime's default rendering protocol.
+4. There is no `Route` export, `routeTree.gen`, or `RouterProvider` requirement for normal file-router apps.
+5. Middleware is route-tree/file based rather than a builder chain.
+6. Caching is not only route-loader SWR cache; it is a directive/provider system.
+7. Search params are typed and validated, but the URL-state model is not TanStack Router's JSON search model.
+8. A `"use client"` page is a client-only route, which gives you SPA-like local state preservation without adopting a separate client router.
+9. Server Functions use `"use server"` directives, not `createServerFn`.
+10. Hydration islands, live components, workers, remote components, and MCP endpoints are runtime features, not TanStack Router concepts.
+
+<Link name="when-to-choose-what">
+## When to Choose What
+</Link>
+
+Stay close to TanStack Start/Router when your app is fundamentally client-led, when route loaders and URL search state are the center of the architecture, when you want TanStack Router's JSON search semantics, when TanStack Query is your main data layer, or when your team already wants the TanStack route lifecycle and devtools model.
+
+Reach for `@lazarv/react-server` when you want a server-first RSC runtime, explicit server/client boundaries, async Server Components as the default data-loading surface, route-scoped middleware, runtime-level server function defenses, provider-based cache directives, hydration islands, live components, workers, RSC-native micro-frontends, or a deployment model that includes Node, Bun, Deno, edge/serverless adapters, Docker, and static export.
+
+For a broader feature matrix, see the [comparison table](/features/comparison). For architecture constraints and tradeoffs, read [Architecture Tradeoffs](/guide/architecture-tradeoffs).

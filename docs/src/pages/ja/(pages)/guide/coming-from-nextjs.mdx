@@ -1,0 +1,300 @@
+---
+title: Next.js から来た人へ
+order: 6
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# Next.js から来た人へ
+
+このページは、Next.js App Router をすでに使っている人、または Pages Router アプリを保守している人が、`@lazarv/react-server` の考え方を理解するための比較です。移行手順書ではありません。どの概念が似ていて、どこが本質的に違い、Next.js 固有の機能を `@lazarv/react-server` ではどう考えるかを整理します。
+
+Next.js 側の前提は Next.js 16 の App Router ドキュメントです。特に [プロジェクト構成](https://nextjs.org/docs/app/getting-started/project-structure)、[レイアウトとページ](https://nextjs.org/docs/app/getting-started/layouts-and-pages)、[サーバーコンポーネントとクライアントコンポーネント](https://nextjs.org/docs/app/getting-started/server-and-client-components)、[データ取得](https://nextjs.org/docs/app/getting-started/fetching-data)、[キャッシュ](https://nextjs.org/docs/app/getting-started/caching)、[再検証](https://nextjs.org/docs/app/getting-started/revalidating)、[ルートハンドラー](https://nextjs.org/docs/app/getting-started/route-handlers)、[Proxy](https://nextjs.org/docs/app/getting-started/proxy)、[メタデータ](https://nextjs.org/docs/app/getting-started/metadata-and-og-images)、[デプロイ](https://nextjs.org/docs/app/getting-started/deploying) を比較対象にしています。Pages Router については [Pages Router](https://nextjs.org/docs/pages)、[`getServerSideProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props)、[Pages Router の SSR](https://nextjs.org/docs/pages/building-your-application/rendering/server-side-rendering)、[大きなページデータ](https://nextjs.org/docs/messages/large-page-data) も参照しています。
+
+<Link name="short-version">
+## 短くいうと
+</Link>
+
+Next.js は、ルーター、コンパイラ、キャッシュ、最適化済みコンポーネント、メタデータ API、ホスティング統合、`next/*` モジュールまで含むフルスタック React フレームワークです。
+
+`@lazarv/react-server` は Vite 上に構築された React Server Components ランタイムです。RSC レンダリング、ストリーミング SSR、サーバー関数、ルーティング、キャッシュ、HTTP ヘルパー、デプロイアダプター、本番サーバー機能を提供します。ただし `next/*` の互換レイヤーはありません。
+
+依存コードが `next/navigation`、`next/cache`、`next/server`、`next/image`、`next/font`、`next/script`、または Next.js Metadata API に依存している場合、その部分は Next.js 固有です。`@lazarv/react-server` では React、Web Platform API、Vite、ランタイム自身のモジュールを使います。
+
+| 領域 | Next.js App Router | `@lazarv/react-server` |
+|---|---|---|
+| 全体像 | フルスタック React フレームワーク | RSC ランタイムと本番サーバー |
+| ビルド | Next compiler、Turbopack/Webpack | Vite Environment API と Vite プラグイン |
+| ファイル構成 | `app` ディレクトリ規約 | 任意のルートディレクトリ。既定は `src/pages` |
+| ルーティング | App Router | ファイルルーターとコードベースの型付きルーター |
+| データ取得 | サーバーコンポーネント、`fetch`、DB/ORM、Cache Components | サーバーコンポーネント、リソース、`fetch`、DB/ORM、`"use cache"` |
+| 更新処理 | Server Actions / Server Functions | `"use server"` によるサーバー関数 |
+| API | `route.ts` | `*.server.*` と HTTP メソッド接頭辞ファイル |
+| ミドルウェア | Next.js 16 では `proxy.ts` | ルートセグメントごとの `*.middleware.*` |
+| デプロイ | Vercel と深く統合。Node、Docker、static export など | Node、Bun、Deno、Vercel、Netlify、Cloudflare、AWS、Azure、Firebase、Docker、static export など |
+
+<Link name="next-compatible-routing">
+## Next.js に近い構成
+</Link>
+
+ファイルルーターは、Next.js App Router に近い形へ設定できます。たとえば `src/app/page.tsx` と `src/app/layout.tsx` の構成を使いたい場合は、次のようにします。
+
+```json filename="react-server.config.json"
+{
+  "root": "src/app",
+  "layout": {
+    "include": ["**/layout.tsx"]
+  },
+  "page": {
+    "include": ["**/page.tsx"]
+  }
+}
+```
+
+これはファイル構成を近づけるだけです。Next.js の `next/*` モジュール、特別な export、Metadata API、Pages Router API が使えるようになるわけではありません。
+
+<Link name="topic-map">
+## 対応表
+</Link>
+
+| Next.js の概念 | `@lazarv/react-server` の考え方 | 重要な違い |
+|---|---|---|
+| `app/page.tsx` | `page.tsx`、`index.tsx`、または設定で含めたページファイル | ページは既定でサーバーコンポーネントです。 |
+| `app/layout.tsx` | `layout.tsx` | レイアウトは子ルートを包みます。生成される `@lazarv/react-server/routes` から型付きヘルパーも使えます。 |
+| `[id]` | `[id].page.tsx` または `[id]/page.tsx` | パラメータは props として渡され、スキーマで検証/変換できます。 |
+| `(group)` | `(group)` | URL に現れないグループとして扱います。 |
+| `@slot` | `@sidebar` などの名前付きアウトレット | レイアウト props として並列 UI を受け取ります。 |
+| `loading.tsx` | `loading.page.tsx` など | ルート/レイアウト境界のローディング UI です。 |
+| `error.tsx` | `error.jsx`、`fallback.jsx`、`react-server.error.jsx` | サーバー側とクライアント側のエラー境界を使い分けます。 |
+| `next/link` | `Link` または型付き `route.Link` | 検索パラメータを object や関数で更新でき、ルート/リソースのプリフェッチもできます。 |
+| `useRouter` など | `useClient`、`useNavigate`、`usePathname`、`useSearchParams`、型付きルートフック | 検索パラメータを検証、変換、型付けできます。 |
+| `"use client"` | `"use client"` | ページファイルに置くと、サーバー往復なしで遷移できるクライアント専用ルートになります。 |
+| Server Actions | `"use server"` 関数 | 参照は既定で暗号化され、POST の CSRF 検証やデコード制限も使えます。 |
+| Cache Components | `"use cache"`、`useCache`、`withCache`、`useResponseCache` | キャッシュはプロバイダー方式で、TTL、タグ、プロファイル、リソースと組み合わせられます。 |
+| `revalidateTag` / `revalidatePath` | `invalidate`、`revalidate`、リソースの無効化 | 関数、タグ、リソース、レスポンスキャッシュを対象にします。 |
+| PPR | Suspense、`"use dynamic"`、`"use static"` | 静的部分とリクエスト時に描画する部分をディレクティブで分けます。 |
+| `getServerSideProps` | `"use client"` ルートと `"use cache: request"` | 詳細は下の Pages Router 比較を参照してください。 |
+| Metadata API | 通常の React `<head>`、ルートハンドラー、静的ファイル | `metadata` / `generateMetadata` は `@lazarv/react-server` の API ではありません。 |
+| `next/image` / `next/font` / `next/script` | Vite、HTML/CSS、外部サービス、アプリ側コンポーネント | 組み込みの Next.js 最適化コンポーネントはありません。 |
+| `next.config.*` | `react-server.config.*` と `vite.config.*` | ランタイム設定と Vite 設定を分けます。 |
+| `NEXT_PUBLIC_` | Vite の公開環境変数パターン、または明示的な設定境界 | Next.js の接頭辞規約はありません。 |
+| 認証 | ミドルウェア、サーバー関数、API ルート、HTTP コンテキスト | ランタイムは認証フレームワークではなく、防御機構を提供します。 |
+| 計装 | OpenTelemetry、計測ファイル | HTTP、ミドルウェア、RSC/SSR、サーバー関数、キャッシュ、Vite 開発フックを計測できます。 |
+
+<Link name="routing">
+## ルーティング
+</Link>
+
+App Router に慣れているなら、フォルダーがセグメントを作り、`page` がページになり、`layout` が子を包み、`[id]` が動的パラメータになる、という基本形は近く感じるはずです。
+
+違いは、`@lazarv/react-server` ではファイル構成が設定可能で、型付きルーターも第一級の機能であることです。ファイルルーターを使うと仮想 `@lazarv/react-server/routes` モジュールが生成され、各ルートから `.Link`、`.href()`、`.useParams()`、`.useSearchParams()`、`.createPage()`、`.createLayout()` などを使えます。
+
+ファイルルーターを使わず、`createRoute` と `createRouter` でコードベースのルーターを定義することもできます。つまり Next.js 風の構成は選択肢の1つであり、唯一のモデルではありません。
+
+<Link name="server-client-components">
+## サーバーコンポーネントとクライアントコンポーネント
+</Link>
+
+基本の React モデルは同じです。コンポーネントは既定でサーバーコンポーネントで、`"use client"` がクライアント境界を示します。サーバーコンポーネントはデータ取得や secret をサーバーに留める用途に向いています。クライアントコンポーネントは state、イベントハンドラー、effects、ブラウザー API、クライアント専用ライブラリのために使います。
+
+`@lazarv/react-server` ではさらに、関数本体の中に `"use client"` や `"use server"` を置く字句スコープのディレクティブも使えます。また、ファイルルーターのページファイルが `"use client"` で始まる場合、そのページはクライアント専用ルートになります。そこへの遷移はブラウザー内で完結し、クライアント専用ルート間ではローカル state を保持できます。
+
+<Link name="pages-router-ssr-and-hydration-data">
+## Pages Router 型 SSR とハイドレーションデータ
+</Link>
+
+Next.js Pages Router で近い概念は `getServerSideProps` です。リクエストごとにサーバーでデータを作り、その値をページ props として JSON 化し、ブラウザーで同じコンポーネントをハイドレートします。データが大きい場合は `__NEXT_DATA__` の解析コストが問題になります。
+
+`@lazarv/react-server` では、アプリのルートが `"use client"` モジュールの場合に別の形を使えます。ランタイムはそのルートを React DOM SSR で直接描画し、ページ全体の RSC Flight パイプラインをスキップします。
+
+```jsx filename="src/index.jsx"
+"use client";
+
+import App from "./App.jsx";
+
+export default function Root() {
+  return <App />;
+}
+```
+
+この場合でも、リクエストスコープのキャッシュ値はハイドレーションできます。クライアントコンポーネントから `use()` で `"use cache: request"` の関数を読むと、SSR 中に解決された値がリクエストキャッシュへ入り、HTML に注入されます。
+
+```jsx filename="App.jsx"
+"use client";
+
+import { use } from "react";
+import { getRequestData } from "./get-request-data.mjs";
+
+export default function App() {
+  const data = use(getRequestData());
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+```mjs filename="get-request-data.mjs"
+let calls = 0;
+
+export async function getRequestData() {
+  "use cache: request";
+
+  calls += 1;
+  return {
+    calls,
+    renderedAt: new Date(),
+  };
+}
+```
+
+SSR 中に `getRequestData()` は現在の HTTP リクエストで1回だけ実行されます。HTML ストリームが flush されるとき、ランタイムはハイドレーション対象のリクエストキャッシュエントリを RSC シリアライザーでシリアライズし、`self.__react_server_request_cache_entries__` へ注入します。ブラウザー側のキャッシュラッパーはハイドレーション中にその値を同期的に読むため、初回描画で `use(getRequestData())` がサスペンドしたり別の値を再計算したりしません。
+
+重要なのは、これは「ページ全体を RSC ペイロードとして送る仕組み」ではないことです。ルートは通常の React DOM SSR と React DOM hydration のままで、必要なリクエストキャッシュエントリだけが RSC 形式でハイドレーションデータとして送られます。ブラウザーへ出したくない値には `"use cache: request; no-hydrate"` または `hydrate=false` を使います。
+
+<Link name="data-caching-rendering">
+## データ取得、キャッシュ、描画モード
+</Link>
+
+Next.js App Router と同じく、`@lazarv/react-server` でもサーバーコンポーネント内で `fetch`、ORM、DB クライアントをそのまま使えます。
+
+```tsx filename="products.page.tsx"
+export default async function ProductsPage() {
+  const products = await db.products.findMany();
+  return <ProductList products={products} />;
+}
+```
+
+大きなアプリではリソースを使うと、キーの検証、Suspense 用の `.use()`、命令的な `.query()`、事前取得用の `.prefetch()`、更新後の `.invalidate()` をまとめられます。
+
+```ts filename="resources/products.ts"
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+export const products = createResource({
+  key: z.object({
+    page: z.coerce.number().int().positive().default(1),
+  }),
+}).bind(async ({ page }) => {
+  "use cache; tags=products";
+  return db.products.page(page);
+});
+```
+
+キャッシュは `"use cache"` を中心に、TTL、タグ、プロファイル、キャッシュプロバイダーを指定できます。静的生成は `.static.*` と `export()` 設定、部分事前レンダリングは Suspense と `"use dynamic"` / `"use static"` で扱います。小さな対話部分だけをあとでハイドレートしたい場合は `"use hydrate"` によるハイドレーションアイランドを使います。
+
+<Link name="mutations">
+## 更新処理とサーバー関数
+</Link>
+
+Next.js Server Actions に近い機能は `"use server"` 関数です。フォーム、ボタン、props、クライアントコンポーネントから呼び出せます。
+
+```tsx filename="todo.page.tsx"
+import { invalidate, redirect } from "@lazarv/react-server";
+
+async function getTodos() {
+  "use cache; tags=todos";
+  return db.todos.findMany();
+}
+
+async function createTodo(formData: FormData) {
+  "use server";
+  await db.todos.create({ text: String(formData.get("text") ?? "") });
+  await invalidate(getTodos);
+  redirect("/todos");
+}
+
+export default function TodosPage() {
+  return (
+    <form action={createTodo}>
+      <input name="text" />
+      <button type="submit">Create</button>
+    </form>
+  );
+}
+```
+
+`@lazarv/react-server` では、サーバー関数の参照は既定で暗号化されます。必要に応じてキーのローテーション、action POST の CSRF origin 検証、受信ペイロードのサイズ/深さ/行数/文字列/BigInt/Stream などの制限も使えます。
+
+<Link name="http-api">
+## HTTP、API ルート、ミドルウェア
+</Link>
+
+Next.js の Route Handlers は `route.ts` を使います。`@lazarv/react-server` では標準の `Request` / `Response` を使いつつ、ファイル規約が違います。
+
+```js filename="GET.posts.server.mjs"
+export default async function getPosts() {
+  const posts = await db.posts.findMany();
+  return Response.json({ posts });
+}
+```
+
+```js filename="index.middleware.mjs"
+import { redirect, usePathname } from "@lazarv/react-server";
+
+export default async function authMiddleware() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/admin") && !(await isSignedIn())) {
+    redirect("/login");
+  }
+}
+```
+
+ミドルウェアはルートセグメントごとに置けます。HTTP コンテキストのヘルパーは、サーバーコンポーネント、ミドルウェア、API ルート、サーバー関数で使えます。代表的なものは `useRequest`、`useResponse`、`headers`、`cookie`、`setCookie`、`status`、`redirect`、`rewrite`、`after` です。
+
+<Link name="navigation-assets-config">
+## ナビゲーション、アセット、設定
+</Link>
+
+サーバールートへの遷移では次の RSC ペイロードを取得します。クライアント専用ルートではサーバー往復なしで遷移できます。検索パラメータは Zod、ArkType、Valibot、または軽量な parse 関数で検証でき、リンクでは object や関数 updater として更新できます。
+
+Next.js の Metadata API、`next/image`、`next/font`、`next/script` に相当する組み込み API はありません。通常の `<head>`、静的ファイル、`.server.*` ルート、Vite の CSS パイプライン、Tailwind、CSS Modules、Sass、CSS-in-JS ライブラリの SSR/Vite 統合を使います。Mantine と MUI については個別の integration docs があります。
+
+設定は `react-server.config.*` と `vite.config.*` に分かれます。`react-server.config.*` はランタイム、ルーター、HTTP サーバー、キャッシュ、計装、アダプター、静的出力などを設定します。Vite 設定は通常通り `vite.config.*` に置けます。
+
+<Link name="auth-deploy-observability">
+## 認証、デプロイ、可観測性
+</Link>
+
+`@lazarv/react-server` は認証フレームワークではありません。セッション、権限、テナント分離、データアクセス制御はアプリ側で実装します。ランタイムは cookie/header へのアクセス、CSRF origin 検証、リクエストサイズ制限、サーバー関数の暗号化参照、デコード制限などを提供します。
+
+デプロイはアダプターで選びます。Node.js、Bun、Deno、Vercel、Netlify、Cloudflare、AWS、Azure Functions、Azure Static Web Apps、Firebase Functions、Docker、single-file、static export などをサポートします。本番サーバーには health/readiness、keep-alive/timeout、graceful shutdown、adaptive backpressure、body/multipart limits、OpenTelemetry などの運用機能があります。
+
+`--devtools` を使うと、RSC ペイロード、キャッシュ、ルート、アウトレット、リモートコンポーネント、ライブコンポーネント、ワーカー、サーバーログをブラウザーから確認できます。テストツールは userland ですが、Vite ベースなので Vitest や Playwright と組み合わせやすい構成です。
+
+<Link name="missing-next-features">
+## 一対一で対応しないもの
+</Link>
+
+| トピック | `@lazarv/react-server` での扱い |
+|---|---|
+| 国際化 | ルートグループ、パラメータ、ミドルウェア、型付きルート、任意の i18n ライブラリを使います。 |
+| MDX | ファイルルーターの Markdown/MDX サポート、Remark/Rehype、カスタム MDX コンポーネントを使います。 |
+| CSS-in-JS | 各ライブラリの SSR/Vite 統合を使います。Mantine と MUI の docs があります。 |
+| Analytics | provider script、コンポーネント、またはサーバー側イベント処理を使います。 |
+| CSP/security headers | ミドルウェア、ルートハンドラー、HTTP ヘルパー、ホスト設定で header を設定します。 |
+| PWA | manifest と service worker は Vite plugin またはアプリ側コードで追加します。 |
+| Background jobs | job runner、queue、cron、worker、サーバー関数を用途に応じて使います。 |
+| Real-time UI | `"use live"`、通常の WebSocket/SSE、または外部 realtime サービスを使います。 |
+| 重い計算 | `"use worker"` で Worker Threads や Web Workers に逃がせます。 |
+
+<Link name="when-it-feels-different">
+## 違って感じるところ
+</Link>
+
+Next.js 開発者が特に違いを感じやすい点は次の通りです。
+
+1. `next/*` の互換レイヤーはありません。
+2. ファイルルーターだけでなく、コードベースの型付きルーターも第一級です。
+3. 検索パラメータとルートパラメータはルート境界で検証できます。
+4. ミドルウェアはプロジェクト直下1つではなく、ルートツリーに沿って置けます。
+5. キャッシュは `fetch` だけではなく、ディレクティブとプロバイダーの仕組みです。
+6. `"use client"` ページはクライアント専用ルートになります。
+7. ハイドレーションアイランド、ライブコンポーネント、ワーカー、リモートコンポーネント、MCP エンドポイントはランタイム機能です。
+
+<Link name="when-to-choose-what">
+## 選び方
+</Link>
+
+Next.js 固有の最適化コンポーネント、Metadata API、既存の `next/*` 依存、Pages Router API、Vercel 固有の運用、または Next.js 前提のチームワークフローが重要なら、Next.js に寄せたままにするのが自然です。
+
+Vite ベースの RSC ランタイム、強い型付きルーティング、開かれたデプロイモデル、HTTP サーバー制御、ルートスコープのミドルウェア、堅牢化されたサーバー関数、ハイドレーションアイランド、ライブコンポーネント、ワーカー、RSC ネイティブなマイクロフロントエンドが欲しいなら、`@lazarv/react-server` を検討してください。
+
+より広い機能比較は [比較表](/features/comparison) を参照してください。設計上の制約とトレードオフは [アーキテクチャのトレードオフ](/guide/architecture-tradeoffs) を読んでください。

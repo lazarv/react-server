@@ -1,0 +1,420 @@
+---
+title: TanStack Start/Router から来た人へ
+order: 7
+---
+
+import Link from "../../../../components/Link.jsx";
+
+# TanStack Start/Router から来た人へ
+
+このページは、TanStack Router、TanStack Start、または TanStack のクライアント中心の設計に慣れている人が、`@lazarv/react-server` の考え方を理解するための比較です。移行手順書ではありません。どの概念が似ていて、どこが本質的に違い、TanStack の機能を `@lazarv/react-server` ではどう捉えるかを説明します。
+
+TanStack 側の前提は現在の TanStack Start と TanStack Router のドキュメントです。特に [TanStack Start](https://tanstack.com/start/latest)、[ルーティング](https://tanstack.com/start/latest/docs/framework/react/guide/routing)、[実行モデル](https://tanstack.com/start/latest/docs/framework/react/guide/execution-model)、[コード実行パターン](https://tanstack.com/start/latest/docs/framework/react/guide/code-execution-patterns)、[サーバー関数](https://tanstack.com/start/latest/docs/framework/react/guide/server-functions)、[サーバールート](https://tanstack.com/start/latest/docs/framework/react/guide/server-routes)、[ミドルウェア](https://tanstack.com/start/latest/docs/framework/react/guide/middleware)、[選択的 SSR](https://tanstack.com/start/latest/docs/framework/react/guide/selective-ssr)、[静的事前レンダリング](https://tanstack.com/start/latest/docs/framework/react/guide/static-prerendering)、[Router overview](https://tanstack.com/router/latest/docs/overview)、[データ読み込み](https://tanstack.com/router/latest/docs/guide/data-loading)、[path params](https://tanstack.com/router/latest/docs/guide/path-params)、[検索パラメータ](https://tanstack.com/router/latest/docs/guide/search-params)、[ルーティング概念](https://tanstack.com/router/latest/docs/routing/routing-concepts)、[document head 管理](https://tanstack.com/router/latest/docs/guide/document-head-management) を比較対象にしています。TanStack Start の React docs では、RSC はまだ実験的で opt-in として扱われています。
+
+<Link name="short-version">
+## 短くいうと
+</Link>
+
+TanStack Router は、型の強いクライアントルーターです。ファイルベース/コードベースのルート、ローダー、ルートキャッシュ、検索パラメータ検証、プリロード、ナビゲーション API、devtools を中心にアプリを組み立てます。TanStack Start はそこに SSR、ストリーミング、サーバー関数、サーバールート、ミドルウェア、ホスティング統合、静的事前レンダリングを追加します。
+
+`@lazarv/react-server` は別の中心から始まります。これは Vite 上に構築された React Server Components ランタイムとサーバーです。ルーティング、サーバー関数、HTTP ヘルパー、キャッシュ、静的出力、ミドルウェア、ワーカー、ライブコンポーネント、デプロイアダプターは、その RSC の中核を支える機能です。
+
+もっとも大きな違いは実行モデルです。
+
+- TanStack Start では、通常のルートコードとローダーは既定で同型です。SSR 中はサーバーで動き、クライアント遷移中はブラウザーでも動きます。サーバー専用処理は `createServerFn`、`createServerOnlyFn`、サーバールート、保護されたファイルの背後に移します。
+- `@lazarv/react-server` では、ルートコンポーネントは既定でサーバーコンポーネントです。`"use client"` 境界、クライアント専用ルート、クライアントリソースへ明示的に渡さない限り、サーバーコードはサーバーに留まります。
+
+TanStack 風のアプリにとって重要な橋渡しもあります。アプリのルート自体が `"use client"` モジュールの場合、`@lazarv/react-server` はクライアントルート SSR の短縮経路を使います。ページは React DOM SSR で描画されますが、リクエストスコープの `"use cache: request"` の結果は RSC シリアライザーでシリアライズされ、対象を絞ったハイドレーションデータとして注入されます。つまりこれは「クライアントルートの通常 SSR」と「必要なキャッシュエントリだけの RSC 形式ハイドレーションデータ」であり、ページ全体の RSC ペイロードではありません。
+
+| 領域 | TanStack Start/Router | `@lazarv/react-server` |
+|---|---|---|
+| 全体像 | Router 中心。Start ではフルスタック機能を追加 | RSC ランタイムと本番サーバー |
+| ビルド | Vite と TanStack プラグイン | Vite Environment API と `@lazarv/react-server` プラグイン |
+| UI モデル | SSR 付きの同型 React アプリ。RSC は実験的 opt-in | RSC が既定のレンダリングモデル |
+| ルーティング | `createFileRoute`、`createRouter`、`routeTree.gen` | ファイルルーターとコードベースの型付きルーター |
+| データ読み込み | `beforeLoad`、ローダー、ルートキャッシュ、TanStack Query、サーバー関数 | 非同期サーバーコンポーネント、リソース、`"use cache"`、レスポンスキャッシュ |
+| 検索パラメータ | JSON を扱える型付き/検証済み検索パラメータ | 型付き/検証済み検索パラメータ、関数 updater、`SearchParams` 変換 |
+| 更新/RPC | `createServerFn` | `"use server"` サーバー関数 |
+| API | route `server.handlers` / サーバールート | `*.server.*` と HTTP メソッド接頭辞ファイル |
+| ミドルウェア | リクエストミドルウェアとサーバー関数ミドルウェア | ルートセグメントごとの `*.middleware.*` |
+| 描画モード | SSR、SPA mode、選択的 SSR、事前レンダリング、ISR 風運用 | RSC SSR、クライアント専用ルート、PPR、静的出力 |
+| デプロイ | Start のホスティング設定 | Node、Bun、Deno、Vercel、Netlify、Cloudflare、AWS、Azure、Firebase、Docker、static export |
+
+<Link name="topic-map">
+## 対応表
+</Link>
+
+| TanStack の概念 | `@lazarv/react-server` の考え方 | 重要な違い |
+|---|---|---|
+| `src/router.tsx` と `createRouter({ routeTree })` | ファイルルーターの自動エントリ、または `createRouter` | `routeTree.gen` は不要です。 |
+| `src/routes/__root.tsx` | `layout.tsx` | どちらもアプリの外枠ですが、`@lazarv/react-server` のレイアウトは既定でサーバーコンポーネントです。 |
+| `createFileRoute('/posts')({ component })` | ページファイル、または `createRoute('/posts', <Page />)` | TanStack の `Route` object を export する必要はありません。 |
+| `$postId` | `[postId]` | ファイルルーターでは bracket segment を使います。 |
+| `validateSearch` | `validate.search`、型付き検索、`SearchParams` 変換 | TanStack の JSON 検索モデルの完全互換ではありません。 |
+| `beforeLoad` | ミドルウェア、レイアウト/ページ内処理、リソース、ルート検証 | 一対一対応のライフサイクルフックはありません。 |
+| `loader` | 非同期サーバーコンポーネント、リソース、サーバー関数 | データ読み込みの中心はルートローダーではありません。 |
+| `Route.useLoaderData()` | props、リソース `.use()`、ローカルの async データ | データはローダー結果 object ではなく、コンポーネントツリーに置くことが多いです。 |
+| ルーターキャッシュ | `"use cache"`、リソース、レスポンスキャッシュ | キャッシュはルートローダー中心ではなく、ディレクティブ/プロバイダー中心です。 |
+| `router.invalidate()` | `invalidate`、`revalidate`、リソース無効化、refresh/遷移 | 関数、タグ、リソース、レスポンスを対象にします。 |
+| `<Link to="/posts" search={...} />` | `Link` または型付き `route.Link` | どちらも型付き遷移を扱えます。`@lazarv/react-server` はリソースのプリフェッチもできます。 |
+| `RouterProvider` | ランタイム内部のクライアントプロバイダー | 通常のファイルルーターアプリではアプリ側に置きません。 |
+| TanStack のクライアントルートアプリ | `"use client"` ルートとクライアントルート SSR | SSR しつつ、リクエストキャッシュ値だけを RSC 形式でハイドレートできます。 |
+| TanStack Router devtools | `--devtools` | TanStack はルート状態を見るのに対し、`@lazarv/react-server` は RSC ペイロード、キャッシュ、ルート、アウトレット、ワーカー、ライブコンポーネント、ログを見ます。 |
+| `createServerFn` | `"use server"` async 関数 | builder API ではなく React 方式のディレクティブです。 |
+| `ClientOnly` / `useHydrated` | `ClientOnly`、`"use client"`、`"use hydrate"` | サーバーで描画した部分を後からハイドレートするアイランドも使えます。 |
+| route `head`、`HeadContent`、`Scripts` | 通常の React `<head>` とレイアウト | TanStack の head API は使いません。 |
+| TanStack Query | クライアントコンポーネント内の TanStack Query、または `@lazarv/react-server` リソース | Query は使えますが、サーバー由来データは RSC/リソースに寄せることが多いです。 |
+
+<Link name="architecture">
+## アーキテクチャ
+</Link>
+
+TanStack Router はアプリケーションルーターです。ルート照合、パラメータ、検索パラメータ、ローダー、ルートキャッシュ、ルートコンテキスト、プリロード、リダイレクト、エラー、ナビゲーションを調整します。TanStack Start はそこに、ドキュメント全体の SSR、ストリーミング、サーバー関数、サーバールート、ミドルウェア、環境処理、デプロイ処理を追加します。
+
+`@lazarv/react-server` は TanStack Router host ではなく、`@tanstack/react-router` や `@tanstack/react-start` の API を実装しません。中心にあるのはサーバーコンポーネントツリーです。ルーティングは重要ですが、データ取得とサーバー実行を調整する唯一の場所ではありません。
+
+ランタイムは React を pin して RSC wire protocol の互換性を保ち、Vite をビルド/ツールの拡張ポイントとして使います。本番サーバーには health/readiness、keep-alive/timeout、graceful shutdown、body/multipart limits、adaptive backpressure、CSRF origin 検証、OpenTelemetry などの運用機能があります。
+
+<Link name="execution-model">
+## 実行モデル
+</Link>
+
+TanStack Start は既定で同型です。ルートローダーは本質的にサーバー専用ではありません。SSR 中はサーバーで、クライアント遷移中はブラウザーで実行されます。そのため、Start の docs では `createServerFn`、`createServerOnlyFn`、`createClientOnlyFn`、`createIsomorphicFn`、`.server.*` / `.client.*` ファイル、import 保護が重要になります。
+
+`@lazarv/react-server` は既定でサーバー優先です。
+
+```tsx filename="posts.page.tsx"
+export default async function PostsPage() {
+  const posts = await db.posts.findMany();
+  return <PostList posts={posts} />;
+}
+```
+
+この DB 呼び出しを、クライアントから隠すためだけに RPC で包む必要はありません。すでにサーバーコンポーネントの中にあります。ブラウザー state、effects、イベントハンドラー、ブラウザー API が必要な場所だけ `"use client"` 境界を置きます。
+
+```tsx filename="like-button.tsx"
+"use client";
+
+export default function LikeButton() {
+  const [liked, setLiked] = useState(false);
+  return <button onClick={() => setLiked((value) => !value)}>Like</button>;
+}
+```
+
+<Link name="client-root-ssr-and-hydration-data">
+## クライアントルート SSR とハイドレーションデータ
+</Link>
+
+TanStack Start/Router では、ルートツリーをクライアントが所有し、初回 HTML だけサーバーで作る、という設計がよくあります。`@lazarv/react-server` もこの形をサポートします。
+
+アプリのエントリが `"use client"` モジュールの場合、ランタイムはクライアントルート用の SSR 経路に切り替えます。
+
+```jsx filename="src/index.jsx"
+"use client";
+
+import App from "./App.jsx";
+
+export default function Root() {
+  return <App />;
+}
+```
+
+このルートは React DOM SSR で直接描画されます。ページルート用にサーバーコンポーネントツリーをエンコードする必要がないため、ページ全体の RSC Flight パイプラインは使いません。ブラウザーは、サーバーで React DOM が描画した同じクライアントツリーをハイドレートします。
+
+それでもリクエストスコープのキャッシュ値はハイドレーションできます。
+
+```jsx filename="App.jsx"
+"use client";
+
+import { use } from "react";
+import { getRequestData } from "./get-request-data.mjs";
+
+export default function App() {
+  const data = use(getRequestData());
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+```mjs filename="get-request-data.mjs"
+let calls = 0;
+
+export async function getRequestData() {
+  "use cache: request";
+
+  calls += 1;
+  return {
+    calls,
+    renderedAt: new Date(),
+  };
+}
+```
+
+SSR 中に `getRequestData()` は現在の HTTP リクエストで1回だけ実行されます。解決された値はリクエストキャッシュに入り、HTML ストリームの flush 時に RSC シリアライザーでシリアライズされ、`self.__react_server_request_cache_entries__` に注入されます。ブラウザー側のキャッシュラッパーはハイドレーション中にそれを同期的に読むため、`use(getRequestData())` は初回描画で値を得られます。
+
+この仕組みは「対象を絞った RSC 形式のハイドレーションデータを持つ SSR」です。
+
+- ページ全体は RSC Flight ペイロードではありません。
+- ページルートは通常の React DOM SSR と React DOM hydration のままです。
+- ハイドレーションで必要なリクエストキャッシュエントリだけを RSC 形式で送ります。
+- Suspense 境界が解決するたびに、その値を HTML へ流せます。
+- `"use cache: request; no-hydrate"` または `hydrate=false` の値はサーバー/リクエスト内に留まり、ブラウザーへ出ません。
+
+これは、TanStack 風のクライアントシェルを保ちながら SSR HTML を得たい場合に有効です。ただしルートが `"use client"` なので、推移的に import したコードはクライアントバンドル候補になります。secret を読むコードや DB 専用コードをこのルートに import しないでください。サーバー描画中心のページでは、通常の RSC ルートを優先します。
+
+<Link name="routing">
+## ルーティング
+</Link>
+
+TanStack Start の典型的な構成は `src/router.tsx`、`routeTree.gen.ts`、`src/routes` です。
+
+```txt filename="TanStack Start"
+src/
+|-- router.tsx
+|-- routeTree.gen.ts
+`-- routes/
+    |-- __root.tsx
+    |-- index.tsx
+    |-- about.tsx
+    `-- posts/
+        `-- $postId.tsx
+```
+
+`@lazarv/react-server` のファイルルーターは、CLI に明示的なエントリを渡さないと有効になります。既定のルートは `src/pages` です。
+
+```txt filename="@lazarv/react-server"
+src/pages/
+|-- layout.tsx
+|-- page.tsx
+|-- about.tsx
+`-- posts/
+    `-- [postId].page.tsx
+```
+
+型付きファイルルーターは仮想 `@lazarv/react-server/routes` モジュールを生成します。各ルート記述子は `.Link`、`.href()`、`.useParams()`、`.useSearchParams()`、`.createPage()`、`.createLayout()`、`.createLoading()`、`.createError()`、`.createMiddleware()` などを持ちます。
+
+コードベースのルーティングもできます。
+
+```tsx filename="router.tsx"
+import { createRoute, createRouter } from "@lazarv/react-server/router";
+import { z } from "zod";
+
+export const post = createRoute("/posts/[postId]", {
+  exact: true,
+  validate: {
+    params: z.object({ postId: z.string().min(1) }),
+  },
+});
+
+export const router = createRouter({
+  post: createRoute(post, <PostPage />),
+});
+```
+
+考え方は似ていますが、API は互換ではありません。
+
+<Link name="params-search-data-cache">
+## パラメータ、検索、データ、キャッシュ
+</Link>
+
+TanStack Router は URL 状態に強く、検索パラメータを JSON 互換の構造として扱えます。`@lazarv/react-server` でも検索パラメータを検証し、型付きフックとリンクで扱えますが、TanStack Router の JSON 検索モデルをそのまま再現するものではありません。
+
+```tsx filename="products.page.tsx"
+import { products } from "@lazarv/react-server/routes";
+import { z } from "zod";
+
+export const validate = {
+  search: z.object({
+    page: z.coerce.number().int().positive().catch(1),
+    sort: z.enum(["name", "price"]).catch("name"),
+  }),
+};
+
+export default products.createPage(() => {
+  const search = products.useSearchParams();
+
+  return (
+    <products.Link search={(prev) => ({ ...prev, page: search.page + 1 })}>
+      Next page
+    </products.Link>
+  );
+});
+```
+
+データ読み込みの中心も違います。TanStack Router では `beforeLoad`、ローダー、ルーターキャッシュがページデータを調整します。`@lazarv/react-server` では、サーバーコンポーネントツリーとリソースが中心です。
+
+```tsx filename="posts.page.tsx"
+export default async function PostsPage() {
+  const posts = await db.posts.findMany();
+  return <PostList posts={posts} />;
+}
+```
+
+```ts filename="resources/posts.ts"
+import { createResource } from "@lazarv/react-server/resources";
+import { z } from "zod";
+
+export const posts = createResource({
+  key: z.object({
+    page: z.coerce.number().int().positive().default(1),
+  }),
+}).bind(async ({ page }) => {
+  "use cache; tags=posts";
+  return db.posts.page(page);
+});
+```
+
+キャッシュもルートローダーの結果だけに結びつきません。`"use cache"`、TTL、タグ、プロファイル、キャッシュプロバイダー、`invalidate`、`revalidate`、`withCache`、`useResponseCache` を使い、ページ、レイアウト、リソース、サーバー関数、API ルートから同じキャッシュ機構を使えます。
+
+<Link name="server-functions">
+## サーバー関数と更新処理
+</Link>
+
+TanStack Start の `createServerFn()` は builder API です。`@lazarv/react-server` では async 関数に `"use server"` を付けます。
+
+```tsx filename="todos.page.tsx"
+import { invalidate, redirect } from "@lazarv/react-server";
+
+async function getTodos() {
+  "use cache; tags=todos";
+  return db.todos.findMany();
+}
+
+async function createTodo(formData: FormData) {
+  "use server";
+  await db.todos.create({ text: String(formData.get("text") ?? "") });
+  await invalidate(getTodos);
+  redirect("/todos");
+}
+
+export default async function TodosPage() {
+  const todos = await getTodos();
+
+  return (
+    <form action={createTodo}>
+      <ul>{todos.map((todo) => <li key={todo.id}>{todo.text}</li>)}</ul>
+      <input name="text" />
+      <button type="submit">Create</button>
+    </form>
+  );
+}
+```
+
+サーバー関数の参照は既定で暗号化されます。必要に応じてキーのローテーション、CSRF origin 検証、ペイロード/デコード制限、構造的防御を使えます。
+
+<Link name="server-components-navigation-http">
+## RSC、ナビゲーション、HTTP
+</Link>
+
+TanStack Start の RSC は実験的で、`renderServerComponent` や `createCompositeComponent` から生成した値をローダー経由でクライアントに渡す形として説明されています。`@lazarv/react-server` では RSC が既定のアプリモデルです。サーバー側のデータ取得とクライアント側の対話性は、React のサーバー/クライアント境界で合成します。
+
+クライアントナビゲーションも RSC を意識しています。サーバールートへの遷移では次の RSC ペイロードを取得し、`"use client"` ページへの遷移ではブラウザーだけで進めます。これによりクライアント専用ルート間のローカル state を保持できます。
+
+TanStack Start の server routes は route 定義の `server.handlers` に置きます。`@lazarv/react-server` ではサーバールートファイルを使います。
+
+```js filename="GET.hello.server.mjs"
+export default async function hello() {
+  return new Response("Hello");
+}
+```
+
+ミドルウェアも builder ではなく、ルートツリーに沿ったファイルです。
+
+```js filename="index.middleware.mjs"
+import { redirect, usePathname } from "@lazarv/react-server";
+
+export default async function adminMiddleware() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/admin") && !(await isSignedIn())) {
+    redirect("/login");
+  }
+}
+```
+
+HTTP ヘルパーはサーバーコンポーネント、ミドルウェア、API ルート、サーバー関数で共通して使えます。
+
+<Link name="rendering-head-config">
+## 描画モード、head、設定
+</Link>
+
+TanStack Start には SSR、SPA mode、選択的 SSR、静的事前レンダリング、ISR 風の運用、実験的 RSC 合成があります。`@lazarv/react-server` では、目的ごとにプリミティブを選びます。
+
+| 目的 | TanStack Start/Router | `@lazarv/react-server` |
+|---|---|---|
+| 初期 HTML をサーバーで作る | SSR | RSC ツリーからのストリーミング SSR |
+| クライアント所有ルートツリーを SSR する | Start/Router のアプリシェル SSR | `"use client"` ルートとリクエストキャッシュのハイドレーションデータ |
+| そのルートでサーバーを使わない | SPA mode / 選択的 SSR | `"use client"` クライアント専用ページ |
+| 静的出力 | 静的事前レンダリング | `.static.*` と `export()` 設定 |
+| 再検証 | HTTP キャッシュ、ルーターキャッシュ、Query キャッシュ | `"use cache"`、`invalidate`、`revalidate` |
+| 部分的な server/client 分割 | `ClientOnly`、選択的 SSR、実験的 RSC | サーバーコンポーネント、クライアントコンポーネント、`"use hydrate"` |
+| 静的出力の動的部分 | 選択的 SSR / ISR 風運用 | `"use dynamic"` と `"use static"` による PPR |
+
+TanStack の `head`、`HeadContent`、`Scripts` に相当する専用 API は使いません。通常の React markup で `<head>` を書きます。
+
+```tsx filename="layout.tsx"
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <head>
+        <title>My App</title>
+        <meta name="description" content="My app" />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+設定は `react-server.config.*` と `vite.config.*` に分けます。`react-server.config.*` はランタイム、ルーター、HTTP サーバー、キャッシュ、計装、アダプター、静的出力などを扱います。Vite 側の設定は通常通り Vite に置きます。環境変数については、サーバーコンポーネントとサーバー関数では secret を読めますが、secret を読むモジュールをクライアント側へ import しないようにします。
+
+<Link name="auth-deployment-devtools">
+## 認証、デプロイ、devtools
+</Link>
+
+TanStack Start では、認証はルートガード、`beforeLoad`、サーバー関数、サーバールート、cookie、リクエストミドルウェア、サーバー関数ミドルウェアで扱うことが多いです。`@lazarv/react-server` でも原則は同じです。UI ルートはミドルウェアやサーバー側ロジックで守り、データアクセスはサーバー関数/API ルート内でも必ず検証します。
+
+ランタイム境界では、暗号化されたサーバー関数参照、キーのローテーション、CSRF origin 検証、body/multipart limits、デコード制限、prototype pollution などへの構造的防御を使えます。セッション、ロール、権限、テナント分離はアプリ側の責務です。
+
+デプロイは Node.js、Bun、Deno、Vercel、Netlify、Cloudflare、AWS、Azure Functions、Azure Static Web Apps、Firebase Functions、Docker、single-file、static export などをサポートします。OpenTelemetry と組み込みメトリクスで HTTP、ミドルウェア、RSC/SSR、サーバー関数、キャッシュを計測できます。
+
+`--devtools` では RSC ペイロード、キャッシュ、ルート、アウトレット、リモートコンポーネント、ライブコンポーネント、ワーカー、サーバーログを確認できます。
+
+<Link name="using-tanstack-inside-react-server">
+## @lazarv/react-server の中で TanStack を使う
+</Link>
+
+TanStack エコシステムを使うのをやめる必要はありません。相性がよいものは次の通りです。
+
+- クライアントコンポーネント内の TanStack Query
+- TanStack Table、Virtual、Form、Store などの UI/クライアントライブラリ
+- SPA 風の一部分を意図的に作りたい場合の、クライアント側 TanStack Router
+
+TanStack Router を埋め込む場合は `"use client"` 境界の下に置きます。通常の `@lazarv/react-server` ファイルルーターアプリで `routeTree.gen` や `RouterProvider` を中心に据える必要はありません。
+
+直接持ち越せないものは、`@tanstack/react-start` のサーバー関数、Start のサーバールート、Start のミドルウェア設定、Start route の `head` 規約、`routeTree.gen` をアプリの主要ルーター契約にする設計、ルートローダーを主要なサーバーデータ層にする設計です。
+
+<Link name="when-it-feels-different">
+## 違って感じるところ
+</Link>
+
+TanStack Start/Router 開発者が特に違いを感じやすい点は次の通りです。
+
+1. データ読み込みの中心はルートローダーではなく、非同期サーバーコンポーネントとリソースです。
+2. ページは既定で同型ではなく、サーバーコンポーネントです。
+3. RSC はクライアントルーターの周りの実験的な追加機能ではなく、既定の描画プロトコルです。
+4. 通常のファイルルーターアプリでは `Route` export、`routeTree.gen`、`RouterProvider` は不要です。
+5. ミドルウェアは builder chain ではなく、ルートツリーに沿ったファイルです。
+6. キャッシュはルートローダーの SWR キャッシュだけではなく、ディレクティブ/プロバイダー方式です。
+7. 検索パラメータは型付け/検証できますが、TanStack Router の JSON 検索モデルではありません。
+8. `"use client"` ページはクライアント専用ルートになり、別のクライアントルーターなしでローカル state を保持できます。
+9. サーバー関数は `createServerFn` ではなく `"use server"` を使います。
+10. ハイドレーションアイランド、ライブコンポーネント、ワーカー、リモートコンポーネント、MCP エンドポイントはランタイム機能です。
+
+<Link name="when-to-choose-what">
+## 選び方
+</Link>
+
+アプリが根本的にクライアント主導で、ルートローダーと URL 検索状態が設計の中心であり、TanStack Router の JSON 検索セマンティクスや TanStack Query 中心のデータ層が重要なら、TanStack Start/Router に近いままにするのが自然です。
+
+サーバー優先の RSC ランタイム、明示的なサーバー/クライアント境界、非同期サーバーコンポーネント中心のデータ読み込み、ルートスコープのミドルウェア、堅牢化されたサーバー関数、プロバイダー方式のキャッシュ、ハイドレーションアイランド、ライブコンポーネント、ワーカー、RSC ネイティブなマイクロフロントエンド、幅広いデプロイ先が必要なら、`@lazarv/react-server` を検討してください。
+
+より広い機能比較は [比較表](/features/comparison) を参照してください。設計上の制約とトレードオフは [アーキテクチャのトレードオフ](/guide/architecture-tradeoffs) を読んでください。

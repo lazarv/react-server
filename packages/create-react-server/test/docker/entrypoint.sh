@@ -131,9 +131,11 @@ EOF
 packages: []
 allowBuilds:
   "@parcel/watcher": true
+  "@swc/core": true
   esbuild: true
 onlyBuiltDependencies:
   - "@parcel/watcher"
+  - "@swc/core"
   - esbuild
 overrides:
   "@lazarv/rsc": "file:///workspace/rsc.tgz"

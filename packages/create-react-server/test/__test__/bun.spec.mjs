@@ -4,15 +4,18 @@ import {
   buildImage,
   cleanupImages,
   getPresetCases,
+  getTestMode,
   getTemplateFilter,
   isDockerAvailable,
   packPackages,
   runTest,
+  shouldRunPhase,
 } from "./utils.mjs";
 
 // Package manager to use inside the container (npm, pnpm, bun). Default: npm.
 const PKG_MGR = process.env.PKG_MGR || "npm";
 const TEMPLATE = getTemplateFilter();
+const MODE = getTestMode();
 
 describe.skipIf(!isDockerAvailable())(
   `create-react-server: bun runtime (${PKG_MGR})`,
@@ -37,7 +40,7 @@ describe.skipIf(!isDockerAvailable())(
         let result;
 
         beforeAll(async () => {
-          result = await runTest("bun", preset, "all", {
+          result = await runTest("bun", preset, MODE, {
             portOffset,
             pkgMgr: PKG_MGR,
           });
@@ -55,17 +58,23 @@ describe.skipIf(!isDockerAvailable())(
           expect(result.files, "generated file structure").toMatchSnapshot();
         });
 
-        it("dev mode starts and serves the app", () => {
-          expect(result.devOk, "dev mode should work").toBe(true);
-        });
+        (shouldRunPhase(MODE, "dev") ? it : it.skip)(
+          "dev mode starts and serves the app",
+          () => {
+            expect(result.devOk, "dev mode should work").toBe(true);
+          }
+        );
 
-        it("builds the app", () => {
+        (shouldRunPhase(MODE, "build") ? it : it.skip)("builds the app", () => {
           expect(result.buildOk, "build should succeed").toBe(true);
         });
 
-        it("starts in production mode", () => {
-          expect(result.startOk, "production start should work").toBe(true);
-        });
+        (shouldRunPhase(MODE, "start") ? it : it.skip)(
+          "starts in production mode",
+          () => {
+            expect(result.startOk, "production start should work").toBe(true);
+          }
+        );
       });
     }
   }

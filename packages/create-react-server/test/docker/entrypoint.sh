@@ -90,46 +90,72 @@ pkg.dependencies['@lazarv/react-server'] = 'file:///workspace/react-server.tgz';
 pkg.dependencies['@lazarv/rsc'] = 'file:///workspace/rsc.tgz';
 pkg.overrides = pkg.overrides || {};
 pkg.overrides['@lazarv/rsc'] = 'file:///workspace/rsc.tgz';
-if (!pkg.pnpm) pkg.pnpm = {};
-if (!pkg.pnpm.overrides) pkg.pnpm.overrides = {};
-pkg.pnpm.overrides['@lazarv/rsc'] = 'file:///workspace/rsc.tgz';
+delete pkg.pnpm;
 delete pkg.trustedDependencies;
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 console.log('Updated package.json: deps');
 console.log('Scripts:', JSON.stringify(pkg.scripts, null, 2));
 "
 
-# Install dependencies using the chosen package manager.
-# Install into a container-local temp directory first, then move node_modules
-# into the volume mount. This avoids npm TAR_ENTRY_ERROR ENOENT warnings
-# caused by parallel tar extraction racing with slow Docker volume I/O on macOS.
+if [ "$MODE" = "create" ]; then
+  rm -f .npmrc pnpm-lock.yaml pnpm-workspace.yaml
+  timer_end "total" $TOTAL_START
+  echo ""
+  echo "=== ALL_PASSED ==="
+  exit 0
+fi
+
+# Install dependencies using the chosen package manager. npm and Bun install in
+# a container-local temp directory first, then move node_modules into the volume
+# mount to avoid Docker volume extraction races on macOS. pnpm installs in the
+# app directory so its install layout config is visible to later pnpm commands.
 INSTALL_START=$(date +%s)
 echo ">>> Installing dependencies with $PKG_MGR..."
-INSTALL_TMP=$(mktemp -d)
-cp package.json "$INSTALL_TMP/"
-[ -f package-lock.json ] && cp package-lock.json "$INSTALL_TMP/"
-[ -f pnpm-lock.yaml ] && cp pnpm-lock.yaml "$INSTALL_TMP/"
-[ -f bun.lock ] && cp bun.lock "$INSTALL_TMP/"
-[ -f bun.lockb ] && cp bun.lockb "$INSTALL_TMP/"
-cd "$INSTALL_TMP"
 case "$PKG_MGR" in
   npm)
+    INSTALL_TMP=$(mktemp -d)
+    cp package.json "$INSTALL_TMP/"
+    [ -f package-lock.json ] && cp package-lock.json "$INSTALL_TMP/"
+    cd "$INSTALL_TMP"
     npm install
+    mv node_modules "$WORKSPACE/test-app/node_modules"
+    cd "$WORKSPACE/test-app"
+    rm -rf "$INSTALL_TMP"
     ;;
   pnpm)
-    pnpm install --no-frozen-lockfile --shamefully-hoist
+    cat > .npmrc <<'EOF'
+store-dir=/root/.local/share/pnpm/store
+shamefully-hoist=true
+EOF
+    cat > pnpm-workspace.yaml <<'EOF'
+packages: []
+allowBuilds:
+  "@parcel/watcher": true
+  esbuild: true
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - esbuild
+overrides:
+  "@lazarv/rsc": "file:///workspace/rsc.tgz"
+EOF
+    pnpm install --no-frozen-lockfile
     ;;
   bun)
+    INSTALL_TMP=$(mktemp -d)
+    cp package.json "$INSTALL_TMP/"
+    [ -f bun.lock ] && cp bun.lock "$INSTALL_TMP/"
+    [ -f bun.lockb ] && cp bun.lockb "$INSTALL_TMP/"
+    cd "$INSTALL_TMP"
     bun install
+    mv node_modules "$WORKSPACE/test-app/node_modules"
+    cd "$WORKSPACE/test-app"
+    rm -rf "$INSTALL_TMP"
     ;;
   *)
     echo "Unknown PKG_MGR: $PKG_MGR"
     exit 1
     ;;
 esac
-mv node_modules "$WORKSPACE/test-app/node_modules"
-cd "$WORKSPACE/test-app"
-rm -rf "$INSTALL_TMP"
 
 timer_end "install" $INSTALL_START
 echo "INSTALL_OK"
@@ -294,6 +320,7 @@ if [ "$MODE" = "start" ] || [ "$MODE" = "build-start" ] || [ "$MODE" = "all" ]; 
   timer_end "start" $START_PHASE_START
 fi
 
+rm -f .npmrc pnpm-lock.yaml pnpm-workspace.yaml
 timer_end "total" $TOTAL_START
 echo ""
 echo "=== ALL_PASSED ==="

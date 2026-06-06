@@ -4,7 +4,7 @@
  * Measures full serialize → deserialize cycle for each fixture.
  */
 
-import { describe, bench, beforeAll } from "vitest";
+import { describe, test, beforeAll } from "vitest";
 import * as RscServer from "../server/shared.mjs";
 import * as RscClient from "../client/shared.mjs";
 import { scenarios } from "./fixtures.mjs";
@@ -18,10 +18,12 @@ beforeAll(() => {
 });
 
 describe("@lazarv/rsc roundtrip", () => {
-  for (const name of Object.keys(scenarios)) {
-    bench(name, async () => {
-      const stream = RscServer.renderToReadableStream(fixtures[name]);
-      await RscClient.createFromReadableStream(stream);
-    });
-  }
+  test("benchmarks", async ({ bench }) => {
+    for (const name of Object.keys(scenarios)) {
+      await bench(name, async () => {
+        const stream = RscServer.renderToReadableStream(fixtures[name]);
+        await RscClient.createFromReadableStream(stream);
+      }).run();
+    }
+  });
 });

@@ -8,7 +8,7 @@
  * scenarios must create fresh fixtures each iteration.
  */
 
-import { describe, bench, beforeAll } from "vitest";
+import { describe, test, beforeAll } from "vitest";
 import { scenarios } from "./fixtures.mjs";
 
 let ReactDomServer;
@@ -52,18 +52,20 @@ async function consumeStream(stream) {
 const describeIf = skip ? describe.skip : describe;
 
 describeIf("webpack serialize", () => {
-  for (const [name, factory] of Object.entries(scenarios)) {
-    if (TYPED_ARRAY_SCENARIOS.has(name)) {
-      // Fresh fixture each iteration to avoid detached ArrayBuffer errors
-      bench(name, async () => {
-        const stream = ReactDomServer.renderToReadableStream(factory());
-        await consumeStream(stream);
-      });
-    } else {
-      bench(name, async () => {
-        const stream = ReactDomServer.renderToReadableStream(fixtures[name]);
-        await consumeStream(stream);
-      });
+  test("benchmarks", async ({ bench }) => {
+    for (const [name, factory] of Object.entries(scenarios)) {
+      if (TYPED_ARRAY_SCENARIOS.has(name)) {
+        // Fresh fixture each iteration to avoid detached ArrayBuffer errors
+        await bench(name, async () => {
+          const stream = ReactDomServer.renderToReadableStream(factory());
+          await consumeStream(stream);
+        }).run();
+      } else {
+        await bench(name, async () => {
+          const stream = ReactDomServer.renderToReadableStream(fixtures[name]);
+          await consumeStream(stream);
+        }).run();
+      }
     }
-  }
+  });
 });

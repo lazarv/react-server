@@ -7,7 +7,7 @@
  * scenarios create fresh fixtures for each pre-serialization.
  */
 
-import { describe, bench, beforeAll } from "vitest";
+import { describe, test, beforeAll } from "vitest";
 import { scenarios } from "./fixtures.mjs";
 
 const ReactDomServer = await import("react-server-dom-webpack/server");
@@ -43,10 +43,12 @@ function makeStream(chunks) {
 }
 
 describe("webpack deserialize", () => {
-  for (const name of Object.keys(scenarios)) {
-    bench(name, async () => {
-      const stream = makeStream(serialized[name]);
-      await ReactDomClient.createFromReadableStream(stream);
-    });
-  }
+  test("benchmarks", async ({ bench }) => {
+    for (const name of Object.keys(scenarios)) {
+      await bench(name, async () => {
+        const stream = makeStream(serialized[name]);
+        await ReactDomClient.createFromReadableStream(stream);
+      }).run();
+    }
+  });
 });

@@ -61,7 +61,7 @@ jobs:
 
       - uses: ./.github/workflows/actions/common-setup
         with:
-          node_version: 20
+          node_version: 26
 
       - name: Test create-react-server (${{ matrix.runtime }}/${{ matrix.pkg_mgr }}/${{ matrix.template }})
         working-directory: ./packages/create-react-server/test

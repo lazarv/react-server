@@ -7,7 +7,7 @@
  * scenarios must create fresh fixtures each iteration.
  */
 
-import { describe, bench, beforeAll } from "vitest";
+import { describe, test, beforeAll } from "vitest";
 import { scenarios } from "./fixtures.mjs";
 
 let ReactDomServer;
@@ -39,17 +39,19 @@ beforeAll(() => {
 const describeIf = skip ? describe.skip : describe;
 
 describeIf("webpack roundtrip", () => {
-  for (const [name, factory] of Object.entries(scenarios)) {
-    if (TYPED_ARRAY_SCENARIOS.has(name)) {
-      bench(name, async () => {
-        const stream = ReactDomServer.renderToReadableStream(factory());
-        await ReactDomClient.createFromReadableStream(stream);
-      });
-    } else {
-      bench(name, async () => {
-        const stream = ReactDomServer.renderToReadableStream(fixtures[name]);
-        await ReactDomClient.createFromReadableStream(stream);
-      });
+  test("benchmarks", async ({ bench }) => {
+    for (const [name, factory] of Object.entries(scenarios)) {
+      if (TYPED_ARRAY_SCENARIOS.has(name)) {
+        await bench(name, async () => {
+          const stream = ReactDomServer.renderToReadableStream(factory());
+          await ReactDomClient.createFromReadableStream(stream);
+        }).run();
+      } else {
+        await bench(name, async () => {
+          const stream = ReactDomServer.renderToReadableStream(fixtures[name]);
+          await ReactDomClient.createFromReadableStream(stream);
+        }).run();
+      }
     }
-  }
+  });
 });

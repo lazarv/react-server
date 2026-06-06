@@ -48,12 +48,26 @@ export function getTemplateFilter() {
   return template;
 }
 
+export function getTestMode() {
+  return process.env.CRS_TEST_MODE || "all";
+}
+
+export function shouldRunPhase(mode, phase) {
+  if (mode === "all") return true;
+  if (phase === "dev") return mode === "dev";
+  if (phase === "build") return mode === "build" || mode === "build-start";
+  if (phase === "start") return mode === "start" || mode === "build-start";
+  return false;
+}
+
 /**
  * Recursively collect files from a directory.
  * Returns a sorted object mapping relative paths to file contents.
  * Skips node_modules and build output directories to avoid OOM.
  */
 const SKIP_DIRS = new Set([
+  ".git",
+  ".pnpm-store",
   "node_modules",
   ".react-server",
   ".bun",
@@ -64,7 +78,15 @@ const SKIP_DIRS = new Set([
   ".wrangler",
 ]);
 
-const SKIP_FILES = new Set(["deno.lock"]);
+const SKIP_FILES = new Set([
+  ".npmrc",
+  "bun.lock",
+  "bun.lockb",
+  "deno.lock",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+]);
 
 export function collectFiles(dir, base = dir) {
   const result = {};

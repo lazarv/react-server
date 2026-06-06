@@ -17,16 +17,16 @@
     "idb-keyval": "^6.2.2",
     "picomatch": "^4.0.4",
     "react-server-condition-pkg": "file:fixtures/react-server-condition-pkg",
-    "rolldown": "1.0.1",
+    "rolldown": "1.1.0",
     "tinyglobby": "^0.2.13",
     "unstorage": "^1.17.5",
-    "vite": "8.0.14"
+    "vite": "8.0.16"
   },
   "devDependencies": {
     "@playwright/test": "^1.53.1",
-    "@vitest/ui": "^5.0.0-beta.2",
+    "@vitest/ui": "^5.0.0-beta.4",
     "npm-run-all2": "^8.0.4",
     "playwright-chromium": "^1.53.1",
-    "vitest": "^5.0.0-beta.2"
+    "vitest": "^5.0.0-beta.4"
   }
 }

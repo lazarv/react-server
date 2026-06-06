@@ -56,12 +56,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test dev base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -106,12 +106,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test prod base 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -156,12 +156,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test prod base (edge+node) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -208,12 +208,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test prod base (edge entry) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -260,12 +260,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test dev apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -310,12 +310,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test prod apps 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -360,12 +360,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test prod apps (edge+node) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -412,12 +412,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test prod apps (edge entry) 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -464,12 +464,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node_version: [20, 22, 24]
+        node_version: [22, 24, 26]
         include:
           - os: macos-latest
-            node_version: 24
+            node_version: 26
           - os: windows-latest
-            node_version: 24
+            node_version: 26
       fail-fast: false
 
     name: "Test rsc 🧪 node.js v${{ matrix.node_version }} on ${{ matrix.os }}"
@@ -593,7 +593,7 @@ jobs:
 
       - uses: ./.github/workflows/actions/common-setup
         with:
-          node_version: 24
+          node_version: 26
 
       - name: Lint
         run: pnpm run lint

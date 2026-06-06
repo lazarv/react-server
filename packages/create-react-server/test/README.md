@@ -11,9 +11,9 @@ Integration tests that verify `create-react-server` works correctly across all r
 ## Test Matrix
 
 ### Runtimes
-- **Node.js** (`node`) — runs on `node:20`
-- **Bun** (`bun`) — runs on a pinned `oven/bun` image with Node.js 20 copied from the official Node image (Node.js is used for `npm install` and tooling; Bun is used at runtime)
-- **Deno** (`deno`) — runs on `node:20` with Deno installed
+- **Node.js** (`node`) — runs on `node:26`
+- **Bun** (`bun`) — runs on a pinned `oven/bun` image with Node.js 26 copied from the official Node image (Node.js is used for `npm install` and tooling; Bun is used at runtime)
+- **Deno** (`deno`) — runs on `node:26` with Deno installed
 
 ### Presets
 - `blank` — minimal JavaScript project
@@ -47,7 +47,7 @@ Each runtime generates different `package.json` scripts via the `runtime.mjs` ge
 The `router` preset's build fails during static export. Dev mode works fine. Build/start tests are skipped for this preset.
 
 ### `module-alias` pinned to `~2.2.3`
-The `module-alias` package is used by `@lazarv/react-server` to alias CJS `require()` calls (e.g. redirecting `react`, `react-dom`, `picocolors`, etc. to the correct resolved paths). Version 2.3.x introduced `node:module` `registerHooks` which requires Node.js 22+ and is not supported by Deno at all. The dependency is pinned to `~2.2.3` in `packages/react-server/package.json` to maintain compatibility with Node.js 20 and Deno.
+The `module-alias` package is used by `@lazarv/react-server` to alias CJS `require()` calls (e.g. redirecting `react`, `react-dom`, `picocolors`, etc. to the correct resolved paths). Version 2.3.x introduced `node:module` `registerHooks`, which is not supported by Deno at all. The dependency is pinned to `~2.2.3` in `packages/react-server/package.json` to maintain Deno compatibility.
 
 ## Running Tests
 
@@ -107,9 +107,9 @@ test/
 │   ├── utils.mjs             # Test helpers (pack, build image, run container)
 │   └── __snapshots__/        # Vitest snapshots of generated files
 ├── docker/
-│   ├── Dockerfile.bun        # pinned oven/bun + Node.js 20
-│   ├── Dockerfile.deno       # node:20 + Deno
-│   ├── Dockerfile.node       # node:20
+│   ├── Dockerfile.bun        # pinned oven/bun + Node.js 26
+│   ├── Dockerfile.deno       # node:26 + Deno
+│   ├── Dockerfile.node       # node:26
 │   └── entrypoint.sh         # Shared test script run inside containers
 ├── .build/                   # Packed tarballs (gitignored)
 ├── .npm-cache/               # Shared npm cache across runs (gitignored)

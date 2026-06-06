@@ -4,7 +4,7 @@
  * Measures renderToReadableStream throughput for various React trees and data types.
  */
 
-import { describe, bench, beforeAll } from "vitest";
+import { describe, test, beforeAll } from "vitest";
 import * as RscServer from "../server/shared.mjs";
 import { scenarios } from "./fixtures.mjs";
 
@@ -29,19 +29,23 @@ async function consumeStream(stream) {
 }
 
 describe("@lazarv/rsc serialize", () => {
-  for (const name of Object.keys(scenarios)) {
-    bench(name, async () => {
-      const stream = RscServer.renderToReadableStream(fixtures[name]);
-      await consumeStream(stream);
-    });
-  }
+  test("benchmarks", async ({ bench }) => {
+    for (const name of Object.keys(scenarios)) {
+      await bench(name, async () => {
+        const stream = RscServer.renderToReadableStream(fixtures[name]);
+        await consumeStream(stream);
+      }).run();
+    }
+  });
 });
 
 describe("@lazarv/rsc prerender", () => {
-  for (const name of Object.keys(scenarios)) {
-    bench(name, async () => {
-      const { prelude } = await RscServer.prerender(fixtures[name]);
-      await consumeStream(prelude);
-    });
-  }
+  test("benchmarks", async ({ bench }) => {
+    for (const name of Object.keys(scenarios)) {
+      await bench(name, async () => {
+        const { prelude } = await RscServer.prerender(fixtures[name]);
+        await consumeStream(prelude);
+      }).run();
+    }
+  });
 });

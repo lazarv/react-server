@@ -3,9 +3,8 @@
 /**
  * Flight Protocol Benchmark Report Generator
  *
- * Reads vitest bench JSON output (--outputJson), normalizes it, optionally
- * compares against a baseline, and produces a markdown report suitable for
- * GitHub PR comments.
+ * Reads vitest bench JSON output, normalizes it, optionally compares against
+ * a baseline, and produces a markdown report suitable for GitHub PR comments.
  *
  * Usage:
  *   node __bench__/report.mjs --current bench-raw.json [options]
@@ -56,7 +55,7 @@ const shortSha = commitSha.slice(0, 7);
 const raw = JSON.parse(readFileSync(currentFile, "utf8"));
 
 /**
- * Vitest bench --outputJson format (v4.x):
+ * Legacy Vitest bench --outputJson format (v4.x):
  * {
  *   files: [
  *     {
@@ -85,7 +84,7 @@ const raw = JSON.parse(readFileSync(currentFile, "utf8"));
  * }
  */
 
-function parseVitestBench(data) {
+function parseLegacyVitestBench(data) {
   const results = {};
 
   const files = data.files || [];
@@ -115,6 +114,94 @@ function parseVitestBench(data) {
   }
 
   return results;
+}
+
+/**
+ * Vitest 5 JSON reporter format:
+ * {
+ *   testResults: [
+ *     {
+ *       assertionResults: [
+ *         {
+ *           ancestorTitles: ["@lazarv/rsc serialize"],
+ *           benchmarks: [
+ *             {
+ *               tasks: [
+ *                 {
+ *                   name: "tree: minimal element",
+ *                   latency: { mean, p75, p99, min, max, rme, samplesCount },
+ *                   throughput: { mean, rme, samplesCount }
+ *                 }
+ *               ]
+ *             }
+ *           ]
+ *         }
+ *       ]
+ *     }
+ *   ]
+ * }
+ */
+
+function getAssertionGroupName(assertion, file) {
+  const ancestorTitles = assertion.ancestorTitles || [];
+  const groupName = ancestorTitles[ancestorTitles.length - 1];
+  if (groupName) return groupName;
+
+  const fullName = assertion.fullName || "";
+  const title = assertion.title || "";
+  if (fullName && title && fullName.endsWith(title)) {
+    return fullName
+      .slice(0, -title.length)
+      .trim()
+      .replace(/\s+>\s*$/, "");
+  }
+
+  return fullName || file.name || "benchmarks";
+}
+
+function parseReporterVitestBench(data) {
+  const results = {};
+
+  for (const file of data.testResults || []) {
+    for (const assertion of file.assertionResults || []) {
+      const benchmarks = assertion.benchmarks || [];
+      if (benchmarks.length === 0) continue;
+
+      const groupName = getAssertionGroupName(assertion, file);
+      if (!results[groupName]) results[groupName] = {};
+
+      for (const benchmark of benchmarks) {
+        for (const task of benchmark.tasks || []) {
+          const latency = task.latency || {};
+          const throughput = task.throughput || {};
+          const hz =
+            throughput.mean ??
+            (latency.mean || task.period
+              ? 1_000 / (latency.mean ?? task.period)
+              : undefined);
+
+          results[groupName][task.name] = {
+            hz,
+            mean: latency.mean ?? task.period,
+            p75: latency.p75,
+            p99: latency.p99,
+            min: latency.min,
+            max: latency.max,
+            sampleCount: latency.samplesCount ?? throughput.samplesCount,
+            rme: throughput.rme ?? latency.rme,
+          };
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+function parseVitestBench(data) {
+  if (Array.isArray(data.files)) return parseLegacyVitestBench(data);
+  if (Array.isArray(data.testResults)) return parseReporterVitestBench(data);
+  return {};
 }
 
 const results = parseVitestBench(raw);

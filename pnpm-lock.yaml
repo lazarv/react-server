@@ -1069,14 +1069,14 @@ importers:
         specifier: ^10.3.1
         version: 10.3.1
       react:
-        specifier: 0.0.0-experimental-561ed529-20260423
-        version: 0.0.0-experimental-561ed529-20260423
+        specifier: 0.0.0-experimental-43bcbf80-20260603
+        version: 0.0.0-experimental-43bcbf80-20260603
       react-dom:
-        specifier: 0.0.0-experimental-561ed529-20260423
-        version: 0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423)
+        specifier: 0.0.0-experimental-43bcbf80-20260603
+        version: 0.0.0-experimental-43bcbf80-20260603(react@0.0.0-experimental-43bcbf80-20260603)
       react-is:
-        specifier: 0.0.0-experimental-561ed529-20260423
-        version: 0.0.0-experimental-561ed529-20260423
+        specifier: 0.0.0-experimental-43bcbf80-20260603
+        version: 0.0.0-experimental-43bcbf80-20260603
       react-property:
         specifier: ^2.0.2
         version: 2.0.2
@@ -7015,6 +7015,11 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
 
+  react-dom@0.0.0-experimental-43bcbf80-20260603:
+    resolution: {integrity: sha512-CGfp/9yHQ0QtoHDBW/EUfuwKNMhaI53YXcbIC/581m9adcP2jQ6gzclpTmqdpzT57LTm0c2pzEVFehj4lze3Yw==}
+    peerDependencies:
+      react: 0.0.0-experimental-43bcbf80-20260603
+
   react-dom@0.0.0-experimental-561ed529-20260423:
     resolution: {integrity: sha512-eiKYFE2eQGwRzXazy8hVggzgJr5khbySE90fPy1h10MHzRuOTgvU869zwoGpSytAfPABsPG4cDXCnjgs1WYu2Q==}
     peerDependencies:
@@ -7043,8 +7048,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-is@0.0.0-experimental-561ed529-20260423:
-    resolution: {integrity: sha512-D5wNKP4DoJN7dK39kZhwytn3zLwzyLP7gtL8yD57WWrRzSCG8jvhEOMp34DFaWZJPc753qo5jqSG0PIqcnoDnA==}
+  react-is@0.0.0-experimental-43bcbf80-20260603:
+    resolution: {integrity: sha512-7HqkzbUNCi1pyjw288qitc+aJXkio9L/Z35y8f8G85gtlh/XjuAEzhffsp2PcEx8AHEpuUY8QlhlDPVjxmKLZg==}
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -7169,6 +7174,10 @@ packages:
     peerDependenciesMeta:
       react-dom:
         optional: true
+
+  react@0.0.0-experimental-43bcbf80-20260603:
+    resolution: {integrity: sha512-rYzYEkz/Ix+yPD+2o+S4XM8qtV9PTkYrUa84A7bZ+D7sT2DDd3y5OYUu7Nh1lUtn0ApmypnCWZSUz9zUILNYlw==}
+    engines: {node: '>=0.10.0'}
 
   react@0.0.0-experimental-561ed529-20260423:
     resolution: {integrity: sha512-nXAkdmFZ1Pzj0XJnxgmtYCJKZJMrruhT9v/48chu+G3t3UXIZxm4E61L8eRVktBPg4vmRfhwzzC0jmE2b7gs7g==}
@@ -7417,6 +7426,9 @@ packages:
   sax@1.6.0:
     resolution: {integrity: sha512-6R3J5M4AcbtLUdZmRv2SygeVaM7IhrLXu9BmnOGmmACak8fiUtOsYNWUS4uK7upbmHIBbLBeFeI//477BKLBzA==}
     engines: {node: '>=11.0.0'}
+
+  scheduler@0.0.0-experimental-43bcbf80-20260603:
+    resolution: {integrity: sha512-tK6hVHfP+xk9CTPsw07kF2a0E3TyOoY3TT3WiEa+TZxC4jDTSAL4KfgqyMRdqN4ps61c40aXNiSfSYPFy1uI5A==}
 
   scheduler@0.0.0-experimental-561ed529-20260423:
     resolution: {integrity: sha512-F0SDPR0kPSPvbLWoA+Mc56RWLvIpihG9Oa6/FvsauTX2WEp/3EQy18oFYlqRpFmxgrh0b6CODRwbsYgKK8HK3A==}
@@ -14688,6 +14700,11 @@ snapshots:
       '@babel/runtime': 7.29.2
       react: 0.0.0-experimental-561ed529-20260423
 
+  react-dom@0.0.0-experimental-43bcbf80-20260603(react@0.0.0-experimental-43bcbf80-20260603):
+    dependencies:
+      react: 0.0.0-experimental-43bcbf80-20260603
+      scheduler: 0.0.0-experimental-43bcbf80-20260603
+
   react-dom@0.0.0-experimental-561ed529-20260423(react@0.0.0-experimental-561ed529-20260423):
     dependencies:
       react: 0.0.0-experimental-561ed529-20260423
@@ -14717,7 +14734,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.15
 
-  react-is@0.0.0-experimental-561ed529-20260423: {}
+  react-is@0.0.0-experimental-43bcbf80-20260603: {}
 
   react-is@16.13.1: {}
 
@@ -14879,6 +14896,8 @@ snapshots:
   react-use-measure@2.1.7(react@0.0.0-experimental-561ed529-20260423):
     dependencies:
       react: 0.0.0-experimental-561ed529-20260423
+
+  react@0.0.0-experimental-43bcbf80-20260603: {}
 
   react@0.0.0-experimental-561ed529-20260423: {}
 
@@ -15316,6 +15335,8 @@ snapshots:
 
   sax@1.6.0:
     optional: true
+
+  scheduler@0.0.0-experimental-43bcbf80-20260603: {}
 
   scheduler@0.0.0-experimental-561ed529-20260423: {}
 

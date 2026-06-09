@@ -14,9 +14,9 @@ jobs:
     if: github.repository == 'lazarv/react-server'
     runs-on: ubuntu-latest
     steps:
-      - uses: dessant/lock-threads@v5
+      - uses: dessant/lock-threads@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           issue-inactive-days: "30"
           issue-comment: |
             This issue has been locked since it has been closed for more than 30 days.

@@ -5,46 +5,44 @@ on:
   issues:
     types: [labeled]
 
+permissions:
+  issues: write
+
 jobs:
   reply-labeled:
     name: Reply to labeled issue 💬
     if: github.repository == 'lazarv/react-server'
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
     steps:
-      - name: contribution welcome
-        if: github.event.label.name == 'contribution welcome' || github.event.label.name == 'help wanted'
-        uses: actions-cool/issues-helper@v3
-        with:
-          actions: "remove-labels"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ github.event.issue.number }}
-          labels: "pending triage, needs reproduction"
+      - name: remove pending after contribution label
+        if: (github.event.label.name == 'contribution welcome' || github.event.label.name == 'help wanted') && contains(github.event.issue.labels.*.name, 'pending triage')
+        run: gh issue edit "$ISSUE_NUMBER" --repo "$GH_REPO" --remove-label "pending triage"
+
+      - name: remove reproduction after contribution label
+        if: (github.event.label.name == 'contribution welcome' || github.event.label.name == 'help wanted') && contains(github.event.issue.labels.*.name, 'needs reproduction')
+        run: gh issue edit "$ISSUE_NUMBER" --repo "$GH_REPO" --remove-label "needs reproduction"
 
       - name: remove pending
         if: contains(github.event.label.description, '(priority)') && contains(github.event.issue.labels.*.name, 'pending triage')
-        uses: actions-cool/issues-helper@v3
-        with:
-          actions: "remove-labels"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ github.event.issue.number }}
-          labels: "pending triage"
+        run: gh issue edit "$ISSUE_NUMBER" --repo "$GH_REPO" --remove-label "pending triage"
 
       - name: remove enhancement pending
         if: "(github.event.label.name == 'enhancement' || contains(github.event.label.description, '(priority)')) && contains(github.event.issue.labels.*.name, 'enhancement: pending triage')"
-        uses: actions-cool/issues-helper@v3
-        with:
-          actions: "remove-labels"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ github.event.issue.number }}
-          labels: "enhancement: pending triage"
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --repo "$GH_REPO" --remove-label "enhancement: pending triage"
 
       - name: needs reproduction
         if: github.event.label.name == 'needs reproduction'
-        uses: actions-cool/issues-helper@v3
-        with:
-          actions: "create-comment, remove-labels"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ github.event.issue.number }}
-          body: |
-            Hello @${{ github.event.issue.user.login }}. Please provide a [minimal reproduction](https://stackoverflow.com/help/minimal-reproducible-example) using a GitHub repository. Issues marked with `needs reproduction` will be closed if they have no activity within 30 days.
-          labels: "pending triage"
+        run: |
+          gh issue comment "$ISSUE_NUMBER" \
+            --repo "$GH_REPO" \
+            --body "Hello @$ISSUE_AUTHOR. Please provide a [minimal reproduction](https://stackoverflow.com/help/minimal-reproducible-example) using a GitHub repository. Issues marked with \`needs reproduction\` will be closed if they have no activity within 30 days."
+
+      - name: remove pending after reproduction label
+        if: github.event.label.name == 'needs reproduction' && contains(github.event.issue.labels.*.name, 'pending triage')
+        run: gh issue edit "$ISSUE_NUMBER" --repo "$GH_REPO" --remove-label "pending triage"

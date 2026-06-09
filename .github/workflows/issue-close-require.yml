@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
+permissions:
+  issues: write
+
 jobs:
   close-issues:
     name: Close issues 🔒
@@ -12,9 +15,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: needs reproduction
-        uses: actions-cool/issues-helper@v3
-        with:
-          actions: "close-issues"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          labels: "needs reproduction"
-          inactive-day: 30
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          INACTIVE_DAYS: "30"
+          LABEL: "needs reproduction"
+        run: |
+          cutoff="$(date -u -d "$INACTIVE_DAYS days ago" +%Y-%m-%d)"
+          issues="$(
+            gh issue list \
+              --repo "$GH_REPO" \
+              --state open \
+              --label "$LABEL" \
+              --search "updated:<$cutoff" \
+              --limit 1000 \
+              --json number \
+              --jq '.[].number'
+          )"
+
+          if [ -z "$issues" ]; then
+            echo "No issues with label '$LABEL' inactive for $INACTIVE_DAYS days."
+            exit 0
+          fi
+
+          while IFS= read -r issue; do
+            [ -n "$issue" ] || continue
+            echo "Closing issue #$issue"
+            gh issue close "$issue" --repo "$GH_REPO"
+          done <<< "$issues"

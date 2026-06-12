@@ -235,7 +235,7 @@
     "react-refresh": "^0.18.0",
     "remark-frontmatter": "^5.0.0",
     "remark-mdx-frontmatter": "^4.0.0",
-    "rolldown": "1.1.0",
+    "rolldown": "1.1.1",
     "sass": "^1.99.0",
     "semver": "^7.8.0",
     "smol-toml": "^1.6.1",

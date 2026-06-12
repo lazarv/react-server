@@ -11,6 +11,23 @@ allowBuilds:
   protobufjs: true
   simple-git-hooks: true
 gitChecks: false
+minimumReleaseAgeExclude:
+  - '@rolldown/binding-android-arm64@1.1.1'
+  - '@rolldown/binding-darwin-arm64@1.1.1'
+  - '@rolldown/binding-darwin-x64@1.1.1'
+  - '@rolldown/binding-freebsd-x64@1.1.1'
+  - '@rolldown/binding-linux-arm-gnueabihf@1.1.1'
+  - '@rolldown/binding-linux-arm64-gnu@1.1.1'
+  - '@rolldown/binding-linux-arm64-musl@1.1.1'
+  - '@rolldown/binding-linux-ppc64-gnu@1.1.1'
+  - '@rolldown/binding-linux-s390x-gnu@1.1.1'
+  - '@rolldown/binding-linux-x64-gnu@1.1.1'
+  - '@rolldown/binding-linux-x64-musl@1.1.1'
+  - '@rolldown/binding-openharmony-arm64@1.1.1'
+  - '@rolldown/binding-wasm32-wasi@1.1.1'
+  - '@rolldown/binding-win32-arm64-msvc@1.1.1'
+  - '@rolldown/binding-win32-x64-msvc@1.1.1'
+  - rolldown@1.1.1
 onlyBuiltDependencies:
   - "@parcel/watcher"
   - "@swc/core"

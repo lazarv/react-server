@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { decryptActionToken } from "../../server/action-crypto.mjs";
+import { ServerFunctionNotFoundError } from "../../server/action-state.mjs";
 import { context$, ContextStorage, getContext } from "../../server/context.mjs";
 import { createWorker } from "../../server/create-worker.mjs";
 import { useErrorComponent } from "../../server/error-handler.mjs";
@@ -43,6 +45,7 @@ import { mergeContextHeaders } from "../http/middleware-response.mjs";
 import * as sys from "../sys.mjs";
 import errorHandler from "../handlers/error.mjs";
 import getModules from "./modules.mjs";
+import createServerReferenceValidator from "./server-reference-validator.mjs";
 
 const REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
 
@@ -65,6 +68,9 @@ export default async function ssrHandler(root) {
   const memoryCacheContext = getRuntime(MEMORY_CACHE_CONTEXT);
   const collectClientModules = getRuntime(COLLECT_CLIENT_MODULES);
   const collectStylesheets = getRuntime(COLLECT_STYLESHEETS);
+  const validateServerReference = createServerReferenceValidator(
+    viteDevServer.environments.rsc
+  );
   const renderStream = createWorker();
   const hasWorkerThread = !!getRuntime(Symbol.for("WORKER_THREAD"));
   const moduleCacheStorage = new AsyncLocalStorage();
@@ -211,6 +217,27 @@ export default async function ssrHandler(root) {
                 serverFunctionsEnabled &&
                 isMutating &&
                 (hasActionHeader || isMultipart);
+
+              // Plaintext action ids are accepted during development. Verify
+              // their exact transformed module/export pair before the RSC
+              // dispatcher can use the dev reference-map proxy to load them.
+              if (serverFunctionsEnabled && isMutating && hasActionHeader) {
+                const actionId = decodeURIComponent(
+                  httpContext.request.headers.get("react-server-action")
+                );
+                if (!decryptActionToken(actionId)) {
+                  const separator = actionId.lastIndexOf("#");
+                  if (separator <= 0 || separator === actionId.length - 1) {
+                    throw new ServerFunctionNotFoundError();
+                  }
+                  const id = actionId.slice(0, separator);
+                  const name = actionId.slice(separator + 1);
+                  if (!(await validateServerReference(id, name))) {
+                    throw new ServerFunctionNotFoundError();
+                  }
+                }
+              }
+
               const isRemoteRequest =
                 remoteEnabled &&
                 httpContext.url.pathname.includes("@__react_server_remote__");

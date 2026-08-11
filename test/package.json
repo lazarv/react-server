@@ -17,7 +17,7 @@
     "idb-keyval": "^6.2.2",
     "picomatch": "^4.0.4",
     "react-server-condition-pkg": "file:fixtures/react-server-condition-pkg",
-    "rolldown": "1.1.0",
+    "rolldown": "1.1.1",
     "tinyglobby": "^0.2.13",
     "unstorage": "^1.17.5",
     "vite": "8.0.16"

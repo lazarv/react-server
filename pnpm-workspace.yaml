@@ -11,6 +11,11 @@ allowBuilds:
   protobufjs: true
   simple-git-hooks: true
 gitChecks: false
+minimumReleaseAgeExclude:
+  - react-dom@0.0.0-experimental-900ae094-20260605
+  - react-is@0.0.0-experimental-900ae094-20260605
+  - react@0.0.0-experimental-900ae094-20260605
+  - scheduler@0.0.0-experimental-900ae094-20260605
 onlyBuiltDependencies:
   - "@parcel/watcher"
   - "@swc/core"

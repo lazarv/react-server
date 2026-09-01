@@ -1,0 +1,718 @@
+---
+title: レキシカルスコープを持つReact Server Components
+date: 2026-03-10
+author: Viktor Lázár
+github: lazarv
+category: Advanced
+order: 0
+---
+
+import Link from "../../../../components/Link.jsx";
+import Subtitle from "../../../../components/Subtitle.jsx";
+
+# レキシカルスコープを持つReact Server Components
+
+<Subtitle>単一ファイル内で深くネストするクライアント/サーバーアイランド</Subtitle>
+
+*react-serverが、任意のネスト深度からインラインの`"use client"`および`"use server"`ディレクティブをどのように抽出し、ファイル境界なしの真のサーバー/クライアントアイランド合成を可能にしているかの技術的な詳細解説です。*
+
+<Link name="abstract">
+## 概要
+</Link>
+
+React Server Components(RSC)は、`"use client"`と`"use server"`ディレクティブによって、サーバーコードとクライアントコードの間にモジュールレベルの境界を導入しました。仕様上、これらのディレクティブはモジュール全体に適用されます。つまり、1つのファイルは、クライアントコンポーネントか、サーバー関数モジュールか、サーバーコンポーネントのいずれかです。このファイルレベルの粒度は、密結合したサーバー/クライアントロジックを複数のファイルに分割することを開発者に強制し、意図を見えにくくする間接参照を生み出します。
+
+本稿では、`@lazarv/react-server`に実装された、React Server Componentsのモジュール境界の制約を取り除くコンパイル時抽出アルゴリズムを紹介します。これにより、`"use client"`と`"use server"`ディレクティブを、任意のネスト深度にある個々の関数本体の内側に書けるようになります。単一のViteプラグインが、最も外側の関数から順に処理する複数パスの抽出を実行し、クエリパラメータ付きインポートチェーンで接続された仮想モジュールを生成します。このアルゴリズムは、レキシカルスコープのキャプチャ、モジュール状態の共有、深くネストしたディレクティブの交互配置(サーバー → クライアント → サーバー → …)、そして既存のRSCバンドラープロトコルとの透過的な統合を扱い、開発ビルドと本番ビルドの両方で動作します。
+
+この機能をサポートしているReactフレームワークは、現時点で他にありません。
+
+<Link name="the-problem">
+## 問題: アーキテクチャの制約としてのファイル境界
+</Link>
+
+標準のRSCモデルでは、ディレクティブはモジュールレベルの宣言です。
+
+```jsx
+// counter.jsx — クライアントモジュール
+"use client";
+import { useState } from "react";
+export function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(c => c + 1)}>Count: {count}</button>;
+}
+```
+
+```jsx
+// page.jsx — サーバーコンポーネント
+import { Counter } from "./counter";
+export default function Page() {
+  return <Counter />;
+}
+```
+
+この分離には、3つの構造的なコストがあります。
+
+1. **ファイルの増殖。** 1つのクライアントボタンをレンダリングするサーバーコンポーネントには、2つのファイルが必要です。N個の異なるクライアントアイランドを持つページには、最低でもN+1個のファイルが必要になります。
+2. **人為的な間接参照。** 「このサーバーページはこのインタラクティブなウィジェットを含む」という論理的な単位が、ファイルシステム上に散らばります。コードのナビゲーションと理解が損なわれます。
+3. **不可能な合成。** 異なるクライアントコンポーネントを動的に構築して返すサーバー関数(ファクトリーパターンなど)は存在できません。サーバー関数とクライアントコンポーネントは別々のモジュールに置かなければならないため、サーバー関数は自身が返すクライアントコンポーネントをレキシカルに定義できないのです。
+
+3つ目が最も重要です。RSCのシリアライズプロトコル(`@lazarv/rsc`に実装)は、サーバー関数からクライアントコンポーネント参照を返すことをすでにサポートしています。制約は完全にバンドラー側にあります。`"use server"`関数の本体内に定義された`"use client"`コンポーネントを抽出できるツールは、これまで存在しませんでした。
+
+<Link name="design-goals">
+## 設計目標
+</Link>
+
+インラインディレクティブシステムは、次の不変条件を掲げて設計されました。
+
+1. **任意のネスト。** `"use server"`の中の`"use client"`の中の`"use server"`(さらに深くても)が動作すること。交互配置のたびに、新しいアイランド境界が作られます。
+2. **レキシカルスコープのキャプチャ。** 親関数スコープの変数は、抽出されたモジュールへ転送されなければなりません。クライアントコンポーネントに対してはpropsとして、サーバー関数に対してはバインドされた引数としてです。
+3. **モジュール状態の共有。** トップレベルの宣言(定数、可変変数、クラスインスタンス)は、抽出されたモジュールへ複製してはいけません。抽出されたモジュールは、同一性と変更のセマンティクスを保つために、元のモジュールからそれらをインポートしなければなりません。
+4. **RSCプロトコルとの透過的な統合。** 抽出されたモジュールは、RSCシリアライズ層から見て、手書きで分離されたファイルと区別がつかないものでなければなりません。クライアント参照、サーバー参照、マニフェストのすべてが同一に動作する必要があります。
+5. **単一ファイルでの開発。** プログラマーは1つのファイルを書きます。コンパイラが正しいモジュールグラフを生成します。コード生成の成果物がソースツリーに現れることはありません。
+6. **冪等な再抽出。** 抽出された仮想モジュール自体が、反対側の境界のディレクティブを含む場合(ネストのケース)、同じプラグインがそれを再処理し、より深い仮想モジュールを生成します。これは収束しなければなりません。
+
+<Link name="architecture">
+## アーキテクチャの全体像
+</Link>
+
+システムは3つのコンポーネントで構成されています。
+
+| コンポーネント | 役割 |
+|---|---|
+| `use-directive-inline.mjs` | 単一のViteプラグイン。AST解析、抽出、仮想モジュールの提供、コード変換を実行します。ディレクティブの種類に対して汎用的です。 |
+| `use-client-inline.mjs` | `"use client"`用の設定オブジェクト。キャプチャされた変数を分割代入のpropsに変換する方法と、呼び出し箇所を`createElement`ラッパーに変換する方法を定義します。 |
+| `use-server-inline.mjs` | `"use server"`用の設定オブジェクト。キャプチャされた変数を`Function.prototype.bind`の引数に変換する方法と、呼び出し箇所を直接参照に変換する方法を定義します。 |
+
+プラグインは、両方の設定とともに一度だけインスタンス化されます。
+
+```javascript
+import useDirectiveInline from "./use-directive-inline.mjs";
+import { useClientInlineConfig } from "./use-client-inline.mjs";
+import { useServerInlineConfig } from "./use-server-inline.mjs";
+
+useDirectiveInline([useClientInlineConfig, useServerInlineConfig]);
+```
+
+この単一のプラグインが、統一されたパスですべてのディレクティブの種類を処理します。2つの設定は、スコープキャプチャの注入と呼び出し箇所の置き換えの戦略においてのみ異なります。
+
+<Link name="extraction-algorithm">
+## 抽出アルゴリズム
+</Link>
+
+### フェーズ1: 最も外側の関数を優先する探索
+
+ソースファイルが与えられると、プラグインは本体がディレクティブ文字列リテラル(`"use client"`または`"use server"`)で始まるすべての関数を見つけます。その後、**最も外側**のディレクティブ関数、つまり他のどのディレクティブ関数にも含まれていないものだけに絞り込みます。
+
+```
+findOutermostDirectiveFunctions(ast, ["use client", "use server"])
+```
+
+これは正しさのために不可欠です。次の例を考えてみます。
+
+```jsx
+function Outer() {
+  "use client";
+  async function Inner() {
+    "use server";
+    // ...
+  }
+  // ...
+}
+```
+
+`Outer`と`Inner`はどちらもディレクティブを含みますが、最も外側にあるのは`Outer`だけです。プラグインはまず`Outer`を抽出します。`Outer`の抽出モジュールが後で同じプラグインによって処理されるとき(フェーズ3を参照)、`Inner`は*そのモジュール内で*最も外側のものとして発見され、順に抽出されます。
+
+「最も外側を優先する」という不変条件は、次のことを保証します。
+
+- どの関数も二度抽出されない
+- ネストしたディレクティブは、特別扱いのロジックではなく再帰的な適用で処理される
+- 任意の有限なネスト深度でアルゴリズムが収束する
+
+### フェーズ2: スコープ解析
+
+最も外側の各ディレクティブ関数に対して、プラグインはレキシカルスコープ解析を実行し、**キャプチャされる変数**を特定します。それは、次の条件を満たす識別子です。
+
+- 関数本体の内側で参照されている
+- 中間の関数スコープで宣言されている(モジュールレベルでも、その関数自身のローカルでもない)
+- インポートバインディングではない(それらは抽出モジュールに直接含められます)
+- トップレベルの宣言ではない(それらは元のモジュールからのインポートによって共有されます)
+
+アルゴリズムは、スコープフレームのスタックを保持しながら、ルートからASTを走査します。各フレームは、関数のパラメータとローカルの`let`/`const`/`var`/`function`/`class`宣言によって宣言された変数を記録します。対象の関数に到達すると、すべての中間スコープの和集合と、対象関数の内側で使用されている識別子との積集合が取られます。
+
+```
+scopeStack:  [App's locals]  →  [Component's locals]  →  target function
+captured  =  (App.locals ∪ Component.locals) ∩ target.usedIdentifiers
+           − importBindings − topLevelDeclarations
+```
+
+この3分割が本質的に重要です。
+
+| カテゴリ | 抽出モジュールでの扱い |
+|---|---|
+| **インポートバインディング** | インポート文としてそのままコピー |
+| **トップレベル宣言** | 元のファイルからインポート (`import { x } from "./original"`) |
+| **キャプチャされたスコープ変数** | 関数シグネチャに注入 |
+
+### フェーズ3: 仮想モジュールの生成
+
+抽出された各関数は、クエリパラメータ付きURLで識別される仮想モジュールを生成します。
+
+```
+original.jsx?use-client-inline=Counter
+original.jsx?use-server-inline=increment
+```
+
+ネストした抽出(すでに抽出された`"use client"`モジュールの中の`"use server"`)では、クエリパラメータが`&`で連結されます。
+
+```
+original.jsx?use-client-inline=Counter&use-server-inline=increment
+```
+
+仮想モジュールは次のものを含みます。
+
+1. ディレクティブ文字列 (`"use client";` または `"use server";`)
+2. 抽出された関数が使用するすべてのインポート文
+3. 参照されるトップレベル宣言のための `import { ... } from "./original"`
+4. キャプチャされた変数がパラメータリストに注入された関数本体
+5. その関数の`default`エクスポート
+
+プラグインの`load`フックが、クエリパターンに一致するあらゆるIDに対してこの生成コードを提供します。`resolveId`フックは、仮想モジュールIDが解決済みとして扱われることを保証し、さらに仮想モジュール内からの相対インポートについては、インポーターのパスからクエリパラメータを取り除いてから再解決することで処理します。
+
+### フェーズ4: 呼び出し箇所の書き換え
+
+元のファイルは変換され、抽出された各関数は仮想モジュールへの参照に置き換えられます。置き換え戦略は、ディレクティブの種類によって異なります。
+
+**`"use server"`関数の場合:**
+
+キャプチャされた変数がない場合 — 直接インポート:
+```javascript
+// 変換前:
+async function action(data) { "use server"; /* ... */ }
+// 変換後:
+import __action from "./file?use-server-inline=action";
+const action = __action;
+```
+
+キャプチャされた変数がある場合 — `bind`:
+```javascript
+// 変換前:
+async function action(data) { "use server"; /* ... */ }
+// 変換後:
+import __action from "./file?use-server-inline=action";
+const action = __action.bind(null, capturedVar1, capturedVar2);
+```
+
+抽出モジュールの関数シグネチャは、キャプチャされた変数を先頭に追加する形に書き換えられます。
+```javascript
+// 抽出モジュール:
+"use server";
+export default async function action(capturedVar1, capturedVar2, data) { /* ... */ }
+```
+
+実行時には、`.bind(null, capturedVar1, capturedVar2)`が最初の2つの引数が事前に埋められた関数を作るため、呼び出し箇所の`action(data)`は、サーバー上では`action(capturedVar1, capturedVar2, data)`になります。
+
+**`"use client"`コンポーネントの場合:**
+
+キャプチャされた変数がない場合 — 直接インポート(Viteの標準の解決で処理されます):
+```javascript
+// 変換前:
+function Counter() { "use client"; /* ... */ }
+// 変換後:
+import Counter from "./file?use-client-inline=Counter";
+```
+
+キャプチャされた変数がある場合 — propsを注入する`createElement`ラッパー:
+```javascript
+// 変換前:
+function Counter() { "use client"; /* ... */ }
+// 変換後:
+import { createElement as __useClientCreateElement } from "react";
+import __Counter from "./file?use-client-inline=Counter";
+const Counter = (__props) => __useClientCreateElement(__Counter, { ...__props, label });
+```
+
+抽出モジュールの関数シグネチャは、キャプチャされた変数を分割代入のpropsとして受け取る形に書き換えられます。
+```javascript
+// 抽出モジュール:
+"use client";
+export default function Counter({ label }) { /* ... */ }
+```
+
+これにより、キャプチャされた変数は通常のpropsとしてRSCシリアライズ境界を流れます。実行時プロトコルの拡張は一切不要です。
+
+### フェーズ5: モジュール状態のエクスポート
+
+抽出された関数がソースファイルのトップレベル宣言を参照する場合、それらの宣言はインポート可能でなければなりません。プラグインは、抽出された関数から使用されているがまだエクスポートされていないトップレベル宣言について、合成された`export { ... }`文を元のモジュールに追記します。
+
+これにより、**共有されたモジュール状態**が保たれます。トップレベル変数が元のモジュールによって変更され、抽出モジュールから読まれる場合(またはその逆)、ESモジュールのインポートセマンティクスによって同じモジュールインスタンスを共有しているため、双方は同じバインディングを見ることになります。
+
+<Link name="recursive-extraction">
+## 再帰的な抽出と深いネストの問題
+</Link>
+
+このシステムの最も新しい側面は、任意の深さのネストの扱いです。次の例を考えてみます。
+
+```jsx
+import { useState, useTransition } from "react";
+
+async function getGreeting(name) {
+  "use server";
+
+  function GreetingCard({ message }) {
+    "use client";
+    const [liked, setLiked] = useState(false);
+    return (
+      <div>
+        <p>{message}</p>
+        <button onClick={() => setLiked(!liked)}>
+          {liked ? "Unlike" : "Like"}
+        </button>
+      </div>
+    );
+  }
+
+  return <GreetingCard message={`Hello, ${name}!`} />;
+}
+```
+
+ここで`getGreeting`は、`GreetingCard`をクライアントコンポーネントとして定義し、それをレンダリングして返すサーバー関数です。これはサーバー → クライアントという2レベルのネストです。
+
+**ステップ1:** プラグインがソースファイルを処理します。`getGreeting`が最も外側のディレクティブ関数です。これは次のIDへ抽出されます。
+
+```
+file.jsx?use-server-inline=getGreeting
+```
+
+この仮想モジュールは次の内容を含みます。
+```jsx
+"use server";
+import { useState } from "react";
+export default async function getGreeting(name) {
+  function GreetingCard({ message }) {
+    "use client";
+    const [liked, setLiked] = useState(false);
+    // ...
+  }
+  return <GreetingCard message={`Hello, ${name}!`} />;
+}
+```
+
+**ステップ2:** Viteはこの仮想モジュールを同じプラグインで処理します。今度は`GreetingCard`が、このモジュール内で最も外側の`"use client"`関数として発見されます。これは次のIDへ抽出されます。
+
+```
+file.jsx?use-server-inline=getGreeting&use-client-inline=GreetingCard
+```
+
+`getGreeting`モジュールは、`GreetingCard`をインポートする形に書き換えられます。
+```jsx
+"use server";
+import GreetingCard from "file.jsx?use-server-inline=getGreeting&use-client-inline=GreetingCard";
+export default async function getGreeting(name) {
+  return <GreetingCard message={`Hello, ${name}!`} />;
+}
+```
+
+**ステップ3:** `GreetingCard`仮想モジュールは、それ以上のディレクティブを含まない`"use client"`モジュールです。抽出は終了します。
+
+結果として得られるモジュールグラフは次のとおりです。
+
+```
+file.jsx                           (サーバーコンポーネント — 元ファイル)
+  └─ ?use-server-inline=getGreeting    (サーバー関数 — 仮想)
+       └─ ?…&use-client-inline=GreetingCard  (クライアントコンポーネント — 仮想)
+```
+
+このグラフの各エッジは、サーバー ↔ クライアントの境界の横断を表します。RSCプロトコルは、それぞれの横断を既存のシリアライズ機構で処理します。抽出は、それを可能にするモジュールグラフを生成しているだけです。
+
+### 収束の証明
+
+このアルゴリズムが停止するのは、次の理由によります。
+
+1. 各抽出パスは、ソース内のディレクティブ関数の数を少なくとも1つ確実に減らします(最も外側のものが取り除かれます)。
+2. 抽出されたモジュールが含むディレクティブ関数は、抽出前の全体の集合より確実に少なくなります(ネストしたものだけが残ります)。
+3. 元のソース全体のディレクティブ関数の総数は有限です。
+
+したがって、再帰的な抽出プロセスのパス数は最大でも$O(d)$です。ここで$d$は最大ネスト深度です。抽出コストは、ディレクティブ関数の数に対して線形です。
+
+### `skipIfModuleDirective`ガード
+
+細かい注意点があります。ファイルがトップレベルの`"use client"`ディレクティブを持つ場合、そのファイルからインラインの`"use client"`関数を再抽出してはいけません。ファイル全体がすでにクライアントモジュールだからです。しかし、そのファイルからの`"use server"`関数の抽出は行わなければなりません。
+
+各設定は`skipIfModuleDirective`リストを宣言します。
+
+```javascript
+// use-client-inline: すでに"use client"のファイルからは"use client"の抽出をスキップする
+{ skipIfModuleDirective: ["use client"] }
+
+// use-server-inline: 決してスキップしない — "use client"の中の"use server"は動作しなければならない
+{ skipIfModuleDirective: null }
+```
+
+これにより、`"use client"`ファイル(トップレベルでもインラインでも)の中の`"use server"`関数を許可しつつ、クライアントコンポーネントの無意味な二重抽出を防ぎます。
+
+<Link name="scope-capture">
+## スコープキャプチャの仕組み
+</Link>
+
+### 3層のバインディング分類
+
+抽出された関数が参照するすべての識別子は、正確に3つのカテゴリのいずれか1つに分類されます。
+
+```
+┌─────────────────────────────────────────┐
+│  Module scope                           │
+│  ┌─────────────────────────────────┐    │
+│  │  Import bindings:               │    │
+│  │  import { useState } from "…"   │    │ → 抽出モジュールへコピー
+│  └─────────────────────────────────┘    │
+│  ┌─────────────────────────────────┐    │
+│  │  Top-level declarations:        │    │
+│  │  const PREFIX = "Hello";        │    │ → 元のモジュールからインポート
+│  └─────────────────────────────────┘    │
+│                                         │
+│  ┌─────────────────────────────────┐    │
+│  │  Function scope (parent)        │    │
+│  │  ┌───────────────────────┐      │    │
+│  │  │  Captured variables:  │      │    │
+│  │  │  const factor = 5;    │      │    │ → パラメータ/propsとして注入
+│  │  └───────────────────────┘      │    │
+│  │  ┌───────────────────────┐      │    │
+│  │  │  Target function      │      │    │
+│  │  │  "use server" / etc.  │      │    │
+│  │  └───────────────────────┘      │    │
+│  └─────────────────────────────────┘    │
+└─────────────────────────────────────────┘
+```
+
+インポートバインディングは、外部モジュールへのステートレスな参照であるためコピーされます。トップレベル宣言は、**モジュール状態の同一性**を保つために、コピーではなくインポートされます。元のモジュールが変数を変更すれば、抽出モジュールもその変更を見ることができます。キャプチャされたスコープ変数はインポートできず(モジュールレベルのエクスポートではないため)、実行時に境界を越えなければなりません。
+
+### キャプチャ注入の戦略
+
+クライアントコンポーネントとサーバー関数ではネットワーク境界の越え方が異なるため、注入戦略もディレクティブごとに異なる必要があります。
+
+**サーバー関数**は`Function.prototype.bind`を使います。
+
+```javascript
+// 呼び出し箇所:
+const action = __imported_action.bind(null, capturedA, capturedB);
+
+// 抽出された関数のシグネチャ:
+export default async function action(capturedA, capturedB, userArg) { ... }
+```
+
+`bind`は、すべての呼び出しにキャプチャされた値を先頭引数として付加します。RSCプロトコルがサーバー関数を呼び出すとき、バインドされた引数が最初に到着し、その後に呼び出し側の引数が続きます。これは呼び出し側からは透過的です。
+
+**クライアントコンポーネント**はpropsの注入を使います。
+
+```javascript
+// 呼び出し箇所:
+const MyComp = (props) => createElement(__imported_MyComp, { ...props, capturedA, capturedB });
+
+// 抽出されたコンポーネントのシグネチャ:
+export default function MyComp({ capturedA, capturedB, ...rest }) { ... }
+```
+
+propsは、Reactコンポーネントにとって自然なデータの経路です。ラッパーは入ってきたpropsをスプレッドし、キャプチャされた変数を追加のpropsとして加えます。これにより、コンポーネントの公開APIを保ちながら、スコープキャプチャを暗黙的に転送します。
+
+### 分割代入パターンの処理
+
+注入は、既存のパラメータパターンに対応しなければなりません。
+
+| 元のシグネチャ | 注入後 (クライアント) | 注入後 (サーバー) |
+|---|---|---|
+| `()` | `({ x, y })` | `(x, y)` |
+| `(props)` | `({ x, y, ...props })` | `(x, y, props)` |
+| `({ a, b })` | `({ x, y, a, b })` | `(x, y, { a, b })` |
+
+これは、ASTノードの位置情報を使ってパラメータリストの境界を特定し、関数のソースに対する文字列操作として実装されています。
+
+<Link name="lambda-lifting">
+## ラムダリフティングとしての解釈
+</Link>
+
+この抽出アルゴリズムは、Johnsson(1985)以来研究されてきた古典的なコンパイラ変換である**ラムダリフティング**(**クロージャ変換**とも呼ばれます)の特殊化です。一般的な定式化では、ラムダリフティングは、すべての自由変数を明示的なパラメータにすることで、ネストした関数(クロージャ)をトップレベル関数へ変換します。
+
+$$
+\text{lift}: \quad \lambda_{\text{nested}}.\, \text{body}[v_1, \dots, v_n] \;\;\longrightarrow\;\; \Lambda_{\text{top}}(v_1, \dots, v_n).\, \text{body}
+$$
+
+ここで$v_1, \dots, v_n$は、ネストした関数の自由変数、つまり本体内で参照されるが外側のスコープで定義されている変数です。リフティング後、すべての呼び出し箇所は、キャプチャされた変数を明示的に渡す形へ書き換えられます。
+
+$$
+f(\text{args}) \;\;\longrightarrow\;\; F(v_1, \dots, v_n, \text{args})
+$$
+
+従来のラムダリフティングは、単一のコンパイル単位と単一のランタイムの中で行われます。RSCのケースが新しいのは、**リフティングされた関数とその呼び出し箇所が異なるランタイムで実行される**点です。すなわちサーバーとクライアントであり、両者はRSCシリアライズプロトコルだけで接続されています。これは、標準的なラムダリフティングにはない2つの制約を課します。
+
+### 制約1: パラメータの経路は境界の種類に一致しなければならない
+
+古典的なラムダリフティングでは、キャプチャされた変数は常に関数パラメータの先頭に追加されます。このシステムでは、輸送機構はディレクティブに依存します。
+
+| 境界 | 古典的なリフティング | RSCのリフティング |
+|---|---|---|
+| `"use server"` | $F(v_1, \dots, v_n, \text{args})$ | `F.bind(null, v₁, …, vₙ)` — 部分適用がサーバー参照を作り、そのバインドされた引数はRSCワイヤーフォーマットにシリアライズされる |
+| `"use client"` | $F(v_1, \dots, v_n, \text{args})$ | `createElement(F, { v₁, …, vₙ, ...props })` — キャプチャされた値はReactのpropsとなり、RSC要素ツリーの一部としてシリアライズされる |
+
+どちらも意味的にはパラメータ渡しと等価ですが、サーバー関数はRPC経由で呼び出され、クライアントコンポーネントは`createElement`でインスタンス化されるため、異なる実行時機構を使います。
+
+これは次のように形式化できます。
+
+$$
+\text{lift}_{\text{server}}(f) = \lambda(\text{args}).\; F.\text{bind}(\text{null},\, \vec{v})(\text{args})
+$$
+
+$$
+\text{lift}_{\text{client}}(C) = \lambda(\text{props}).\; \text{createElement}(C,\, \{ \vec{v},\, \dots\text{props} \})
+$$
+
+### 制約2: すべての自由変数がリフティングできるわけではない
+
+古典的なラムダリフティングは、*すべての*自由変数を無差別にリフティングします。RSCの文脈では、そのうちの一部、すなわち**中間スコープのキャプチャ**だけがパラメータ注入を必要とします。それ以外の自由変数には、別の輸送経路があります。
+
+$$
+\text{FreeVars}(f) = \underbrace{V_{\text{import}}}_{\text{static import}} \;\cup\; \underbrace{V_{\text{top}}}_{\text{module re-import}} \;\cup\; \underbrace{V_{\text{captured}}}_{\text{parameter injection}}
+$$
+
+- $V_{\text{import}}$ (インポートバインディング): 静的な`import`文によってどのモジュールからでも利用可能で、抽出モジュールに複製されます。実行時コストはゼロです。
+- $V_{\text{top}}$ (トップレベル宣言): 元のファイルからのESモジュール再インポートによって共有されます。参照の同一性と変更の可視性を保ちます。シリアライズコストはゼロです。
+- $V_{\text{captured}}$ (スコープキャプチャ): ランタイムの境界を越えなければなりません。パラメータ注入の対象となる*唯一の*変数群です。
+
+この3分割は、シリアライズ対象の面積を最小化します。親関数のスタックフレームに一時的に存在する変数である$V_{\text{captured}}$だけが、ネットワーク境界を越える実行時のデータ転送を必要とします。
+
+### 反復的なクロージャ変換としての再帰的リフティング
+
+ディレクティブがネストする(サーバー → クライアント → サーバー → …)とき、各抽出パスは1回分のラムダリフティングを実行します。$d$レベルの深さにネストした関数は、$d$回の連続したリフティングを受け、そのたびにクロージャが1層ずつ取り除かれます。
+
+$$
+f^{(0)} \xrightarrow{\text{lift}_1} f^{(1)} \xrightarrow{\text{lift}_2} \cdots \xrightarrow{\text{lift}_d} f^{(d)}
+$$
+
+各ステップで、直近の外側スコープからキャプチャされた変数がパラメータへ変換されます。プロセスは、クロージャが残らなくなったとき、つまりすべての抽出モジュールの自由変数が静的インポートとモジュール再インポートだけで解決可能になったとき($V_{\text{captured}} = \emptyset$)に終了します。
+
+これはまさに、ラムダリフティングの古典的な不動点による特徴づけです。すべてのネストした関数が、それぞれのモジュールのトップレベルに昇格するまで反復するのです。
+
+<Link name="virtual-module-resolution">
+## 仮想モジュールの解決
+</Link>
+
+### クエリパラメータによるアドレッシング
+
+仮想モジュールIDは、URLクエリパラメータを使って抽出チェーンをエンコードします。
+
+```
+file.jsx?use-client-inline=Counter
+file.jsx?use-client-inline=Counter&use-server-inline=increment
+```
+
+`?`が最初のパラメータを導入し、`&`が追加のパラメータを区切ります。これは標準のURLクエリ構文に従っており、複数の`?`文字による曖昧さを回避します。複数の`?`は、下流のツールの素朴な`split("?")`によるパースを壊してしまうためです。
+
+### `matchQueryKey`関数
+
+プラグインは、仮想モジュールIDがどちらの設定(クライアントかサーバーか)に属するかを判定しなければなりません。`file.jsx?use-client-inline=Counter&use-server-inline=increment`のような連結されたIDでは、**最後**のパラメータがモジュールのアイデンティティを決定します。この例は`"use client"`モジュールではなく、`"use server"`モジュールです。
+
+```javascript
+function matchQueryKey(id) {
+  let lastMatch = null;
+  let lastPos = -1;
+  for (const cfg of configs) {
+    for (const sep of ["?", "&"]) {
+      const marker = `${sep}${cfg.queryKey}=`;
+      const pos = id.indexOf(marker);
+      if (pos !== -1 && pos > lastPos) {
+        lastPos = pos;
+        lastMatch = { cfg, marker };
+      }
+    }
+  }
+  return lastMatch;
+}
+```
+
+### 相対インポートの解決
+
+抽出された仮想モジュールが(元のソースからコピーされた)相対インポートを含む場合、Viteのリゾルバーはクエリパラメータ付きIDから正しいディレクトリを特定できません。プラグインの`resolveId`フックがこれらのケースをインターセプトします。
+
+```javascript
+async resolveId(source, importer) {
+  if (matchQueryKey(source)) return source;
+
+  if (importer && matchQueryKey(importer) &&
+      (source.startsWith("./") || source.startsWith("../"))) {
+    const cleanImporter = importer.slice(0, importer.indexOf("?"));
+    return this.resolve(source, cleanImporter, { skipSelf: true });
+  }
+}
+```
+
+これは、インポーターからクエリパラメータを取り除いて実際のファイルシステムパスを復元し、Viteの通常の解決へ委譲します。`{ skipSelf: true }`フラグは無限再帰を防ぎます。
+
+<Link name="build-integration">
+## 本番ビルドとの統合
+</Link>
+
+### マニフェストの生成
+
+RSCプロトコルは、モジュールIDをバンドル済み出力ファイルへ対応付ける**クライアントマニフェスト**を必要とします。インラインで抽出されたモジュールに対しては、マニフェストは完全なクエリパラメータ付きIDをキーとするエントリーを含まなければなりません。
+
+```json
+{
+  "fixtures/app.jsx?use-server-inline=getGreeting&use-client-inline=GreetingCard#default": {
+    "id": "/client/app_use-server-inline_getGreeting_use-client-inline_GreetingCard.abc123.mjs",
+    "chunks": [],
+    "name": "default",
+    "async": true
+  }
+}
+```
+
+マニフェスト生成器は、ファイルシステムパスと完全なクエリ文字列を分離するために、`buildEntry.id`を最初の`?`だけで分割しなければなりません。連結されたパラメータの切り捨てを避けるため、`split("?")`ではなく`indexOf("?")`を使います。
+
+### サーバー参照の登録
+
+仮想参照IDに`:inline:`マーカーを持つ形で抽出されたサーバー関数は、マニフェスト登録に相対指定子を使い、ルックアップキーがエントリーIDと一致することを保証します。`isInlineExtracted`の検出は、先頭位置と連結位置の両方のクエリパラメータにマッチするよう、`[?&]use-(?:server|client|cache)-inline=`を使います。
+
+### SSRビルドとエッジビルド
+
+抽出された仮想モジュールは、すべてのビルドターゲット(サーバー、クライアント、SSR、エッジ)にまったく同じように参加します。Viteプラグインの`resolveId`/`load`/`transform`フックはすべてのビルドフェーズで発火し、仮想モジュールのキャッシュは共有されます。クライアントコンポーネントはクライアント出力へ、サーバー関数はサーバー出力へバンドルされ、RSCシリアライズの橋渡しが両者を接続します。
+
+<Link name="comparison">
+## 先行技術との比較
+</Link>
+
+| 機能 | Next.js / 標準RSC | Astro Islands | Qwik | react-server (本稿) |
+|---|---|---|---|---|
+| モジュールレベルのディレクティブ | ✓ | N/A | N/A | ✓ |
+| インラインの`"use client"` | ✗ | N/A | N/A | ✓ |
+| サーバーコンポーネント内のインライン`"use server"` | ✓ | N/A | N/A | ✓ |
+| `"use client"`モジュール内のインライン`"use server"` | ✗ | N/A | N/A | ✓ |
+| `"use server"`関数内のインライン`"use client"` | ✗ | N/A | N/A | ✓ |
+| 任意のサーバー↔クライアントのネスト | ✗ | 異なるモデル (コンパイル時アイランド) | 部分的 | ✓ |
+| キャプチャされたスコープの転送 | N/A | N/A | ✓ (resumability) | ✓ (bind/props) |
+| 単一ファイルでのアイランド合成 | ✗ | ✗ | ✓ (異なるモデル) | ✓ |
+
+Next.jsは、サーバーコンポーネントの関数本体内の`"use server"`をサポートしていますが、あらゆる関数本体内の`"use client"`も、`"use client"`モジュール内の`"use server"`もサポートしていません。モジュール境界は絶対的です。
+
+Qwikの`$`記号(`component$`、`server$`)は、resumabilityモデルによる自動スコープキャプチャを伴う関数レベルの抽出を提供します。しかし、Qwikは根本的に異なるアーキテクチャ(細粒度の遅延ロード、RSCプロトコル非採用)を使用しています。
+
+本稿の仕組みは、Reactエコシステムの中で標準RSCディレクティブの任意のネストを実装した初めてのものです。
+
+`"use client"`をモジュール境界として扱うフレームワークとは対照的に、react-serverはディレクティブをレキシカルスコープの境界として扱い、コンパイラがコンポーネント構造からモジュールグラフを合成できるようにしています。
+
+<Link name="examples">
+## パターンカタログ
+</Link>
+
+### サーバーアクションとそのクライアントUIを並べて書く
+
+```jsx
+import { useState, useTransition } from "react";
+
+async function subscribe(email) {
+  "use server";
+  await db.subscriptions.insert({ email });
+  return { success: true };
+}
+
+function NewsletterForm() {
+  "use client";
+  const [status, setStatus] = useState(null);
+  const [, startTransition] = useTransition();
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      const email = new FormData(e.target).get("email");
+      startTransition(async () => setStatus(await subscribe(email)));
+    }}>
+      <input name="email" type="email" required />
+      <button type="submit">Subscribe</button>
+      {status?.success && <p>Subscribed!</p>}
+    </form>
+  );
+}
+
+export default function Page() {
+  return <NewsletterForm />;
+}
+```
+
+1つのファイル。間接参照はゼロ。サーバーアクションとクライアントフォームは、ビルド時に別々のモジュールへ抽出されます。
+
+### クライアントコンポーネントを返すサーバーファクトリー
+
+```jsx
+import { useState } from "react";
+
+async function createWidget(config) {
+  "use server";
+
+  const data = await fetchWidgetData(config);
+
+  function Widget({ items }) {
+    "use client";
+    const [selected, setSelected] = useState(null);
+    return (
+      <ul>
+        {items.map(item => (
+          <li key={item.id} onClick={() => setSelected(item.id)}>
+            {item.name} {selected === item.id && "✓"}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return <Widget items={data.items} />;
+}
+```
+
+このサーバー関数は、データを取得し、クライアントコンポーネントを定義し、そのデータをpropsとしてレンダリングした結果を返します。クライアントコンポーネントはハイドレートされ、完全にインタラクティブになります。このパターンは、モジュールレベルのディレクティブでは不可能です。
+
+### トップレベル`"use client"`ファイルとインラインのサーバーアクション
+
+```jsx
+"use client";
+
+import { useState, useTransition } from "react";
+
+export default function TodoApp() {
+  const [items, setItems] = useState([]);
+  const [, startTransition] = useTransition();
+
+  async function addItem(text) {
+    "use server";
+    return { id: Date.now(), text };
+  }
+
+  return (
+    <div>
+      <button onClick={() =>
+        startTransition(async () => {
+          const item = await addItem(`item-${items.length}`);
+          setItems(prev => [...prev, item]);
+        })
+      }>
+        Add
+      </button>
+      <ul>
+        {items.map(item => <li key={item.id}>{item.text}</li>)}
+      </ul>
+    </div>
+  );
+}
+```
+
+ファイルレベルの`"use client"`はモジュール全体をクライアントコンポーネントにしますが、インラインの`"use server"`関数はサーバーモジュールへ抽出されます。`skipIfModuleDirective`の設定により、ファイル自身のディレクティブにかかわらず、`"use server"`の抽出は決してスキップされません。
+
+<Link name="conclusion">
+## 結論
+</Link>
+
+インラインディレクティブ抽出システムは、React Server Componentsを*モジュールレベル*のアーキテクチャから*関数レベル*のアーキテクチャへと変換します。開発者は、同じ場所にまとまったレキシカルスコープのコードを書き、コンパイラが正しいモジュールグラフを生成します。重要な洞察は次のとおりです。
+
+1. **最も外側からの抽出**と再帰的な再処理により、深さを特別扱いすることなく、任意のネストが自然に処理されます。
+2. **3層のバインディング分類**(インポート → コピー、トップレベル宣言 → インポート、スコープキャプチャ → 注入)が、モジュール状態の同一性を保ちながら、あらゆる変数アクセスパターンを正しく処理します。
+3. **クエリパラメータ付き仮想モジュール**が、抽出された関数に対する安定的で合成可能なアドレッシングスキームを提供し、ViteのモジュールグラフおよびRSCマニフェストプロトコルとシームレスに統合されます。
+4. **ディレクティブごとの注入戦略**(サーバー関数には`bind`、クライアントコンポーネントにはprops注入)は、各境界の種類にとって自然なデータ経路を使い、プロトコルの拡張を必要としません。
+
+その結果として得られるのは、プログラマーのファイル構造が、コンパイラの都合ではなく論理的な意図を反映するシステムです。サーバー関数とそのクライアントUIが同じ場所に住む。ファクトリー関数が、自身の作るコンポーネントを定義して返す。アイランドがアイランドの中にネストする。境界は明示的なままであり、ディレクティブは今もそこにあります。ただし、その粒度はファイルではなく関数なのです。

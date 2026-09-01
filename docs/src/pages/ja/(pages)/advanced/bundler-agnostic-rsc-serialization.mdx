@@ -1,0 +1,859 @@
+---
+title: バンドラー非依存のRSCシリアライズ
+date: 2026-04-13
+author: Viktor Lázár
+github: lazarv
+category: Advanced
+order: 1
+---
+
+import Link from "../../../../components/Link.jsx";
+import Subtitle from "../../../../components/Subtitle.jsx";
+
+# バンドラー非依存のRSCシリアライズ
+
+<Subtitle>バンドラーへの結合、実行環境の制約、Reactのインポートを排除したスタンドアロンなFlightプロトコル実装</Subtitle>
+
+*`@lazarv/rsc`の技術的な詳細解説です。`@lazarv/rsc`は、ReactのFlightプロトコルをゼロから実装したもので、React公式のシリアライザが前提としている3つの結合、すなわち特定のバンドラーへの依存、特定の実行環境への依存、`react-server` Node.jsエクスポート条件への依存を取り除いています。その結果、Node.js、Deno、Bun、Cloudflare Workers、ブラウザなど、Web Platform APIを提供するあらゆる環境でまったく同じように動作するRSCシリアライザが実現しています。*
+
+<Link name="abstract">
+## 概要
+</Link>
+
+React Server Components(RSC)は、Flightプロトコルに依存しています。これは、Reactの要素ツリー、データ構造、クライアント/サーバー参照のメタデータを実行環境の境界を越えてシリアライズする、行区切りのストリーミング形式です。公式実装である`react-server-dom-webpack`は、3つのインフラ上の前提と密結合しています。
+
+1. **バンドラーへの結合。** シリアライザは、クライアント参照とサーバー参照の解決をWebpackのマニフェストに依存しています。他のバンドラー(Vite、Rollup、esbuild、Rspack)では、アダプターパッケージや互換シムが必要になります。
+2. **実行環境への結合。** サーバー用エントリーポイントはNode.js固有のAPI(`stream.Readable`、`Buffer`)を使用し、クライアント用エントリーポイントはブラウザコンテキストを前提としています。同じコードをDeno、Bun、Cloudflare Workersで実行するには、別ビルドやポリフィルが必要です。
+3. **エクスポート条件への結合。** ReactのFlightサーバー内部コードは、`react-server` Node.jsエクスポート条件の背後に隠されています。この条件をサポートしていない、または設定できない環境(ワーカースレッド、カスタムランタイム、組み込みエンジン)では、条件を適用したバージョンのシリアライザとReactをバンドルしない限り、シリアライザをロードできません。
+
+本稿では、これら3つの結合をすべて取り除いたFlightプロトコルのスタンドアロン実装である`@lazarv/rsc`を紹介します。`react-server-dom-webpack`とワイヤーフォーマットの完全な互換性を保ちながら、いくつかのアーキテクチャ上の革新を導入しています。抽象的なモジュールリゾルバー/ローダーのインターフェース、Web Platform APIのみを使ったI/O、Reactを直接インポートしない`Symbol.for()`ベースのReact連携、データオブジェクトのインライン/アウトライン判定のための参照カウント、マイクロタスクで統合されるチャンクのフラッシュ、同期シリアライズモード、そしてデシリアライズ経路におけるゼロコピーの要素タプルスキャナーです。
+
+13のベンチマークシナリオ全体で、`@lazarv/rsc`は`react-server-dom-webpack`に対してシリアライズで1.1倍〜6.5倍、デシリアライズで1.0倍〜11.2倍の性能を発揮し、ラウンドトリップでは1.0倍〜6.1倍の改善を示しています。
+
+<Link name="the-problem">
+## 問題: 3層の結合
+</Link>
+
+### バンドラーへの結合
+
+`react-server-dom-webpack`は、クライアントとサーバーのマニフェスト(モジュール指定子からバンドル済み出力パスへのJSONマッピング)を生成するWebpackプラグインを必要とします。シリアライザは実行時にこのマニフェストを読み取り、`"use client"`と`"use server"`の参照を、クライアントとサーバーが正しいモジュールをロードするために使用するチャンクメタデータへと解決します。
+
+```javascript
+// react-server-dom-webpack/server — Webpackマニフェストが必要
+import { renderToReadableStream } from "react-server-dom-webpack/server";
+
+// マニフェストはWebpackプラグインによって生成される
+const manifest = require("./react-client-manifest.json");
+const stream = renderToReadableStream(<App />, manifest);
+```
+
+Webpack以外のバンドラーに対しては、Reactチームが`react-server-dom-esm`(未完成)を提供しており、コミュニティもさまざまなアダプターシム(`react-server-dom-vite`など)を構築してきました。各アダプターは、マニフェスト形式をリバースエンジニアリングし、Webpackプラグインに相当するものを独自に提供しなければなりません。これにより、すべてのバンドラーが独自の統合コードを必要とする、断片化したエコシステムが生まれています。
+
+### 実行環境への結合
+
+公式パッケージは、環境ごとに分かれた4つのエントリーポイントを提供しています。
+
+| エントリー | プラットフォーム | 使用API |
+|---|---|---|
+| `server.node` | Node.js | `stream.Readable`、`stream.Writable` |
+| `server.edge` | エッジランタイム | `ReadableStream` |
+| `client.browser` | ブラウザ | `ReadableStream`、`fetch` |
+| `client.node` | Node.js SSR | `stream.Readable` |
+
+この4分割は、条件付きインポートの複雑さを生み出します。複数の環境(SSR + エッジ + ブラウザ)をターゲットとするフレームワークは、正しいエントリーポイントを動的に選択し、APIサーフェスの違いに対処し、各組み合わせを個別にテストしなければなりません。
+
+### エクスポート条件への結合
+
+ReactのFlightサーバーコードは、`react-server` Node.jsエクスポート条件の下に置かれています。
+
+```json
+{
+  "exports": {
+    ".": {
+      "react-server": "./server.react-server.js",
+      "default": "./server.js"
+    }
+  }
+}
+```
+
+この条件は、バンドラーまたはランタイムで設定する必要があります(Node.jsでは`--conditions=react-server`、Webpack/Viteでは`resolve.conditions`)。エクスポート条件をサポートしていない環境、あるいはこの特定の条件が設定されていない環境では、Flightサーバーをまったくインポートできません。これは最も厄介な結合です。なぜなら目に見えないからです。インポート自体は成功するものの誤ったエントリーポイントがロードされ、原因のわかりにくい実行時エラーを引き起こします。
+
+`@lazarv/react-server`のように、Flightプロトコルを多様なコンテキスト(SSRのためのワーカースレッド、スナップショット保存のためのキャッシュプロバイダー、環境をまたぐ構造化ログのためのロガープロキシ)で使用するプロジェクトにとって、エクスポート条件の制約はアーキテクチャ上の根本的な障壁となります。
+
+<Link name="design-goals">
+## 設計目標
+</Link>
+
+`@lazarv/rsc`は、次の不変条件を掲げて設計されました。
+
+1. **Flightプロトコルとの完全な互換性。** `react-server-dom-webpack`がサポートするすべての型 — 要素、フラグメント、Suspense、lazy、memo、forwardRef、コンテキスト、Activity、ViewTransition、Promise、Map、Set、Date、BigInt、RegExp、Symbol、URL、URLSearchParams、FormData、TypedArray、ArrayBuffer、DataView、Blob、ReadableStream、非同期イテラブル、クライアント/サーバー参照、バインド済みアクション、一時参照、エラーダイジェストの伝播 — が同一にシリアライズ・デシリアライズされること。
+2. **バンドラー非依存。** Webpackプラグインも、Viteプラグインも、バンドラーのマニフェストも不要。モジュール解決は、利用者側が提供する抽象インターフェースであること。
+3. **実行環境非依存。** すべての環境で単一のコードパス。`ReadableStream`、`TextEncoder`、`TextDecoder`、`FormData`、`Blob`、`URL`といったWeb Platform APIのみの上に構築すること。`stream.Readable`、`Buffer`、`AsyncLocalStorage`は使わないこと。
+4. **`react-server`条件が不要。** 特別なエクスポート条件の設定なしに、あらゆる環境でシリアライザが動作すること。
+5. **Reactを直接インポートしない。** パッケージはいかなるレベルでも`react`から`import`しないこと。React連携は`Symbol.for()`と、呼び出し時に任意で渡されるReactインスタンスを通じて行うこと。
+6. **同等以上のパフォーマンス。** 代表的なワークロード全体で、実装が公式パッケージと少なくとも同等の速度であること。
+7. **同期モード。** Promiseやストリーミングを伴わないユースケース(キャッシュスナップショット、ロガーのペイロード)向けに、完全に同期的なシリアライズ/デシリアライズの経路を提供すること。
+
+<Link name="architecture">
+## アーキテクチャ
+</Link>
+
+パッケージは、2つのエントリーポイントと4つのソースファイルで構成されています。
+
+| エントリー | ソース | 役割 |
+|---|---|---|
+| `@lazarv/rsc/server` | `server/index.mjs` → `server/shared.mjs` | シリアライズ: `renderToReadableStream`、`syncToBuffer`、`prerender`、`decodeReply`、参照の登録 |
+| `@lazarv/rsc/client` | `client/index.mjs` → `client/shared.mjs` | デシリアライズ: `createFromReadableStream`、`createFromFetch`、`syncFromBuffer`、`encodeReply`、サーバー参照プロキシ |
+
+`index.mjs`ファイルは再エクスポート用のバレルです。すべてのロジックは`shared.mjs`ファイルにあり、サーバー側が約3,300行、クライアント側が約3,500行です。プラットフォームごとの条件分岐も、動的な`require()`呼び出しも、開発モードフラグ以外の環境検出もありません。
+
+### Reactを切り離す戦略
+
+最も根本的な設計判断は、Reactをインポートせずに、どうやってReactとやり取りするかです。
+
+ReactのFlightプロトコルは、Reactの要素型(`$$typeof`シンボル)、内部データ構造(lazyペイロード、コンテキストオブジェクト)、そしてクライアントコンポーネントのレンダリングにおいてはReact内部のフックディスパッチャーを扱います。公式の`react-server-dom-webpack`はこれらを`react`から直接インポートしており、それが`react-server`条件への依存を生み出しています。
+
+`@lazarv/rsc`は、これを回避するために3つの戦略を採用しています。
+
+**戦略1: 型検出に`Symbol.for()`を使う。**
+
+Reactの要素型は、`Symbol.for()`で登録されたグローバルシンボルです。どのReactのコピーがロードされているかにかかわらず、あらゆるコードがそれらを検出できます。
+
+```javascript
+const REACT_ELEMENT_TYPE = Symbol.for("react.element");
+const REACT_TRANSITIONAL_ELEMENT_TYPE = Symbol.for("react.transitional.element");
+const REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
+const REACT_SUSPENSE_TYPE = Symbol.for("react.suspense");
+const REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
+const REACT_SERVER_REFERENCE = Symbol.for("react.server.reference");
+// ... 15以上の追加の型シンボル
+```
+
+`Symbol.for()`はすべてのレルム(ワーカースレッドやiframeを含む)で同じシンボルを返すため、このアプローチは`instanceof`チェックを悩ませるReactの複数コピー問題の影響を受けません。
+
+**戦略2: 要素の構造的なダックタイピング。**
+
+`React.createElement()`を呼び出す代わりに、シリアライザはオブジェクトを構造的に検査します。
+
+```javascript
+function isReactElement(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    (value.$$typeof === REACT_ELEMENT_TYPE ||
+      value.$$typeof === REACT_TRANSITIONAL_ELEMENT_TYPE)
+  );
+}
+```
+
+これは、あらゆるReactバージョン(18、19、experimental)と、あらゆるJSX変換(classic、automatic、手動の`createElement`呼び出し)で作成された要素に対して機能します。
+
+**戦略3: フック用の任意のReactインスタンス。**
+
+フック(`use()`、`useId()`、`useMemo()`、`useCallback()`、`useEffect()`)を使用するクライアントコンポーネントには、React内部のディスパッチャーが必要です。`@lazarv/rsc`はReactをインポートする代わりに、オプションで任意の`react`インスタンスを受け取ります。
+
+```javascript
+const stream = renderToReadableStream(<App />, {
+  react: React, // 任意 — コンポーネントがフックを使う場合のみ必要
+});
+```
+
+インスタンスが渡された場合、シリアライザは`React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE`(またはクライアント側の同等物)を通じてReact内部のディスパッチャーにアクセスします。渡されなかった場合、純粋なサーバーコンポーネント(フックなし)は通常どおり動作し、フックの使用は明確なエラーをスローします。
+
+このオプトイン方式により、`@lazarv/rsc`はプレーンなデータ構造、Reactの要素、さらには既存のFlightペイロードの再シリアライズまでを、Reactへの依存を一切持たずに行えます。
+
+### 抽象モジュールインターフェース
+
+`react-server-dom-webpack`がWebpackのマニフェストを使う場面で、`@lazarv/rsc`は2つの抽象インターフェースを使います。
+
+```typescript
+// サーバー側: 参照をメタデータへ解決する方法
+interface ModuleResolver {
+  resolveClientReference?(reference: unknown): ClientReferenceMetadata | null;
+  resolveServerReference?(reference: unknown): ServerReferenceMetadata | null;
+}
+
+// クライアント側: メタデータからモジュールをロードする方法
+interface ModuleLoader {
+  preloadModule?(metadata: ClientReferenceMetadata): Promise<void> | void;
+  requireModule(metadata: ClientReferenceMetadata): unknown;
+  loadServerAction?(id: string): Promise<Function> | Function;
+}
+```
+
+フレームワーク(または任意の利用者)がこれらの実装を提供します。`@lazarv/react-server`は、Viteが生成するモジュールグラフに接続する形で実装しています。別のフレームワークであれば、Rspackのマニフェスト、インポートマップ、その他どんなモジュールシステムに対しても実装できます。Flightプロトコル自体は関知しません。
+
+<Link name="serialization-engine">
+## シリアライズエンジン
+</Link>
+
+### 参照カウントと重複排除
+
+シリアライズの前に、`@lazarv/rsc`はモデルツリー全体を事前スキャンし、各オブジェクトや配列が何回参照されているかをカウントします。
+
+```javascript
+function countReferences(model) {
+  const counts = new Map();
+  const stack = [model];
+
+  while (stack.length > 0) {
+    const value = stack.pop();
+    if (value === null || value === undefined) continue;
+    if (typeof value !== "object") continue;
+
+    // 常に個別チャンクとして出力される型はスキップ
+    if (value instanceof Date || value instanceof RegExp ||
+        ArrayBuffer.isView(value) || /* ... */) continue;
+
+    const count = (counts.get(value) || 0) + 1;
+    counts.set(value, count);
+    if (count > 1) continue; // 子は走査済み
+
+    // 型(配列、Map、Set、要素、オブジェクト)に応じて子を走査
+    // ...
+  }
+  return counts;
+}
+```
+
+この$O(n)$の事前スキャンが、重要な最適化を可能にします。それが**インライン/アウトラインの判定**です。ちょうど1回だけ参照されるオブジェクトは、親のJSON行に直接インライン化されます。複数回参照されるオブジェクトは、独自のIDを持つ個別チャンクとして出力され、以降の参照は`$<id>`による後方参照を使います。これにより、チャンク数とペイロードサイズを最小化しながら、クライアント側でのオブジェクト同一性が保たれます。
+
+なお、クライアント参照とサーバー参照の重複排除(同一クライアントコンポーネントに対する`I`行の繰り返しや、同一アクションに対するサーバー参照チャンクの繰り返しをまとめること)は、`react-server-dom-webpack`と共通の標準的な動作です。事前スキャンによる参照カウントはそれとは別の最適化で、*データ*層(プレーンなオブジェクトと配列)を対象に動作し、インライン化できるか、個別チャンクとしてアウトライン化すべきかを判定します。
+
+### `serializeValue`ディスパッチ
+
+コアとなるシリアライズ関数は、Flightでシリアライズ可能なすべての型を扱う360行の型ディスパッチャーです。ディスパッチの順序はパフォーマンス上きわめて重要で、最も頻出する型が先にチェックされます。
+
+```
+null → undefined → boolean → number (NaN/±Infinity/−0を含む) →
+string (大きな文字列のTEXT行最適化を含む) → bigint → RegExp → symbol →
+一時参照 → クライアント参照 → サーバー参照 → 関数 →
+配列 (インライン vs. アウトライン) → React要素 → Promise → Date → Map → Set →
+ReadableStream → Blob → 非同期イテラブル → TypedArray → ArrayBuffer →
+FormData → URL → URLSearchParams → Error → プレーンオブジェクト (インライン vs. アウトライン)
+```
+
+各型は特定のワイヤーフォーマットのエンコーディングに対応します。エンコーディングには、公式プロトコルと一致する1文字のプレフィックス(Dateは`$D`、Mapは`$Q`、Setは`$W`、BigIntは`$n`、Symbolは`$S`など)が使われます。
+
+### 大きな文字列の最適化
+
+1KBを超える文字列は、JSONの代わりに長さプレフィックス付きのバイナリ行形式でシリアライズされます。
+
+```javascript
+if (value.length >= TEXT_CHUNK_SIZE) {
+  const id = request.getNextChunkId();
+  const textBytes = encoder.encode(value);
+  const hexLength = textBytes.byteLength.toString(16);
+  const headerStr = `${id}:T${hexLength},`;
+  // ... バイナリチャンクとして出力 ...
+  return "$" + id;
+}
+```
+
+これにより、大きな文字列に対する`JSON.stringify()`のオーバーヘッド(クォート処理、エスケープ文字の処理、余分なアロケーション)を回避できます。16進数の長さプレフィックスによってパーサーは読み取るべきバイト数を正確に把握でき、デシリアライズ側でのゼロコピー消費が可能になります。
+
+### マイクロタスクで統合されるチャンクのフラッシュ
+
+同期的なシリアライズの間には、複数の行(ルートモデル、共有オブジェクトのチャンク、クライアント参照のチャンク、サーバー参照のチャンク)が生成されます。公式実装は各行を個別にフラッシュするため、1行につき1回の`ReadableStream.enqueue()`呼び出しが発生します。
+
+`@lazarv/rsc`は、同期処理中のフラッシュを抑制し、すべての行を単一の`enqueue()`呼び出しにまとめます。
+
+```javascript
+function startWork(request) {
+  // writeChunkごとのフラッシュを抑制する
+  const wasFlowing = request.flowing;
+  request.flowing = false;
+
+  try {
+    const serialized = serializeValue(request, request.model, null, null);
+    const row = request.serializeModelRow(0, serialized);
+    request.writeChunk(row);
+
+    // flowingを復元し、すべての行を一括でフラッシュする
+    request.flowing = wasFlowing;
+    if (request.flowing && request.destination) {
+      request.flushChunks();
+    }
+  } catch (error) {
+    // ...
+  }
+}
+```
+
+フラッシュ自体は、バッファされたすべてのチャンクを単一の`Uint8Array`に統合します。
+
+```javascript
+flushChunks() {
+  if (this.completedChunks.length === 0) return;
+  const chunks = this.completedChunks;
+  this.completedChunks = []; // 再入安全のためスワップを先に行う
+
+  // エンコードしてマージ
+  const encoded = Array.from({ length: chunks.length });
+  let totalLength = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    encoded[i] = chunk instanceof Uint8Array ? chunk : encoder.encode(chunk);
+    totalLength += encoded[i].length;
+  }
+
+  if (encoded.length === 1) {
+    this.destination.enqueue(encoded[0]);
+  } else {
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const e of encoded) { merged.set(e, offset); offset += e.length; }
+    this.destination.enqueue(merged);
+  }
+}
+```
+
+これにより、消費側での`ReadableStream`の読み取り回数が減り、(Flightデータをインライン化する場合の)SSR HTML内の`<script>`タグが減り、ストリームをSSRワーカーへ転送する際のスレッド間`MessagePort`トラフィックも減少します。
+
+### スワップを先に行う再入ガード
+
+`flushChunks`メソッドは、**スワップファースト**パターンを使います。現在のキューをローカル変数にスナップショットし、イテレーションを行う*前に*、`this.completedChunks`を新しい空の配列でアトミックに置き換えます。
+
+これは理論上の懸念ではなく、実際に本番環境で起きたバグに対する実証済みの修正です。Node.jsの`ReadableStream`実装は、待機中のリーダーが存在する場合、`controller.enqueue()`の*最中に*同期的なマイクロタスクとして`pull()`を発火させることがあります。スワップがないと、再入した`pull()`ハンドラーが`flushChunks()`を再度呼び出し、まだフラッシュされていない同じ配列を参照して、処理中のチャンクを二重に書き込みます。その結果、Flightストリーム上に重複した行が生じます。
+
+スワップにより、再入したフラッシュは何もしない操作になります。空のキューを見て、即座にリターンするだけです。再入経路の中で生成された新しいチャンクは新しい配列にプッシュされ、次のフラッシュサイクルで排出されます。
+
+<Link name="deserialization-engine">
+## デシリアライズエンジン
+</Link>
+
+### 遅延Promiseアロケーション
+
+公式のデシリアライザは、チャンクが同期的に解決される場合(これが一般的なケースで、ほとんどのチャンクは自身を作成した`processData()`呼び出しの中で解決されます)であっても、すべてのチャンクに対して`Promise`を作成します。
+
+`@lazarv/rsc`は、Promiseのアロケーションを遅延させます。
+
+```javascript
+createChunk(id) {
+  return {
+    id,
+    status: PENDING,
+    value: undefined,
+    _promise: null,   // Promiseはアロケートしない
+    _resolve: null,
+    _reject: null,
+  };
+}
+
+_ensurePromise(chunk) {
+  if (chunk._promise !== null) return chunk._promise;
+
+  if (chunk.status === RESOLVED) {
+    // すでに解決済み — 解決済みのPromiseを返す
+    const p = Promise.resolve(chunk.value);
+    p.status = "fulfilled";
+    p.value = chunk.value;
+    chunk._promise = p;
+  } else {
+    // まだ保留中 — 実際のPromiseをアロケートする
+    const p = new Promise((res, rej) => {
+      chunk._resolve = res;
+      chunk._reject = rej;
+    });
+    p.catch(() => {}); // unhandled rejectionを抑制する
+    p.status = "pending";
+    chunk._promise = p;
+  }
+  return chunk._promise;
+}
+```
+
+数百のチャンクを持つ典型的なFlightペイロードでは、大多数のチャンクが同期的に解決され、Promiseを必要としません。これにより、チャンクごとに2つのクロージャアロケーションと1つのPromiseアロケーションが節約され、大きなペイロードでは測定可能な改善となります。
+
+### 要素タプルスキャナー
+
+Reactの要素は、JSON配列`["$", type, key, props]`としてシリアライズされます。行に大きなpropsオブジェクトが含まれる場合(コンテンツの多いページでは200KB超も珍しくありません)、行全体の`JSON.parse()`は高コストです。
+
+`@lazarv/rsc`は、propsをパースせずに要素ヘッダーのフィールドだけを抽出するカスタムスキャナーを実装しています。
+
+```javascript
+function _scanElementTuple(str) {
+  // 呼び出し元で確認済み: strは'["$",'で始まる
+  let i = 5; // '["$",'の直後
+
+  // フィールド1: type — 通常は短い ("div"、"$L1")
+  const typeStart = i;
+  i = _skipJsonValue(str, i);
+  const typeEnd = i;
+
+  // ... カンマと空白をスキップ ...
+
+  // フィールド2: key — 通常はnullか短い文字列
+  const keyStart = i;
+  i = _skipJsonValue(str, i);
+  const keyEnd = i;
+
+  // 小さなヘッダーフィールドだけをパースする
+  const type = JSON.parse(str.slice(typeStart, typeEnd));
+  const key = JSON.parse(str.slice(keyStart, keyEnd));
+
+  // 以降はすべて生のprops文字列 — この時点ではパースしない
+  return { type, key, rawPropsStr: str.slice(i + 1, len - 1) };
+}
+```
+
+補助関数の`_skipJsonValue`は、オブジェクトを一切アロケートせずに、JSON値を1文字ずつ読み飛ばします。要素ヘッダー(typeとkey)については、propsのサイズに対して$O(1)$です。生のprops文字列は遅延的にパースされます。デシリアライズされた要素のpropsに実際にアクセスされたときに初めてパースされます。
+
+対になる`_scanObjectRow`関数は、同じ手法をプレーンオブジェクトの行に適用し、大きなネストされた値を先行してパースすることなく、キーと値の境界を特定します。
+
+### モジュールインポートのバッファリング
+
+Flightプロトコルは、モデル行がそれを参照するより前に`I`(インポート/モジュール)行を出力します。モジュールのロードが同期的な場合(本番ビルドのバンドルなど)、モジュールチャンクは、それを参照するモデル行より先に解決されます。しかしモジュールのロードが非同期の場合(`import()`が使われるViteの開発サーバーなど)、モデル行が到着した時点でモジュールチャンクがまだ`PENDING`のことがあります。
+
+`@lazarv/rsc`は、非同期インポートの処理中はモデル行をバッファリングすることでこれに対処します。
+
+```javascript
+// 消費ループ内:
+if (this.pendingModuleImports.length > 0) {
+  this.pendingRows.push(rowData);
+} else {
+  processRow(rowData);
+}
+
+// インポートの完了後:
+async flushPendingRows() {
+  await Promise.all(this.pendingModuleImports);
+  this.pendingModuleImports.length = 0;
+  for (const row of this.pendingRows) {
+    processRow(row);
+  }
+  this.pendingRows.length = 0;
+}
+```
+
+これにより、遅延ラッパーや解決の先送りが不要になります。バッファされた行がリプレイされる時点では、すべてのモジュールチャンクが解決済みであり、要素の構築は同期的に進行します。
+
+<Link name="synchronous-mode">
+## 同期シリアライズモード
+</Link>
+
+`@lazarv/rsc`は、他のどのFlight実装にもない同期ラウンドトリップの経路を提供します。
+
+```javascript
+import { syncToBuffer } from "@lazarv/rsc/server";
+import { syncFromBuffer } from "@lazarv/rsc/client";
+
+// Uint8Arrayへシリアライズ — Promiseもストリームも不要
+const buffer = syncToBuffer(model, options);
+
+// Uint8Arrayからデシリアライズ — 同期的に、値を直接返す
+const value = syncFromBuffer(buffer, options);
+```
+
+### 動機
+
+Flightプロトコルのユースケースのすべてが、ネットワークストリーミングを伴うわけではありません。`@lazarv/react-server`では、同期モードが2つのシステムを支えています。
+
+1. **キャッシュプロバイダー。** UIとデータのスナップショットは、任意のバックエンド(Redis、ファイルシステム、SQLite)に保存するためにバイナリバッファへシリアライズされます。Flightプロトコルの豊富な型サポート(Map、Set、Date、BigInt、TypedArray、クライアント参照を含むReact要素)により、キャッシュ用途では`JSON.stringify()`より優れています。さらに同期APIによって、キャッシュの読み書き経路でストリーム管理の複雑さを持ち込まずに済みます。
+2. **ロガープロキシ。** 構造化ログデータは、Flightプロトコルを使って環境の境界を越えてシリアライズされ、`JSON.stringify()`では失われてしまう型の忠実性(DateはISO文字列に、Mapは`{}`に、Setは`[]`になり、BigIntはスローする)を保持します。
+
+### 実装
+
+`syncToBuffer`は`renderToReadableStream`と同じ`FlightRequest`と`startWork`の仕組みを使いますが、`ReadableStream`のコントローラーを単純な配列コレクターに置き換えます。
+
+```javascript
+export function syncToBuffer(model, options = {}) {
+  const request = new FlightRequest(model, options);
+  const chunks = [];
+
+  request.destination = {
+    enqueue(chunk) {
+      chunks.push(chunk instanceof Uint8Array ? chunk : encoder.encode(chunk));
+    },
+    close() {},
+    error() {},
+  };
+  request.flowing = true;
+
+  startWork(request);
+  request.flushChunks();
+
+  // 単一のUint8Arrayに連結する
+  let totalLength = 0;
+  for (const chunk of chunks) totalLength += chunk.length;
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
+  return result;
+}
+```
+
+`syncFromBuffer`は、バッファ全体を1回の呼び出しでFlightパーサーに与え、解決済みのルート値を直接返します。入力にPromiseや非同期イテラブルが存在しないため、すべてのチャンクは同期的に解決され、結果は即座に利用可能です。
+
+### JSONとの型保持の比較
+
+同期モードは、`JSON.stringify()` / `JSON.parse()`では失われてしまう型を保持します。
+
+| 型 | `JSON.stringify` → `JSON.parse` | `syncToBuffer` → `syncFromBuffer` |
+|---|---|---|
+| `Date` | ISO文字列 (非可逆) | `Date`オブジェクト |
+| `Map` | `{}` (非可逆) | `Map` |
+| `Set` | `[]` (非可逆) | `Set` |
+| `BigInt` | スロー | `BigInt` |
+| `undefined` | 省略される | `undefined` |
+| `-0` | `0` (非可逆) | `-0` |
+| `NaN` | `null` (非可逆) | `NaN` |
+| `Infinity` | `null` (非可逆) | `Infinity` |
+| `RegExp` | `{}` (非可逆) | `RegExp` |
+| `Symbol.for()` | スロー | `Symbol` |
+| `Uint8Array` | `{0:…, 1:…}` (非可逆) | `Uint8Array` |
+| 循環参照 | スロー | `$<id>`により保持 |
+
+これにより、`syncToBuffer` / `syncFromBuffer`は、JavaScriptの型システム全体を扱える`JSON.stringify()` / `JSON.parse()`のドロップイン代替として機能します。
+
+<Link name="wire-format">
+## ワイヤーフォーマットの詳細
+</Link>
+
+### 行フォーマット
+
+Flightストリームの各行は、次の形式に従います。
+
+```
+<id>:<tag><payload>\n
+```
+
+ここで`<id>`は10進数のチャンク識別子、`<tag>`は行の種類を示す1文字、`<payload>`は行の内容(通常はJSON)です。ルートモデルは常にチャンクID `0`です。
+
+| タグ | 名前 | ペイロード |
+|---|---|---|
+| *(空)* | モデル | JSON値 |
+| `I` | インポート | `[moduleId, chunks, exportName]` または `[moduleId, chunks, exportName, 1]` (非同期) |
+| `E` | エラー | `{"message": "...", "stack": "...", "digest": "..."}` |
+| `H` | ヒント | プリロードヒントのメタデータ |
+| `D` | デバッグ | デバッグ情報 (開発モードのみ) |
+| `T` | テキスト | 長さプレフィックス付きの生UTF-8テキスト |
+| `B` | バイナリ | Base64エンコードされたバイナリチャンク |
+| `P` | ポストポン | PPRのポストポンマーカー |
+| `W` | コンソール | コンソールログのリプレイデータ |
+| `N` | ノンス | タイムスタンプ (開発モードでの計測用) |
+
+バイナリ行(TypedArray、ArrayBuffer、テキスト)は、改行終端の代わりに長さプレフィックス付きの形式を使います。
+
+```
+<id>:<tag><hex_length>,<binary_data>
+```
+
+### 値エンコーディングのプレフィックス
+
+JSONペイロード内のシリアライズされた値は、JSONにない型をエンコードするために1文字のプレフィックスを使います。
+
+| プレフィックス | 型 | 例 |
+|---|---|---|
+| `$undefined` | undefined | |
+| `$NaN` | NaN | |
+| `$Infinity` | Infinity | |
+| `$-Infinity` | -Infinity | |
+| `$-0` | 負のゼロ | |
+| `$n` | BigInt | `$n12345678901234567890` |
+| `$D` | Date | `$D2024-06-15T12:00:00.000Z` |
+| `$S` | Symbol | `$Sbench.symbol` |
+| `$R` | RegExp | `$R/pattern/flags` |
+| `$Q` | Map | `$Q<id>` (エントリーは別チャンク) |
+| `$W` | Set | `$W<id>` (アイテムは別チャンク) |
+| `$L` | クライアント参照 | `$L<id>` |
+| `$h` | サーバー参照 | `$h<id>` |
+| `$T` | 一時参照 | `$T<path>` |
+| `$l` | URL | `$lhttps://example.com` |
+| `$U` | URLSearchParams | `$U[["a","1"],["b","2"]]` |
+| `$K` | FormData | `$K[["field","value"]]` |
+| `$Z` | Error | `$Z{"name":"...","message":"..."}` |
+| `$<id>` | 後方参照 | 以前に出力されたチャンクを指す |
+| `@<id>` | Promise | 非同期チャンクを指す |
+
+<Link name="server-component-rendering">
+## サーバーコンポーネントのレンダリング
+</Link>
+
+シリアライザは、型が関数(クライアント参照ではない)であるReact要素に遭遇すると、それをサーバーコンポーネントとしてレンダリングします。つまり、その関数をpropsとともに呼び出し、戻り値をシリアライズします。
+
+### フックディスパッチャー
+
+サーバーコンポーネントは、Reactフックのサブセット(`use()`、`useId()`、`useMemo()`、`useCallback()`、`useMemoCache()`)を使用できます。これらのフックは、コンポーネントの呼び出し中にReact内部のディスパッチャー(`internals.H`)が正しく設定されていることを必要とします。
+
+`@lazarv/rsc`は、Reactをインポートせずにこれらのフックをサポートする最小限のディスパッチャーを実装しています。
+
+```javascript
+const HooksDispatcher = {
+  use(usable) {
+    if (typeof usable.then === "function") {
+      return trackUsedThenable(thenableState, usable, thenableIndexCounter++);
+    }
+    // ...
+  },
+  useId() {
+    return "_" + (currentRequest.identifierPrefix || "S") + "_" +
+           currentRequest.identifierCount++.toString(32) + "_";
+  },
+  useMemo(nextCreate) { return nextCreate(); },
+  useCallback(callback) { return callback; },
+  useMemoCache(size) {
+    const data = Array(size);
+    for (let i = 0; i < size; i++) data[i] = REACT_MEMO_CACHE_SENTINEL;
+    return data;
+  },
+  // サポート外のフックは明確なエラーをスローする
+  useState: unsupportedHook,
+  useEffect: unsupportedHook,
+  useReducer: unsupportedHook,
+  // ...
+};
+```
+
+ディスパッチャーは`callComponentWithDispatcher`を通じて各コンポーネント呼び出しの前にインストールされ、呼び出し後に復元されます。この関数は、`use()`が未解決のthenableに遭遇したときにスローする`SuspenseException`の処理も担います。
+
+### Suspenseとリトライ
+
+`use()`が保留中のPromiseに遭遇すると、`SuspenseException`をスローします。これは、Promiseの解決後にコンポーネントをリトライするようシリアライザに知らせるセンチネルエラーです。`@lazarv/rsc`は、これをリトライチェーンで処理します。
+
+```javascript
+function retryComponentRender(request, type, props, savedState, ...) {
+  return new Promise((resolve, reject) => {
+    function attempt(prevThenableState, waitFor) {
+      waitFor.then(() => {
+        try {
+          const result = callComponentWithDispatcher(
+            request, type, props, prevThenableState
+          );
+          resolve(result);
+        } catch (error) {
+          if (isThenable(error)) {
+            // コンポーネントが再度サスペンドした — 次のリトライをチェーンする
+            attempt(error._savedThenableState, error);
+          } else {
+            reject(error);
+          }
+        }
+      }, reject);
+    }
+    attempt(savedState, blockedThenable);
+  });
+}
+```
+
+各リトライは、前回の試行の`thenableState`を復元します。これにより、サスペンションポイントより前の`use()`呼び出しはキャッシュ済みの値を返します。これはReactのタスク単位のリトライセマンティクスと一致します。
+
+<Link name="security">
+## セキュリティ
+</Link>
+
+Flightペイロードは信頼境界を越えます。しかも双方向にです。サーバーからクライアントへのストリームは、信頼されたオリジンから信頼されない環境へレンダリング済みUIとデータを運びます。クライアントからサーバーへのリプライは、攻撃者が制御し得る任意のバイト列をサーバープロセスに送り込み、サーバーアクションをディスパッチします。より危険なのは後者の方向です。欠陥のあるデコーダーは、リモートコード実行の攻撃面になります。そのため`@lazarv/rsc`は、CVE-2025-55182の後にReactが追加したセキュリティバリアと同等の、専用の堅牢化されたリプライデコーダーを備え、その上にさらなる防御を重ねています。
+
+脅威モデルの前提は次のとおりです。
+
+1. クライアントは敵対的である
+2. トランスポートは信頼できない
+3. サーバー参照は、ホストが明示的に登録した関数のみを実行しなければならない
+4. すべてのデコードは、有界の時間とメモリで終了しなければならない
+
+### プロトタイプ汚染への防壁
+
+攻撃者が制御するペイロードのJSONパースは、プロトタイプ汚染の古典的な攻撃経路です。`__proto__`というキーは、新しいオブジェクトに代入された時点で`Object.prototype`を書き換える自身のプロパティとなります。デコーダーは、これを独立した2つの箇所でブロックします。
+
+1. **リバイバー側での除去。** `JSON.parse`は、`FORBIDDEN_KEYS = { __proto__, constructor, prototype }`に含まれるキーに対して`undefined`を返すリバイバーとともに実行されます。これらのキーは、パース結果のツリーで自身のプロパティになる*前に*除去されます。
+2. **パス走査時の強制。** 以前にデコードされたチャンクの中を辿る`$<hex>:<key>:<key>`形式の後方参照は、各ステップで4つの不変条件を満たさなければなりません。
+
+```javascript
+if (current === null ||
+    typeof current !== "object" ||
+    (Object.getPrototypeOf(current) !== ObjectPrototype &&
+    Object.getPrototypeOf(current) !== ArrayPrototype) ||
+    !hasOwn.call(current, key) ||
+    FORBIDDEN_KEYS.has(key)) {
+  throw new DecodeError("Invalid reference.");
+}
+```
+
+プロトタイプの固定により、プレーンでないオブジェクトへの走査はブロックされます。偽造されたパスが`Map.prototype.get`や`Function.prototype.call`に到達することはできません。自身のプロパティかどうかのチェックは、`.constructor`、`.then`、`.map`など、継承されたあらゆる名前をブロックします。禁止キーのセットは、禁止キーがリバイバーをすり抜けた場合に備えた多層防御です。
+
+### Thenableの除去
+
+ダックタイピングされたthenableは、見落としやすい権限昇格の経路です。呼び出し可能な`then`メソッドを持つオブジェクトは、下流のコードによってPromiseとしてawaitされ、攻撃者にサーバー上での同期コールバックを与えてしまいます。デコーダーは、走査フェーズ中に、値が関数であるすべての`then`プロパティを`null`に置き換えて除去します。関数でない`then`の値(文字列、オブジェクト、数値)は保持されます。それらはデータであり、能力(capability)ではないからです。
+
+### 呼び出し可能対象のホワイトリスト
+
+デコーダーのいかなるコードパスも、デコードされたバイト列から呼び出し可能なオブジェクトを構築しません。具体的には次のとおりです。
+
+- **デコードされたデータに対する`eval`、`new Function`、動的`import()`は存在しません。** パッケージ全体で唯一の`new Function`呼び出しは、クライアント側の`RegExp`デシリアライザ(`new Function("return " + regexStr)`)であり、これは信頼されたサーバーが出力した正規表現リテラルをパースするものです。クライアントが出力したものは決してパースしません。
+- **サーバー参照はホワイトリストで制限されます。** `$h<id>`タグは、ホストが実装する`moduleLoader.loadServerAction(id)`を通じてのみ解決されます。`"use server"`で明示的に登録された関数だけが到達可能であることを保証するのはホストの責任であり、デコーダーが文字列から関数のアイデンティティを作り出すことはありません。
+- **一時参照は不透明なプロキシです。** `$T<path>`タグは、リクエストスコープの`temporaryReferences`マップ内のエントリーへ解決され、登録されたもの以外へのあらゆるアクセスに対してスローします。一時参照は、それを作成したリクエストにスコープされます。あるリプライが別のリクエストの一時参照へ到達することはできません。
+
+したがって、Flightリプライを通じた攻撃者の到達範囲は、ホストが登録することを選んだ関数の集合に限定されます。デコーダーを騙してその集合を広げることはできません。
+
+### リソース上限
+
+有界のメモリと有界の時間で動作するデコーダーは、サービス拒否攻撃に耐性のあるデコーダーです。すべてのリプライデコードは、7つの明示的な上限によって制限されます。
+
+```javascript
+export const DEFAULT_LIMITS = Object.freeze({
+  maxRows: 10_000,
+  maxDepth: 128,
+  maxBytes: 32 * 1024 * 1024,
+  maxBoundArgs: 256,        // Reactと同じ値
+  maxBigIntDigits: 4096,    // Reactと同じ値
+  maxStringLength: 16 * 1024 * 1024,
+  maxStreamChunks: 10_000,
+});
+```
+
+いずれかの上限を超えると、具体的な上限名と観測値がタグ付けされた`DecodeLimitError`がスローされ、攻撃をログで観測可能にします。ホストはこれらをリクエストごとに上書きして、自身の脅威モデルに合わせられます。公開エンドポイントではより厳しく、認証済みの内部サービスでは緩和する、といった具合です。`@lazarv/react-server`の`server-function-limits`機能が、この設定をアプリケーションコードに公開しています。
+
+### エラーの秘匿
+
+シリアライズされたエラーは、`{"message":"...","stack":"...","digest":"..."}`という形式の`E`行としてネットワークを渡ります。サーバーの生のエラーメッセージとスタックを敵対的なクライアントへ送ると、ファイルパス、ライブラリのバージョン、スキーマの断片、時にはクエリ文字列に埋め込まれたシークレットまで漏洩します。`@lazarv/rsc`はReactの慣例に従い、本番環境では`digest`のみを送信します。ホストは`onError`コールバックを登録し、サーバー側で完全な`Error`を受け取ります(ロギング、トレーシング、チケットとの紐付けに使用)。そして不透明なダイジェストを返し、クライアントはそれをエラーバウンダリのマッチングにのみ使用します。完全なエラーがサーバープロセスの外へ出ることはありません。
+
+### このパッケージが防御しないもの
+
+次の事項は、シリアライザの責務からは意図的に除外されており、ホストが担保しなければなりません。
+
+- **サーバー参照に対する認証と認可。** 登録はケイパビリティベースです。登録された関数は、Flightリプライのエンドポイントに到達できるあらゆるクライアントから呼び出し可能です。CSRF対策、オリジンチェック、セッション検証、アクション単位の認可はホストの責任であり、通常はリプライエンドポイントを囲むミドルウェアとして実装します。
+- **バインド済み引数のトランスポートレベルでの完全性。** デコーダーはペイロードの署名や暗号化を行いません。バインド済み引数の暗号化は、`@lazarv/react-server`の独立した機能([サーバ関数の暗号化](../features/server-function-encryption)を参照)として提供され、プロトコルの上位にあるフレームワーク層で動作します。
+- **リクエストレートの制限。** リソース上限は1回のデコードを制限するものであり、リクエスト量を制限するものではありません。ホストは、他のアクションエンドポイントと同様に、リプライエンドポイントにもレート制限をかけるべきです。
+
+<Link name="benchmarks">
+## ベンチマーク結果
+</Link>
+
+すべてのベンチマークは、同一のフィクスチャに対してVitestのbenchモードを使ってローカルで実行しました。`react-server-dom-webpack`パッケージは同じReact experimentalバージョン(`0.0.0-experimental-ab18f33d-20260220`)を使用しています。各シナリオは、ウォームアップ付きで少なくとも100イテレーション実行しています。
+
+### シリアライズ (`renderToReadableStream`)
+
+| シナリオ | @lazarv/rsc (ops/s) | webpack (ops/s) | 高速化率 |
+|:---------|--------------------:|----------------:|--------:|
+| react: 最小要素 | 659,111 | 101,468 | **6.5×** |
+| react: 浅く広いツリー (1,000) | 4,594 | 777 | **5.9×** |
+| react: 深いネスト (100) | 31,043 | 13,457 | **2.3×** |
+| react: 商品リスト (50) | 13,423 | 4,709 | **2.8×** |
+| react: 大きなテーブル (500×10) | 650 | 212 | **3.1×** |
+| data: プリミティブ | 470,899 | 95,603 | **4.9×** |
+| data: 大きな文字列 (100KB) | 16,230 | 12,671 | **1.3×** |
+| data: ネストされたオブジェクト (20) | 118,966 | 65,035 | **1.8×** |
+| data: 大きな配列 (10K) | 299 | 296 | **1.0×** |
+| data: MapとSet | 23,300 | 14,179 | **1.6×** |
+| data: Date/BigInt/Symbol | 442,356 | 91,292 | **4.8×** |
+| data: TypedArray | 120,916 | 28,574 | **4.2×** |
+| data: 混合ペイロード | 17,901 | 10,868 | **1.6×** |
+
+最大の向上は、React要素の構築と型ディスパッチのオーバーヘッドが支配的なワークロードで見られます。最小要素のベンチマーク(テキストを含む単一の`<div>`)は要素あたりのオーバーヘッドを分離して測るもので、ここで`@lazarv/rsc`は6.5倍高速です。大きな配列のベンチマーク(10,000個のプレーンオブジェクト)は双方とも`JSON.stringify()`がI/Oボトルネックとなり、ほぼ同等の結果を示します。
+
+### デシリアライズ (`createFromReadableStream`)
+
+| シナリオ | @lazarv/rsc (ops/s) | webpack (ops/s) | 高速化率 |
+|:---------|--------------------:|----------------:|--------:|
+| react: 最小要素 | 476,960 | 381,668 | **1.2×** |
+| react: 浅く広いツリー (1,000) | 44,071 | 3,947 | **11.2×** |
+| react: 深いネスト (100) | 239,453 | 41,968 | **5.7×** |
+| react: 商品リスト (50) | 99,581 | 28,174 | **3.5×** |
+| react: 大きなテーブル (500×10) | 9,313 | 3,233 | **2.9×** |
+| data: プリミティブ | 371,182 | 346,218 | **1.1×** |
+| data: 大きな文字列 (100KB) | 75,716 | 75,692 | **1.0×** |
+| data: ネストされたオブジェクト (20) | 193,801 | 160,777 | **1.2×** |
+| data: 大きな配列 (10K) | 687 | 657 | **1.0×** |
+| data: MapとSet | 33,833 | 30,537 | **1.1×** |
+| data: Date/BigInt/Symbol | 401,727 | 311,983 | **1.3×** |
+| data: TypedArray | 125,078 | 105,250 | **1.2×** |
+| data: 混合ペイロード | 49,114 | 35,550 | **1.4×** |
+
+デシリアライズの向上が最も顕著なのは幅の広いツリーです。浅く広いツリー(1,000の兄弟要素)は**11.2倍高速**です。ここは要素タプルスキャナーと遅延Promiseアロケーションが最も効果を発揮する場面です。1,000個の要素は1,000個のチャンクを意味し、`@lazarv/rsc`は同期的に解決されるチャンクに対するPromiseアロケーションを回避します。
+
+### ラウンドトリップ (シリアライズ + デシリアライズ)
+
+| シナリオ | @lazarv/rsc (ops/s) | webpack (ops/s) | 高速化率 |
+|:---------|--------------------:|----------------:|--------:|
+| react: 最小要素 | 348,494 | 84,554 | **4.1×** |
+| react: 浅く広いツリー (1,000) | 4,039 | 668 | **6.0×** |
+| react: 深いネスト (100) | 27,359 | 10,081 | **2.7×** |
+| react: 商品リスト (50) | 11,887 | 3,969 | **3.0×** |
+| react: 大きなテーブル (500×10) | 621 | 209 | **3.0×** |
+| data: プリミティブ | 231,206 | 78,626 | **2.9×** |
+| data: 大きな文字列 (100KB) | 14,046 | 12,174 | **1.2×** |
+| data: ネストされたオブジェクト (20) | 77,477 | 47,783 | **1.6×** |
+| data: 大きな配列 (10K) | 205 | 204 | **1.0×** |
+| data: MapとSet | 13,606 | 9,829 | **1.4×** |
+| data: Date/BigInt/Symbol | 238,041 | 72,715 | **3.3×** |
+| data: TypedArray | 84,489 | 26,101 | **3.2×** |
+| data: 混合ペイロード | 12,938 | 8,383 | **1.5×** |
+
+### プリレンダー (`prerender`)
+
+`@lazarv/rsc`は、モデルを静的なプレリュード`ReadableStream`へシリアライズし、すべての非同期処理の完了を待ってから返す`prerender` APIも提供しています。主な結果は次のとおりです。
+
+| シナリオ | ops/s | 平均レイテンシ |
+|:---------|------:|-------------:|
+| react: 最小要素 | 719,453 | 1.4 µs |
+| react: 商品リスト (50) | 12,670 | 78.9 µs |
+| react: 大きなテーブル (500×10) | 613 | 1.63 ms |
+| data: プリミティブ | 519,470 | 1.9 µs |
+| data: 混合ペイロード | 18,621 | 53.7 µs |
+
+### webpackベンチマークの安定性についての補足
+
+`react-server-dom-webpack`のベンチマークは、`@lazarv/rsc`(RME 0.2〜2.6%)と比べて著しく大きなばらつき(RME 9〜31%)を示します。これは、アロケーションパターンにおけるアーキテクチャの違いを示唆しています。GC圧力が高いほど、レイテンシの変動は大きくなります。`@lazarv/rsc`の数値はより安定しており、1操作あたりのアロケーションがより少なく、より予測可能であることを示しています。
+
+さらに、`react-server-dom-webpack`のシリアライザは、TypedArrayのシリアライズ時にArrayBufferのバッキングストアを*デタッチ*するため、TypedArrayのシナリオではベンチマークのイテレーションごとにフィクスチャを新しく構築する必要があります。`@lazarv/rsc`は非破壊的な読み取り(`new Uint8Array(value.buffer, value.byteOffset, value.byteLength)`)を使用するため、フィクスチャを再利用できます。
+
+<Link name="comparison">
+## `react-server-dom-webpack`との比較
+</Link>
+
+| 観点 | `react-server-dom-webpack` | `@lazarv/rsc` |
+|---|---|---|
+| **バンドラー** | Webpackのみ (プラグイン + マニフェスト) | 任意 (抽象`ModuleResolver`インターフェース) |
+| **ランタイム** | Node.js (サーバー) + ブラウザ (クライアント) | 任意のWeb Platformランタイム |
+| **エクスポート条件** | `react-server`条件が必要 | 条件は不要 |
+| **Reactへの依存** | `react`から直接`import` | `Symbol.for()` + 任意のインスタンス |
+| **エントリーポイント** | 4つ (server.node、server.edge、client.browser、client.node) | 2つ (server、client) — すべての環境で同じコード |
+| **同期モード** | 提供なし | `syncToBuffer` / `syncFromBuffer` |
+| **オブジェクトの重複排除** | クライアント/サーバー参照の重複排除 | クライアント/サーバー参照の重複排除 + データオブジェクトの事前スキャン参照カウント |
+| **チャンクのフラッシュ** | 行ごと | マイクロタスクで統合、スワップファーストの再入ガード付き |
+| **Promiseアロケーション** | 先行 (すべてのチャンク) | 遅延 (awaitされたときのみ) |
+| **要素のパース** | 行ごとに完全な`JSON.parse` | O(1)のヘッダースキャン + propsの遅延パース |
+| **TypedArrayの扱い** | 破壊的 (ArrayBufferをデタッチ) | 非破壊的 (ビューによる読み取り) |
+| **Flightプロトコル** | 完全 | 完全な互換性 |
+| **`renderToReadableStream`** | ✅ | ✅ |
+| **`renderToPipeableStream`** | ✅ (Node.jsのみ) | — (すべての環境で`ReadableStream`を使用) |
+| **`createFromReadableStream`** | ✅ | ✅ |
+| **`createFromNodeStream`** | ✅ (Node.jsのみ) | — (すべての環境で`ReadableStream`を使用) |
+| **`encodeReply` / `decodeReply`** | ✅ | ✅ |
+| **一時参照** | ✅ | ✅ |
+| **バインド済みアクション (`.bind()`)** | ✅ | ✅ |
+| **エラーダイジェストの伝播** | ✅ | ✅ |
+| **プリレンダー** | ✅ | ✅ |
+
+<Link name="use-cases">
+## レンダリングを超えたユースケース
+</Link>
+
+`@lazarv/rsc`の疎結合な設計は、従来の「サーバーがレンダリングし、クライアントがハイドレートする」パターンを超えたFlightプロトコルの活用を可能にします。
+
+| 方向 | ユースケース | JSONではなくFlightを使う理由 |
+|---|---|---|
+| サーバー → クライアント | ストリーミングRSCレンダリング | 標準的なユースケース |
+| サーバー → キャッシュ | Redis/ファイルシステム/SQLiteへのスナップショット保存 | 型の保持 (Map、Set、Date、BigInt、クライアント参照) |
+| キャッシュ → サーバー | スナップショットの復元 | 参照を含む完全なReact要素ツリーを再構築 |
+| ワーカー → メイン | スレッド間のReactツリー転送 | ストリーミング可能なStructured Cloneの代替 |
+| プロセス → プロセス | 型付きデータのIPC | `JSON.stringify()`が失う型をFlightは扱える |
+| サーバー → ロガー | 構造化ログのシリアライズ | 環境の境界を越えて型の忠実性を保持 |
+| 任意 → 任意 | 汎用シリアライズ | より優れた`JSON.stringify`/`JSON.parse`としての`syncToBuffer`/`syncFromBuffer` |
+
+<Link name="conclusion">
+## 結論
+</Link>
+
+`@lazarv/rsc`は、React Server ComponentsのシリアライズフォーマットであるFlightプロトコルを、歴史的な3つの結合点、すなわちWebpack、Node.js、`react-server`エクスポート条件からきれいに切り離せることを実証しています。アーキテクチャ上の重要な洞察は次のとおりです。
+
+1. **`Symbol.for()`がインポートを置き換える。** Reactの型システムはグローバルシンボルの上に構築されています。あらゆるコードが、Reactをインポートせずに、Reactの要素、クライアント参照、サーバー参照を検出できます。これにより、シリアライズにおいて`react-server`エクスポート条件は不要になります。
+2. **抽象インターフェースがマニフェストを置き換える。** バンドラー固有のマニフェスト形式は実装の詳細です。抽象的な`ModuleResolver` / `ModuleLoader`インターフェースにより、あらゆるバンドラーやランタイムが、アダプターシムなしに独自のモジュール解決ロジックを提供できます。
+3. **Web Platform APIがNode.js APIを置き換える。** `ReadableStream`はどこでも動作します。サーバー/クライアント各1つのエントリーポイントにより、4分割のプラットフォーム対応と、それが生む条件付きインポートの複雑さが解消されます。
+4. **事前スキャンの参照カウントが、データオブジェクトのインライン/アウトライン判定を可能にする。** シリアライズ前の1回の$O(n)$走査により、どのオブジェクトをインライン化でき、どのオブジェクトを同一性保持のために個別チャンクとしてアウトライン化すべきかを判定し、チャンク数とペイロードサイズを削減します。
+5. **スワップファーストの再入安全性を備えたマイクロタスク統合フラッシュ**が、より少なく、より大きなストリームチャンクを生成し、SSR HTMLへの注入、スレッド間転送、消費側のイテレーションにおける下流のコストを削減します。
+6. **遅延Promiseアロケーションと$O(1)$要素スキャン**が、デシリアライズ経路のチャンクごとのオーバーヘッドを取り除きます。実際のアプリケーションでよく見られる幅の広いツリーで、最大の効果を発揮します。
+7. **同期モード**が、ネットワークストリーミングを伴わないユースケース(キャッシュ、ロギング、IPC)へFlightプロトコルを開放し、汎用の型付きシリアライズフォーマットにします。
+
+その結果として得られたのは、公式パッケージよりも高速で、移植性が高く、汎用性に優れ、それでいてワイヤーフォーマットの完全な互換性を維持したFlightプロトコル実装です。あらゆるフレームワーク、ランタイム、ツールは、`@lazarv/rsc`に依存して2つのインターフェースを実装するだけで、RSCシリアライズを採用できます。
